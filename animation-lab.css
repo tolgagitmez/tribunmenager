@@ -1,0 +1,28 @@
+.lab-app .workspace{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:stretch}
+.lab-app .stage{position:relative;border:1px solid #4b6241;border-radius:14px;overflow:hidden;min-width:0;background:#10231a}
+#animationCanvas{width:100%;height:570px;display:block}
+.stage-caption{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;padding:25px;background:linear-gradient(transparent,#08160dec);pointer-events:none}
+.stage-caption>span:first-child{font:600 33px var(--display);text-transform:uppercase}
+.stage-caption>span:last-child{font-size:8px;letter-spacing:1.4px;color:#c1d2ba}
+.lab-app .workspace>aside{padding:24px;border:1px solid var(--line);background:var(--surface);border-radius:14px}
+.lab-app aside>.eyebrow{font-size:9px;margin-bottom:18px}
+.clips{display:flex;flex-direction:column;gap:8px}
+.clips button{display:flex;align-items:center;gap:14px;width:100%;min-height:44px;padding:10px 13px;border:1px solid #365039;border-radius:7px;background:#182f22;color:#90aa82;font-size:10px;text-align:left}
+.clips button>span{flex:1;color:var(--text);font-size:12px}
+.clips button[aria-pressed=true]{color:#20300e;background:var(--accent);border-color:var(--accent)}
+.clips button[aria-pressed=true]>span{color:#14200b;font-weight:800}
+.detail{border-top:1px solid var(--line);margin-top:22px;padding-top:18px}
+.detail small{font-size:8px;letter-spacing:1.3px;color:var(--faint)}
+.detail p{font-size:11px;line-height:1.8;color:var(--muted);margin:10px 0 20px}
+.readout{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line-soft);font-size:10px;color:var(--muted)}
+.readout b{color:var(--text);font-size:11px}
+#skeleton{width:100%;min-height:39px;background:#1a3022;border:1px solid var(--line);border-radius:6px;margin-top:8px;font-size:10px}
+.transport{margin-top:21px;padding:24px;border:1px solid #526a42;background:var(--surface);border-radius:13px}
+.transport-buttons{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:22px}
+.transport-buttons>button{min-height:43px;padding:11px 15px;border:1px solid var(--line);background:#1a3022;color:var(--muted);border-radius:6px;font-size:11px}
+.transport-buttons>.primary{background:var(--accent);border-color:var(--accent);color:#14200b;min-width:130px}
+.transport>label{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:10px;margin-bottom:10px}
+.transport output{color:var(--accent);font-variant-numeric:tabular-nums}
+.footer-note{font-size:10px;line-height:1.8;color:var(--faint);margin:22px 0 0;max-width:800px}
+@media(max-width:1000px){.lab-app .workspace{grid-template-columns:minmax(0,1fr) 270px;gap:16px}.lab-app .workspace>aside{padding:21px}#animationCanvas{height:585px}.transport{padding:22px}}
+@media(max-width:760px){.lab-app .workspace{grid-template-columns:1fr}#animationCanvas{height:400px}.clips{display:grid;grid-template-columns:1fr 1fr;gap:8px}.lab-app .workspace>aside{padding:23px}.stage-caption{padding:19px}.stage-caption>span:first-child{font-size:29px}.stage-caption>span:last-child{display:none}.transport{padding:20px;margin-top:17px}.transport-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}.transport-buttons>button{padding:10px;font-size:10px;min-height:44px}.transport-buttons>.primary{min-width:0}.transport-buttons>#camera{grid-column:span 2}.footer-note{font-size:9px}}
