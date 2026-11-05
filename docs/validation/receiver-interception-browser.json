@@ -1,0 +1,62 @@
+{
+  "engineSha256": "406526afd60d3d2469e4d320b4a5a801f9680ecdbc6b98de9bf8d20d1c9ab539",
+  "runs": [
+    {
+      "mode": "webgl",
+      "state": {
+        "time": 15.283333333333672,
+        "players": 22,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          6,
+          0
+        ],
+        "arrivalSupportPlans": 5,
+        "arrivalSupportHandoffs": 4,
+        "clock": "00:15",
+        "webgl": true
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face6.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/favicon.svg",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ]
+    },
+    {
+      "mode": "2d",
+      "state": {
+        "time": 15.400000000000345,
+        "players": 22,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          6,
+          0
+        ],
+        "arrivalSupportPlans": 5,
+        "arrivalSupportHandoffs": 4,
+        "clock": "00:15",
+        "webgl": false
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face6.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ]
+    }
+  ]
+}

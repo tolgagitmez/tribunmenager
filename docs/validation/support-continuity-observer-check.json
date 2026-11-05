@@ -1,0 +1,56 @@
+{
+  "sources": {
+    "baseline": "cb35f481fadf8b0da28c31aa3605b6778dd6575d2d8df2838bd689750f8aed73",
+    "current": "0adbed0bd872eb0430d0327518b6322eda8087c6868d5c37fc46f79f6efa115a",
+    "tactics": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea",
+    "observer": "d7ad83dfd3f3b2e02d0da47aa8eb2963f153b83cbdf86ad6863f5f4c6bdd6d32"
+  },
+  "scenario": {
+    "id": "balanced21",
+    "seed": 21
+  },
+  "unobserved": {
+    "baseline": {
+      "score": [
+        2,
+        0
+      ],
+      "shots": [
+        1,
+        0
+      ],
+      "passes": [
+        44,
+        38
+      ],
+      "completedPasses": [
+        41,
+        31
+      ],
+      "finalSeed": 3357362119,
+      "seconds": 300,
+      "match": true
+    },
+    "current": {
+      "score": [
+        0,
+        0
+      ],
+      "shots": [
+        2,
+        0
+      ],
+      "passes": [
+        47,
+        23
+      ],
+      "completedPasses": [
+        43,
+        22
+      ],
+      "finalSeed": 1455897314,
+      "seconds": 300,
+      "match": true
+    }
+  }
+}

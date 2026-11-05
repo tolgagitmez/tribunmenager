@@ -1,0 +1,3267 @@
+{
+  "generatedAt": "2026-11-05T19:05:03.543Z",
+  "mode": "fork",
+  "sources": {
+    "baseline": "406526afd60d3d2469e4d320b4a5a801f9680ecdbc6b98de9bf8d20d1c9ab539",
+    "current": "7038778922feb9f8f24389003b5ddf92fb8c0790280af84ae9818a04198acf60",
+    "tactics": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea",
+    "observer": "c6ca6b91458c07915c8f55323763992dd9dd67ba05240053fa92d0c6e0b2e1e3"
+  },
+  "definitions": {
+    "baseline": "Exact published stage4 engine 406526af; retained gzip, not Git HEAD.",
+    "minimumGap": "Minimum sampled actual ball/selected receiver centre gap from release until resolution; acquire hook samples before normal first-touch impulse. A swept physical contact can occur between frames, so centre gap at acquisition can exceed1.10m.",
+    "resolvedTargeted": "Pass-kind flights with an intended recipient that resolve by actual acquisition, boundary restart, goal, replacement or flight clearing. Pending window-end flights are excluded from intended-miss denominators.",
+    "ownLastTouchOut": "Targeted flight directly resolving in throw/goal-kick/corner while passing team made last contact. It is not inferred from absence of opponent possession.",
+    "receiverInterceptionKinds": "Resolved targeted ordinary pass and cutback flights. Through/cross/long-pass flights remain separately counted; this label does not infer whether a particular planner branch was invoked.",
+    "receptions": "Real successful same-team pass-family acquisitions, including other-own recipients, are recorded only after acquire returns true. Intended prepared acquisitions require the actual target plus the same valid preparation condition as acquire (matching flight ID, age below0.55s). Planned mode comes from the pre-acquire plan; actual mode, ball impulse, body and clocks are observed after the untouched engine method returns.",
+    "actualMode": "The post-acquire receiveMode is recorded without inferring success. Current cushion mode is a fallback after a real body/swept interception when the ball is outside the existing deliberate foot-contact geometry; it retains the ordinary cushioning impulse, clears the quick prepared action, and requires normal movement to recover. This label is not a completed deliberate touch or proof of improved possession.",
+    "rapidTurnover": "Each actual reception opens an overlapping one-second observation window. Opponent acquisition means a later successful actual acquire by the other team within1s; opponent restart is recorded separately and is not silently counted as an acquisition. Elapsed without opponent acquisition does not imply continuous ownership: loose balls and own passes may occur. Pending end-of-window cases are reported separately; no success is imputed. Pressured means nearest current opponent is less than3m at acquisition.",
+    "existingFlight": "Fork snapshots may already contain a released pass. Its releaseObserved is false; its sampled gap starts at the fork, not original release.",
+    "limits": "Small synthetic sample, no win target, ball/receiver repositioning, RNG forcing, hidden opponent commands or future plans. Tactical changes and preparation timing may diverge after the shared starting state."
+  },
+  "config": {
+    "seed": 21,
+    "starters": [
+      8,
+      9,
+      10,
+      7,
+      5,
+      6,
+      4,
+      2,
+      3,
+      1,
+      0
+    ],
+    "formation": "4-3-3",
+    "awayFormation": "4-2-3-1",
+    "matchMinutes": 5,
+    "players": [
+      {
+        "id": 0,
+        "name": "Synthetic 0",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "left",
+        "weakFoot": 70
+      },
+      {
+        "id": 1,
+        "name": "Synthetic 1",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "right",
+        "weakFoot": 70
+      },
+      {
+        "id": 2,
+        "name": "Synthetic 2",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "left",
+        "weakFoot": 70
+      },
+      {
+        "id": 3,
+        "name": "Synthetic 3",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "right",
+        "weakFoot": 70
+      },
+      {
+        "id": 4,
+        "name": "Synthetic 4",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "left",
+        "weakFoot": 70
+      },
+      {
+        "id": 5,
+        "name": "Synthetic 5",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "right",
+        "weakFoot": 70
+      },
+      {
+        "id": 6,
+        "name": "Synthetic 6",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "left",
+        "weakFoot": 70
+      },
+      {
+        "id": 7,
+        "name": "Synthetic 7",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "right",
+        "weakFoot": 70
+      },
+      {
+        "id": 8,
+        "name": "Synthetic 8",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "left",
+        "weakFoot": 70
+      },
+      {
+        "id": 9,
+        "name": "Synthetic 9",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "right",
+        "weakFoot": 70
+      },
+      {
+        "id": 10,
+        "name": "Synthetic 10",
+        "rating": 82,
+        "passing": 82,
+        "shooting": 82,
+        "tackling": 82,
+        "vision": 82,
+        "composure": 82,
+        "dribbling": 82,
+        "pace": 82,
+        "agility": 82,
+        "fitness": 92,
+        "preferredFoot": "left",
+        "weakFoot": 70
+      }
+    ],
+    "tactics": {
+      "mentality": "balanced",
+      "playstyle": "possession",
+      "press": 58,
+      "tempo": 61,
+      "aggression": 55,
+      "marking": "zone",
+      "offside": "off",
+      "line": "normal",
+      "passing": "mixed",
+      "width": "narrow",
+      "onLoss": "regroup",
+      "onWin": "retain",
+      "fullbacks": "support",
+      "crossing": "mixed",
+      "shooting": "balanced"
+    },
+    "awayTactics": {
+      "mentality": "defensive",
+      "playstyle": "counter",
+      "press": 30,
+      "tempo": 76,
+      "aggression": 55,
+      "marking": "zone",
+      "offside": "off",
+      "line": "low",
+      "passing": "direct",
+      "width": "balanced",
+      "onLoss": "regroup",
+      "onWin": "counter",
+      "fullbacks": "hold",
+      "crossing": "mixed",
+      "shooting": "balanced"
+    }
+  },
+  "at": 154.61666666668185,
+  "prefix": "Complete exact published stage4 engine from initial kickoff to selected time, with the recorded config. Both branches receive identical complete state and RNG.",
+  "followSeconds": 5,
+  "branches": {
+    "baseline": {
+      "initial": {
+        "time": 154.61666666668185,
+        "seed": 943047731,
+        "owner": null,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          37,
+          19
+        ],
+        "completed": [
+          34,
+          17
+        ]
+      },
+      "end": 159.61666666668583,
+      "completed": false,
+      "finalSeed": 4146288960,
+      "score": [
+        0,
+        0
+      ],
+      "shots": [
+        0,
+        0
+      ],
+      "passes": [
+        39,
+        19
+      ],
+      "completedPasses": [
+        36,
+        18
+      ],
+      "windowPasses": [
+        2,
+        0
+      ],
+      "windowCompleted": [
+        2,
+        1
+      ],
+      "firstOpponent": {
+        "time": 154.9833333333488,
+        "id": 1,
+        "team": 0
+      },
+      "finalOwner": 5,
+      "finalPhase": "carry",
+      "finalRestart": null,
+      "finalBall": {
+        "x": -9.287545461216949,
+        "y": 0.11,
+        "z": 7.7515217306055435,
+        "vx": 1.665083943967753,
+        "vy": 0,
+        "vz": -1.9185618675564895
+      },
+      "finalFlight": null,
+      "maxPlayerStep": 0.10469005200572121,
+      "maxFreeBallStep": 0.2745356904617464,
+      "shape": [
+        {
+          "samples": 5,
+          "meanWidth": 34.896130460487555,
+          "meanDefenceLine": -18.891901695908114
+        },
+        {
+          "samples": 5,
+          "meanWidth": 39.64572921032657,
+          "meanDefenceLine": -33.7906500621183
+        }
+      ],
+      "arrivals": {
+        "byTeam": [
+          {
+            "tracked": 2,
+            "released": 2,
+            "alreadyReleasedAtWindowStart": 0,
+            "targeted": 2,
+            "resolvedTargeted": 2,
+            "pendingTargeted": 0,
+            "intendedReceives": 2,
+            "otherOwnReceives": 0,
+            "opponentReceives": 0,
+            "intendedMisses": 0,
+            "ownLastTouchOut": 0,
+            "out": 0,
+            "goalsFromPass": 0,
+            "clearedOrReplaced": 0,
+            "meanResolvedMinCentreGap": 1.0281703814604573,
+            "receiverInterceptionKinds": {
+              "resolved": 2,
+              "intendedReceives": 2,
+              "intendedMisses": 0,
+              "ownLastTouchOut": 0,
+              "gaps": {
+                "count": 2,
+                "minimum": 1.0271279655670635,
+                "median": 1.0271279655670635,
+                "p90": 1.0271279655670635,
+                "maximum": 1.029212797353851,
+                "mean": 1.0281703814604573
+              },
+              "missGaps": {
+                "count": 0,
+                "minimum": null,
+                "median": null,
+                "p90": null,
+                "maximum": null,
+                "mean": null
+              },
+              "closestMisses": []
+            },
+            "groundTargeted": {
+              "resolved": 2,
+              "intendedReceives": 2,
+              "ownLastTouchOut": 0,
+              "meanMinCentreGap": 1.0281703814604573
+            },
+            "byKind": {
+              "pass": {
+                "tracked": 2,
+                "released": 2,
+                "resolvedTargeted": 2,
+                "intendedReceives": 2,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 2,
+                  "minimum": 1.0271279655670635,
+                  "median": 1.0271279655670635,
+                  "p90": 1.0271279655670635,
+                  "maximum": 1.029212797353851,
+                  "mean": 1.0281703814604573
+                }
+              },
+              "through": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "cutback": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "cross": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "long-pass": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              }
+            }
+          },
+          {
+            "tracked": 1,
+            "released": 0,
+            "alreadyReleasedAtWindowStart": 1,
+            "targeted": 1,
+            "resolvedTargeted": 1,
+            "pendingTargeted": 0,
+            "intendedReceives": 1,
+            "otherOwnReceives": 0,
+            "opponentReceives": 0,
+            "intendedMisses": 0,
+            "ownLastTouchOut": 0,
+            "out": 0,
+            "goalsFromPass": 0,
+            "clearedOrReplaced": 0,
+            "meanResolvedMinCentreGap": 0.9522195215702297,
+            "receiverInterceptionKinds": {
+              "resolved": 1,
+              "intendedReceives": 1,
+              "intendedMisses": 0,
+              "ownLastTouchOut": 0,
+              "gaps": {
+                "count": 1,
+                "minimum": 0.9522195215702297,
+                "median": 0.9522195215702297,
+                "p90": 0.9522195215702297,
+                "maximum": 0.9522195215702297,
+                "mean": 0.9522195215702297
+              },
+              "missGaps": {
+                "count": 0,
+                "minimum": null,
+                "median": null,
+                "p90": null,
+                "maximum": null,
+                "mean": null
+              },
+              "closestMisses": []
+            },
+            "groundTargeted": {
+              "resolved": 1,
+              "intendedReceives": 1,
+              "ownLastTouchOut": 0,
+              "meanMinCentreGap": 0.9522195215702297
+            },
+            "byKind": {
+              "pass": {
+                "tracked": 1,
+                "released": 0,
+                "resolvedTargeted": 1,
+                "intendedReceives": 1,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 1,
+                  "minimum": 0.9522195215702297,
+                  "median": 0.9522195215702297,
+                  "p90": 0.9522195215702297,
+                  "maximum": 0.9522195215702297,
+                  "mean": 0.9522195215702297
+                }
+              },
+              "through": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "cutback": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "cross": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "long-pass": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              }
+            }
+          }
+        ],
+        "receptionSummary": [
+          {
+            "actualOwnPassAcquisitions": 2,
+            "intendedAcquisitions": 2,
+            "preparedAcquisitions": 2,
+            "intendedPreparedAcquisitions": 2,
+            "intendedPreparedUnder3mPressure": 0,
+            "allWindows": {
+              "count": 2,
+              "elapsedWindows": 1,
+              "pendingAtWindowEnd": 1,
+              "opponentAcquiredWithin1s": 0,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 1
+            },
+            "intendedPreparedWindows": {
+              "count": 2,
+              "elapsedWindows": 1,
+              "pendingAtWindowEnd": 1,
+              "opponentAcquiredWithin1s": 0,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 1
+            },
+            "pressuredIntendedPreparedWindows": {
+              "count": 0,
+              "elapsedWindows": 0,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 0,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 0
+            },
+            "incomingFacingTurn": {
+              "count": 2,
+              "mean": 1.0983990574934606,
+              "median": 0.981251697549559,
+              "p90": 0.981251697549559,
+              "maximum": 1.2155464174373622
+            },
+            "plannedFacingTurn": {
+              "count": 2,
+              "mean": 7.347880794884119e-16,
+              "median": 4.898587196589413e-16,
+              "p90": 4.898587196589413e-16,
+              "maximum": 9.797174393178826e-16
+            },
+            "pressure": {
+              "count": 2,
+              "mean": 14.296829169250735,
+              "median": 11.084236255603551,
+              "p90": 11.084236255603551,
+              "maximum": 17.50942208289792
+            },
+            "relativeSpeed": {
+              "count": 2,
+              "mean": 13.587830183615198,
+              "median": 13.047766615662306,
+              "p90": 13.047766615662306,
+              "maximum": 14.12789375156809
+            },
+            "plannedModes": {
+              "open": 2
+            },
+            "actualModes": {
+              "open": 2
+            },
+            "oneTouchIntentChanges": 0
+          },
+          {
+            "actualOwnPassAcquisitions": 1,
+            "intendedAcquisitions": 1,
+            "preparedAcquisitions": 1,
+            "intendedPreparedAcquisitions": 1,
+            "intendedPreparedUnder3mPressure": 1,
+            "allWindows": {
+              "count": 1,
+              "elapsedWindows": 1,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 1,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 0
+            },
+            "intendedPreparedWindows": {
+              "count": 1,
+              "elapsedWindows": 1,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 1,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 0
+            },
+            "pressuredIntendedPreparedWindows": {
+              "count": 1,
+              "elapsedWindows": 1,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 1,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 0
+            },
+            "incomingFacingTurn": {
+              "count": 1,
+              "mean": 2.5206830145896655,
+              "median": 2.5206830145896655,
+              "p90": 2.5206830145896655,
+              "maximum": 2.5206830145896655
+            },
+            "plannedFacingTurn": {
+              "count": 1,
+              "mean": 7.347880794884119e-16,
+              "median": 7.347880794884119e-16,
+              "p90": 7.347880794884119e-16,
+              "maximum": 7.347880794884119e-16
+            },
+            "pressure": {
+              "count": 1,
+              "mean": 1.6987731926279823,
+              "median": 1.6987731926279823,
+              "p90": 1.6987731926279823,
+              "maximum": 1.6987731926279823
+            },
+            "relativeSpeed": {
+              "count": 1,
+              "mean": 13.38878787940732,
+              "median": 13.38878787940732,
+              "p90": 13.38878787940732,
+              "maximum": 13.38878787940732
+            },
+            "plannedModes": {
+              "one-touch": 1
+            },
+            "actualModes": {
+              "one-touch": 1
+            },
+            "oneTouchIntentChanges": 0
+          }
+        ],
+        "flights": [
+          {
+            "id": 57,
+            "kind": "pass",
+            "team": 1,
+            "time": 154.61666666668185,
+            "releaseObserved": false,
+            "ageAtWindowStart": 0.6833333333333338,
+            "fromId": 14,
+            "targetId": 13,
+            "targetRole": "MID",
+            "commandState": "receive-run",
+            "targetSpeed": 0.5467150220333545,
+            "minGap": 0.9522195215702297,
+            "resolved": true,
+            "from": {
+              "id": 14,
+              "team": 1,
+              "role": "MID",
+              "x": 14.170756540086424,
+              "z": -11.469640815157994,
+              "vx": -0.7962634821808868,
+              "vz": 2.0642016014484343,
+              "face": -23.193784005793376,
+              "speed": 2.2124565045390416,
+              "pace": 78,
+              "energy": 0.9915500000000009,
+              "stamina": 91.66969785298785,
+              "passing": 84,
+              "kickFoot": 0,
+              "preferredFoot": 1,
+              "weakFoot": 72
+            },
+            "target": {
+              "id": 13,
+              "team": 1,
+              "role": "MID",
+              "x": 8.04276180539996,
+              "z": -3.489300313757374,
+              "vx": -0.47635468564666833,
+              "vz": 0.26829746323697345,
+              "face": 21.599040172068467,
+              "speed": 0.5467150220333545,
+              "pace": 90,
+              "energy": 0.9669666666666703,
+              "stamina": 91.66684871639782,
+              "passing": 84,
+              "kickFoot": 1,
+              "preferredFoot": 0,
+              "weakFoot": 72
+            },
+            "command": {
+              "x": 7.938395403642532,
+              "z": -3.5969944935657336,
+              "pace": 1.13,
+              "state": "receive-run"
+            },
+            "point": {
+              "x": 7.78589585703233,
+              "z": -3.4719433744579176
+            },
+            "ballAtWindowStart": {
+              "x": 8.586285167325704,
+              "y": 0.11,
+              "z": -4.529964825509602,
+              "vx": -7.855361277163088,
+              "vy": 0,
+              "vz": 11.311830235795716
+            },
+            "closest": {
+              "time": 154.63333333334853,
+              "ball": {
+                "x": 8.455633391415883,
+                "z": -4.341824438714959
+              },
+              "receiver": {
+                "x": 8.037484876740777,
+                "z": -3.4863281868620133
+              }
+            },
+            "commands": [
+              {
+                "time": 154.61666666668185,
+                "x": 7.938395403642532,
+                "z": -3.5969944935657336,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 8.04276180539996,
+                  "z": -3.489300313757374
+                },
+                "shift": 0,
+                "receiveRunShift": 0
+              }
+            ],
+            "resolution": "intended-reception",
+            "end": 154.63333333334853,
+            "elapsed": 0.01666666666667993,
+            "acquiredBy": 13,
+            "acquiredTeam": 1,
+            "maxCommandShift": 0,
+            "maxReceiveRunCommandShift": 0
+          },
+          {
+            "id": 58,
+            "kind": "pass",
+            "team": 0,
+            "time": 156.900000000017,
+            "releaseObserved": true,
+            "fromId": 1,
+            "targetId": 2,
+            "targetRole": "ATT",
+            "aimDistance": 9.654865327767329,
+            "power": 15.80858383933208,
+            "nominalArrival": 0.6642355298723948,
+            "commandState": "support",
+            "targetSpeed": 0,
+            "targetCommandDistance": 0.13495326270985697,
+            "aimDistanceToCommand": 0.13495326270985697,
+            "minGap": 1.029212797353851,
+            "resolved": true,
+            "from": {
+              "id": 1,
+              "team": 0,
+              "role": "ATT",
+              "x": 8.781474037337766,
+              "z": 3.184967217595872,
+              "vx": 2.684704328745311,
+              "vz": 2.5868167741053694,
+              "face": -22.99819423061415,
+              "speed": 3.728170912870911,
+              "pace": 82,
+              "energy": 0.9525166666666719,
+              "stamina": 91.52221485589229,
+              "passing": 82,
+              "kickFoot": 0,
+              "preferredFoot": 1,
+              "weakFoot": 70
+            },
+            "target": {
+              "id": 2,
+              "team": 0,
+              "role": "ATT",
+              "x": 3.143356084998137,
+              "z": 12.103403815149678,
+              "vx": 0,
+              "vz": 0,
+              "face": 24.144383525420814,
+              "speed": 0,
+              "pace": 82,
+              "energy": 1,
+              "stamina": 91.56364408174095,
+              "passing": 82,
+              "kickFoot": 0,
+              "preferredFoot": 0,
+              "weakFoot": 70
+            },
+            "command": {
+              "x": 3.079641449490499,
+              "z": 11.984438154817948,
+              "pace": 0.94,
+              "state": "support"
+            },
+            "point": {
+              "x": 3.143356084998137,
+              "z": 12.103403815149678
+            },
+            "ballBefore": {
+              "x": 8.460528945493078,
+              "y": 0.11,
+              "z": 4.044613752805344,
+              "vx": -1.2139015847310055,
+              "vy": 0,
+              "vz": 2.675799073266907
+            },
+            "ballAfter": {
+              "x": 8.460528945493078,
+              "y": 0.11,
+              "z": 4.044613752805344,
+              "vx": -8.789297215819834,
+              "vy": 0,
+              "vz": 13.139999142205951
+            },
+            "duration": 0.18565398647229298,
+            "contactClock": 0.19999999999999998,
+            "physicalBallAtAimDistance": {
+              "x": 3.092592019142427,
+              "y": 0.11,
+              "z": 12.069679338334524,
+              "vx": -7.42608788856516,
+              "vy": 0,
+              "vz": 11.10200122827345
+            },
+            "closest": {
+              "time": 157.45000000001744,
+              "ball": {
+                "x": 3.9530013756636353,
+                "z": 10.783367369467962
+              },
+              "receiver": {
+                "x": 3.4088835702250933,
+                "z": 11.656989024443206
+              }
+            },
+            "commands": [
+              {
+                "time": 156.900000000017,
+                "x": 3.079641449490499,
+                "z": 11.984438154817948,
+                "pace": 0.94,
+                "state": "support",
+                "receiver": {
+                  "x": 3.143356084998137,
+                  "z": 12.103403815149678
+                },
+                "shift": 0,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 156.91666666668368,
+                "x": 3.573411580760559,
+                "z": 11.350854104407244,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 3.144431103745338,
+                  "z": 12.101522650845952
+                },
+                "shift": 0.8032668868248495,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 157.08333333335048,
+                "x": 3.8259478158035645,
+                "z": 10.973312438633515,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 3.214432867509428,
+                  "z": 11.979324502777889
+                },
+                "shift": 0.4542160932913957,
+                "receiveRunShift": 0.4542160932913957
+              },
+              {
+                "time": 157.25000000001728,
+                "x": 3.3229509452758332,
+                "z": 11.7252927488875,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 3.360389924657616,
+                  "z": 11.737981726229084
+                },
+                "shift": 0.9046989768814648,
+                "receiveRunShift": 0.9046989768814648
+              },
+              {
+                "time": 157.41666666668408,
+                "x": 3.5734115807606246,
+                "z": 11.35085410440715,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 3.403755074975542,
+                  "z": 11.666531542328254
+                },
+                "shift": 0.4504828835901839,
+                "receiveRunShift": 0.4504828835901839
+              }
+            ],
+            "resolution": "intended-reception",
+            "end": 157.45000000001744,
+            "elapsed": 0.5500000000004377,
+            "acquiredBy": 2,
+            "acquiredTeam": 0,
+            "maxCommandShift": 0.9046989768814648,
+            "maxReceiveRunCommandShift": 0.9046989768814648
+          },
+          {
+            "id": 59,
+            "kind": "pass",
+            "team": 0,
+            "time": 158.4833333333516,
+            "releaseObserved": true,
+            "fromId": 2,
+            "targetId": 5,
+            "targetRole": "MID",
+            "aimDistance": 15.490818918922406,
+            "power": 16.508898270270688,
+            "nominalArrival": 1.0741944677012423,
+            "commandState": "support",
+            "targetSpeed": 0,
+            "targetCommandDistance": 0,
+            "aimDistanceToCommand": 0,
+            "minGap": 1.0271279655670635,
+            "resolved": true,
+            "from": {
+              "id": 2,
+              "team": 0,
+              "role": "ATT",
+              "x": 3.961153710527777,
+              "z": 13.014500640389498,
+              "vx": 0,
+              "vz": 0,
+              "face": 28.619872588890818,
+              "speed": 0,
+              "pace": 82,
+              "energy": 1,
+              "stamina": 91.56191977887289,
+              "passing": 82,
+              "kickFoot": 0,
+              "preferredFoot": 0,
+              "weakFoot": 70
+            },
+            "target": {
+              "id": 5,
+              "team": 0,
+              "role": "MID",
+              "x": -11.369194933361209,
+              "z": 7.495867336586331,
+              "vx": 0,
+              "vz": 0,
+              "face": -12.199900200403858,
+              "speed": 0,
+              "pace": 82,
+              "energy": 1,
+              "stamina": 91.6141970686849,
+              "passing": 82,
+              "kickFoot": 0,
+              "preferredFoot": 0,
+              "weakFoot": 70
+            },
+            "command": {
+              "x": -11.369194933361209,
+              "z": 7.495867336586331,
+              "pace": 0.94,
+              "state": "support"
+            },
+            "point": {
+              "x": -11.369194933361209,
+              "z": 7.495867336586331
+            },
+            "ballBefore": {
+              "x": 3.1166622165849445,
+              "y": 0.11,
+              "z": 12.984529597119245,
+              "vx": -2.3182606672194463,
+              "vy": 0,
+              "vz": -5.14777455315502
+            },
+            "ballAfter": {
+              "x": 3.1166622165849445,
+              "y": 0.11,
+              "z": 12.984529597119245,
+              "vx": -15.412125497891841,
+              "vy": 0,
+              "vz": -5.916934149995131
+            },
+            "duration": 0.3646141592663177,
+            "contactClock": 0.44999999999999996,
+            "physicalBallAtAimDistance": {
+              "x": -11.345020285480327,
+              "y": 0.11,
+              "z": 7.432484029195364,
+              "vx": -11.740849474043198,
+              "vy": 0,
+              "vz": -4.507479076291006
+            },
+            "closest": {
+              "time": 159.400000000019,
+              "ball": {
+                "x": -9.459632889712797,
+                "z": 8.156311061976353
+              },
+              "receiver": {
+                "x": -10.426253187546118,
+                "z": 7.808982604365181
+              }
+            },
+            "commands": [
+              {
+                "time": 158.4833333333516,
+                "x": -11.369194933361209,
+                "z": 7.495867336586331,
+                "pace": 0.94,
+                "state": "support",
+                "receiver": {
+                  "x": -11.369194933361209,
+                  "z": 7.495867336586331
+                },
+                "shift": 0,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 158.50000000001828,
+                "x": -9.255882963221627,
+                "z": 8.234533556224761,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -11.367149607449967,
+                  "z": 7.496582239629579
+                },
+                "shift": 2.2386860581980166,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 158.66666666668507,
+                "x": -10.065921873696581,
+                "z": 7.923548099165662,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -11.234170509863995,
+                  "z": 7.542948705594558
+                },
+                "shift": 0.8676836929352243,
+                "receiveRunShift": 0.8676836929352243
+              },
+              {
+                "time": 158.83333333335187,
+                "x": -9.662553145697036,
+                "z": 8.078407090034059,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -10.955745063319794,
+                  "z": 7.634429029022121
+                },
+                "shift": 0.43207364856092484,
+                "receiveRunShift": 0.43207364856092484
+              },
+              {
+                "time": 159.00000000001867,
+                "x": -10.466023206356704,
+                "z": 7.7699435078327515,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -10.644013162531204,
+                  "z": 7.74093547971291
+                },
+                "shift": 0.8606473841945456,
+                "receiveRunShift": 0.8606473841945456
+              },
+              {
+                "time": 159.16666666668547,
+                "x": -10.065921873696471,
+                "z": 7.923548099165705,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -10.53412227258876,
+                  "z": 7.777613564292558
+                },
+                "shift": 0.4285737356337392,
+                "receiveRunShift": 0.4285737356337392
+              },
+              {
+                "time": 159.33333333335227,
+                "x": -10.862890579798895,
+                "z": 7.617580479432795,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -10.43809001668284,
+                  "z": 7.807366386709629
+                },
+                "shift": 0.853683373875581,
+                "receiveRunShift": 0.853683373875581
+              }
+            ],
+            "resolution": "intended-reception",
+            "end": 159.400000000019,
+            "elapsed": 0.9166666666673962,
+            "acquiredBy": 5,
+            "acquiredTeam": 0,
+            "maxCommandShift": 2.2386860581980166,
+            "maxReceiveRunCommandShift": 0.8676836929352243
+          }
+        ],
+        "receptions": [
+          {
+            "time": 154.63333333334853,
+            "flightId": 57,
+            "kind": "pass",
+            "team": 1,
+            "fromId": 14,
+            "playerId": 13,
+            "targetId": 13,
+            "intended": true,
+            "prepared": true,
+            "plannedMode": "one-touch",
+            "actualMode": "one-touch",
+            "pressure": 1.6987731926279823,
+            "relativeSpeed": 13.38878787940732,
+            "incomingFacingTurn": 2.5206830145896655,
+            "plannedFacingTurn": 7.347880794884119e-16,
+            "windowStatus": "elapsed",
+            "opponentAcquisition": {
+              "time": 154.9833333333488,
+              "elapsed": 0.35000000000027853,
+              "playerId": 1,
+              "team": 0
+            },
+            "opponentRestart": null,
+            "pre": {
+              "player": {
+                "id": 13,
+                "team": 1,
+                "role": "MID",
+                "x": 8.037484876740777,
+                "z": -3.4863281868620133,
+                "vx": -0.31661571955104156,
+                "vz": 0.1783276137216424,
+                "face": 21.648244995595192,
+                "speed": 0.36338168870002124,
+                "pace": 90,
+                "energy": 0.9674666666666702,
+                "stamina": 91.66683871639782,
+                "passing": 84,
+                "kickFoot": 1,
+                "preferredFoot": 0,
+                "weakFoot": 72
+              },
+              "ball": {
+                "x": 8.455633391415883,
+                "y": 0.11,
+                "z": -4.341824438714959,
+                "vx": -7.822881590691896,
+                "vy": 0,
+                "vz": 11.265059032472184
+              },
+              "receiveClock": 0,
+              "mode": "settle",
+              "preparation": {
+                "flightId": 57,
+                "fromId": 14,
+                "refreshAt": 154.84466666668186,
+                "at": 154.61666666668185,
+                "mode": "one-touch",
+                "point": {
+                  "x": 7.0903213488566905,
+                  "z": -4.527374447197191,
+                  "score": 3.0331094309307787,
+                  "pathRisk": 0
+                },
+                "face": 2.7986890740564347,
+                "next": {
+                  "kind": "pass",
+                  "qId": 11,
+                  "point": {
+                    "x": -0.1819187732577335,
+                    "z": -0.545616562650186
+                  }
+                }
+              },
+              "prepared": true,
+              "pressure": 1.6987731926279823,
+              "relativeSpeed": 13.38878787940732,
+              "incomingFacingTurn": 2.5206830145896655,
+              "plannedFacingTurn": 7.347880794884119e-16
+            },
+            "post": {
+              "player": {
+                "id": 13,
+                "team": 1,
+                "role": "MID",
+                "x": 8.037484876740777,
+                "z": -3.4863281868620133,
+                "vx": -0.31661571955104156,
+                "vz": 0.1783276137216424,
+                "face": 21.648244995595192,
+                "speed": 0.36338168870002124,
+                "pace": 90,
+                "energy": 0.9674666666666702,
+                "stamina": 91.66683871639782,
+                "passing": 84,
+                "kickFoot": 1,
+                "preferredFoot": 0,
+                "weakFoot": 72
+              },
+              "ball": {
+                "x": 8.455633391415883,
+                "y": 0.11,
+                "z": -4.341824438714959,
+                "vx": -1.4084076407833503,
+                "vy": 0,
+                "vz": 1.958725860330971
+              },
+              "receiveClock": 0.045,
+              "decision": 0.045,
+              "touchClock": 0.08,
+              "mode": "one-touch",
+              "carryTarget": {
+                "x": 7.0903213488566905,
+                "z": -4.527374447197191,
+                "score": 3.0331094309307787,
+                "pathRisk": 0
+              },
+              "nextAction": {
+                "kind": "pass",
+                "qId": 11,
+                "point": {
+                  "x": -0.1819187732577335,
+                  "z": -0.545616562650186
+                },
+                "until": 155.11333333334852
+              },
+              "oneTouchUntil": 155.11333333334852
+            }
+          },
+          {
+            "time": 157.45000000001744,
+            "flightId": 58,
+            "kind": "pass",
+            "team": 0,
+            "fromId": 1,
+            "playerId": 2,
+            "targetId": 2,
+            "intended": true,
+            "prepared": true,
+            "plannedMode": "open",
+            "actualMode": "open",
+            "pressure": 11.084236255603551,
+            "relativeSpeed": 14.12789375156809,
+            "incomingFacingTurn": 0.981251697549559,
+            "plannedFacingTurn": 9.797174393178826e-16,
+            "windowStatus": "elapsed",
+            "opponentAcquisition": null,
+            "opponentRestart": null,
+            "pre": {
+              "player": {
+                "id": 2,
+                "team": 0,
+                "role": "ATT",
+                "x": 3.4088835702250933,
+                "z": 11.656989024443206,
+                "vx": 0.18462582898383004,
+                "vz": -0.3435306438616991,
+                "face": 25.132741228718345,
+                "speed": 0.38999999999999996,
+                "pace": 82,
+                "energy": 1,
+                "stamina": 91.56319826807504,
+                "passing": 82,
+                "kickFoot": 0,
+                "preferredFoot": 0,
+                "weakFoot": 70
+              },
+              "ball": {
+                "x": 3.9530013756636353,
+                "y": 0.11,
+                "z": 10.783367369467962,
+                "vx": -7.6390085728960955,
+                "vy": 0,
+                "vz": 11.420317646613556
+              },
+              "receiveClock": 0,
+              "mode": "open",
+              "preparation": {
+                "flightId": 58,
+                "fromId": 1,
+                "refreshAt": 157.4840000000173,
+                "at": 157.25000000001728,
+                "mode": "open",
+                "point": {
+                  "x": 4.458876741848763,
+                  "z": 13.904470749881536,
+                  "score": 17.175626032327873,
+                  "pathRisk": 0
+                },
+                "face": 0,
+                "next": null
+              },
+              "prepared": true,
+              "pressure": 11.084236255603551,
+              "relativeSpeed": 14.12789375156809,
+              "incomingFacingTurn": 0.981251697549559,
+              "plannedFacingTurn": 9.797174393178826e-16
+            },
+            "post": {
+              "player": {
+                "id": 2,
+                "team": 0,
+                "role": "ATT",
+                "x": 3.4088835702250933,
+                "z": 11.656989024443206,
+                "vx": 0.18462582898383004,
+                "vz": -0.3435306438616991,
+                "face": 25.132741228718345,
+                "speed": 0.38999999999999996,
+                "pace": 82,
+                "energy": 1,
+                "stamina": 91.56319826807504,
+                "passing": 82,
+                "kickFoot": 0,
+                "preferredFoot": 0,
+                "weakFoot": 70
+              },
+              "ball": {
+                "x": 3.9530013756636353,
+                "y": 0.11,
+                "z": 10.783367369467962,
+                "vx": 0.1966334390031226,
+                "vy": 0,
+                "vz": 2.1588295437841536
+              },
+              "receiveClock": 0.1732557875031362,
+              "decision": 0.5732557875031361,
+              "touchClock": 0.08,
+              "mode": "open",
+              "carryTarget": {
+                "x": 4.351013731864445,
+                "z": 14.080290647957995,
+                "score": 17.175626032327873,
+                "pathRisk": 0
+              },
+              "nextAction": null,
+              "oneTouchUntil": 0
+            }
+          },
+          {
+            "time": 159.400000000019,
+            "flightId": 59,
+            "kind": "pass",
+            "team": 0,
+            "fromId": 2,
+            "playerId": 5,
+            "targetId": 5,
+            "intended": true,
+            "prepared": true,
+            "plannedMode": "open",
+            "actualMode": "open",
+            "pressure": 17.50942208289792,
+            "relativeSpeed": 13.047766615662306,
+            "incomingFacingTurn": 1.2155464174373622,
+            "plannedFacingTurn": 4.898587196589413e-16,
+            "windowStatus": "pending-at-window-end",
+            "opponentAcquisition": null,
+            "opponentRestart": null,
+            "pre": {
+              "player": {
+                "id": 5,
+                "team": 0,
+                "role": "MID",
+                "x": -10.426253187546118,
+                "z": 7.808982604365181,
+                "vx": -0.005053748945888684,
+                "vz": -0.04416691473922913,
+                "face": -13.415354149163399,
+                "speed": 0.044455109222567506,
+                "pace": 82,
+                "energy": 1,
+                "stamina": 91.61337498336017,
+                "passing": 82,
+                "kickFoot": 0,
+                "preferredFoot": 0,
+                "weakFoot": 70
+              },
+              "ball": {
+                "x": -9.459632889712797,
+                "y": 0.11,
+                "z": 8.156311061976353,
+                "vx": -12.20006210481356,
+                "vy": 0,
+                "vz": -4.683777335573018
+              },
+              "receiveClock": 0,
+              "mode": "open",
+              "preparation": {
+                "flightId": 59,
+                "fromId": 2,
+                "refreshAt": 159.40066666668548,
+                "at": 159.16666666668547,
+                "mode": "open",
+                "point": {
+                  "x": -8.81438585438541,
+                  "z": 5.826677630915256,
+                  "score": 18.328641362893034,
+                  "pathRisk": 0
+                },
+                "face": -0.8489835348042262,
+                "next": null
+              },
+              "prepared": true,
+              "pressure": 17.50942208289792,
+              "relativeSpeed": 13.047766615662306,
+              "incomingFacingTurn": 1.2155464174373622,
+              "plannedFacingTurn": 4.898587196589413e-16
+            },
+            "post": {
+              "player": {
+                "id": 5,
+                "team": 0,
+                "role": "MID",
+                "x": -10.426253187546118,
+                "z": 7.808982604365181,
+                "vx": -0.005053748945888684,
+                "vz": -0.04416691473922913,
+                "face": -13.415354149163399,
+                "speed": 0.044455109222567506,
+                "pace": 82,
+                "energy": 1,
+                "stamina": 91.61337498336017,
+                "passing": 82,
+                "kickFoot": 0,
+                "preferredFoot": 0,
+                "weakFoot": 70
+              },
+              "ball": {
+                "x": -9.459632889712797,
+                "y": 0.11,
+                "z": 8.156311061976353,
+                "vx": 0.5567977495565704,
+                "vy": 0,
+                "vz": -1.944794781739276
+              },
+              "receiveClock": 0.17109553323132462,
+              "decision": 0.5710955332313246,
+              "touchClock": 0.08,
+              "mode": "open",
+              "carryTarget": {
+                "x": -8.708312404052595,
+                "z": 5.857398769524961,
+                "score": 18.343588156698704,
+                "pathRisk": 0
+              },
+              "nextAction": null,
+              "oneTouchUntil": 0
+            }
+          }
+        ],
+        "events": [
+          {
+            "type": "acquire",
+            "time": 154.63333333334853,
+            "playerId": 13,
+            "team": 1,
+            "from": 14,
+            "intended": 13
+          },
+          {
+            "type": "acquire",
+            "time": 154.9833333333488,
+            "playerId": 1,
+            "team": 0,
+            "from": null,
+            "intended": null
+          },
+          {
+            "type": "release",
+            "time": 156.900000000017,
+            "id": 58,
+            "from": 1,
+            "target": 2,
+            "kind": "pass"
+          },
+          {
+            "type": "acquire",
+            "time": 157.45000000001744,
+            "playerId": 2,
+            "team": 0,
+            "from": 1,
+            "intended": 2
+          },
+          {
+            "type": "release",
+            "time": 158.4833333333516,
+            "id": 59,
+            "from": 2,
+            "target": 5,
+            "kind": "pass"
+          },
+          {
+            "type": "acquire",
+            "time": 159.400000000019,
+            "playerId": 5,
+            "team": 0,
+            "from": 2,
+            "intended": 5
+          }
+        ]
+      },
+      "telemetry": {
+        "dribbleTouches": 127,
+        "receives": 66,
+        "looseBalls": 9,
+        "shotsAfterPasses": 0,
+        "restarts": 2,
+        "turnovers": 9,
+        "duels": 9,
+        "throughBalls": 0,
+        "crosses": 0,
+        "cutbacks": 0,
+        "headers": 0,
+        "feints": 0,
+        "longPasses": 0,
+        "switches": 1,
+        "offsides": 0,
+        "pressRecoveries": 0,
+        "clearances": 0,
+        "giveGoes": 14,
+        "movingPasses": 36,
+        "movingShots": 0,
+        "preparedReceives": 53,
+        "oneTouchPasses": 1,
+        "directedTouches": 51,
+        "keeperCatches": 0,
+        "returnSupports": 31,
+        "giveGoReturns": 6,
+        "giveGoCompletions": 5,
+        "alignedThroughBalls": 0,
+        "closeControlTouches": 21,
+        "strideTouches": 5,
+        "shieldCarries": 0,
+        "duelOutlets": 0,
+        "feintResponses": 0,
+        "beatenDefenders": 0,
+        "firstTouchRechecks": 51,
+        "markHandoffs": 1,
+        "markSamples": 1227,
+        "screenedReads": 0,
+        "fastCatches": 0,
+        "decisions": {
+          "pass": 59,
+          "carry": 64,
+          "feint": 0,
+          "shot": 0,
+          "clearance": 0
+        },
+        "arrivalSupportSamples": 312,
+        "arrivalSupportPlans": 58,
+        "coordinatedRuns": 58,
+        "arrivalSupportHandoffs": 53,
+        "passReviews": 89,
+        "arrivalSupportChoices": 20,
+        "arrivalSupportReleases": 20
+      }
+    },
+    "current": {
+      "initial": {
+        "time": 154.61666666668185,
+        "seed": 943047731,
+        "owner": null,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          37,
+          19
+        ],
+        "completed": [
+          34,
+          17
+        ]
+      },
+      "end": 159.61666666668583,
+      "completed": false,
+      "finalSeed": 314031653,
+      "score": [
+        0,
+        0
+      ],
+      "shots": [
+        0,
+        0
+      ],
+      "passes": [
+        37,
+        22
+      ],
+      "completedPasses": [
+        34,
+        20
+      ],
+      "windowPasses": [
+        0,
+        3
+      ],
+      "windowCompleted": [
+        0,
+        3
+      ],
+      "firstOpponent": null,
+      "finalOwner": null,
+      "finalPhase": "open",
+      "finalRestart": null,
+      "finalBall": {
+        "x": 2.5620896934318553,
+        "y": 0.11,
+        "z": 1.2525257118651054,
+        "vx": -12.59483605135102,
+        "vy": 0,
+        "vz": -2.6718537075458517
+      },
+      "finalFlight": {
+        "kind": "pass",
+        "age": 1.2333333333333338,
+        "target": 11
+      },
+      "maxPlayerStep": 0.10319982148303208,
+      "maxFreeBallStep": 0.2943202801600807,
+      "shape": [
+        {
+          "samples": 5,
+          "meanWidth": 30.360153733844005,
+          "meanDefenceLine": -21.999560470384758
+        },
+        {
+          "samples": 5,
+          "meanWidth": 43.24000269967813,
+          "meanDefenceLine": -38.99997784098567
+        }
+      ],
+      "arrivals": {
+        "byTeam": [
+          {
+            "tracked": 0,
+            "released": 0,
+            "alreadyReleasedAtWindowStart": 0,
+            "targeted": 0,
+            "resolvedTargeted": 0,
+            "pendingTargeted": 0,
+            "intendedReceives": 0,
+            "otherOwnReceives": 0,
+            "opponentReceives": 0,
+            "intendedMisses": 0,
+            "ownLastTouchOut": 0,
+            "out": 0,
+            "goalsFromPass": 0,
+            "clearedOrReplaced": 0,
+            "meanResolvedMinCentreGap": null,
+            "receiverInterceptionKinds": {
+              "resolved": 0,
+              "intendedReceives": 0,
+              "intendedMisses": 0,
+              "ownLastTouchOut": 0,
+              "gaps": {
+                "count": 0,
+                "minimum": null,
+                "median": null,
+                "p90": null,
+                "maximum": null,
+                "mean": null
+              },
+              "missGaps": {
+                "count": 0,
+                "minimum": null,
+                "median": null,
+                "p90": null,
+                "maximum": null,
+                "mean": null
+              },
+              "closestMisses": []
+            },
+            "groundTargeted": {
+              "resolved": 0,
+              "intendedReceives": 0,
+              "ownLastTouchOut": 0,
+              "meanMinCentreGap": null
+            },
+            "byKind": {
+              "pass": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "through": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "cutback": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "cross": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "long-pass": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              }
+            }
+          },
+          {
+            "tracked": 4,
+            "released": 3,
+            "alreadyReleasedAtWindowStart": 1,
+            "targeted": 4,
+            "resolvedTargeted": 3,
+            "pendingTargeted": 1,
+            "intendedReceives": 3,
+            "otherOwnReceives": 0,
+            "opponentReceives": 0,
+            "intendedMisses": 0,
+            "ownLastTouchOut": 0,
+            "out": 0,
+            "goalsFromPass": 0,
+            "clearedOrReplaced": 0,
+            "meanResolvedMinCentreGap": 0.9618451112740942,
+            "receiverInterceptionKinds": {
+              "resolved": 3,
+              "intendedReceives": 3,
+              "intendedMisses": 0,
+              "ownLastTouchOut": 0,
+              "gaps": {
+                "count": 3,
+                "minimum": 0.8936638898551887,
+                "median": 0.9522195215702297,
+                "p90": 0.9522195215702297,
+                "maximum": 1.0396519223968643,
+                "mean": 0.9618451112740942
+              },
+              "missGaps": {
+                "count": 0,
+                "minimum": null,
+                "median": null,
+                "p90": null,
+                "maximum": null,
+                "mean": null
+              },
+              "closestMisses": []
+            },
+            "groundTargeted": {
+              "resolved": 3,
+              "intendedReceives": 3,
+              "ownLastTouchOut": 0,
+              "meanMinCentreGap": 0.9618451112740942
+            },
+            "byKind": {
+              "pass": {
+                "tracked": 4,
+                "released": 3,
+                "resolvedTargeted": 3,
+                "intendedReceives": 3,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 3,
+                  "minimum": 0.8936638898551887,
+                  "median": 0.9522195215702297,
+                  "p90": 0.9522195215702297,
+                  "maximum": 1.0396519223968643,
+                  "mean": 0.9618451112740942
+                }
+              },
+              "through": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "cutback": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "cross": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              },
+              "long-pass": {
+                "tracked": 0,
+                "released": 0,
+                "resolvedTargeted": 0,
+                "intendedReceives": 0,
+                "intendedMisses": 0,
+                "ownLastTouchOut": 0,
+                "gaps": {
+                  "count": 0,
+                  "minimum": null,
+                  "median": null,
+                  "p90": null,
+                  "maximum": null,
+                  "mean": null
+                }
+              }
+            }
+          }
+        ],
+        "receptionSummary": [
+          {
+            "actualOwnPassAcquisitions": 0,
+            "intendedAcquisitions": 0,
+            "preparedAcquisitions": 0,
+            "intendedPreparedAcquisitions": 0,
+            "intendedPreparedUnder3mPressure": 0,
+            "allWindows": {
+              "count": 0,
+              "elapsedWindows": 0,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 0,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 0
+            },
+            "intendedPreparedWindows": {
+              "count": 0,
+              "elapsedWindows": 0,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 0,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 0
+            },
+            "pressuredIntendedPreparedWindows": {
+              "count": 0,
+              "elapsedWindows": 0,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 0,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 0
+            },
+            "incomingFacingTurn": {
+              "count": 0,
+              "mean": null,
+              "median": null,
+              "p90": null,
+              "maximum": null
+            },
+            "plannedFacingTurn": {
+              "count": 0,
+              "mean": null,
+              "median": null,
+              "p90": null,
+              "maximum": null
+            },
+            "pressure": {
+              "count": 0,
+              "mean": null,
+              "median": null,
+              "p90": null,
+              "maximum": null
+            },
+            "relativeSpeed": {
+              "count": 0,
+              "mean": null,
+              "median": null,
+              "p90": null,
+              "maximum": null
+            },
+            "plannedModes": {},
+            "actualModes": {},
+            "oneTouchIntentChanges": 0
+          },
+          {
+            "actualOwnPassAcquisitions": 3,
+            "intendedAcquisitions": 3,
+            "preparedAcquisitions": 3,
+            "intendedPreparedAcquisitions": 3,
+            "intendedPreparedUnder3mPressure": 1,
+            "allWindows": {
+              "count": 3,
+              "elapsedWindows": 3,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 0,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 3
+            },
+            "intendedPreparedWindows": {
+              "count": 3,
+              "elapsedWindows": 3,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 0,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 3
+            },
+            "pressuredIntendedPreparedWindows": {
+              "count": 1,
+              "elapsedWindows": 1,
+              "pendingAtWindowEnd": 0,
+              "opponentAcquiredWithin1s": 0,
+              "opponentRestartWithin1s": 0,
+              "elapsedWithoutOpponentAcquisition": 1
+            },
+            "incomingFacingTurn": {
+              "count": 3,
+              "mean": 1.49412029605726,
+              "median": 1.1563379107280087,
+              "p90": 1.1563379107280087,
+              "maximum": 2.5206830145896655
+            },
+            "plannedFacingTurn": {
+              "count": 3,
+              "mean": 5.715018396020981e-16,
+              "median": 4.898587196589413e-16,
+              "p90": 4.898587196589413e-16,
+              "maximum": 7.347880794884119e-16
+            },
+            "pressure": {
+              "count": 3,
+              "mean": 8.614868031174227,
+              "median": 8.470191649683436,
+              "p90": 8.470191649683436,
+              "maximum": 15.675639251211262
+            },
+            "relativeSpeed": {
+              "count": 3,
+              "mean": 14.034675944964356,
+              "median": 14.352964393000853,
+              "p90": 14.352964393000853,
+              "maximum": 14.362275562484898
+            },
+            "plannedModes": {
+              "one-touch": 1,
+              "open": 2
+            },
+            "actualModes": {
+              "cushion": 1,
+              "open": 2
+            },
+            "oneTouchIntentChanges": 1
+          }
+        ],
+        "flights": [
+          {
+            "id": 57,
+            "kind": "pass",
+            "team": 1,
+            "time": 154.61666666668185,
+            "releaseObserved": false,
+            "ageAtWindowStart": 0.6833333333333338,
+            "fromId": 14,
+            "targetId": 13,
+            "targetRole": "MID",
+            "commandState": "receive-run",
+            "targetSpeed": 0.5467150220333545,
+            "minGap": 0.9522195215702297,
+            "resolved": true,
+            "from": {
+              "id": 14,
+              "team": 1,
+              "role": "MID",
+              "x": 14.170756540086424,
+              "z": -11.469640815157994,
+              "vx": -0.7962634821808868,
+              "vz": 2.0642016014484343,
+              "face": -23.193784005793376,
+              "speed": 2.2124565045390416,
+              "pace": 78,
+              "energy": 0.9915500000000009,
+              "stamina": 91.66969785298785,
+              "passing": 84,
+              "kickFoot": 0,
+              "preferredFoot": 1,
+              "weakFoot": 72
+            },
+            "target": {
+              "id": 13,
+              "team": 1,
+              "role": "MID",
+              "x": 8.04276180539996,
+              "z": -3.489300313757374,
+              "vx": -0.47635468564666833,
+              "vz": 0.26829746323697345,
+              "face": 21.599040172068467,
+              "speed": 0.5467150220333545,
+              "pace": 90,
+              "energy": 0.9669666666666703,
+              "stamina": 91.66684871639782,
+              "passing": 84,
+              "kickFoot": 1,
+              "preferredFoot": 0,
+              "weakFoot": 72
+            },
+            "command": {
+              "x": 7.938395403642532,
+              "z": -3.5969944935657336,
+              "pace": 1.13,
+              "state": "receive-run"
+            },
+            "point": {
+              "x": 7.78589585703233,
+              "z": -3.4719433744579176
+            },
+            "ballAtWindowStart": {
+              "x": 8.586285167325704,
+              "y": 0.11,
+              "z": -4.529964825509602,
+              "vx": -7.855361277163088,
+              "vy": 0,
+              "vz": 11.311830235795716
+            },
+            "closest": {
+              "time": 154.63333333334853,
+              "ball": {
+                "x": 8.455633391415883,
+                "z": -4.341824438714959
+              },
+              "receiver": {
+                "x": 8.037484876740777,
+                "z": -3.4863281868620133
+              }
+            },
+            "commands": [
+              {
+                "time": 154.61666666668185,
+                "x": 7.938395403642532,
+                "z": -3.5969944935657336,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 8.04276180539996,
+                  "z": -3.489300313757374
+                },
+                "shift": 0,
+                "receiveRunShift": 0
+              }
+            ],
+            "resolution": "intended-reception",
+            "end": 154.63333333334853,
+            "elapsed": 0.01666666666667993,
+            "acquiredBy": 13,
+            "acquiredTeam": 1,
+            "maxCommandShift": 0,
+            "maxReceiveRunCommandShift": 0
+          },
+          {
+            "id": 58,
+            "kind": "pass",
+            "team": 1,
+            "time": 155.2500000000157,
+            "releaseObserved": true,
+            "fromId": 13,
+            "targetId": 16,
+            "targetRole": "MID",
+            "aimDistance": 6.722957004030248,
+            "power": 15.83175484048363,
+            "nominalArrival": 0.44980556158760626,
+            "commandState": "support",
+            "targetSpeed": 0,
+            "targetCommandDistance": 0,
+            "aimDistanceToCommand": 0,
+            "minGap": 1.0396519223968643,
+            "resolved": true,
+            "from": {
+              "id": 13,
+              "team": 1,
+              "role": "MID",
+              "x": 8.158307762543252,
+              "z": -3.839906015210032,
+              "vx": 0.38021478308511086,
+              "vz": -0.7907654395256992,
+              "face": 24.68566916301748,
+              "speed": 0.8774242198758421,
+              "pace": 90,
+              "energy": 0.9859666666666682,
+              "stamina": 91.6664687163977,
+              "passing": 84,
+              "kickFoot": 0,
+              "preferredFoot": 0,
+              "weakFoot": 72
+            },
+            "target": {
+              "id": 16,
+              "team": 1,
+              "role": "MID",
+              "x": 15.02179506518608,
+              "z": -7.130598211926328,
+              "vx": 0,
+              "vz": 0,
+              "face": -9.845118475831507,
+              "speed": 0,
+              "pace": 89,
+              "energy": 1,
+              "stamina": 91.64225955010617,
+              "passing": 83,
+              "kickFoot": 0,
+              "preferredFoot": 1,
+              "weakFoot": 71
+            },
+            "command": {
+              "x": 15.02179506518608,
+              "z": -7.130598211926328,
+              "pace": 0.94,
+              "state": "support"
+            },
+            "point": {
+              "x": 15.02179506518608,
+              "z": -7.130598211926328
+            },
+            "ballBefore": {
+              "x": 8.879764151316007,
+              "y": 0.11,
+              "z": -4.3968083276989915,
+              "vx": 4.049731425946721,
+              "vy": 0,
+              "vz": -2.5033124746022186
+            },
+            "ballAfter": {
+              "x": 8.879764151316007,
+              "y": 0.11,
+              "z": -4.3968083276989915,
+              "vx": 14.471590038749106,
+              "vy": 0,
+              "vz": -6.420089024270185
+            },
+            "duration": 0.18,
+            "contactClock": 0.18333333333333332,
+            "physicalBallAtAimDistance": {
+              "x": 15.025126973741479,
+              "y": 0.11,
+              "z": -7.123100069019085,
+              "vx": 12.895323580753026,
+              "vy": 0,
+              "vz": -5.720803668672826
+            },
+            "closest": {
+              "time": 155.61666666668265,
+              "ball": {
+                "x": 13.941740242638303,
+                "z": -6.642472906228293
+              },
+              "receiver": {
+                "x": 14.890019323873833,
+                "z": -7.068668757726868
+              }
+            },
+            "commands": [
+              {
+                "time": 155.2500000000157,
+                "x": 15.02179506518608,
+                "z": -7.130598211926328,
+                "pace": 0.94,
+                "state": "support",
+                "receiver": {
+                  "x": 15.02179506518608,
+                  "z": -7.130598211926328
+                },
+                "shift": 0,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 155.26666666668237,
+                "x": 14.378834028667466,
+                "z": -6.836382560298698,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 15.01982487400779,
+                  "z": -7.129696662612407
+                },
+                "shift": 0.707079729693732,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 155.43333333334917,
+                "x": 15.242097512563195,
+                "z": -7.21935557177652,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 14.90276112575063,
+                  "z": -7.076097898045678
+                },
+                "shift": 0.9444004289220663,
+                "receiveRunShift": 0.9444004289220663
+              },
+              {
+                "time": 155.60000000001597,
+                "x": 14.812272664744157,
+                "z": -7.028670665663732,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 14.889351686687867,
+                  "z": -7.068388611888765
+                },
+                "shift": 0.47022349284345827,
+                "receiveRunShift": 0.47022349284345827
+              }
+            ],
+            "resolution": "intended-reception",
+            "end": 155.61666666668265,
+            "elapsed": 0.36666666666695846,
+            "acquiredBy": 16,
+            "acquiredTeam": 1,
+            "maxCommandShift": 0.9444004289220663,
+            "maxReceiveRunCommandShift": 0.9444004289220663
+          },
+          {
+            "id": 59,
+            "kind": "pass",
+            "team": 1,
+            "time": 156.76666666668356,
+            "releaseObserved": true,
+            "fromId": 16,
+            "targetId": 15,
+            "targetRole": "MID",
+            "aimDistance": 14.670066288072821,
+            "power": 16.785407954568733,
+            "nominalArrival": 0.9915038240300472,
+            "commandState": "support",
+            "targetSpeed": 0,
+            "targetCommandDistance": 0,
+            "aimDistanceToCommand": 0,
+            "minGap": 0.8936638898551887,
+            "resolved": true,
+            "from": {
+              "id": 16,
+              "team": 1,
+              "role": "MID",
+              "x": 16.46850477251455,
+              "z": -6.557117221888354,
+              "vx": 0,
+              "vz": 0,
+              "face": -11.501879568486277,
+              "speed": 0,
+              "pace": 89,
+              "energy": 1,
+              "stamina": 91.64061379762504,
+              "passing": 83,
+              "kickFoot": 1,
+              "preferredFoot": 1,
+              "weakFoot": 71
+            },
+            "target": {
+              "id": 15,
+              "team": 1,
+              "role": "MID",
+              "x": 23.999957435245847,
+              "z": 7.0248640847890025,
+              "vx": 0,
+              "vz": 0,
+              "face": 10.484250300286382,
+              "speed": 0,
+              "pace": 78,
+              "energy": 1,
+              "stamina": 91.68027536133282,
+              "passing": 78,
+              "kickFoot": 1,
+              "preferredFoot": 0,
+              "weakFoot": 66
+            },
+            "command": {
+              "x": 23.999957435245847,
+              "z": 7.0248640847890025,
+              "pace": 0.94,
+              "state": "support"
+            },
+            "point": {
+              "x": 23.999957435245847,
+              "z": 7.0248640847890025
+            },
+            "ballBefore": {
+              "x": 16.803623700577464,
+              "y": 0.11,
+              "z": -5.7588609465046705,
+              "vx": -0.9289792062541833,
+              "vy": 0,
+              "vz": 0.8280146408898812
+            },
+            "ballAfter": {
+              "x": 16.803623700577464,
+              "y": 0.11,
+              "z": -5.7588609465046705,
+              "vx": 8.233966585953262,
+              "vy": 0,
+              "vz": 14.627088379534202
+            },
+            "duration": 0.27360404610881955,
+            "contactClock": 0.2833333333333333,
+            "physicalBallAtAimDistance": {
+              "x": 23.999923960699114,
+              "y": 0.11,
+              "z": 7.024882928535366,
+              "vx": 6.39009956495544,
+              "vy": 0,
+              "vz": 11.35158251067948
+            },
+            "closest": {
+              "time": 157.60000000001756,
+              "ball": {
+                "x": 22.96931750906962,
+                "z": 5.194079816190982
+              },
+              "receiver": {
+                "x": 23.407707634411807,
+                "z": 5.9728283288916915
+              }
+            },
+            "commands": [
+              {
+                "time": 156.76666666668356,
+                "x": 23.999957435245847,
+                "z": 7.0248640847890025,
+                "pace": 0.94,
+                "state": "support",
+                "receiver": {
+                  "x": 23.999957435245847,
+                  "z": 7.0248640847890025
+                },
+                "shift": 0,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 156.78333333335024,
+                "x": 23.408598673129735,
+                "z": 5.974433287764878,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 23.9988945316273,
+                  "z": 7.022976048681794
+                },
+                "shift": 1.205450142008469,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 156.95000000001704,
+                "x": 23.18986155575892,
+                "z": 5.5858614962390725,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 23.92980582978556,
+                  "z": 6.900253682930856
+                },
+                "shift": 0.44590802155295156,
+                "receiveRunShift": 0.44590802155295156
+              },
+              {
+                "time": 157.11666666668384,
+                "x": 22.969317509069697,
+                "z": 5.194079816191124,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 23.76226804619334,
+                  "z": 6.60265077136139
+                },
+                "shift": 0.4495915494660142,
+                "receiveRunShift": 0.4495915494660142
+              },
+              {
+                "time": 157.28333333335064,
+                "x": 23.408598673129692,
+                "z": 5.974433287764793,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 23.56139443305235,
+                  "z": 6.245826015250347
+                },
+                "shift": 0.8954995710188706,
+                "receiveRunShift": 0.8954995710188706
+              },
+              {
+                "time": 157.45000000001744,
+                "x": 23.189861555758853,
+                "z": 5.5858614962389375,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 23.47080054837155,
+                  "z": 6.084902059763943
+                },
+                "shift": 0.44590802155300713,
+                "receiveRunShift": 0.44590802155300713
+              }
+            ],
+            "resolution": "intended-reception",
+            "end": 157.60000000001756,
+            "elapsed": 0.8333333333339965,
+            "acquiredBy": 15,
+            "acquiredTeam": 1,
+            "maxCommandShift": 1.205450142008469,
+            "maxReceiveRunCommandShift": 0.8954995710188706
+          },
+          {
+            "id": 60,
+            "kind": "pass",
+            "team": 1,
+            "time": 158.38333333335152,
+            "releaseObserved": true,
+            "fromId": 15,
+            "targetId": 11,
+            "targetRole": "ATT",
+            "aimDistance": 22.291941564752083,
+            "power": 17.70003298777025,
+            "nominalArrival": 1.5277710483751543,
+            "commandState": "shape",
+            "targetSpeed": 0.38315508454297986,
+            "targetCommandDistance": 0.18519162419577365,
+            "aimDistanceToCommand": 0.15398191276867113,
+            "minGap": 2.3822077724300432,
+            "resolved": false,
+            "from": {
+              "id": 15,
+              "team": 1,
+              "role": "MID",
+              "x": 21.6115874157283,
+              "z": 5.485173775796404,
+              "vx": -2.404259590952513,
+              "vz": -0.5416817489250522,
+              "face": 9.647528958283685,
+              "speed": 2.464524963924214,
+              "pace": 78,
+              "energy": 1,
+              "stamina": 91.67799020294484,
+              "passing": 78,
+              "kickFoot": 1,
+              "preferredFoot": 0,
+              "weakFoot": 66
+            },
+            "target": {
+              "id": 11,
+              "team": 1,
+              "role": "ATT",
+              "x": -0.9875400301431461,
+              "z": 0.3346359955837824,
+              "vx": -0.025779247979697873,
+              "vz": 0.382286867659274,
+              "face": 14.204499304289975,
+              "speed": 0.38315508454297986,
+              "pace": 71,
+              "energy": 1,
+              "stamina": 91.62390120955222,
+              "passing": 77,
+              "kickFoot": 0,
+              "preferredFoot": 0,
+              "weakFoot": 65
+            },
+            "command": {
+              "x": -1,
+              "z": 0.5194079816190982,
+              "pace": 0.88,
+              "state": "shape"
+            },
+            "point": {
+              "x": -0.989639866274027,
+              "z": 0.3657749868260571
+            },
+            "ballBefore": {
+              "x": 20.789588604473963,
+              "y": 0.11,
+              "z": 5.119285894069442,
+              "vx": -3.4519607991670047,
+              "vy": 0,
+              "vz": 0.6737291667766983
+            },
+            "ballAfter": {
+              "x": 20.789588604473963,
+              "y": 0.11,
+              "z": 5.119285894069442,
+              "vx": -17.314714381844276,
+              "vy": 0,
+              "vz": -3.673123145677282
+            },
+            "duration": 0.18,
+            "contactClock": 0.18333333333333332,
+            "physicalBallAtAimDistance": {
+              "x": -1.0170713874670163,
+              "y": 0.11,
+              "z": 0.4932466895012002,
+              "vx": -11.729664093378219,
+              "vy": 0,
+              "vz": -2.4883171458828373
+            },
+            "closest": {
+              "time": 159.61666666668583,
+              "ball": {
+                "x": 2.5620896934318553,
+                "z": 1.2525257118651054
+              },
+              "receiver": {
+                "x": 0.2381055975535382,
+                "z": 0.7290643540451139
+              }
+            },
+            "commands": [
+              {
+                "time": 158.38333333335152,
+                "x": -1,
+                "z": 0.5194079816190982,
+                "pace": 0.88,
+                "state": "shape",
+                "receiver": {
+                  "x": -0.9875400301431461,
+                  "z": 0.3346359955837824
+                },
+                "shift": 0,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 158.4000000000182,
+                "x": 1.7292117143000034,
+                "z": 1.0758399568934847,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -0.9858388562585068,
+                  "z": 0.3413998926152149
+                },
+                "shift": 2.7853569115250054,
+                "receiveRunShift": 0
+              },
+              {
+                "time": 158.566666666685,
+                "x": 0.909706878716019,
+                "z": 0.901991164866379,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -0.8512879808178827,
+                  "z": 0.4285599414136717
+                },
+                "shift": 0.8377419519367627,
+                "receiveRunShift": 0.8377419519367627
+              },
+              {
+                "time": 158.7333333333518,
+                "x": 1.3178045181974642,
+                "z": 0.9885645181552638,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -0.5429096635443478,
+                  "z": 0.5205021532586558
+                },
+                "shift": 0.4171793725126037,
+                "receiveRunShift": 0.4171793725126037
+              },
+              {
+                "time": 158.9000000000186,
+                "x": 0.5048858242362932,
+                "z": 0.8161129024662683,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -0.21408923482545233,
+                  "z": 0.6034216163488906
+                },
+                "shift": 0.8310092434776408,
+                "receiveRunShift": 0.8310092434776408
+              },
+              {
+                "time": 159.0666666666854,
+                "x": 0.9097068787161824,
+                "z": 0.9019911648664125,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": -0.05716192034250869,
+                  "z": 0.6477144249730377
+                },
+                "shift": 0.41382987096520396,
+                "receiveRunShift": 0.41382987096520396
+              },
+              {
+                "time": 159.2333333333522,
+                "x": 0.10330897241616288,
+                "z": 0.730922861402963,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 0.11037659345139497,
+                  "z": 0.6919638547032902
+                },
+                "shift": 0.8243433433557391,
+                "receiveRunShift": 0.8243433433557391
+              },
+              {
+                "time": 159.400000000019,
+                "x": 0.5048858242364691,
+                "z": 0.816112902466307,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 0.13591365668550762,
+                  "z": 0.6987878488847451
+                },
+                "shift": 0.4105134723907151,
+                "receiveRunShift": 0.4105134723907151
+              },
+              {
+                "time": 159.5666666666858,
+                "x": 0.9097068787163369,
+                "z": 0.9019911648664464,
+                "pace": 1.13,
+                "state": "receive-run",
+                "receiver": {
+                  "x": 0.20151635711603372,
+                  "z": 0.7194175841638477
+                },
+                "shift": 0.41382987096518214,
+                "receiveRunShift": 0.41382987096518214
+              }
+            ],
+            "elapsed": 1.2333333333343148,
+            "resolution": "pending-at-window-end",
+            "maxCommandShift": 2.7853569115250054,
+            "maxReceiveRunCommandShift": 0.8377419519367627
+          }
+        ],
+        "receptions": [
+          {
+            "time": 154.63333333334853,
+            "flightId": 57,
+            "kind": "pass",
+            "team": 1,
+            "fromId": 14,
+            "playerId": 13,
+            "targetId": 13,
+            "intended": true,
+            "prepared": true,
+            "plannedMode": "one-touch",
+            "actualMode": "cushion",
+            "pressure": 1.6987731926279823,
+            "relativeSpeed": 13.38878787940732,
+            "incomingFacingTurn": 2.5206830145896655,
+            "plannedFacingTurn": 7.347880794884119e-16,
+            "windowStatus": "elapsed",
+            "opponentAcquisition": null,
+            "opponentRestart": null,
+            "pre": {
+              "player": {
+                "id": 13,
+                "team": 1,
+                "role": "MID",
+                "x": 8.037484876740777,
+                "z": -3.4863281868620133,
+                "vx": -0.31661571955104156,
+                "vz": 0.1783276137216424,
+                "face": 21.648244995595192,
+                "speed": 0.36338168870002124,
+                "pace": 90,
+                "energy": 0.9674666666666702,
+                "stamina": 91.66683871639782,
+                "passing": 84,
+                "kickFoot": 1,
+                "preferredFoot": 0,
+                "weakFoot": 72
+              },
+              "ball": {
+                "x": 8.455633391415883,
+                "y": 0.11,
+                "z": -4.341824438714959,
+                "vx": -7.822881590691896,
+                "vy": 0,
+                "vz": 11.265059032472184
+              },
+              "receiveClock": 0,
+              "mode": "settle",
+              "preparation": {
+                "flightId": 57,
+                "fromId": 14,
+                "refreshAt": 154.84466666668186,
+                "at": 154.61666666668185,
+                "mode": "one-touch",
+                "point": {
+                  "x": 7.0903213488566905,
+                  "z": -4.527374447197191,
+                  "score": 3.0331094309307787,
+                  "pathRisk": 0
+                },
+                "face": 2.7986890740564347,
+                "next": {
+                  "kind": "pass",
+                  "qId": 11,
+                  "point": {
+                    "x": -0.1819187732577335,
+                    "z": -0.545616562650186
+                  }
+                }
+              },
+              "prepared": true,
+              "pressure": 1.6987731926279823,
+              "relativeSpeed": 13.38878787940732,
+              "incomingFacingTurn": 2.5206830145896655,
+              "plannedFacingTurn": 7.347880794884119e-16
+            },
+            "post": {
+              "player": {
+                "id": 13,
+                "team": 1,
+                "role": "MID",
+                "x": 8.037484876740777,
+                "z": -3.4863281868620133,
+                "vx": -0.31661571955104156,
+                "vz": 0.1783276137216424,
+                "face": 21.648244995595192,
+                "speed": 0.36338168870002124,
+                "pace": 90,
+                "energy": 0.9674666666666702,
+                "stamina": 91.66683871639782,
+                "passing": 84,
+                "kickFoot": 1,
+                "preferredFoot": 0,
+                "weakFoot": 72
+              },
+              "ball": {
+                "x": 8.455633391415883,
+                "y": 0.11,
+                "z": -4.341824438714959,
+                "vx": -1.4084076407833503,
+                "vy": 0,
+                "vz": 1.958725860330971
+              },
+              "receiveClock": 0.3262956452759458,
+              "decision": 0.42629564527594577,
+              "touchClock": 0.08,
+              "mode": "cushion",
+              "carryTarget": {
+                "x": 8.286624474521881,
+                "z": -4.106777335475243
+              },
+              "nextAction": null,
+              "oneTouchUntil": 0
+            }
+          },
+          {
+            "time": 155.61666666668265,
+            "flightId": 58,
+            "kind": "pass",
+            "team": 1,
+            "fromId": 13,
+            "playerId": 16,
+            "targetId": 16,
+            "intended": true,
+            "prepared": true,
+            "plannedMode": "open",
+            "actualMode": "open",
+            "pressure": 8.470191649683436,
+            "relativeSpeed": 14.362275562484898,
+            "incomingFacingTurn": 1.1563379107280087,
+            "plannedFacingTurn": 4.898587196589413e-16,
+            "windowStatus": "elapsed",
+            "opponentAcquisition": null,
+            "opponentRestart": null,
+            "pre": {
+              "player": {
+                "id": 16,
+                "team": 1,
+                "role": "MID",
+                "x": 14.890019323873833,
+                "z": -7.068668757726868,
+                "vx": 0.04005823115793927,
+                "vz": -0.01680875028615382,
+                "face": -10.998663214408346,
+                "speed": 0.04344186885580744,
+                "pace": 89,
+                "energy": 1,
+                "stamina": 91.64203537104349,
+                "passing": 83,
+                "kickFoot": 0,
+                "preferredFoot": 1,
+                "weakFoot": 71
+              },
+              "ball": {
+                "x": 13.941740242638303,
+                "y": 0.11,
+                "z": -6.642472906228293,
+                "vx": 13.168060626470272,
+                "vy": 0,
+                "vz": -5.841799088597845
+              },
+              "receiveClock": 0,
+              "mode": "settle",
+              "preparation": {
+                "flightId": 58,
+                "fromId": 13,
+                "refreshAt": 155.83100000001596,
+                "at": 155.60000000001597,
+                "mode": "open",
+                "point": {
+                  "x": 17.33778198091384,
+                  "z": -6.143076245387547,
+                  "score": 14.179493637102647,
+                  "pathRisk": 0
+                },
+                "face": 1.5677073999508269,
+                "next": null
+              },
+              "prepared": true,
+              "pressure": 8.470191649683436,
+              "relativeSpeed": 14.362275562484898,
+              "incomingFacingTurn": 1.1563379107280087,
+              "plannedFacingTurn": 4.898587196589413e-16
+            },
+            "post": {
+              "player": {
+                "id": 16,
+                "team": 1,
+                "role": "MID",
+                "x": 14.890019323873833,
+                "z": -7.068668757726868,
+                "vx": 0.04005823115793927,
+                "vz": -0.01680875028615382,
+                "face": -10.998663214408346,
+                "speed": 0.04344186885580744,
+                "pace": 89,
+                "energy": 1,
+                "stamina": 91.64203537104349,
+                "passing": 83,
+                "kickFoot": 0,
+                "preferredFoot": 1,
+                "weakFoot": 71
+              },
+              "ball": {
+                "x": 13.941740242638303,
+                "y": 0.11,
+                "z": -6.642472906228293,
+                "vx": 2.0602544461158216,
+                "vy": 0,
+                "vz": 0.25499221528427407
+              },
+              "receiveClock": 0.17122455112496981,
+              "decision": 0.5712245511249698,
+              "touchClock": 0.08,
+              "mode": "open",
+              "carryTarget": {
+                "x": 17.31621955298811,
+                "z": -6.134028480269368,
+                "score": 14.113970544388527,
+                "pathRisk": 0
+              },
+              "nextAction": null,
+              "oneTouchUntil": 0
+            }
+          },
+          {
+            "time": 157.60000000001756,
+            "flightId": 59,
+            "kind": "pass",
+            "team": 1,
+            "fromId": 16,
+            "playerId": 15,
+            "targetId": 15,
+            "intended": true,
+            "prepared": true,
+            "plannedMode": "open",
+            "actualMode": "open",
+            "pressure": 15.675639251211262,
+            "relativeSpeed": 14.352964393000853,
+            "incomingFacingTurn": 0.8053399628541051,
+            "plannedFacingTurn": 4.898587196589413e-16,
+            "windowStatus": "elapsed",
+            "opponentAcquisition": null,
+            "opponentRestart": null,
+            "pre": {
+              "player": {
+                "id": 15,
+                "team": 1,
+                "role": "MID",
+                "x": 23.407707634411807,
+                "z": 5.9728283288916915,
+                "vx": -0.3971448799281307,
+                "vz": -0.7054609256238836,
+                "face": 9.677521406741345,
+                "speed": 0.8095672752991169,
+                "pace": 78,
+                "energy": 1,
+                "stamina": 91.67936912900647,
+                "passing": 78,
+                "kickFoot": 1,
+                "preferredFoot": 0,
+                "weakFoot": 66
+              },
+              "ball": {
+                "x": 22.96931750906962,
+                "y": 0.11,
+                "z": 5.194079816190982,
+                "vx": 6.643620436938579,
+                "vy": 0,
+                "vz": 11.801945305068282
+              },
+              "receiveClock": 0,
+              "mode": "open",
+              "preparation": {
+                "flightId": 59,
+                "fromId": 16,
+                "refreshAt": 157.69600000001745,
+                "at": 157.45000000001744,
+                "mode": "open",
+                "point": {
+                  "x": 20.931131757751075,
+                  "z": 5.395184261637811,
+                  "score": 18.50129604736074,
+                  "pathRisk": 0
+                },
+                "face": -2.888849207617827,
+                "next": null
+              },
+              "prepared": true,
+              "pressure": 15.675639251211262,
+              "relativeSpeed": 14.352964393000853,
+              "incomingFacingTurn": 0.8053399628541051,
+              "plannedFacingTurn": 4.898587196589413e-16
+            },
+            "post": {
+              "player": {
+                "id": 15,
+                "team": 1,
+                "role": "MID",
+                "x": 23.407707634411807,
+                "z": 5.9728283288916915,
+                "vx": -0.3971448799281307,
+                "vz": -0.7054609256238836,
+                "face": 9.677521406741345,
+                "speed": 0.8095672752991169,
+                "pace": 78,
+                "energy": 1,
+                "stamina": 91.67936912900647,
+                "passing": 78,
+                "kickFoot": 1,
+                "preferredFoot": 0,
+                "weakFoot": 66
+              },
+              "ball": {
+                "x": 22.96931750906962,
+                "y": 0.11,
+                "z": 5.194079816190982,
+                "vx": -2.348898812778914,
+                "vy": 0,
+                "vz": 0.26377503438514743
+              },
+              "receiveClock": 0.1837059287860017,
+              "decision": 0.5837059287860017,
+              "touchClock": 0.08,
+              "mode": "open",
+              "carryTarget": {
+                "x": 20.890309538442555,
+                "z": 5.322669251118887,
+                "score": 18.50347961919385,
+                "pathRisk": 0
+              },
+              "nextAction": null,
+              "oneTouchUntil": 0
+            }
+          }
+        ],
+        "events": [
+          {
+            "type": "acquire",
+            "time": 154.63333333334853,
+            "playerId": 13,
+            "team": 1,
+            "from": 14,
+            "intended": 13
+          },
+          {
+            "type": "release",
+            "time": 155.2500000000157,
+            "id": 58,
+            "from": 13,
+            "target": 16,
+            "kind": "pass"
+          },
+          {
+            "type": "acquire",
+            "time": 155.61666666668265,
+            "playerId": 16,
+            "team": 1,
+            "from": 13,
+            "intended": 16
+          },
+          {
+            "type": "release",
+            "time": 156.76666666668356,
+            "id": 59,
+            "from": 16,
+            "target": 15,
+            "kind": "pass"
+          },
+          {
+            "type": "acquire",
+            "time": 157.60000000001756,
+            "playerId": 15,
+            "team": 1,
+            "from": 16,
+            "intended": 15
+          },
+          {
+            "type": "release",
+            "time": 158.38333333335152,
+            "id": 60,
+            "from": 15,
+            "target": 11,
+            "kind": "pass"
+          }
+        ]
+      },
+      "telemetry": {
+        "dribbleTouches": 123,
+        "receives": 65,
+        "looseBalls": 8,
+        "shotsAfterPasses": 0,
+        "restarts": 2,
+        "turnovers": 8,
+        "duels": 9,
+        "throughBalls": 0,
+        "crosses": 0,
+        "cutbacks": 0,
+        "headers": 0,
+        "feints": 0,
+        "longPasses": 0,
+        "switches": 1,
+        "offsides": 0,
+        "pressRecoveries": 0,
+        "clearances": 0,
+        "giveGoes": 13,
+        "movingPasses": 37,
+        "movingShots": 0,
+        "preparedReceives": 53,
+        "oneTouchPasses": 1,
+        "directedTouches": 51,
+        "keeperCatches": 0,
+        "returnSupports": 32,
+        "giveGoReturns": 6,
+        "giveGoCompletions": 5,
+        "alignedThroughBalls": 0,
+        "closeControlTouches": 17,
+        "strideTouches": 5,
+        "shieldCarries": 0,
+        "duelOutlets": 0,
+        "feintResponses": 0,
+        "beatenDefenders": 0,
+        "firstTouchRechecks": 51,
+        "markHandoffs": 1,
+        "markSamples": 1206,
+        "screenedReads": 0,
+        "fastCatches": 0,
+        "decisions": {
+          "pass": 59,
+          "carry": 61,
+          "feint": 0,
+          "shot": 0,
+          "clearance": 0
+        },
+        "arrivalSupportSamples": 316,
+        "arrivalSupportPlans": 59,
+        "coordinatedRuns": 56,
+        "arrivalSupportHandoffs": 53,
+        "passReviews": 85,
+        "arrivalSupportChoices": 20,
+        "arrivalSupportReleases": 20,
+        "firstControlChecks": 3,
+        "firstControlDeferrals": 1,
+        "cushionedReceives": 1
+      }
+    }
+  },
+  "observerConsistency": {
+    "baseline": true,
+    "current": true
+  }
+}

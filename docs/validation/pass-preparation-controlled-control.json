@@ -1,0 +1,310 @@
+{
+  "generatedAt": "2026-11-05T16:09:03.379Z",
+  "baselineRef": "HEAD",
+  "mode": "controlled",
+  "cfg": {
+    "seed": 21,
+    "starters": [
+      8,
+      9,
+      10,
+      7,
+      5,
+      6,
+      4,
+      2,
+      3,
+      1,
+      0
+    ],
+    "formation": "4-3-3",
+    "matchMinutes": 90,
+    "tactics": {
+      "mentality": "balanced",
+      "playstyle": "possession",
+      "press": 58,
+      "tempo": 61,
+      "aggression": 55,
+      "marking": "zone",
+      "offside": "off",
+      "line": "normal",
+      "passing": "mixed",
+      "width": "balanced",
+      "onLoss": "regroup",
+      "onWin": "retain",
+      "fullbacks": "support",
+      "crossing": "mixed",
+      "shooting": "balanced"
+    }
+  },
+  "searchSeconds": 10,
+  "baselineAlternativeDecisions": 0,
+  "found": true,
+  "controlled": {
+    "side": 1,
+    "defenderX": -1,
+    "defenderZ": 1.5,
+    "blocker": true,
+    "description": "Manually sustained initial lane threat; all following motion, preparation, touches and tackles are normal engine steps. Four active players (six with --blocker, including a goalkeeper to establish the offside line), fixed initial commands; no forced duel/RNG result. Normal planning may revise those commands after review."
+  },
+  "sources": {
+    "baseline": "1158da068a1bf91d0a3754f04d178af03fbd1215bd4653b9bbd2672073219909",
+    "current": "cb35f481fadf8b0da28c31aa3605b6778dd6575d2d8df2838bd689750f8aed73",
+    "tactics": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea",
+    "observer": "af3ef6cd831f3f0f2a4bd206b48342e3da4d682b79060180056b084110a2dfd1"
+  },
+  "limitations": "This is a search in one synthetic match, not a pass success rate. Observation invokes each original action once; no future opponent targets are passed into the forecast. A missing divergent decision is reported as not found, not success.",
+  "branches": {
+    "baseline": {
+      "initialRngState": 1362297560,
+      "physicalStateUnchangedByReview": true,
+      "reconsidered": true,
+      "selectedTarget": 4,
+      "preparation": null,
+      "actions": [
+        {
+          "time": 12.33333333333345,
+          "kind": "pass",
+          "from": 14,
+          "target": 15
+        }
+      ],
+      "interventions": [
+        {
+          "time": 10.166666666666675,
+          "defenderId": 14,
+          "carrierId": 3,
+          "carrierRetainsIntention": false,
+          "kickContinues": false
+        }
+      ],
+      "ownership": [
+        {
+          "time": 10.016666666666667,
+          "id": 3,
+          "team": 0
+        },
+        {
+          "time": 10.283333333333347,
+          "id": 14,
+          "team": 1
+        },
+        {
+          "time": 13.150000000000157,
+          "id": 15,
+          "team": 1
+        }
+      ],
+      "firstOpponentOwnership": {
+        "time": 10.283333333333347,
+        "id": 14,
+        "team": 1
+      },
+      "final": {
+        "time": 14.000000000000199,
+        "rngState": 730546866,
+        "ownerId": 15,
+        "ownerTeam": 1,
+        "score": [
+          0,
+          0
+        ],
+        "telemetry": {
+          "dribbleTouches": 7,
+          "receives": 2,
+          "looseBalls": 1,
+          "shotsAfterPasses": 0,
+          "restarts": 1,
+          "turnovers": 1,
+          "duels": 1,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 0,
+          "switches": 0,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 0,
+          "movingPasses": 0,
+          "movingShots": 0,
+          "preparedReceives": 1,
+          "oneTouchPasses": 0,
+          "directedTouches": 1,
+          "keeperCatches": 0,
+          "returnSupports": 1,
+          "giveGoReturns": 0,
+          "giveGoCompletions": 0,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 5,
+          "strideTouches": 1,
+          "shieldCarries": 0,
+          "duelOutlets": 0,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 1,
+          "markHandoffs": 0,
+          "markSamples": 0,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 1,
+            "carry": 6,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "passReviews": 5,
+          "passReleaseReads": 1,
+          "passReleaseUncertain": 1,
+          "passRethinks": 1,
+          "passRedirects": 1
+        }
+      },
+      "maxStep": 0.11390340695413556
+    },
+    "current": {
+      "initialRngState": 1362297560,
+      "physicalStateUnchangedByReview": true,
+      "reconsidered": true,
+      "selectedTarget": null,
+      "preparation": {
+        "time": 10,
+        "playerId": 3,
+        "originalTargetId": 5,
+        "selectedTargetId": null,
+        "emergency": false,
+        "control": {
+          "interventionTime": null,
+          "firstTouchTime": 0.016666666666666666,
+          "horizon": 0.1999999999999993
+        },
+        "candidates": [
+          {
+            "targetId": 4,
+            "score": 11.145175396248359,
+            "feasible": false,
+            "reason": "intervention",
+            "duration": 0.18940252338114752,
+            "contactTime": 0.1999999999999993,
+            "interventionTime": 0.16666666666666607,
+            "risk": 0,
+            "arrivalRisk": 0,
+            "contactGap": 0.04328891950397478,
+            "facingError": 0,
+            "horizon": 0.75
+          }
+        ],
+        "fallback": "shield"
+      },
+      "actions": [
+        {
+          "time": 12.450000000000122,
+          "kind": "pass",
+          "from": 14,
+          "target": 15
+        }
+      ],
+      "interventions": [
+        {
+          "time": 10.283333333333347,
+          "defenderId": 14,
+          "carrierId": 3,
+          "carrierRetainsIntention": false,
+          "kickContinues": false
+        }
+      ],
+      "ownership": [
+        {
+          "time": 10.016666666666667,
+          "id": 3,
+          "team": 0
+        },
+        {
+          "time": 10.40000000000002,
+          "id": 14,
+          "team": 1
+        },
+        {
+          "time": 13.20000000000016,
+          "id": 15,
+          "team": 1
+        }
+      ],
+      "firstOpponentOwnership": {
+        "time": 10.40000000000002,
+        "id": 14,
+        "team": 1
+      },
+      "final": {
+        "time": 14.000000000000199,
+        "rngState": 1920352873,
+        "ownerId": 15,
+        "ownerTeam": 1,
+        "score": [
+          0,
+          0
+        ],
+        "telemetry": {
+          "dribbleTouches": 10,
+          "receives": 2,
+          "looseBalls": 1,
+          "shotsAfterPasses": 0,
+          "restarts": 1,
+          "turnovers": 1,
+          "duels": 1,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 0,
+          "switches": 0,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 0,
+          "movingPasses": 0,
+          "movingShots": 0,
+          "preparedReceives": 1,
+          "oneTouchPasses": 0,
+          "directedTouches": 1,
+          "keeperCatches": 0,
+          "returnSupports": 1,
+          "giveGoReturns": 0,
+          "giveGoCompletions": 0,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 7,
+          "strideTouches": 1,
+          "shieldCarries": 1,
+          "duelOutlets": 0,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 1,
+          "markHandoffs": 0,
+          "markSamples": 0,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 2,
+            "carry": 6,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "passReviews": 5,
+          "passReleaseReads": 1,
+          "passReleaseUncertain": 1,
+          "passPreparationChecks": 1,
+          "passPreparationRejects": 1,
+          "passRethinks": 1,
+          "passResets": 1
+        }
+      },
+      "maxStep": 0.11379448213983773
+    }
+  },
+  "time": 10
+}

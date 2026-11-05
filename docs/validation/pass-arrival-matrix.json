@@ -1,0 +1,5730 @@
+{
+  "generatedAt": "2026-11-05T17:00:52.606Z",
+  "mode": "matrix",
+  "sources": {
+    "baseline": "0adbed0bd872eb0430d0327518b6322eda8087c6868d5c37fc46f79f6efa115a",
+    "current": "4c9279ad5411460bcbb349fa510ff1267607cc5f2e5292f371e256afe9857a6f",
+    "stage1Prefix": "cb35f481fadf8b0da28c31aa3605b6778dd6575d2d8df2838bd689750f8aed73",
+    "tactics": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea",
+    "observer": "581efb8b58d5dc6857319ba6e04322cd7b22b1f0375f3f93cc8adf8d33daf1c9"
+  },
+  "definitions": {
+    "baseline": "Exact published stage2 engine 0adbed0b; retained gzip, not Git HEAD.",
+    "minimumGap": "Minimum sampled actual ball/selected receiver centre gap from release until resolution; acquire hook samples before normal first-touch impulse. A swept physical contact can occur between frames, so centre gap at acquisition can exceed1.10m.",
+    "resolvedTargeted": "Pass-kind flights with an intended recipient that resolve by actual acquisition, boundary restart, goal, replacement or flight clearing. Pending window-end flights are excluded from intended-miss denominators.",
+    "ownLastTouchOut": "Targeted flight directly resolving in throw/goal-kick/corner while passing team made last contact. It is not inferred from absence of opponent possession.",
+    "limits": "Small synthetic sample, no win target, ball/receiver repositioning, RNG forcing, hidden opponent commands or future plans. Tactical changes and preparation timing may diverge after the shared starting state."
+  },
+  "seconds": 300,
+  "runs": [
+    {
+      "scenario": {
+        "id": "balanced21",
+        "seed": 21
+      },
+      "config": {
+        "seed": 21,
+        "starters": [
+          8,
+          9,
+          10,
+          7,
+          5,
+          6,
+          4,
+          2,
+          3,
+          1,
+          0
+        ],
+        "formation": "4-3-3",
+        "awayFormation": "4-2-3-1",
+        "matchMinutes": 5,
+        "players": [
+          {
+            "id": 0,
+            "name": "Synthetic 0",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 1,
+            "name": "Synthetic 1",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 2,
+            "name": "Synthetic 2",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 3,
+            "name": "Synthetic 3",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 4,
+            "name": "Synthetic 4",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 5,
+            "name": "Synthetic 5",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 6,
+            "name": "Synthetic 6",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 7,
+            "name": "Synthetic 7",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 8,
+            "name": "Synthetic 8",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 9,
+            "name": "Synthetic 9",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 10,
+            "name": "Synthetic 10",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          }
+        ],
+        "tactics": {
+          "mentality": "balanced",
+          "playstyle": "possession",
+          "press": 58,
+          "tempo": 61,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "normal",
+          "passing": "mixed",
+          "width": "balanced",
+          "onLoss": "regroup",
+          "onWin": "retain",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        },
+        "awayTactics": {
+          "mentality": "defensive",
+          "playstyle": "counter",
+          "press": 30,
+          "tempo": 76,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "low",
+          "passing": "direct",
+          "width": "balanced",
+          "onLoss": "regroup",
+          "onWin": "counter",
+          "fullbacks": "hold",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        }
+      },
+      "baseline": {
+        "initial": {
+          "time": 0,
+          "seed": 1362297560,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 1455897314,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          2,
+          0
+        ],
+        "passes": [
+          47,
+          23
+        ],
+        "completedPasses": [
+          43,
+          22
+        ],
+        "windowPasses": [
+          47,
+          23
+        ],
+        "windowCompleted": [
+          43,
+          22
+        ],
+        "firstOpponent": {
+          "time": 36.1666666666659,
+          "id": 21,
+          "team": 1
+        },
+        "finalOwner": null,
+        "finalPhase": "finished",
+        "finalRestart": {
+          "kind": "free-kick",
+          "team": 1,
+          "spot": {
+            "x": 14.686930461995773,
+            "z": 0.6583560057718296
+          }
+        },
+        "finalBall": {
+          "x": 14.686930461995773,
+          "y": 0.11,
+          "z": 0.6583560057718296,
+          "vx": 0,
+          "vy": 0,
+          "vz": 0
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.12233188176337793,
+        "maxFreeBallStep": 0.4818947372879141,
+        "shape": [
+          {
+            "samples": 187,
+            "meanWidth": 39.946703594393455,
+            "meanDefenceLine": -13.401239592576522
+          },
+          {
+            "samples": 187,
+            "meanWidth": 38.85651297304441,
+            "meanDefenceLine": -33.32008952839363
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 45,
+              "targeted": 45,
+              "resolvedTargeted": 45,
+              "pendingTargeted": 0,
+              "intendedReceives": 42,
+              "otherOwnReceives": 0,
+              "opponentReceives": 0,
+              "intendedMisses": 3,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 2,
+              "meanResolvedMinCentreGap": 0.9891602094104817,
+              "groundTargeted": {
+                "resolved": 43,
+                "intendedReceives": 42,
+                "ownLastTouchOut": 1,
+                "meanMinCentreGap": 1.010251424049506
+              },
+              "byKind": {
+                "pass": {
+                  "released": 43,
+                  "intendedReceives": 42,
+                  "ownLastTouchOut": 1
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 2,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 23,
+              "targeted": 23,
+              "resolvedTargeted": 23,
+              "pendingTargeted": 0,
+              "intendedReceives": 22,
+              "otherOwnReceives": 0,
+              "opponentReceives": 1,
+              "intendedMisses": 1,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 0.9763528846729408,
+              "groundTargeted": {
+                "resolved": 20,
+                "intendedReceives": 19,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.0042058697747518
+              },
+              "byKind": {
+                "pass": {
+                  "released": 20,
+                  "intendedReceives": 19,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 3,
+                  "intendedReceives": 3,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 153,
+          "receives": 78,
+          "looseBalls": 10,
+          "shotsAfterPasses": 1,
+          "restarts": 9,
+          "turnovers": 11,
+          "duels": 12,
+          "throughBalls": 0,
+          "crosses": 2,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 3,
+          "switches": 0,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 1,
+          "giveGoes": 11,
+          "movingPasses": 41,
+          "movingShots": 2,
+          "preparedReceives": 65,
+          "oneTouchPasses": 2,
+          "directedTouches": 63,
+          "keeperCatches": 0,
+          "returnSupports": 36,
+          "giveGoReturns": 4,
+          "giveGoCompletions": 4,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 25,
+          "strideTouches": 7,
+          "shieldCarries": 0,
+          "duelOutlets": 0,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 63,
+          "markHandoffs": 7,
+          "markSamples": 1750,
+          "screenedReads": 1,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 63,
+            "carry": 79,
+            "feint": 0,
+            "shot": 2,
+            "clearance": 1
+          },
+          "arrivalSupportSamples": 377,
+          "arrivalSupportPlans": 68,
+          "coordinatedRuns": 62,
+          "arrivalSupportHandoffs": 65,
+          "arrivalSupportChoices": 14,
+          "arrivalSupportReleases": 14,
+          "passReviews": 68,
+          "headedPasses": 2,
+          "cutbackHandoffs": 2,
+          "freeKickCrosses": 1
+        }
+      },
+      "current": {
+        "initial": {
+          "time": 0,
+          "seed": 1362297560,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 1685218351,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          74,
+          15
+        ],
+        "completedPasses": [
+          73,
+          12
+        ],
+        "windowPasses": [
+          74,
+          15
+        ],
+        "windowCompleted": [
+          73,
+          12
+        ],
+        "firstOpponent": {
+          "time": 14.416666666666963,
+          "id": 11,
+          "team": 1
+        },
+        "finalOwner": 15,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": 12.6695182359513,
+          "y": 0.11,
+          "z": 3.2314574815865025,
+          "vx": -0.43947997872764655,
+          "vy": 0,
+          "vz": 0.00024202229899422494
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.12103470004963315,
+        "maxFreeBallStep": 0.4874126078035326,
+        "shape": [
+          {
+            "samples": 229,
+            "meanWidth": 40.00645510336395,
+            "meanDefenceLine": -16.793901176003757
+          },
+          {
+            "samples": 229,
+            "meanWidth": 38.751899549247135,
+            "meanDefenceLine": -31.577306075439882
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 74,
+              "targeted": 74,
+              "resolvedTargeted": 74,
+              "pendingTargeted": 0,
+              "intendedReceives": 73,
+              "otherOwnReceives": 0,
+              "opponentReceives": 1,
+              "intendedMisses": 1,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.199902716756413,
+              "groundTargeted": {
+                "resolved": 73,
+                "intendedReceives": 72,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.2043263455857784
+              },
+              "byKind": {
+                "pass": {
+                  "released": 73,
+                  "intendedReceives": 72,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 1,
+                  "intendedReceives": 1,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 15,
+              "targeted": 15,
+              "resolvedTargeted": 15,
+              "pendingTargeted": 0,
+              "intendedReceives": 11,
+              "otherOwnReceives": 1,
+              "opponentReceives": 2,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 5.437980968918691,
+              "groundTargeted": {
+                "resolved": 14,
+                "intendedReceives": 11,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 2.988232950870408
+              },
+              "byKind": {
+                "pass": {
+                  "released": 14,
+                  "intendedReceives": 11,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 1,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 231,
+          "receives": 105,
+          "looseBalls": 17,
+          "shotsAfterPasses": 0,
+          "restarts": 5,
+          "turnovers": 19,
+          "duels": 20,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 2,
+          "switches": 2,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 18,
+          "movingPasses": 56,
+          "movingShots": 0,
+          "preparedReceives": 84,
+          "oneTouchPasses": 0,
+          "directedTouches": 84,
+          "keeperCatches": 0,
+          "returnSupports": 46,
+          "giveGoReturns": 7,
+          "giveGoCompletions": 7,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 46,
+          "strideTouches": 8,
+          "shieldCarries": 0,
+          "duelOutlets": 1,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 84,
+          "markHandoffs": 10,
+          "markSamples": 2098,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 93,
+            "carry": 113,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 448,
+          "arrivalSupportPlans": 88,
+          "coordinatedRuns": 101,
+          "arrivalSupportHandoffs": 83,
+          "arrivalSupportChoices": 29,
+          "arrivalSupportReleases": 29,
+          "passReviews": 114
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "press42",
+        "seed": 42,
+        "away": "press"
+      },
+      "config": {
+        "seed": 42,
+        "starters": [
+          8,
+          9,
+          10,
+          7,
+          5,
+          6,
+          4,
+          2,
+          3,
+          1,
+          0
+        ],
+        "formation": "4-3-3",
+        "awayFormation": "4-2-3-1",
+        "matchMinutes": 5,
+        "players": [
+          {
+            "id": 0,
+            "name": "Synthetic 0",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 1,
+            "name": "Synthetic 1",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 2,
+            "name": "Synthetic 2",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 3,
+            "name": "Synthetic 3",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 4,
+            "name": "Synthetic 4",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 5,
+            "name": "Synthetic 5",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 6,
+            "name": "Synthetic 6",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 7,
+            "name": "Synthetic 7",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 8,
+            "name": "Synthetic 8",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 9,
+            "name": "Synthetic 9",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 10,
+            "name": "Synthetic 10",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          }
+        ],
+        "tactics": {
+          "mentality": "balanced",
+          "playstyle": "possession",
+          "press": 58,
+          "tempo": 61,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "normal",
+          "passing": "mixed",
+          "width": "balanced",
+          "onLoss": "regroup",
+          "onWin": "retain",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        },
+        "awayTactics": {
+          "mentality": "attacking",
+          "playstyle": "direct",
+          "press": 86,
+          "tempo": 80,
+          "aggression": 59,
+          "marking": "zone",
+          "offside": "off",
+          "line": "high",
+          "passing": "mixed",
+          "width": "balanced",
+          "onLoss": "counterpress",
+          "onWin": "counter",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        }
+      },
+      "baseline": {
+        "initial": {
+          "time": 0,
+          "seed": 1046384275,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 1091163907,
+        "score": [
+          1,
+          0
+        ],
+        "shots": [
+          1,
+          1
+        ],
+        "passes": [
+          93,
+          25
+        ],
+        "completedPasses": [
+          90,
+          22
+        ],
+        "windowPasses": [
+          93,
+          25
+        ],
+        "windowCompleted": [
+          90,
+          22
+        ],
+        "firstOpponent": {
+          "time": 40.63333333333231,
+          "id": 12,
+          "team": 1
+        },
+        "finalOwner": null,
+        "finalPhase": "finished",
+        "finalRestart": {
+          "kind": "goal-kick",
+          "team": 0,
+          "spot": {
+            "x": -47,
+            "z": 5
+          }
+        },
+        "finalBall": {
+          "x": -47,
+          "y": 0.11,
+          "z": 5,
+          "vx": 0,
+          "vy": 0,
+          "vz": 0
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.11847578679734043,
+        "maxFreeBallStep": 0.4724392366121867,
+        "shape": [
+          {
+            "samples": 258,
+            "meanWidth": 41.84701786438982,
+            "meanDefenceLine": -29.644864871931027
+          },
+          {
+            "samples": 258,
+            "meanWidth": 39.27776768261194,
+            "meanDefenceLine": -12.981355023073341
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 93,
+              "targeted": 93,
+              "resolvedTargeted": 93,
+              "pendingTargeted": 0,
+              "intendedReceives": 84,
+              "otherOwnReceives": 6,
+              "opponentReceives": 2,
+              "intendedMisses": 9,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 1.9444695409452284,
+              "groundTargeted": {
+                "resolved": 92,
+                "intendedReceives": 84,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.9605746802104533
+              },
+              "byKind": {
+                "pass": {
+                  "released": 91,
+                  "intendedReceives": 83,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 1,
+                  "intendedReceives": 1,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 1,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 25,
+              "targeted": 25,
+              "resolvedTargeted": 25,
+              "pendingTargeted": 0,
+              "intendedReceives": 20,
+              "otherOwnReceives": 2,
+              "opponentReceives": 2,
+              "intendedMisses": 5,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 3.49940513311784,
+              "groundTargeted": {
+                "resolved": 24,
+                "intendedReceives": 19,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 3.6057055934631443
+              },
+              "byKind": {
+                "pass": {
+                  "released": 21,
+                  "intendedReceives": 16,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 3,
+                  "intendedReceives": 3,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 1,
+                  "intendedReceives": 1,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 224,
+          "receives": 126,
+          "looseBalls": 10,
+          "shotsAfterPasses": 1,
+          "restarts": 4,
+          "turnovers": 14,
+          "duels": 13,
+          "throughBalls": 3,
+          "crosses": 1,
+          "cutbacks": 1,
+          "headers": 1,
+          "feints": 0,
+          "longPasses": 1,
+          "switches": 1,
+          "offsides": 0,
+          "pressRecoveries": 3,
+          "clearances": 0,
+          "giveGoes": 15,
+          "movingPasses": 66,
+          "movingShots": 1,
+          "preparedReceives": 104,
+          "oneTouchPasses": 1,
+          "directedTouches": 103,
+          "keeperCatches": 0,
+          "returnSupports": 61,
+          "giveGoReturns": 4,
+          "giveGoCompletions": 3,
+          "alignedThroughBalls": 2,
+          "closeControlTouches": 35,
+          "strideTouches": 16,
+          "shieldCarries": 0,
+          "duelOutlets": 1,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 103,
+          "markHandoffs": 17,
+          "markSamples": 4277,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 118,
+            "carry": 95,
+            "feint": 0,
+            "shot": 1,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 595,
+          "arrivalSupportPlans": 116,
+          "coordinatedRuns": 51,
+          "arrivalSupportHandoffs": 101,
+          "arrivalSupportChoices": 51,
+          "arrivalSupportReleases": 50,
+          "passReviews": 169,
+          "cutbackHandoffs": 2
+        }
+      },
+      "current": {
+        "initial": {
+          "time": 0,
+          "seed": 1046384275,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 1083717289,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          94,
+          13
+        ],
+        "completedPasses": [
+          93,
+          12
+        ],
+        "windowPasses": [
+          94,
+          13
+        ],
+        "windowCompleted": [
+          93,
+          12
+        ],
+        "firstOpponent": {
+          "time": 43.28333333333216,
+          "id": 14,
+          "team": 1
+        },
+        "finalOwner": 0,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": 10.30876333039208,
+          "y": 0.11,
+          "z": -12.252992182671843,
+          "vx": -1.7964306075891192,
+          "vy": 0,
+          "vz": 0.2142127588903419
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.11537007419134025,
+        "maxFreeBallStep": 0.34910777456714764,
+        "shape": [
+          {
+            "samples": 222,
+            "meanWidth": 41.95334420492402,
+            "meanDefenceLine": -27.842549644474104
+          },
+          {
+            "samples": 222,
+            "meanWidth": 38.254391839385235,
+            "meanDefenceLine": -12.519560081299327
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 94,
+              "targeted": 94,
+              "resolvedTargeted": 94,
+              "pendingTargeted": 0,
+              "intendedReceives": 86,
+              "otherOwnReceives": 7,
+              "opponentReceives": 0,
+              "intendedMisses": 8,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.7799140188406972,
+              "groundTargeted": {
+                "resolved": 94,
+                "intendedReceives": 86,
+                "ownLastTouchOut": 1,
+                "meanMinCentreGap": 1.7799140188406972
+              },
+              "byKind": {
+                "pass": {
+                  "released": 94,
+                  "intendedReceives": 86,
+                  "ownLastTouchOut": 1
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 13,
+              "targeted": 13,
+              "resolvedTargeted": 13,
+              "pendingTargeted": 0,
+              "intendedReceives": 12,
+              "otherOwnReceives": 0,
+              "opponentReceives": 0,
+              "intendedMisses": 1,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 2.4781426445121015,
+              "groundTargeted": {
+                "resolved": 13,
+                "intendedReceives": 12,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 2.4781426445121015
+              },
+              "byKind": {
+                "pass": {
+                  "released": 12,
+                  "intendedReceives": 12,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 1,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 182,
+          "receives": 110,
+          "looseBalls": 4,
+          "shotsAfterPasses": 0,
+          "restarts": 6,
+          "turnovers": 3,
+          "duels": 8,
+          "throughBalls": 1,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 0,
+          "switches": 0,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 15,
+          "movingPasses": 56,
+          "movingShots": 0,
+          "preparedReceives": 98,
+          "oneTouchPasses": 1,
+          "directedTouches": 97,
+          "keeperCatches": 0,
+          "returnSupports": 46,
+          "giveGoReturns": 2,
+          "giveGoCompletions": 2,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 13,
+          "strideTouches": 7,
+          "shieldCarries": 0,
+          "duelOutlets": 1,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 97,
+          "markHandoffs": 31,
+          "markSamples": 4062,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 107,
+            "carry": 63,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 516,
+          "arrivalSupportPlans": 107,
+          "coordinatedRuns": 74,
+          "arrivalSupportHandoffs": 98,
+          "arrivalSupportChoices": 65,
+          "arrivalSupportReleases": 64,
+          "passReviews": 177
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "narrow21",
+        "seed": 21,
+        "change": {
+          "width": "narrow"
+        }
+      },
+      "config": {
+        "seed": 21,
+        "starters": [
+          8,
+          9,
+          10,
+          7,
+          5,
+          6,
+          4,
+          2,
+          3,
+          1,
+          0
+        ],
+        "formation": "4-3-3",
+        "awayFormation": "4-2-3-1",
+        "matchMinutes": 5,
+        "players": [
+          {
+            "id": 0,
+            "name": "Synthetic 0",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 1,
+            "name": "Synthetic 1",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 2,
+            "name": "Synthetic 2",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 3,
+            "name": "Synthetic 3",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 4,
+            "name": "Synthetic 4",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 5,
+            "name": "Synthetic 5",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 6,
+            "name": "Synthetic 6",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 7,
+            "name": "Synthetic 7",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 8,
+            "name": "Synthetic 8",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 9,
+            "name": "Synthetic 9",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 10,
+            "name": "Synthetic 10",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          }
+        ],
+        "tactics": {
+          "mentality": "balanced",
+          "playstyle": "possession",
+          "press": 58,
+          "tempo": 61,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "normal",
+          "passing": "mixed",
+          "width": "narrow",
+          "onLoss": "regroup",
+          "onWin": "retain",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        },
+        "awayTactics": {
+          "mentality": "defensive",
+          "playstyle": "counter",
+          "press": 30,
+          "tempo": 76,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "low",
+          "passing": "direct",
+          "width": "balanced",
+          "onLoss": "regroup",
+          "onWin": "counter",
+          "fullbacks": "hold",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        }
+      },
+      "baseline": {
+        "initial": {
+          "time": 0,
+          "seed": 1362297560,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 844444891,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          124,
+          8
+        ],
+        "completedPasses": [
+          121,
+          6
+        ],
+        "windowPasses": [
+          124,
+          8
+        ],
+        "windowCompleted": [
+          121,
+          6
+        ],
+        "firstOpponent": {
+          "time": 30.116666666666237,
+          "id": 11,
+          "team": 1
+        },
+        "finalOwner": 0,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": 5.9481201960747905,
+          "y": 0.11,
+          "z": -17.65452511669141,
+          "vx": -2.631577315730149,
+          "vy": 0,
+          "vz": 0.9007844088637522
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.11531580162637699,
+        "maxFreeBallStep": 0.477667936175552,
+        "shape": [
+          {
+            "samples": 267,
+            "meanWidth": 37.64018143499958,
+            "meanDefenceLine": -16.485661677576964
+          },
+          {
+            "samples": 267,
+            "meanWidth": 36.50937395458327,
+            "meanDefenceLine": -30.408854256541606
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 124,
+              "targeted": 124,
+              "resolvedTargeted": 124,
+              "pendingTargeted": 0,
+              "intendedReceives": 118,
+              "otherOwnReceives": 3,
+              "opponentReceives": 3,
+              "intendedMisses": 6,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.4489847351331024,
+              "groundTargeted": {
+                "resolved": 122,
+                "intendedReceives": 116,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.4577646069683494
+              },
+              "byKind": {
+                "pass": {
+                  "released": 122,
+                  "intendedReceives": 116,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 2,
+                  "intendedReceives": 2,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 8,
+              "targeted": 8,
+              "resolvedTargeted": 8,
+              "pendingTargeted": 0,
+              "intendedReceives": 5,
+              "otherOwnReceives": 1,
+              "opponentReceives": 2,
+              "intendedMisses": 3,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 5.159404049806449,
+              "groundTargeted": {
+                "resolved": 8,
+                "intendedReceives": 5,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 5.159404049806449
+              },
+              "byKind": {
+                "pass": {
+                  "released": 8,
+                  "intendedReceives": 5,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 269,
+          "receives": 135,
+          "looseBalls": 2,
+          "shotsAfterPasses": 0,
+          "restarts": 3,
+          "turnovers": 7,
+          "duels": 4,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 2,
+          "switches": 2,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 30,
+          "movingPasses": 89,
+          "movingShots": 0,
+          "preparedReceives": 123,
+          "oneTouchPasses": 1,
+          "directedTouches": 122,
+          "keeperCatches": 0,
+          "returnSupports": 70,
+          "giveGoReturns": 13,
+          "giveGoCompletions": 13,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 12,
+          "strideTouches": 14,
+          "shieldCarries": 0,
+          "duelOutlets": 1,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 122,
+          "markHandoffs": 4,
+          "markSamples": 3425,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 132,
+            "carry": 82,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 641,
+          "arrivalSupportPlans": 132,
+          "coordinatedRuns": 126,
+          "arrivalSupportHandoffs": 123,
+          "arrivalSupportChoices": 65,
+          "arrivalSupportReleases": 65,
+          "passReviews": 122
+        }
+      },
+      "current": {
+        "initial": {
+          "time": 0,
+          "seed": 1362297560,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 2897428940,
+        "score": [
+          1,
+          0
+        ],
+        "shots": [
+          1,
+          0
+        ],
+        "passes": [
+          85,
+          16
+        ],
+        "completedPasses": [
+          83,
+          14
+        ],
+        "windowPasses": [
+          85,
+          16
+        ],
+        "windowCompleted": [
+          83,
+          14
+        ],
+        "firstOpponent": {
+          "time": 72.0499999999972,
+          "id": 16,
+          "team": 1
+        },
+        "finalOwner": null,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": 5.035092102749148,
+          "y": 0.11,
+          "z": -11.10146703067394,
+          "vx": 9.843661984134688,
+          "vy": 0,
+          "vz": 11.445520584737565
+        },
+        "finalFlight": {
+          "kind": "pass",
+          "age": 0.39999999999999997,
+          "target": 13
+        },
+        "maxPlayerStep": 0.12069119637012636,
+        "maxFreeBallStep": 0.41050322999581196,
+        "shape": [
+          {
+            "samples": 234,
+            "meanWidth": 36.870652939924945,
+            "meanDefenceLine": -15.956315357014839
+          },
+          {
+            "samples": 234,
+            "meanWidth": 37.558632743646626,
+            "meanDefenceLine": -31.793545454590223
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 85,
+              "targeted": 85,
+              "resolvedTargeted": 85,
+              "pendingTargeted": 0,
+              "intendedReceives": 81,
+              "otherOwnReceives": 2,
+              "opponentReceives": 1,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 1.4264738705348199,
+              "groundTargeted": {
+                "resolved": 84,
+                "intendedReceives": 81,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.4335082145764388
+              },
+              "byKind": {
+                "pass": {
+                  "released": 84,
+                  "intendedReceives": 81,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 1,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 16,
+              "targeted": 16,
+              "resolvedTargeted": 15,
+              "pendingTargeted": 1,
+              "intendedReceives": 14,
+              "otherOwnReceives": 0,
+              "opponentReceives": 1,
+              "intendedMisses": 1,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.5809550023371954,
+              "groundTargeted": {
+                "resolved": 15,
+                "intendedReceives": 14,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.5809550023371954
+              },
+              "byKind": {
+                "pass": {
+                  "released": 16,
+                  "intendedReceives": 14,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 225,
+          "receives": 111,
+          "looseBalls": 11,
+          "shotsAfterPasses": 1,
+          "restarts": 5,
+          "turnovers": 10,
+          "duels": 11,
+          "throughBalls": 0,
+          "crosses": 1,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 0,
+          "switches": 1,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 19,
+          "movingPasses": 68,
+          "movingShots": 0,
+          "preparedReceives": 95,
+          "oneTouchPasses": 0,
+          "directedTouches": 95,
+          "keeperCatches": 0,
+          "returnSupports": 55,
+          "giveGoReturns": 6,
+          "giveGoCompletions": 6,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 27,
+          "strideTouches": 13,
+          "shieldCarries": 0,
+          "duelOutlets": 1,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 95,
+          "markHandoffs": 9,
+          "markSamples": 2701,
+          "screenedReads": 1,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 105,
+            "carry": 87,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 505,
+          "arrivalSupportPlans": 100,
+          "coordinatedRuns": 93,
+          "arrivalSupportHandoffs": 95,
+          "arrivalSupportChoices": 42,
+          "arrivalSupportReleases": 42,
+          "passReviews": 127,
+          "wallSetups": 2,
+          "freeKickShots": 1,
+          "cutbackHandoffs": 1,
+          "freeKickCrosses": 1
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "wide21",
+        "seed": 21,
+        "change": {
+          "width": "wide"
+        }
+      },
+      "config": {
+        "seed": 21,
+        "starters": [
+          8,
+          9,
+          10,
+          7,
+          5,
+          6,
+          4,
+          2,
+          3,
+          1,
+          0
+        ],
+        "formation": "4-3-3",
+        "awayFormation": "4-2-3-1",
+        "matchMinutes": 5,
+        "players": [
+          {
+            "id": 0,
+            "name": "Synthetic 0",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 1,
+            "name": "Synthetic 1",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 2,
+            "name": "Synthetic 2",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 3,
+            "name": "Synthetic 3",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 4,
+            "name": "Synthetic 4",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 5,
+            "name": "Synthetic 5",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 6,
+            "name": "Synthetic 6",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 7,
+            "name": "Synthetic 7",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 8,
+            "name": "Synthetic 8",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 9,
+            "name": "Synthetic 9",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 10,
+            "name": "Synthetic 10",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          }
+        ],
+        "tactics": {
+          "mentality": "balanced",
+          "playstyle": "possession",
+          "press": 58,
+          "tempo": 61,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "normal",
+          "passing": "mixed",
+          "width": "wide",
+          "onLoss": "regroup",
+          "onWin": "retain",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        },
+        "awayTactics": {
+          "mentality": "defensive",
+          "playstyle": "counter",
+          "press": 30,
+          "tempo": 76,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "low",
+          "passing": "direct",
+          "width": "balanced",
+          "onLoss": "regroup",
+          "onWin": "counter",
+          "fullbacks": "hold",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        }
+      },
+      "baseline": {
+        "initial": {
+          "time": 0,
+          "seed": 1362297560,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 1683037514,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          90,
+          26
+        ],
+        "completedPasses": [
+          86,
+          23
+        ],
+        "windowPasses": [
+          90,
+          26
+        ],
+        "windowCompleted": [
+          86,
+          23
+        ],
+        "firstOpponent": {
+          "time": 77.04999999999691,
+          "id": 14,
+          "team": 1
+        },
+        "finalOwner": null,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": 14.259627114278013,
+          "y": 0.11,
+          "z": -26.81211108653352,
+          "vx": 10.936209206270005,
+          "vy": 0,
+          "vz": -7.762029480279321
+        },
+        "finalFlight": {
+          "kind": "pass",
+          "age": 0.8833333333333344,
+          "target": 0
+        },
+        "maxPlayerStep": 0.11638911291722898,
+        "maxFreeBallStep": 0.501805429168369,
+        "shape": [
+          {
+            "samples": 295,
+            "meanWidth": 46.03342992500415,
+            "meanDefenceLine": -18.932876385386326
+          },
+          {
+            "samples": 295,
+            "meanWidth": 41.12752245554886,
+            "meanDefenceLine": -29.69511853958489
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 90,
+              "targeted": 90,
+              "resolvedTargeted": 89,
+              "pendingTargeted": 1,
+              "intendedReceives": 86,
+              "otherOwnReceives": 0,
+              "opponentReceives": 3,
+              "intendedMisses": 3,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.142260523042594,
+              "groundTargeted": {
+                "resolved": 87,
+                "intendedReceives": 84,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.1458912418055522
+              },
+              "byKind": {
+                "pass": {
+                  "released": 88,
+                  "intendedReceives": 84,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 2,
+                  "intendedReceives": 2,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 26,
+              "targeted": 26,
+              "resolvedTargeted": 26,
+              "pendingTargeted": 0,
+              "intendedReceives": 22,
+              "otherOwnReceives": 1,
+              "opponentReceives": 2,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 3.1841638501057656,
+              "groundTargeted": {
+                "resolved": 24,
+                "intendedReceives": 21,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.7017794712571523
+              },
+              "byKind": {
+                "pass": {
+                  "released": 23,
+                  "intendedReceives": 21,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 1,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 2,
+                  "intendedReceives": 1,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 282,
+          "receives": 123,
+          "looseBalls": 9,
+          "shotsAfterPasses": 0,
+          "restarts": 1,
+          "turnovers": 12,
+          "duels": 9,
+          "throughBalls": 1,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 4,
+          "switches": 5,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 19,
+          "movingPasses": 81,
+          "movingShots": 0,
+          "preparedReceives": 108,
+          "oneTouchPasses": 0,
+          "directedTouches": 108,
+          "keeperCatches": 0,
+          "returnSupports": 60,
+          "giveGoReturns": 13,
+          "giveGoCompletions": 11,
+          "alignedThroughBalls": 1,
+          "closeControlTouches": 32,
+          "strideTouches": 12,
+          "shieldCarries": 0,
+          "duelOutlets": 0,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 108,
+          "markHandoffs": 10,
+          "markSamples": 3091,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 118,
+            "carry": 131,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 623,
+          "arrivalSupportPlans": 115,
+          "coordinatedRuns": 109,
+          "arrivalSupportHandoffs": 108,
+          "passReviews": 131,
+          "arrivalSupportChoices": 36,
+          "arrivalSupportReleases": 36
+        }
+      },
+      "current": {
+        "initial": {
+          "time": 0,
+          "seed": 1362297560,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 3432223074,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          1
+        ],
+        "passes": [
+          76,
+          35
+        ],
+        "completedPasses": [
+          74,
+          33
+        ],
+        "windowPasses": [
+          76,
+          35
+        ],
+        "windowCompleted": [
+          74,
+          33
+        ],
+        "firstOpponent": {
+          "time": 12.850000000000218,
+          "id": 14,
+          "team": 1
+        },
+        "finalOwner": 9,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": -33.008575824680925,
+          "y": 0.11,
+          "z": 17.237845012097385,
+          "vx": 2.559989472990476,
+          "vy": 0,
+          "vz": 0.8432393001520285
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.11533527259925033,
+        "maxFreeBallStep": 0.4910491153796784,
+        "shape": [
+          {
+            "samples": 252,
+            "meanWidth": 44.05782521222447,
+            "meanDefenceLine": -19.6144550089918
+          },
+          {
+            "samples": 252,
+            "meanWidth": 40.99323797261254,
+            "meanDefenceLine": -28.002989527794107
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 76,
+              "targeted": 76,
+              "resolvedTargeted": 76,
+              "pendingTargeted": 0,
+              "intendedReceives": 72,
+              "otherOwnReceives": 2,
+              "opponentReceives": 0,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 1.7616431683442024,
+              "groundTargeted": {
+                "resolved": 75,
+                "intendedReceives": 72,
+                "ownLastTouchOut": 1,
+                "meanMinCentreGap": 1.2483319729804412
+              },
+              "byKind": {
+                "pass": {
+                  "released": 75,
+                  "intendedReceives": 72,
+                  "ownLastTouchOut": 1
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 1,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 35,
+              "targeted": 35,
+              "resolvedTargeted": 35,
+              "pendingTargeted": 0,
+              "intendedReceives": 31,
+              "otherOwnReceives": 2,
+              "opponentReceives": 2,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.6940640664746178,
+              "groundTargeted": {
+                "resolved": 35,
+                "intendedReceives": 31,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.6940640664746178
+              },
+              "byKind": {
+                "pass": {
+                  "released": 35,
+                  "intendedReceives": 31,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 275,
+          "receives": 118,
+          "looseBalls": 8,
+          "shotsAfterPasses": 1,
+          "restarts": 4,
+          "turnovers": 8,
+          "duels": 9,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 1,
+          "switches": 1,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 15,
+          "movingPasses": 73,
+          "movingShots": 0,
+          "preparedReceives": 103,
+          "oneTouchPasses": 2,
+          "directedTouches": 101,
+          "keeperCatches": 0,
+          "returnSupports": 74,
+          "giveGoReturns": 9,
+          "giveGoCompletions": 9,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 25,
+          "strideTouches": 14,
+          "shieldCarries": 1,
+          "duelOutlets": 0,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 101,
+          "markHandoffs": 4,
+          "markSamples": 2513,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 113,
+            "carry": 130,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 526,
+          "arrivalSupportPlans": 110,
+          "coordinatedRuns": 92,
+          "arrivalSupportHandoffs": 102,
+          "passReviews": 128,
+          "arrivalSupportChoices": 33,
+          "arrivalSupportReleases": 33,
+          "wallSetups": 1,
+          "freeKickShots": 1,
+          "cutbackHandoffs": 2
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "short42",
+        "seed": 42,
+        "away": "press",
+        "change": {
+          "passing": "short"
+        }
+      },
+      "config": {
+        "seed": 42,
+        "starters": [
+          8,
+          9,
+          10,
+          7,
+          5,
+          6,
+          4,
+          2,
+          3,
+          1,
+          0
+        ],
+        "formation": "4-3-3",
+        "awayFormation": "4-2-3-1",
+        "matchMinutes": 5,
+        "players": [
+          {
+            "id": 0,
+            "name": "Synthetic 0",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 1,
+            "name": "Synthetic 1",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 2,
+            "name": "Synthetic 2",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 3,
+            "name": "Synthetic 3",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 4,
+            "name": "Synthetic 4",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 5,
+            "name": "Synthetic 5",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 6,
+            "name": "Synthetic 6",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 7,
+            "name": "Synthetic 7",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 8,
+            "name": "Synthetic 8",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 9,
+            "name": "Synthetic 9",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 10,
+            "name": "Synthetic 10",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          }
+        ],
+        "tactics": {
+          "mentality": "balanced",
+          "playstyle": "possession",
+          "press": 58,
+          "tempo": 61,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "normal",
+          "passing": "short",
+          "width": "balanced",
+          "onLoss": "regroup",
+          "onWin": "retain",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        },
+        "awayTactics": {
+          "mentality": "attacking",
+          "playstyle": "direct",
+          "press": 86,
+          "tempo": 80,
+          "aggression": 59,
+          "marking": "zone",
+          "offside": "off",
+          "line": "high",
+          "passing": "mixed",
+          "width": "balanced",
+          "onLoss": "counterpress",
+          "onWin": "counter",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        }
+      },
+      "baseline": {
+        "initial": {
+          "time": 0,
+          "seed": 1046384275,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 1926057327,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          76,
+          43
+        ],
+        "completedPasses": [
+          74,
+          38
+        ],
+        "windowPasses": [
+          76,
+          43
+        ],
+        "windowCompleted": [
+          74,
+          38
+        ],
+        "firstOpponent": {
+          "time": 7.583333333333312,
+          "id": 11,
+          "team": 1
+        },
+        "finalOwner": 9,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": -39.140465856490685,
+          "y": 0.11,
+          "z": 14.413356956043685,
+          "vx": 4.144531543284574,
+          "vy": 0,
+          "vz": 1.4385079414300943
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.12004501685466802,
+        "maxFreeBallStep": 0.47896593721648756,
+        "shape": [
+          {
+            "samples": 261,
+            "meanWidth": 41.65740534245481,
+            "meanDefenceLine": -31.527419657415624
+          },
+          {
+            "samples": 261,
+            "meanWidth": 40.09989423624665,
+            "meanDefenceLine": -9.655446850154839
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 76,
+              "targeted": 76,
+              "resolvedTargeted": 76,
+              "pendingTargeted": 0,
+              "intendedReceives": 73,
+              "otherOwnReceives": 1,
+              "opponentReceives": 2,
+              "intendedMisses": 3,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.5014630570308531,
+              "groundTargeted": {
+                "resolved": 76,
+                "intendedReceives": 73,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.5014630570308531
+              },
+              "byKind": {
+                "pass": {
+                  "released": 76,
+                  "intendedReceives": 73,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 43,
+              "targeted": 43,
+              "resolvedTargeted": 43,
+              "pendingTargeted": 0,
+              "intendedReceives": 34,
+              "otherOwnReceives": 4,
+              "opponentReceives": 3,
+              "intendedMisses": 9,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 3.208740798116429,
+              "groundTargeted": {
+                "resolved": 41,
+                "intendedReceives": 34,
+                "ownLastTouchOut": 1,
+                "meanMinCentreGap": 2.3329425468715366
+              },
+              "byKind": {
+                "pass": {
+                  "released": 40,
+                  "intendedReceives": 34,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 1,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 1
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 2,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 243,
+          "receives": 128,
+          "looseBalls": 11,
+          "shotsAfterPasses": 0,
+          "restarts": 3,
+          "turnovers": 15,
+          "duels": 13,
+          "throughBalls": 1,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 2,
+          "switches": 1,
+          "offsides": 0,
+          "pressRecoveries": 4,
+          "clearances": 0,
+          "giveGoes": 6,
+          "movingPasses": 73,
+          "movingShots": 0,
+          "preparedReceives": 107,
+          "oneTouchPasses": 2,
+          "directedTouches": 104,
+          "keeperCatches": 0,
+          "returnSupports": 66,
+          "giveGoReturns": 2,
+          "giveGoCompletions": 2,
+          "alignedThroughBalls": 1,
+          "closeControlTouches": 35,
+          "strideTouches": 16,
+          "shieldCarries": 1,
+          "duelOutlets": 2,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 104,
+          "markHandoffs": 24,
+          "markSamples": 4282,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 122,
+            "carry": 109,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 527,
+          "arrivalSupportPlans": 117,
+          "coordinatedRuns": 51,
+          "passReviews": 163,
+          "arrivalSupportHandoffs": 106,
+          "arrivalSupportChoices": 59,
+          "arrivalSupportReleases": 59,
+          "cutbackHandoffs": 2
+        }
+      },
+      "current": {
+        "initial": {
+          "time": 0,
+          "seed": 1046384275,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 1837964290,
+        "score": [
+          0,
+          1
+        ],
+        "shots": [
+          0,
+          2
+        ],
+        "passes": [
+          70,
+          42
+        ],
+        "completedPasses": [
+          67,
+          39
+        ],
+        "windowPasses": [
+          70,
+          42
+        ],
+        "windowCompleted": [
+          67,
+          39
+        ],
+        "firstOpponent": {
+          "time": 25.916666666666476,
+          "id": 12,
+          "team": 1
+        },
+        "finalOwner": 13,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": 7.026757581211018,
+          "y": 0.11,
+          "z": 3.1208568990307355,
+          "vx": 5.066078202997746,
+          "vy": 0,
+          "vz": 2.6056657766317386
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.11725506055046608,
+        "maxFreeBallStep": 0.4934041403006634,
+        "shape": [
+          {
+            "samples": 244,
+            "meanWidth": 40.59553262380178,
+            "meanDefenceLine": -30.370954174576152
+          },
+          {
+            "samples": 244,
+            "meanWidth": 39.037653971707336,
+            "meanDefenceLine": -11.03294876005919
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 70,
+              "targeted": 70,
+              "resolvedTargeted": 70,
+              "pendingTargeted": 0,
+              "intendedReceives": 66,
+              "otherOwnReceives": 1,
+              "opponentReceives": 3,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.7108545950632443,
+              "groundTargeted": {
+                "resolved": 70,
+                "intendedReceives": 66,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.7108545950632443
+              },
+              "byKind": {
+                "pass": {
+                  "released": 70,
+                  "intendedReceives": 66,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 42,
+              "targeted": 42,
+              "resolvedTargeted": 42,
+              "pendingTargeted": 0,
+              "intendedReceives": 35,
+              "otherOwnReceives": 4,
+              "opponentReceives": 2,
+              "intendedMisses": 7,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 2.360371067006447,
+              "groundTargeted": {
+                "resolved": 41,
+                "intendedReceives": 34,
+                "ownLastTouchOut": 1,
+                "meanMinCentreGap": 2.391962211534056
+              },
+              "byKind": {
+                "pass": {
+                  "released": 38,
+                  "intendedReceives": 32,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 3,
+                  "intendedReceives": 2,
+                  "ownLastTouchOut": 1
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 1,
+                  "intendedReceives": 1,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 255,
+          "receives": 119,
+          "looseBalls": 7,
+          "shotsAfterPasses": 2,
+          "restarts": 4,
+          "turnovers": 12,
+          "duels": 10,
+          "throughBalls": 3,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 3,
+          "longPasses": 1,
+          "switches": 1,
+          "offsides": 0,
+          "pressRecoveries": 3,
+          "clearances": 0,
+          "giveGoes": 6,
+          "movingPasses": 73,
+          "movingShots": 2,
+          "preparedReceives": 101,
+          "oneTouchPasses": 0,
+          "directedTouches": 101,
+          "keeperCatches": 0,
+          "returnSupports": 59,
+          "giveGoReturns": 2,
+          "giveGoCompletions": 2,
+          "alignedThroughBalls": 2,
+          "closeControlTouches": 29,
+          "strideTouches": 19,
+          "shieldCarries": 1,
+          "duelOutlets": 1,
+          "feintResponses": 2,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 101,
+          "markHandoffs": 11,
+          "markSamples": 3579,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 110,
+            "carry": 126,
+            "feint": 3,
+            "shot": 2,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 488,
+          "arrivalSupportPlans": 112,
+          "coordinatedRuns": 51,
+          "arrivalSupportHandoffs": 100,
+          "arrivalSupportChoices": 44,
+          "arrivalSupportReleases": 43,
+          "passReviews": 128,
+          "cutbackHandoffs": 2
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "direct42",
+        "seed": 42,
+        "away": "press",
+        "change": {
+          "passing": "direct"
+        }
+      },
+      "config": {
+        "seed": 42,
+        "starters": [
+          8,
+          9,
+          10,
+          7,
+          5,
+          6,
+          4,
+          2,
+          3,
+          1,
+          0
+        ],
+        "formation": "4-3-3",
+        "awayFormation": "4-2-3-1",
+        "matchMinutes": 5,
+        "players": [
+          {
+            "id": 0,
+            "name": "Synthetic 0",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 1,
+            "name": "Synthetic 1",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 2,
+            "name": "Synthetic 2",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 3,
+            "name": "Synthetic 3",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 4,
+            "name": "Synthetic 4",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 5,
+            "name": "Synthetic 5",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 6,
+            "name": "Synthetic 6",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 7,
+            "name": "Synthetic 7",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 8,
+            "name": "Synthetic 8",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          },
+          {
+            "id": 9,
+            "name": "Synthetic 9",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 70
+          },
+          {
+            "id": 10,
+            "name": "Synthetic 10",
+            "rating": 82,
+            "passing": 82,
+            "shooting": 82,
+            "tackling": 82,
+            "vision": 82,
+            "composure": 82,
+            "dribbling": 82,
+            "pace": 82,
+            "agility": 82,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 70
+          }
+        ],
+        "tactics": {
+          "mentality": "balanced",
+          "playstyle": "possession",
+          "press": 58,
+          "tempo": 61,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "normal",
+          "passing": "direct",
+          "width": "balanced",
+          "onLoss": "regroup",
+          "onWin": "retain",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        },
+        "awayTactics": {
+          "mentality": "attacking",
+          "playstyle": "direct",
+          "press": 86,
+          "tempo": 80,
+          "aggression": 59,
+          "marking": "zone",
+          "offside": "off",
+          "line": "high",
+          "passing": "mixed",
+          "width": "balanced",
+          "onLoss": "counterpress",
+          "onWin": "counter",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        }
+      },
+      "baseline": {
+        "initial": {
+          "time": 0,
+          "seed": 1046384275,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 3906276411,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          80,
+          36
+        ],
+        "completedPasses": [
+          76,
+          32
+        ],
+        "windowPasses": [
+          80,
+          36
+        ],
+        "windowCompleted": [
+          76,
+          32
+        ],
+        "firstOpponent": {
+          "time": 20.8000000000001,
+          "id": 17,
+          "team": 1
+        },
+        "finalOwner": 9,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": 12.812451038297716,
+          "y": 0.11,
+          "z": 14.703239878458154,
+          "vx": 3.6178787124567378,
+          "vy": 0,
+          "vz": 0.2330058375263315
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.11608287547438202,
+        "maxFreeBallStep": 0.4830181800472436,
+        "shape": [
+          {
+            "samples": 284,
+            "meanWidth": 40.57967627397916,
+            "meanDefenceLine": -26.31796547361142
+          },
+          {
+            "samples": 284,
+            "meanWidth": 39.63743463337221,
+            "meanDefenceLine": -14.342088498641072
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 80,
+              "targeted": 80,
+              "resolvedTargeted": 80,
+              "pendingTargeted": 0,
+              "intendedReceives": 72,
+              "otherOwnReceives": 4,
+              "opponentReceives": 3,
+              "intendedMisses": 8,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 2.3976420944401835,
+              "groundTargeted": {
+                "resolved": 74,
+                "intendedReceives": 67,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 2.50649538099916
+              },
+              "byKind": {
+                "pass": {
+                  "released": 70,
+                  "intendedReceives": 64,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 3,
+                  "intendedReceives": 3,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 1,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 6,
+                  "intendedReceives": 5,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 36,
+              "targeted": 36,
+              "resolvedTargeted": 36,
+              "pendingTargeted": 0,
+              "intendedReceives": 32,
+              "otherOwnReceives": 0,
+              "opponentReceives": 4,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 2.659989739650388,
+              "groundTargeted": {
+                "resolved": 35,
+                "intendedReceives": 31,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 2.711171632354132
+              },
+              "byKind": {
+                "pass": {
+                  "released": 32,
+                  "intendedReceives": 28,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 3,
+                  "intendedReceives": 3,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 1,
+                  "intendedReceives": 1,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 259,
+          "receives": 136,
+          "looseBalls": 18,
+          "shotsAfterPasses": 0,
+          "restarts": 2,
+          "turnovers": 25,
+          "duels": 21,
+          "throughBalls": 6,
+          "crosses": 0,
+          "cutbacks": 1,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 7,
+          "switches": 4,
+          "offsides": 0,
+          "pressRecoveries": 5,
+          "clearances": 0,
+          "giveGoes": 7,
+          "movingPasses": 64,
+          "movingShots": 0,
+          "preparedReceives": 104,
+          "oneTouchPasses": 2,
+          "directedTouches": 102,
+          "keeperCatches": 0,
+          "returnSupports": 56,
+          "giveGoReturns": 1,
+          "giveGoCompletions": 1,
+          "alignedThroughBalls": 3,
+          "closeControlTouches": 52,
+          "strideTouches": 20,
+          "shieldCarries": 0,
+          "duelOutlets": 4,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 102,
+          "markHandoffs": 38,
+          "markSamples": 4349,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 123,
+            "carry": 138,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 609,
+          "arrivalSupportPlans": 114,
+          "coordinatedRuns": 72,
+          "arrivalSupportHandoffs": 102,
+          "arrivalSupportChoices": 40,
+          "arrivalSupportReleases": 40,
+          "passReviews": 150,
+          "cutbackHandoffs": 4
+        }
+      },
+      "current": {
+        "initial": {
+          "time": 0,
+          "seed": 1046384275,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 3494925180,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          1,
+          0
+        ],
+        "passes": [
+          59,
+          29
+        ],
+        "completedPasses": [
+          55,
+          29
+        ],
+        "windowPasses": [
+          59,
+          29
+        ],
+        "windowCompleted": [
+          55,
+          29
+        ],
+        "firstOpponent": {
+          "time": 15.283333333333672,
+          "id": 11,
+          "team": 1
+        },
+        "finalOwner": null,
+        "finalPhase": "finished",
+        "finalRestart": {
+          "kind": "free-kick",
+          "team": 0,
+          "spot": {
+            "x": -23.93574406180384,
+            "z": -14.838346924980913
+          }
+        },
+        "finalBall": {
+          "x": -23.93574406180384,
+          "y": 0.11,
+          "z": -14.838346924980913,
+          "vx": 0,
+          "vy": 0,
+          "vz": 0
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.1221141894537431,
+        "maxFreeBallStep": 0.4688213571720104,
+        "shape": [
+          {
+            "samples": 207,
+            "meanWidth": 41.23966294353636,
+            "meanDefenceLine": -24.77278846030156
+          },
+          {
+            "samples": 207,
+            "meanWidth": 39.56016365596584,
+            "meanDefenceLine": -14.938565301823438
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 58,
+              "targeted": 58,
+              "resolvedTargeted": 58,
+              "pendingTargeted": 0,
+              "intendedReceives": 54,
+              "otherOwnReceives": 0,
+              "opponentReceives": 3,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 1.8091348680141157,
+              "groundTargeted": {
+                "resolved": 55,
+                "intendedReceives": 52,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.862536186774625
+              },
+              "byKind": {
+                "pass": {
+                  "released": 52,
+                  "intendedReceives": 49,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 3,
+                  "intendedReceives": 3,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 1,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 2,
+                  "intendedReceives": 2,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 29,
+              "targeted": 29,
+              "resolvedTargeted": 29,
+              "pendingTargeted": 0,
+              "intendedReceives": 28,
+              "otherOwnReceives": 1,
+              "opponentReceives": 0,
+              "intendedMisses": 1,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.5025655252726058,
+              "groundTargeted": {
+                "resolved": 29,
+                "intendedReceives": 28,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.5025655252726058
+              },
+              "byKind": {
+                "pass": {
+                  "released": 29,
+                  "intendedReceives": 28,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 158,
+          "receives": 95,
+          "looseBalls": 7,
+          "shotsAfterPasses": 1,
+          "restarts": 7,
+          "turnovers": 10,
+          "duels": 13,
+          "throughBalls": 3,
+          "crosses": 1,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 2,
+          "switches": 1,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 4,
+          "movingPasses": 47,
+          "movingShots": 1,
+          "preparedReceives": 83,
+          "oneTouchPasses": 1,
+          "directedTouches": 82,
+          "keeperCatches": 0,
+          "returnSupports": 46,
+          "giveGoReturns": 0,
+          "giveGoCompletions": 0,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 23,
+          "strideTouches": 8,
+          "shieldCarries": 2,
+          "duelOutlets": 1,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 82,
+          "markHandoffs": 13,
+          "markSamples": 3362,
+          "screenedReads": 1,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 88,
+            "carry": 64,
+            "feint": 0,
+            "shot": 1,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 469,
+          "arrivalSupportPlans": 86,
+          "coordinatedRuns": 61,
+          "arrivalSupportHandoffs": 83,
+          "arrivalSupportChoices": 41,
+          "arrivalSupportReleases": 41,
+          "passReviews": 136,
+          "freeKickCrosses": 1,
+          "headedPasses": 1
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "weak442-77",
+        "seed": 77,
+        "strength": 65,
+        "formation": "4-4-2",
+        "home": "possession",
+        "away": "press"
+      },
+      "config": {
+        "seed": 77,
+        "starters": [
+          8,
+          9,
+          10,
+          7,
+          5,
+          6,
+          4,
+          2,
+          3,
+          1,
+          0
+        ],
+        "formation": "4-4-2",
+        "awayFormation": "4-2-3-1",
+        "matchMinutes": 5,
+        "players": [
+          {
+            "id": 0,
+            "name": "Synthetic 0",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 53
+          },
+          {
+            "id": 1,
+            "name": "Synthetic 1",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 53
+          },
+          {
+            "id": 2,
+            "name": "Synthetic 2",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 53
+          },
+          {
+            "id": 3,
+            "name": "Synthetic 3",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 53
+          },
+          {
+            "id": 4,
+            "name": "Synthetic 4",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 53
+          },
+          {
+            "id": 5,
+            "name": "Synthetic 5",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 53
+          },
+          {
+            "id": 6,
+            "name": "Synthetic 6",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 53
+          },
+          {
+            "id": 7,
+            "name": "Synthetic 7",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 53
+          },
+          {
+            "id": 8,
+            "name": "Synthetic 8",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 53
+          },
+          {
+            "id": 9,
+            "name": "Synthetic 9",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 53
+          },
+          {
+            "id": 10,
+            "name": "Synthetic 10",
+            "rating": 65,
+            "passing": 65,
+            "shooting": 65,
+            "tackling": 65,
+            "vision": 65,
+            "composure": 65,
+            "dribbling": 65,
+            "pace": 65,
+            "agility": 65,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 53
+          }
+        ],
+        "tactics": {
+          "mentality": "balanced",
+          "playstyle": "possession",
+          "press": 63,
+          "tempo": 47,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "normal",
+          "passing": "short",
+          "width": "narrow",
+          "onLoss": "regroup",
+          "onWin": "retain",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "patient"
+        },
+        "awayTactics": {
+          "mentality": "attacking",
+          "playstyle": "direct",
+          "press": 86,
+          "tempo": 80,
+          "aggression": 59,
+          "marking": "zone",
+          "offside": "off",
+          "line": "high",
+          "passing": "mixed",
+          "width": "balanced",
+          "onLoss": "counterpress",
+          "onWin": "counter",
+          "fullbacks": "support",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        }
+      },
+      "baseline": {
+        "initial": {
+          "time": 0,
+          "seed": 2885793599,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 2953395100,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          98,
+          22
+        ],
+        "completedPasses": [
+          95,
+          17
+        ],
+        "windowPasses": [
+          98,
+          22
+        ],
+        "windowCompleted": [
+          95,
+          17
+        ],
+        "firstOpponent": {
+          "time": 8.033333333333312,
+          "id": 16,
+          "team": 1
+        },
+        "finalOwner": 5,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": -4.370808607855594,
+          "y": 0.11,
+          "z": 27.4090719449866,
+          "vx": -2.6550788719478837,
+          "vy": 0,
+          "vz": 2.2515937637286667
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.11376974776205319,
+        "maxFreeBallStep": 0.3004072920358908,
+        "shape": [
+          {
+            "samples": 252,
+            "meanWidth": 35.669201687376145,
+            "meanDefenceLine": -30.087128559022343
+          },
+          {
+            "samples": 252,
+            "meanWidth": 37.95684177424031,
+            "meanDefenceLine": -13.691663094354318
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 98,
+              "targeted": 98,
+              "resolvedTargeted": 98,
+              "pendingTargeted": 0,
+              "intendedReceives": 94,
+              "otherOwnReceives": 1,
+              "opponentReceives": 2,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.2508752281254374,
+              "groundTargeted": {
+                "resolved": 98,
+                "intendedReceives": 94,
+                "ownLastTouchOut": 1,
+                "meanMinCentreGap": 1.2508752281254374
+              },
+              "byKind": {
+                "pass": {
+                  "released": 98,
+                  "intendedReceives": 94,
+                  "ownLastTouchOut": 1
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 22,
+              "targeted": 22,
+              "resolvedTargeted": 22,
+              "pendingTargeted": 0,
+              "intendedReceives": 17,
+              "otherOwnReceives": 0,
+              "opponentReceives": 5,
+              "intendedMisses": 5,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 4.1228632496938085,
+              "groundTargeted": {
+                "resolved": 22,
+                "intendedReceives": 17,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 4.1228632496938085
+              },
+              "byKind": {
+                "pass": {
+                  "released": 22,
+                  "intendedReceives": 17,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 237,
+          "receives": 126,
+          "looseBalls": 5,
+          "shotsAfterPasses": 0,
+          "restarts": 4,
+          "turnovers": 13,
+          "duels": 11,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 0,
+          "switches": 0,
+          "offsides": 0,
+          "pressRecoveries": 1,
+          "clearances": 0,
+          "giveGoes": 17,
+          "movingPasses": 82,
+          "movingShots": 0,
+          "preparedReceives": 111,
+          "oneTouchPasses": 0,
+          "directedTouches": 111,
+          "keeperCatches": 0,
+          "returnSupports": 59,
+          "giveGoReturns": 4,
+          "giveGoCompletions": 4,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 19,
+          "strideTouches": 5,
+          "shieldCarries": 0,
+          "duelOutlets": 3,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 111,
+          "markHandoffs": 23,
+          "markSamples": 3184,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 122,
+            "carry": 91,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 524,
+          "arrivalSupportPlans": 120,
+          "coordinatedRuns": 66,
+          "arrivalSupportHandoffs": 111,
+          "arrivalSupportChoices": 62,
+          "passReviews": 155,
+          "arrivalSupportReleases": 62
+        }
+      },
+      "current": {
+        "initial": {
+          "time": 0,
+          "seed": 2885793599,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 4260893855,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          68,
+          32
+        ],
+        "completedPasses": [
+          67,
+          26
+        ],
+        "windowPasses": [
+          68,
+          32
+        ],
+        "windowCompleted": [
+          67,
+          26
+        ],
+        "firstOpponent": {
+          "time": 8.033333333333312,
+          "id": 16,
+          "team": 1
+        },
+        "finalOwner": null,
+        "finalPhase": "finished",
+        "finalRestart": {
+          "kind": "goal-kick",
+          "team": 0,
+          "spot": {
+            "x": -47,
+            "z": -5
+          }
+        },
+        "finalBall": {
+          "x": -47,
+          "y": 0.11,
+          "z": -5,
+          "vx": 0,
+          "vy": 0,
+          "vz": 0
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.11589062978601301,
+        "maxFreeBallStep": 0.48189524778680554,
+        "shape": [
+          {
+            "samples": 229,
+            "meanWidth": 34.58796970456956,
+            "meanDefenceLine": -28.28318164398906
+          },
+          {
+            "samples": 229,
+            "meanWidth": 38.52690685647247,
+            "meanDefenceLine": -13.984054375837248
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 68,
+              "targeted": 68,
+              "resolvedTargeted": 68,
+              "pendingTargeted": 0,
+              "intendedReceives": 65,
+              "otherOwnReceives": 2,
+              "opponentReceives": 0,
+              "intendedMisses": 3,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 1.311103193056172,
+              "groundTargeted": {
+                "resolved": 68,
+                "intendedReceives": 65,
+                "ownLastTouchOut": 1,
+                "meanMinCentreGap": 1.311103193056172
+              },
+              "byKind": {
+                "pass": {
+                  "released": 68,
+                  "intendedReceives": 65,
+                  "ownLastTouchOut": 1
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 32,
+              "targeted": 32,
+              "resolvedTargeted": 32,
+              "pendingTargeted": 0,
+              "intendedReceives": 23,
+              "otherOwnReceives": 3,
+              "opponentReceives": 5,
+              "intendedMisses": 9,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 4.612287768915087,
+              "groundTargeted": {
+                "resolved": 32,
+                "intendedReceives": 23,
+                "ownLastTouchOut": 1,
+                "meanMinCentreGap": 4.612287768915087
+              },
+              "byKind": {
+                "pass": {
+                  "released": 31,
+                  "intendedReceives": 22,
+                  "ownLastTouchOut": 1
+                },
+                "through": {
+                  "released": 1,
+                  "intendedReceives": 1,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 226,
+          "receives": 116,
+          "looseBalls": 14,
+          "shotsAfterPasses": 0,
+          "restarts": 6,
+          "turnovers": 19,
+          "duels": 22,
+          "throughBalls": 1,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 0,
+          "switches": 0,
+          "offsides": 0,
+          "pressRecoveries": 3,
+          "clearances": 1,
+          "giveGoes": 8,
+          "movingPasses": 62,
+          "movingShots": 0,
+          "preparedReceives": 88,
+          "oneTouchPasses": 1,
+          "directedTouches": 87,
+          "keeperCatches": 0,
+          "returnSupports": 51,
+          "giveGoReturns": 2,
+          "giveGoCompletions": 2,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 28,
+          "strideTouches": 5,
+          "shieldCarries": 0,
+          "duelOutlets": 3,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 87,
+          "markHandoffs": 19,
+          "markSamples": 2499,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 104,
+            "carry": 93,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 1
+          },
+          "arrivalSupportSamples": 432,
+          "arrivalSupportPlans": 99,
+          "coordinatedRuns": 63,
+          "arrivalSupportHandoffs": 88,
+          "arrivalSupportChoices": 53,
+          "passReviews": 107,
+          "arrivalSupportReleases": 53
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "strong352-21",
+        "seed": 21,
+        "strength": 91,
+        "formation": "3-5-2",
+        "home": "counter",
+        "away": "wide"
+      },
+      "config": {
+        "seed": 21,
+        "starters": [
+          8,
+          9,
+          10,
+          7,
+          5,
+          6,
+          4,
+          2,
+          3,
+          1,
+          0
+        ],
+        "formation": "3-5-2",
+        "awayFormation": "4-2-3-1",
+        "matchMinutes": 5,
+        "players": [
+          {
+            "id": 0,
+            "name": "Synthetic 0",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 79
+          },
+          {
+            "id": 1,
+            "name": "Synthetic 1",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 79
+          },
+          {
+            "id": 2,
+            "name": "Synthetic 2",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 79
+          },
+          {
+            "id": 3,
+            "name": "Synthetic 3",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 79
+          },
+          {
+            "id": 4,
+            "name": "Synthetic 4",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 79
+          },
+          {
+            "id": 5,
+            "name": "Synthetic 5",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 79
+          },
+          {
+            "id": 6,
+            "name": "Synthetic 6",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 79
+          },
+          {
+            "id": 7,
+            "name": "Synthetic 7",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 79
+          },
+          {
+            "id": 8,
+            "name": "Synthetic 8",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 79
+          },
+          {
+            "id": 9,
+            "name": "Synthetic 9",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "right",
+            "weakFoot": 79
+          },
+          {
+            "id": 10,
+            "name": "Synthetic 10",
+            "rating": 91,
+            "passing": 91,
+            "shooting": 91,
+            "tackling": 91,
+            "vision": 91,
+            "composure": 91,
+            "dribbling": 91,
+            "pace": 91,
+            "agility": 91,
+            "fitness": 92,
+            "preferredFoot": "left",
+            "weakFoot": 79
+          }
+        ],
+        "tactics": {
+          "mentality": "defensive",
+          "playstyle": "counter",
+          "press": 30,
+          "tempo": 76,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "low",
+          "passing": "direct",
+          "width": "balanced",
+          "onLoss": "regroup",
+          "onWin": "counter",
+          "fullbacks": "hold",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        },
+        "awayTactics": {
+          "mentality": "balanced",
+          "playstyle": "wing",
+          "press": 58,
+          "tempo": 69,
+          "aggression": 55,
+          "marking": "zone",
+          "offside": "off",
+          "line": "normal",
+          "passing": "mixed",
+          "width": "wide",
+          "onLoss": "regroup",
+          "onWin": "retain",
+          "fullbacks": "overlap",
+          "crossing": "mixed",
+          "shooting": "balanced"
+        }
+      },
+      "baseline": {
+        "initial": {
+          "time": 0,
+          "seed": 1362297560,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 4140035933,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          36,
+          37
+        ],
+        "completedPasses": [
+          33,
+          34
+        ],
+        "windowPasses": [
+          36,
+          37
+        ],
+        "windowCompleted": [
+          33,
+          34
+        ],
+        "firstOpponent": {
+          "time": 9.750000000000064,
+          "id": 16,
+          "team": 1
+        },
+        "finalOwner": 14,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": 1.3535934029277543,
+          "y": 0.11,
+          "z": -17.201757519849828,
+          "vx": -2.3788883829364207,
+          "vy": 0,
+          "vz": -0.0019149668963852667
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.11684520781395956,
+        "maxFreeBallStep": 0.506954847394763,
+        "shape": [
+          {
+            "samples": 233,
+            "meanWidth": 41.17903076597505,
+            "meanDefenceLine": -28.919363231150378
+          },
+          {
+            "samples": 233,
+            "meanWidth": 43.436649009469484,
+            "meanDefenceLine": -24.30946268786662
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 36,
+              "targeted": 36,
+              "resolvedTargeted": 36,
+              "pendingTargeted": 0,
+              "intendedReceives": 32,
+              "otherOwnReceives": 1,
+              "opponentReceives": 1,
+              "intendedMisses": 4,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 1,
+              "meanResolvedMinCentreGap": 1.0725836861927756,
+              "groundTargeted": {
+                "resolved": 33,
+                "intendedReceives": 31,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.0519741823873767
+              },
+              "byKind": {
+                "pass": {
+                  "released": 33,
+                  "intendedReceives": 31,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 3,
+                  "intendedReceives": 1,
+                  "ownLastTouchOut": 1
+                }
+              }
+            },
+            {
+              "released": 37,
+              "targeted": 37,
+              "resolvedTargeted": 37,
+              "pendingTargeted": 0,
+              "intendedReceives": 28,
+              "otherOwnReceives": 6,
+              "opponentReceives": 2,
+              "intendedMisses": 9,
+              "ownLastTouchOut": 1,
+              "out": 1,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 3.087121254210338,
+              "groundTargeted": {
+                "resolved": 34,
+                "intendedReceives": 26,
+                "ownLastTouchOut": 1,
+                "meanMinCentreGap": 3.213516325607347
+              },
+              "byKind": {
+                "pass": {
+                  "released": 34,
+                  "intendedReceives": 26,
+                  "ownLastTouchOut": 1
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 3,
+                  "intendedReceives": 2,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 194,
+          "receives": 87,
+          "looseBalls": 15,
+          "shotsAfterPasses": 0,
+          "restarts": 5,
+          "turnovers": 17,
+          "duels": 15,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 1,
+          "longPasses": 6,
+          "switches": 5,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 0,
+          "movingPasses": 41,
+          "movingShots": 0,
+          "preparedReceives": 60,
+          "oneTouchPasses": 0,
+          "directedTouches": 60,
+          "keeperCatches": 0,
+          "returnSupports": 42,
+          "giveGoReturns": 0,
+          "giveGoCompletions": 0,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 28,
+          "strideTouches": 17,
+          "shieldCarries": 0,
+          "duelOutlets": 0,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 60,
+          "markHandoffs": 2,
+          "markSamples": 1031,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 74,
+            "carry": 136,
+            "feint": 1,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 395,
+          "arrivalSupportPlans": 74,
+          "coordinatedRuns": 78,
+          "arrivalSupportHandoffs": 60,
+          "passReviews": 111,
+          "arrivalSupportChoices": 22,
+          "arrivalSupportReleases": 22
+        }
+      },
+      "current": {
+        "initial": {
+          "time": 0,
+          "seed": 1362297560,
+          "owner": null,
+          "score": [
+            0,
+            0
+          ],
+          "passes": [
+            0,
+            0
+          ],
+          "completed": [
+            0,
+            0
+          ]
+        },
+        "end": 300,
+        "completed": true,
+        "finalSeed": 2096631697,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          24,
+          47
+        ],
+        "completedPasses": [
+          20,
+          47
+        ],
+        "windowPasses": [
+          24,
+          47
+        ],
+        "windowCompleted": [
+          20,
+          47
+        ],
+        "firstOpponent": {
+          "time": 9.716666666666729,
+          "id": 16,
+          "team": 1
+        },
+        "finalOwner": 12,
+        "finalPhase": "finished",
+        "finalRestart": null,
+        "finalBall": {
+          "x": -9.32858065094524,
+          "y": 0.610129703015328,
+          "z": 22.450617367668002,
+          "vx": 2.1620321834213216,
+          "vy": -1.7930579843596393,
+          "vz": 1.147522076934975
+        },
+        "finalFlight": null,
+        "maxPlayerStep": 0.12171254617720946,
+        "maxFreeBallStep": 0.5125538257924145,
+        "shape": [
+          {
+            "samples": 277,
+            "meanWidth": 41.98398127522262,
+            "meanDefenceLine": -29.381725416846972
+          },
+          {
+            "samples": 277,
+            "meanWidth": 45.42465390990655,
+            "meanDefenceLine": -20.587265676958058
+          }
+        ],
+        "arrivals": {
+          "byTeam": [
+            {
+              "released": 24,
+              "targeted": 24,
+              "resolvedTargeted": 24,
+              "pendingTargeted": 0,
+              "intendedReceives": 19,
+              "otherOwnReceives": 1,
+              "opponentReceives": 0,
+              "intendedMisses": 5,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 4,
+              "meanResolvedMinCentreGap": 6.529710773527124,
+              "groundTargeted": {
+                "resolved": 17,
+                "intendedReceives": 16,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 1.5882982717106044
+              },
+              "byKind": {
+                "pass": {
+                  "released": 17,
+                  "intendedReceives": 16,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 7,
+                  "intendedReceives": 3,
+                  "ownLastTouchOut": 0
+                }
+              }
+            },
+            {
+              "released": 47,
+              "targeted": 47,
+              "resolvedTargeted": 47,
+              "pendingTargeted": 0,
+              "intendedReceives": 47,
+              "otherOwnReceives": 0,
+              "opponentReceives": 0,
+              "intendedMisses": 0,
+              "ownLastTouchOut": 0,
+              "out": 0,
+              "goalsFromPass": 0,
+              "clearedOrReplaced": 0,
+              "meanResolvedMinCentreGap": 0.9989640295123166,
+              "groundTargeted": {
+                "resolved": 43,
+                "intendedReceives": 43,
+                "ownLastTouchOut": 0,
+                "meanMinCentreGap": 0.9985056148261953
+              },
+              "byKind": {
+                "pass": {
+                  "released": 43,
+                  "intendedReceives": 43,
+                  "ownLastTouchOut": 0
+                },
+                "through": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cutback": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "cross": {
+                  "released": 0,
+                  "intendedReceives": 0,
+                  "ownLastTouchOut": 0
+                },
+                "long-pass": {
+                  "released": 4,
+                  "intendedReceives": 4,
+                  "ownLastTouchOut": 0
+                }
+              }
+            }
+          ]
+        },
+        "telemetry": {
+          "dribbleTouches": 255,
+          "receives": 87,
+          "looseBalls": 20,
+          "shotsAfterPasses": 0,
+          "restarts": 2,
+          "turnovers": 17,
+          "duels": 16,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 1,
+          "longPasses": 11,
+          "switches": 8,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 0,
+          "movingPasses": 38,
+          "movingShots": 0,
+          "preparedReceives": 66,
+          "oneTouchPasses": 0,
+          "directedTouches": 66,
+          "keeperCatches": 0,
+          "returnSupports": 39,
+          "giveGoReturns": 0,
+          "giveGoCompletions": 0,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 48,
+          "strideTouches": 33,
+          "shieldCarries": 0,
+          "duelOutlets": 1,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 66,
+          "markHandoffs": 4,
+          "markSamples": 1608,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 72,
+            "carry": 191,
+            "feint": 1,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 369,
+          "arrivalSupportPlans": 70,
+          "coordinatedRuns": 109,
+          "arrivalSupportHandoffs": 65,
+          "passReviews": 91,
+          "arrivalSupportChoices": 18,
+          "arrivalSupportReleases": 18
+        }
+      }
+    }
+  ],
+  "observerConsistency": {
+    "baseline": {
+      "balanced21": true,
+      "press42": true,
+      "narrow21": true,
+      "wide21": true,
+      "short42": true,
+      "direct42": true,
+      "weak442-77": true,
+      "strong352-21": true
+    },
+    "current": {
+      "balanced21": true,
+      "press42": true,
+      "narrow21": true,
+      "wide21": true,
+      "short42": true,
+      "direct42": true,
+      "weak442-77": true,
+      "strong352-21": true
+    }
+  },
+  "replay": {
+    "baseline": true,
+    "current": true
+  }
+}

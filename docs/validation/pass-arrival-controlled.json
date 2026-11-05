@@ -1,0 +1,382 @@
+{
+  "generatedAt": "2026-11-05T17:02:22.659Z",
+  "sources": {
+    "baseline": "0adbed0bd872eb0430d0327518b6322eda8087c6868d5c37fc46f79f6efa115a",
+    "current": "4c9279ad5411460bcbb349fa510ff1267607cc5f2e5292f371e256afe9857a6f",
+    "observer": "0902919b66e428495b5718227104db91cd11bc2f4a781ca272cdb5cc917423a7",
+    "tactics": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea"
+  },
+  "definition": "Same synthetic seed and fixed known team commands for at most 6 seconds. Ball physics, real kick/contact, passive interception and RNG remain enabled; no result forcing. Each trial starts an ordinary pass. Unresolved is not success. Sampled centre gap is not swept contact radius.",
+  "runs": [
+    {
+      "side": 1,
+      "block": false,
+      "baseline": {
+        "initialSeed": 3820571250,
+        "initialAim": {
+          "x": 18.770982324740533,
+          "z": 1.7823674355540025
+        },
+        "events": [
+          {
+            "type": "release",
+            "time": 10.183333333333342,
+            "kind": "pass",
+            "point": {
+              "x": 18.811596445233043,
+              "z": 2.4991524259582585
+            },
+            "target": 1,
+            "ball": {
+              "x": 0.8673460579692712,
+              "y": 0.11,
+              "z": 0.23355274185759164,
+              "vx": -0.04476181811399459,
+              "vy": 0,
+              "vz": 0.18943646847077933
+            },
+            "receiver": {
+              "x": 18.115958094412317,
+              "z": -3.0801996450930806
+            }
+          },
+          {
+            "type": "restart",
+            "time": 15.966666666666963,
+            "kind": "goal-kick",
+            "team": 1
+          }
+        ],
+        "resolution": {
+          "type": "restart",
+          "time": 15.966666666666963,
+          "kind": "goal-kick",
+          "team": 1
+        },
+        "minimumSampledCentreGap": 1.1970267973558886,
+        "maxStep": 0.10789980954391387,
+        "finalSeed": 3852674857
+      },
+      "current": {
+        "initialSeed": 3820571250,
+        "initialAim": {
+          "x": 18.45826094632231,
+          "z": -0.33476716070296586
+        },
+        "events": [
+          {
+            "type": "release",
+            "time": 10.183333333333342,
+            "kind": "pass",
+            "point": {
+              "x": 18.457114434458568,
+              "z": -0.3439627338537396
+            },
+            "target": 1,
+            "ball": {
+              "x": 0.8843960942306079,
+              "y": 0.11,
+              "z": 0.15698872585779303,
+              "vx": 0.004195258781195339,
+              "vy": 0,
+              "vz": -0.02196000468766891
+            },
+            "receiver": {
+              "x": 18.115958094412317,
+              "z": -3.0801996450930806
+            }
+          },
+          {
+            "type": "intended",
+            "time": 11.183333333333392,
+            "id": 1
+          }
+        ],
+        "resolution": {
+          "type": "intended",
+          "time": 11.183333333333392,
+          "id": 1
+        },
+        "minimumSampledCentreGap": 1.0662400522220012,
+        "maxStep": 0.08612924350656499,
+        "finalSeed": 3852674857
+      }
+    },
+    {
+      "side": 1,
+      "block": true,
+      "baseline": {
+        "initialSeed": 3820571250,
+        "initialAim": {
+          "x": 18.770982324740533,
+          "z": 1.7823674355540025
+        },
+        "events": [
+          {
+            "type": "release",
+            "time": 10.183333333333342,
+            "kind": "pass",
+            "point": {
+              "x": 18.811596445233043,
+              "z": 2.4991524259582585
+            },
+            "target": 1,
+            "ball": {
+              "x": 0.8673460579692712,
+              "y": 0.11,
+              "z": 0.23355274185759164,
+              "vx": -0.04476181811399459,
+              "vy": 0,
+              "vz": 0.18943646847077933
+            },
+            "receiver": {
+              "x": 18.115958094412317,
+              "z": -3.0801996450930806
+            }
+          },
+          {
+            "type": "opponent",
+            "time": 10.60000000000003,
+            "id": 14
+          }
+        ],
+        "resolution": {
+          "type": "opponent",
+          "time": 10.60000000000003,
+          "id": 14
+        },
+        "minimumSampledCentreGap": 10.475613129654022,
+        "maxStep": 0.08612924350656499,
+        "finalSeed": 3852674857
+      },
+      "current": {
+        "initialSeed": 3820571250,
+        "initialAim": {
+          "x": 18.45826094632231,
+          "z": -0.33476716070296586
+        },
+        "events": [
+          {
+            "type": "release",
+            "time": 10.183333333333342,
+            "kind": "pass",
+            "point": {
+              "x": 18.457114434458568,
+              "z": -0.3439627338537396
+            },
+            "target": 1,
+            "ball": {
+              "x": 0.8843960942306079,
+              "y": 0.11,
+              "z": 0.15698872585779303,
+              "vx": 0.004195258781195339,
+              "vy": 0,
+              "vz": -0.02196000468766891
+            },
+            "receiver": {
+              "x": 18.115958094412317,
+              "z": -3.0801996450930806
+            }
+          },
+          {
+            "type": "opponent",
+            "time": 10.566666666666695,
+            "id": 14
+          }
+        ],
+        "resolution": {
+          "type": "opponent",
+          "time": 10.566666666666695,
+          "id": 14
+        },
+        "minimumSampledCentreGap": 10.918193971312062,
+        "maxStep": 0.08612924350656499,
+        "finalSeed": 3852674857
+      }
+    },
+    {
+      "side": -1,
+      "block": false,
+      "baseline": {
+        "initialSeed": 3820571250,
+        "initialAim": {
+          "x": -18.770982324740533,
+          "z": -1.7823674355540025
+        },
+        "events": [
+          {
+            "type": "release",
+            "time": 10.183333333333342,
+            "kind": "pass",
+            "point": {
+              "x": -18.811596445233043,
+              "z": -2.4991524259582585
+            },
+            "target": 1,
+            "ball": {
+              "x": -0.8673460579692712,
+              "y": 0.11,
+              "z": -0.23355274185759164,
+              "vx": 0.04476181811399461,
+              "vy": 0,
+              "vz": -0.1894364684707792
+            },
+            "receiver": {
+              "x": -18.115958094412317,
+              "z": 3.0801996450930806
+            }
+          },
+          {
+            "type": "intended",
+            "time": 11.233333333333395,
+            "id": 1
+          }
+        ],
+        "resolution": {
+          "type": "intended",
+          "time": 11.233333333333395,
+          "id": 1
+        },
+        "minimumSampledCentreGap": 1.0745197406014355,
+        "maxStep": 0.09599347008689837,
+        "finalSeed": 3852674857
+      },
+      "current": {
+        "initialSeed": 3820571250,
+        "initialAim": {
+          "x": -18.45826094632231,
+          "z": 0.33476716070296586
+        },
+        "events": [
+          {
+            "type": "release",
+            "time": 10.183333333333342,
+            "kind": "pass",
+            "point": {
+              "x": -18.457114434458568,
+              "z": 0.3439627338537396
+            },
+            "target": 1,
+            "ball": {
+              "x": -0.8843960942306084,
+              "y": 0.11,
+              "z": -0.15698872585779303,
+              "vx": -0.004195258781195515,
+              "vy": 0,
+              "vz": 0.021960004687669336
+            },
+            "receiver": {
+              "x": -18.115958094412317,
+              "z": 3.0801996450930806
+            }
+          },
+          {
+            "type": "intended",
+            "time": 11.150000000000057,
+            "id": 1
+          }
+        ],
+        "resolution": {
+          "type": "intended",
+          "time": 11.150000000000057,
+          "id": 1
+        },
+        "minimumSampledCentreGap": 1.026099917692469,
+        "maxStep": 0.08612924350656499,
+        "finalSeed": 3852674857
+      }
+    },
+    {
+      "side": -1,
+      "block": true,
+      "baseline": {
+        "initialSeed": 3820571250,
+        "initialAim": {
+          "x": -18.770982324740533,
+          "z": -1.7823674355540025
+        },
+        "events": [
+          {
+            "type": "release",
+            "time": 10.183333333333342,
+            "kind": "pass",
+            "point": {
+              "x": -18.811596445233043,
+              "z": -2.4991524259582585
+            },
+            "target": 1,
+            "ball": {
+              "x": -0.8673460579692712,
+              "y": 0.11,
+              "z": -0.23355274185759164,
+              "vx": 0.04476181811399461,
+              "vy": 0,
+              "vz": -0.1894364684707792
+            },
+            "receiver": {
+              "x": -18.115958094412317,
+              "z": 3.0801996450930806
+            }
+          },
+          {
+            "type": "opponent",
+            "time": 10.60000000000003,
+            "id": 14
+          }
+        ],
+        "resolution": {
+          "type": "opponent",
+          "time": 10.60000000000003,
+          "id": 14
+        },
+        "minimumSampledCentreGap": 10.424937830697644,
+        "maxStep": 0.09599347008689837,
+        "finalSeed": 3852674857
+      },
+      "current": {
+        "initialSeed": 3820571250,
+        "initialAim": {
+          "x": -18.45826094632231,
+          "z": 0.33476716070296586
+        },
+        "events": [
+          {
+            "type": "release",
+            "time": 10.183333333333342,
+            "kind": "pass",
+            "point": {
+              "x": -18.457114434458568,
+              "z": 0.3439627338537396
+            },
+            "target": 1,
+            "ball": {
+              "x": -0.8843960942306084,
+              "y": 0.11,
+              "z": -0.15698872585779303,
+              "vx": -0.004195258781195515,
+              "vy": 0,
+              "vz": 0.021960004687669336
+            },
+            "receiver": {
+              "x": -18.115958094412317,
+              "z": 3.0801996450930806
+            }
+          },
+          {
+            "type": "opponent",
+            "time": 10.566666666666695,
+            "id": 14
+          }
+        ],
+        "resolution": {
+          "type": "opponent",
+          "time": 10.566666666666695,
+          "id": 14
+        },
+        "minimumSampledCentreGap": 10.87980833491095,
+        "maxStep": 0.08612924350656499,
+        "finalSeed": 3852674857
+      }
+    }
+  ]
+}

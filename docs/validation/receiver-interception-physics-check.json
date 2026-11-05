@@ -1,0 +1,41 @@
+{
+  "sources": {
+    "baseline": "4c9279ad5411460bcbb349fa510ff1267607cc5f2e5292f371e256afe9857a6f",
+    "current": "406526afd60d3d2469e4d320b4a5a801f9680ecdbc6b98de9bf8d20d1c9ab539"
+  },
+  "unchangedMatchMethods": [
+    "move",
+    "effort",
+    "release",
+    "doTackle",
+    "acquire",
+    "startKick",
+    "kickStep",
+    "contactPoint"
+  ],
+  "unchangedBallPhysicsFunctions": [
+    "ground",
+    "groundTime",
+    "launchForGround",
+    "step",
+    "predict",
+    "atX",
+    "airTime",
+    "verticalLaunch"
+  ],
+  "verified": true,
+  "legacyScopeNumericallyEqual": [
+    "defender",
+    "keeper",
+    "inactive",
+    "untargeted",
+    "restart",
+    "cross",
+    "through",
+    "long-pass",
+    "shot",
+    "high",
+    "rising"
+  ],
+  "naturalFirstReleaseStateEqual": true
+}

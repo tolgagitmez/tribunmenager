@@ -1,0 +1,27 @@
+{
+  "sources": {
+    "baseline": "0adbed0bd872eb0430d0327518b6322eda8087c6868d5c37fc46f79f6efa115a",
+    "current": "4c9279ad5411460bcbb349fa510ff1267607cc5f2e5292f371e256afe9857a6f"
+  },
+  "unchangedMatchMethods": [
+    "move",
+    "effort",
+    "release",
+    "doTackle",
+    "acquire",
+    "startKick",
+    "kickStep",
+    "contactPoint"
+  ],
+  "unchangedBallPhysicsFunctions": [
+    "ground",
+    "groundTime",
+    "launchForGround",
+    "step",
+    "predict",
+    "atX",
+    "airTime",
+    "verticalLaunch"
+  ],
+  "verified": true
+}

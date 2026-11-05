@@ -1,0 +1,1624 @@
+{
+  "generatedAt": "2026-11-05T16:38:26.390Z",
+  "mode": "fork",
+  "sources": {
+    "baseline": "cb35f481fadf8b0da28c31aa3605b6778dd6575d2d8df2838bd689750f8aed73",
+    "current": "0adbed0bd872eb0430d0327518b6322eda8087c6868d5c37fc46f79f6efa115a",
+    "tactics": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea",
+    "observer": "d7ad83dfd3f3b2e02d0da47aa8eb2963f153b83cbdf86ad6863f5f4c6bdd6d32"
+  },
+  "definitions": {
+    "baseline": "Exact published stage1 source cb35f481; retained gzip defaults to docs/validation/baselines/stage1-football-sim.js.gz.",
+    "safeHelper": "Existing pass option at actual reception: normal pass, risk<.35, arrivalRisk<.65, receiver space>2.4 and teammate is in current support plan. A read is not an executed or completed pass.",
+    "flightTargets": "Commanded destinations; actual helper distances at reception are recorded separately.",
+    "limits": "Small synthetic sample, no hidden opponent orders/RNG forcing, scores are actual event goals. Natural branches share complete stage1 state then diverge normally."
+  },
+  "config": {
+    "seed": 77,
+    "starters": [
+      8,
+      9,
+      10,
+      7,
+      5,
+      6,
+      4,
+      2,
+      3,
+      1,
+      0
+    ],
+    "formation": "4-3-3",
+    "matchMinutes": 90,
+    "tactics": {
+      "mentality": "attacking",
+      "playstyle": "direct",
+      "press": 86,
+      "tempo": 80,
+      "aggression": 59,
+      "marking": "zone",
+      "offside": "off",
+      "line": "high",
+      "passing": "mixed",
+      "width": "balanced",
+      "onLoss": "counterpress",
+      "onWin": "counter",
+      "fullbacks": "support",
+      "crossing": "mixed",
+      "shooting": "balanced"
+    }
+  },
+  "at": 3652.250000018893,
+  "branches": {
+    "baseline": {
+      "start": 3652.250000018893,
+      "end": 3660.250000018995,
+      "completed": false,
+      "initialSeed": 3359476796,
+      "finalSeed": 737792458,
+      "score": [
+        5,
+        0
+      ],
+      "shots": [
+        14,
+        1
+      ],
+      "passes": [
+        373,
+        531
+      ],
+      "completedPasses": [
+        292,
+        470
+      ],
+      "firstOpponent": {
+        "time": 3654.6166666855897,
+        "id": 15,
+        "team": 1
+      },
+      "finalOwner": 16,
+      "finalPhase": "carry",
+      "finalRestart": null,
+      "finalBall": {
+        "x": -0.3908652883080237,
+        "y": 0.11,
+        "z": 7.635200435855107,
+        "vx": -4.1507615529331625,
+        "vy": 0,
+        "vz": -0.18223785545174578
+      },
+      "finalFlight": null,
+      "maxStep": 0.1055536085214585,
+      "stats": {
+        "receivesByTeam": [
+          1,
+          1
+        ],
+        "safeHelperByTeam": [
+          1,
+          0
+        ],
+        "receivesWithSafeHelperByTeam": [
+          1,
+          0
+        ],
+        "helperDistanceSumByTeam": [
+          19.14839844109187,
+          0
+        ],
+        "helperDistanceCountByTeam": [
+          1,
+          0
+        ],
+        "receives": 2,
+        "intendedReceives": 2,
+        "receivesWithArrivalPlan": 0,
+        "safeOptionsAtReceive": 11,
+        "safeHelperOptionsAtReceive": 1,
+        "receivesWithSafeHelper": 1,
+        "helperDistanceSum": 19.14839844109187,
+        "helperDistanceCount": 1,
+        "flightSamples": 9,
+        "receiverCentredSamples": 0,
+        "flightHelperTargets": 3
+      },
+      "passMetrics": [
+        {
+          "count": 1,
+          "totalDistance": 9.009282699261764,
+          "forward": 0,
+          "backward": 1,
+          "lateral": 0,
+          "meanDistance": 9.009282699261764
+        },
+        {
+          "count": 1,
+          "totalDistance": 15.870923162256412,
+          "forward": 0,
+          "backward": 0,
+          "lateral": 1,
+          "meanDistance": 15.870923162256412
+        }
+      ],
+      "shape": [
+        {
+          "samples": 8,
+          "meanWidth": 41.75804946000581,
+          "meanDefenceLine": -12.626870919051148
+        },
+        {
+          "samples": 8,
+          "meanWidth": 38.43885955519325,
+          "meanDefenceLine": -31.046957131261387
+        }
+      ],
+      "meanHelperDistance": 19.14839844109187,
+      "telemetry": {
+        "dribbleTouches": 2266,
+        "receives": 1047,
+        "looseBalls": 179,
+        "shotsAfterPasses": 11,
+        "restarts": 76,
+        "turnovers": 241,
+        "duels": 246,
+        "throughBalls": 46,
+        "crosses": 18,
+        "cutbacks": 4,
+        "headers": 2,
+        "feints": 11,
+        "longPasses": 20,
+        "switches": 21,
+        "offsides": 1,
+        "pressRecoveries": 26,
+        "clearances": 1,
+        "giveGoes": 0,
+        "movingPasses": 483,
+        "movingShots": 9,
+        "preparedReceives": 717,
+        "oneTouchPasses": 18,
+        "directedTouches": 688,
+        "keeperCatches": 0,
+        "returnSupports": 548,
+        "giveGoReturns": 0,
+        "giveGoCompletions": 0,
+        "alignedThroughBalls": 18,
+        "closeControlTouches": 720,
+        "strideTouches": 203,
+        "shieldCarries": 17,
+        "duelOutlets": 27,
+        "feintResponses": 6,
+        "beatenDefenders": 1,
+        "firstTouchRechecks": 688,
+        "markHandoffs": 388,
+        "markSamples": 27347,
+        "screenedReads": 2,
+        "fastCatches": 0,
+        "decisions": {
+          "pass": 927,
+          "carry": 1494,
+          "feint": 11,
+          "shot": 10,
+          "clearance": 1
+        },
+        "coordinatedRuns": 788,
+        "passReviews": 1215,
+        "cutbackHandoffs": 43,
+        "freeKickCrosses": 9,
+        "headedPasses": 9,
+        "wallSetups": 5,
+        "freeKickShots": 4,
+        "passReleaseReads": 1,
+        "passReleaseUncertain": 1,
+        "passPreparationChecks": 0,
+        "passPreparationRejects": 0,
+        "passRethinks": 1,
+        "passResets": 1
+      },
+      "events": [
+        {
+          "type": "release",
+          "time": 3652.400000018895,
+          "from": 2,
+          "target": 5,
+          "kind": "pass"
+        },
+        {
+          "type": "receive",
+          "time": 3652.8833333522343,
+          "id": 5,
+          "from": 2,
+          "intended": 5,
+          "planOwner": 2,
+          "helpers": [
+            9
+          ],
+          "safeOptions": [
+            2,
+            7,
+            8,
+            9,
+            10
+          ],
+          "safeHelpers": [
+            9
+          ],
+          "receiveClock": 0.17501704127382312,
+          "mode": "open"
+        },
+        {
+          "type": "choose",
+          "time": 3653.466666685575,
+          "id": 5,
+          "kind": "carry",
+          "target": null,
+          "point": {
+            "x": 6.7825355296387215,
+            "z": 20.176337192334746
+          },
+          "hold": true,
+          "shield": false,
+          "carryTime": 0.5833333333333335,
+          "ballGap": 0.6962119787838705,
+          "pressure": 8.287507242456728,
+          "support": [
+            {
+              "id": 9,
+              "readyDistance": 0.00877649710166788
+            }
+          ]
+        },
+        {
+          "type": "choose",
+          "time": 3653.783333352246,
+          "id": 5,
+          "kind": "carry",
+          "target": null,
+          "point": {
+            "x": 6.176329322673015,
+            "z": 13.468938120324005
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 0.9000000000000011,
+          "ballGap": 1.4228008729189956,
+          "pressure": 6.996493071285979,
+          "support": [
+            {
+              "id": 9,
+              "readyDistance": 0.00877649710166788
+            }
+          ]
+        },
+        {
+          "type": "duel",
+          "time": 3654.5000000189216,
+          "id": 15,
+          "carrier": 5,
+          "retains": false
+        },
+        {
+          "type": "acquire",
+          "time": 3654.6166666855897,
+          "id": 15,
+          "team": 1
+        },
+        {
+          "type": "choose",
+          "time": 3654.833333352259,
+          "id": 15,
+          "kind": "carry",
+          "target": null,
+          "point": {
+            "x": 14.216005350626578,
+            "z": 20.26974192397917
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 0.21666666666666665,
+          "ballGap": 0.4351982191442288,
+          "pressure": 1.4298229480751015,
+          "support": [
+            {
+              "id": 16,
+              "readyDistance": 5.135450358811481
+            }
+          ]
+        },
+        {
+          "type": "choose",
+          "time": 3655.2166666855974,
+          "id": 15,
+          "kind": "carry",
+          "target": null,
+          "point": {
+            "x": 14.216005350626578,
+            "z": 20.26974192397917
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 0.6000000000000002,
+          "ballGap": 0.3791170157447797,
+          "pressure": 2.485132151677669,
+          "support": [
+            {
+              "id": 16,
+              "readyDistance": 4.793467597924187
+            }
+          ]
+        },
+        {
+          "type": "choose",
+          "time": 3655.5833333522687,
+          "id": 15,
+          "kind": "carry",
+          "target": null,
+          "point": {
+            "x": 14.216005350626578,
+            "z": 20.26974192397917
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 0.966666666666668,
+          "ballGap": 0.41027890019762053,
+          "pressure": 4.465437620711775,
+          "support": [
+            {
+              "id": 16,
+              "readyDistance": 2.9392563638800118
+            }
+          ]
+        },
+        {
+          "type": "choose",
+          "time": 3655.933333352273,
+          "id": 15,
+          "kind": "carry",
+          "target": null,
+          "point": {
+            "x": 14.216005350626578,
+            "z": 20.26974192397917
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 1.3166666666666669,
+          "ballGap": 0.8076264704255166,
+          "pressure": 2.6772108084806487,
+          "support": [
+            {
+              "id": 16,
+              "readyDistance": 1.447612148104513
+            }
+          ]
+        },
+        {
+          "type": "choose",
+          "time": 3656.350000018945,
+          "id": 15,
+          "kind": "pass",
+          "target": 16,
+          "point": {
+            "x": 13.894505739470342,
+            "z": 3.589340761827546
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 1.733333333333332,
+          "ballGap": 0.7654189266860523,
+          "pressure": 1.3576296199386022,
+          "support": [
+            {
+              "id": 16,
+              "readyDistance": 0.6232989203500817
+            }
+          ]
+        },
+        {
+          "type": "release",
+          "time": 3656.5833333522814,
+          "from": 15,
+          "target": 16,
+          "kind": "pass"
+        },
+        {
+          "type": "receive",
+          "time": 3657.450000018959,
+          "id": 16,
+          "from": 15,
+          "intended": 16,
+          "planOwner": 15,
+          "helpers": [],
+          "safeOptions": [
+            13,
+            15,
+            18,
+            19,
+            20,
+            21
+          ],
+          "safeHelpers": [],
+          "receiveClock": 0.1745659609361278,
+          "mode": "open"
+        },
+        {
+          "type": "choose",
+          "time": 3657.733333352296,
+          "id": 16,
+          "kind": "carry",
+          "target": null,
+          "point": {
+            "x": 8.492292844664115,
+            "z": 8.248396934493467
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 0.2833333333333333,
+          "ballGap": 0.896986335742794,
+          "pressure": 7.838650632390295,
+          "support": [
+            {
+              "id": 15,
+              "readyDistance": 3.3688743148403595
+            },
+            {
+              "id": 14,
+              "readyDistance": 5.012880730488855
+            }
+          ]
+        },
+        {
+          "type": "choose",
+          "time": 3658.1166666856343,
+          "id": 16,
+          "kind": "carry",
+          "target": null,
+          "point": {
+            "x": 6.755204705988875,
+            "z": 7.022061242892975
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 0.6666666666666671,
+          "ballGap": 0.8911156588859963,
+          "pressure": 7.650215673484505,
+          "support": [
+            {
+              "id": 15,
+              "readyDistance": 1.655126729739896
+            },
+            {
+              "id": 14,
+              "readyDistance": 3.7443629413429504
+            }
+          ]
+        },
+        {
+          "type": "choose",
+          "time": 3658.5166666856394,
+          "id": 16,
+          "kind": "carry",
+          "target": null,
+          "point": {
+            "x": 5.364880827661168,
+            "z": 5.3807593272379375
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 1.0666666666666678,
+          "ballGap": 1.4362642734401792,
+          "pressure": 6.490138068432606,
+          "support": [
+            {
+              "id": 15,
+              "readyDistance": 0.7814864517146863
+            }
+          ]
+        }
+      ],
+      "trace": [
+        {
+          "time": 3652.4166666855617,
+          "flightId": 929,
+          "target": 5,
+          "ball": {
+            "x": 12.844043481924915,
+            "z": 23.93424179549155
+          },
+          "planOwner": 2,
+          "lead": null,
+          "helpers": [
+            {
+              "id": 9,
+              "target": {
+                "x": -11.359654404525156,
+                "z": 25.940193417567333
+              },
+              "distanceToReceiver": 18.83067822513747,
+              "actualDistance": 18.81693659671636,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3652.5833333522305,
+          "flightId": 929,
+          "target": 5,
+          "ball": {
+            "x": 10.792770637021896,
+            "z": 22.26833447092117
+          },
+          "planOwner": 2,
+          "lead": null,
+          "helpers": [
+            {
+              "id": 9,
+              "target": {
+                "x": -11.359654404525156,
+                "z": 25.940193417567333
+              },
+              "distanceToReceiver": 18.885593030685076,
+              "actualDistance": 18.875646168088373,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3652.7500000188993,
+          "flightId": 929,
+          "target": 5,
+          "ball": {
+            "x": 8.82860023629386,
+            "z": 20.673165956207146
+          },
+          "planOwner": 2,
+          "lead": null,
+          "helpers": [
+            {
+              "id": 9,
+              "target": {
+                "x": -11.359654404525156,
+                "z": 25.940193417567333
+              },
+              "distanceToReceiver": 19.042202103352395,
+              "actualDistance": 19.039631544971122,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3656.6000000189483,
+          "flightId": 930,
+          "target": 16,
+          "ball": {
+            "x": 13.996808576585249,
+            "z": 19.459934202268435
+          },
+          "planOwner": 15,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3656.766666685617,
+          "flightId": 930,
+          "target": 16,
+          "ball": {
+            "x": 13.963700995328013,
+            "z": 16.749274688855014
+          },
+          "planOwner": 15,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3656.933333352286,
+          "flightId": 930,
+          "target": 16,
+          "ball": {
+            "x": 13.932014663685843,
+            "z": 14.15497897018927
+          },
+          "planOwner": 15,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3657.1000000189547,
+          "flightId": 930,
+          "target": 16,
+          "ball": {
+            "x": 13.901663726317338,
+            "z": 11.670017701658777
+          },
+          "planOwner": 15,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3657.2666666856235,
+          "flightId": 930,
+          "target": 16,
+          "ball": {
+            "x": 13.872570816507539,
+            "z": 9.288056538863643
+          },
+          "planOwner": 15,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3657.4333333522923,
+          "flightId": 930,
+          "target": 16,
+          "ball": {
+            "x": 13.844665987669151,
+            "z": 7.003368655044878
+          },
+          "planOwner": 15,
+          "lead": null,
+          "helpers": []
+        }
+      ]
+    },
+    "current": {
+      "start": 3652.250000018893,
+      "end": 3660.250000018995,
+      "completed": false,
+      "initialSeed": 3359476796,
+      "finalSeed": 2885334735,
+      "score": [
+        5,
+        0
+      ],
+      "shots": [
+        14,
+        1
+      ],
+      "passes": [
+        375,
+        530
+      ],
+      "completedPasses": [
+        293,
+        469
+      ],
+      "firstOpponent": null,
+      "finalOwner": null,
+      "finalPhase": "restart",
+      "finalRestart": {
+        "kind": "goal-kick",
+        "team": 1,
+        "spot": {
+          "x": 47,
+          "z": 5
+        }
+      },
+      "finalBall": {
+        "x": 47,
+        "y": 0.11,
+        "z": 5,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0
+      },
+      "finalFlight": null,
+      "maxStep": 0.10879047716413137,
+      "stats": {
+        "receivesByTeam": [
+          2,
+          0
+        ],
+        "safeHelperByTeam": [
+          3,
+          0
+        ],
+        "receivesWithSafeHelperByTeam": [
+          2,
+          0
+        ],
+        "helperDistanceSumByTeam": [
+          61.590125511109264,
+          0
+        ],
+        "helperDistanceCountByTeam": [
+          3,
+          0
+        ],
+        "receives": 2,
+        "intendedReceives": 2,
+        "receivesWithArrivalPlan": 2,
+        "safeOptionsAtReceive": 13,
+        "safeHelperOptionsAtReceive": 3,
+        "receivesWithSafeHelper": 2,
+        "helperDistanceSum": 61.590125511109264,
+        "helperDistanceCount": 3,
+        "flightSamples": 34,
+        "receiverCentredSamples": 16,
+        "flightHelperTargets": 24
+      },
+      "passMetrics": [
+        {
+          "count": 3,
+          "totalDistance": 46.88745615375548,
+          "forward": 1,
+          "backward": 1,
+          "lateral": 1,
+          "meanDistance": 15.629152051251827
+        },
+        {
+          "count": 0,
+          "totalDistance": 0,
+          "forward": 0,
+          "backward": 0,
+          "lateral": 0,
+          "meanDistance": 0
+        }
+      ],
+      "shape": [
+        {
+          "samples": 8,
+          "meanWidth": 43.34145942892141,
+          "meanDefenceLine": -5.252541820112524
+        },
+        {
+          "samples": 8,
+          "meanWidth": 30.25835717662162,
+          "meanDefenceLine": -29.282939595254675
+        }
+      ],
+      "meanHelperDistance": 20.53004183703642,
+      "telemetry": {
+        "dribbleTouches": 2257,
+        "receives": 1046,
+        "looseBalls": 178,
+        "shotsAfterPasses": 11,
+        "restarts": 77,
+        "turnovers": 240,
+        "duels": 245,
+        "throughBalls": 46,
+        "crosses": 18,
+        "cutbacks": 4,
+        "headers": 2,
+        "feints": 11,
+        "longPasses": 20,
+        "switches": 21,
+        "offsides": 1,
+        "pressRecoveries": 26,
+        "clearances": 1,
+        "giveGoes": 0,
+        "movingPasses": 484,
+        "movingShots": 9,
+        "preparedReceives": 717,
+        "oneTouchPasses": 18,
+        "directedTouches": 688,
+        "keeperCatches": 0,
+        "returnSupports": 550,
+        "giveGoReturns": 0,
+        "giveGoCompletions": 0,
+        "alignedThroughBalls": 18,
+        "closeControlTouches": 715,
+        "strideTouches": 201,
+        "shieldCarries": 17,
+        "duelOutlets": 27,
+        "feintResponses": 6,
+        "beatenDefenders": 1,
+        "firstTouchRechecks": 688,
+        "markHandoffs": 388,
+        "markSamples": 27360,
+        "screenedReads": 2,
+        "fastCatches": 0,
+        "decisions": {
+          "pass": 928,
+          "carry": 1485,
+          "feint": 11,
+          "shot": 10,
+          "clearance": 1
+        },
+        "coordinatedRuns": 786,
+        "passReviews": 1215,
+        "cutbackHandoffs": 45,
+        "freeKickCrosses": 9,
+        "headedPasses": 9,
+        "wallSetups": 5,
+        "freeKickShots": 4,
+        "passReleaseReads": 1,
+        "passReleaseUncertain": 1,
+        "passPreparationChecks": 0,
+        "passPreparationRejects": 0,
+        "passRethinks": 1,
+        "passResets": 1,
+        "arrivalSupportSamples": 16,
+        "arrivalSupportPlans": 3,
+        "arrivalSupportHandoffs": 2,
+        "arrivalSupportChoices": 1,
+        "arrivalSupportReleases": 1
+      },
+      "events": [
+        {
+          "type": "release",
+          "time": 3652.400000018895,
+          "from": 2,
+          "target": 5,
+          "kind": "pass"
+        },
+        {
+          "type": "receive",
+          "time": 3652.8833333522343,
+          "id": 5,
+          "from": 2,
+          "intended": 5,
+          "planOwner": 5,
+          "helpers": [
+            3,
+            9
+          ],
+          "safeOptions": [
+            3,
+            2,
+            7,
+            8,
+            9,
+            10
+          ],
+          "safeHelpers": [
+            3,
+            9
+          ],
+          "receiveClock": 0.1750170526974928,
+          "mode": "open"
+        },
+        {
+          "type": "choose",
+          "time": 3653.466666685575,
+          "id": 5,
+          "kind": "pass",
+          "target": 3,
+          "point": {
+            "x": 7.784242637924755,
+            "z": -3.2569211545295618
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 0.5833333333333335,
+          "ballGap": 0.6507757381628694,
+          "pressure": 8.184526350706342,
+          "support": [
+            {
+              "id": 3,
+              "readyDistance": 2.2014091059905523
+            },
+            {
+              "id": 9,
+              "readyDistance": 0.06003751111311684
+            }
+          ]
+        },
+        {
+          "type": "release",
+          "time": 3653.6500000189108,
+          "from": 5,
+          "target": 3,
+          "kind": "pass"
+        },
+        {
+          "type": "receive",
+          "time": 3654.7500000189248,
+          "id": 3,
+          "from": 5,
+          "intended": 3,
+          "planOwner": 3,
+          "helpers": [
+            6
+          ],
+          "safeOptions": [
+            1,
+            9,
+            6,
+            5,
+            7,
+            4,
+            10
+          ],
+          "safeHelpers": [
+            6
+          ],
+          "receiveClock": 0.17402199896394446,
+          "mode": "open"
+        },
+        {
+          "type": "choose",
+          "time": 3655.3333333522655,
+          "id": 3,
+          "kind": "pass",
+          "target": 1,
+          "point": {
+            "x": 27.382762457861332,
+            "z": 2.0139455511160698
+          },
+          "hold": false,
+          "shield": false,
+          "carryTime": 0.5833333333333335,
+          "ballGap": 0.7931252874283067,
+          "pressure": 5.857413747779665,
+          "support": [
+            {
+              "id": 9,
+              "readyDistance": 2.8939771847814924
+            }
+          ]
+        },
+        {
+          "type": "release",
+          "time": 3655.533333352268,
+          "from": 3,
+          "target": 1,
+          "kind": "pass"
+        }
+      ],
+      "trace": [
+        {
+          "time": 3652.4166666855617,
+          "flightId": 929,
+          "target": 5,
+          "ball": {
+            "x": 12.844043481924915,
+            "z": 23.93424179549155
+          },
+          "planOwner": 5,
+          "lead": 0.4,
+          "helpers": [
+            {
+              "id": 3,
+              "target": {
+                "x": 7.784242637924755,
+                "z": -3.2569211545295618
+              },
+              "distanceToReceiver": 21.614701127516355,
+              "actualDistance": 16.641100307334945,
+              "command": "support"
+            },
+            {
+              "id": 9,
+              "target": {
+                "x": -11.632898473751585,
+                "z": 25.25867080112462
+              },
+              "distanceToReceiver": 18.81693659671636,
+              "actualDistance": 18.81693659671636,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3652.5833333522305,
+          "flightId": 929,
+          "target": 5,
+          "ball": {
+            "x": 10.792770637021896,
+            "z": 22.26833447092117
+          },
+          "planOwner": 5,
+          "lead": 0.30000000000000004,
+          "helpers": [
+            {
+              "id": 3,
+              "target": {
+                "x": 7.784242637924755,
+                "z": -3.2569211545295618
+              },
+              "distanceToReceiver": 21.6807321129972,
+              "actualDistance": 16.912821683053295,
+              "command": "support"
+            },
+            {
+              "id": 9,
+              "target": {
+                "x": -11.632898473751585,
+                "z": 25.25867080112462
+              },
+              "distanceToReceiver": 18.87592757873249,
+              "actualDistance": 18.875645859518784,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3652.7500000188993,
+          "flightId": 929,
+          "target": 5,
+          "ball": {
+            "x": 8.82860023629386,
+            "z": 20.673165956207146
+          },
+          "planOwner": 5,
+          "lead": 0.2,
+          "helpers": [
+            {
+              "id": 3,
+              "target": {
+                "x": 7.784242637924755,
+                "z": -3.2569211545295618
+              },
+              "distanceToReceiver": 21.866033069303754,
+              "actualDistance": 17.407060118460304,
+              "command": "support"
+            },
+            {
+              "id": 9,
+              "target": {
+                "x": -11.632898473751585,
+                "z": 25.25867080112462
+              },
+              "distanceToReceiver": 19.043729040455602,
+              "actualDistance": 19.04254137776947,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3653.6666666855776,
+          "flightId": 930,
+          "target": 3,
+          "ball": {
+            "x": 6.08740218988846,
+            "z": 16.307199906164037
+          },
+          "planOwner": 3,
+          "lead": 0.9,
+          "helpers": [
+            {
+              "id": 9,
+              "target": {
+                "x": -10.110556347545126,
+                "z": 20.31439630818586
+              },
+              "distanceToReceiver": 28.86861676502548,
+              "actualDistance": 33.731991215279045,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3653.8333333522464,
+          "flightId": 930,
+          "target": 3,
+          "ball": {
+            "x": 6.341445176871995,
+            "z": 13.470357843611549
+          },
+          "planOwner": 3,
+          "lead": 0.8,
+          "helpers": [
+            {
+              "id": 9,
+              "target": {
+                "x": -10.110556347545126,
+                "z": 20.31439630818586
+              },
+              "distanceToReceiver": 29.02460587263921,
+              "actualDistance": 33.79780443848033,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3654.000000018915,
+          "flightId": 930,
+          "target": 3,
+          "ball": {
+            "x": 6.584334525644948,
+            "z": 10.758066001484224
+          },
+          "planOwner": 3,
+          "lead": 0.7000000000000001,
+          "helpers": []
+        },
+        {
+          "time": 3654.166666685584,
+          "flightId": 930,
+          "target": 3,
+          "ball": {
+            "x": 6.816776373990194,
+            "z": 8.16243909474349
+          },
+          "planOwner": 3,
+          "lead": 0.5,
+          "helpers": [
+            {
+              "id": 9,
+              "target": {
+                "x": -9.758764843748335,
+                "z": 19.53336612830102
+              },
+              "distanceToReceiver": 28.046029243850178,
+              "actualDistance": 32.93902559856314,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3654.333333352253,
+          "flightId": 930,
+          "target": 3,
+          "ball": {
+            "x": 7.039404557396908,
+            "z": 5.676399222134256
+          },
+          "planOwner": 3,
+          "lead": 0.4,
+          "helpers": [
+            {
+              "id": 9,
+              "target": {
+                "x": -9.477754452030682,
+                "z": 19.128912947738506
+              },
+              "distanceToReceiver": 27.24852814438426,
+              "actualDistance": 32.13632990815334,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3654.5000000189216,
+          "flightId": 930,
+          "target": 3,
+          "ball": {
+            "x": 7.252790044260567,
+            "z": 3.293570505385222
+          },
+          "planOwner": 3,
+          "lead": 0.30000000000000004,
+          "helpers": [
+            {
+              "id": 6,
+              "target": {
+                "x": -9.854445240250698,
+                "z": -18.400269117393716
+              },
+              "distanceToReceiver": 24.282044527472927,
+              "actualDistance": 24.282044527472927,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3654.6666666855904,
+          "flightId": 930,
+          "target": 3,
+          "ball": {
+            "x": 7.457448875281037,
+            "z": 1.0081904316997818
+          },
+          "planOwner": 3,
+          "lead": 0.1,
+          "helpers": [
+            {
+              "id": 6,
+              "target": {
+                "x": -9.854445240250698,
+                "z": -18.400269117393716
+              },
+              "distanceToReceiver": 24.45939562095024,
+              "actualDistance": 24.45939562095024,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3655.550000018935,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 9.176120065565256,
+            "z": 0.883923569401115
+          },
+          "planOwner": 1,
+          "lead": 1,
+          "helpers": [
+            {
+              "id": 0,
+              "target": {
+                "x": 21.366436066367186,
+                "z": -9.64978713195723
+              },
+              "distanceToReceiver": 8.628864343053023,
+              "actualDistance": 15.777617329221119,
+              "command": "support"
+            },
+            {
+              "id": 5,
+              "target": {
+                "x": 4.31219180201777,
+                "z": 4.197275449951713
+              },
+              "distanceToReceiver": 23.513359593511847,
+              "actualDistance": 25.959954616499324,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3655.7166666856037,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 11.991620491399091,
+            "z": 1.0630237231872925
+          },
+          "planOwner": 1,
+          "lead": 0.8,
+          "helpers": [
+            {
+              "id": 0,
+              "target": {
+                "x": 21.366436066367186,
+                "z": -9.64978713195723
+              },
+              "distanceToReceiver": 9.222746648418495,
+              "actualDistance": 16.12596268935432,
+              "command": "support"
+            },
+            {
+              "id": 5,
+              "target": {
+                "x": 4.31219180201777,
+                "z": 4.197275449951713
+              },
+              "distanceToReceiver": 23.278791203398235,
+              "actualDistance": 25.458878395061877,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3655.8833333522725,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 14.684059392418591,
+            "z": 1.2342956636238371
+          },
+          "planOwner": 1,
+          "lead": 0.7000000000000001,
+          "helpers": [
+            {
+              "id": 0,
+              "target": {
+                "x": 21.366436066367186,
+                "z": -9.64978713195723
+              },
+              "distanceToReceiver": 9.647730610632559,
+              "actualDistance": 16.26899095709585,
+              "command": "support"
+            },
+            {
+              "id": 5,
+              "target": {
+                "x": 4.370953174977226,
+                "z": 0.5847286484992811
+              },
+              "distanceToReceiver": 22.189281935132996,
+              "actualDistance": 24.62406995689878,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3656.0500000189413,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 17.26115776357421,
+            "z": 1.3982305401243034
+          },
+          "planOwner": 1,
+          "lead": 0.5,
+          "helpers": [
+            {
+              "id": 0,
+              "target": {
+                "x": 21.366436066367186,
+                "z": -9.64978713195723
+              },
+              "distanceToReceiver": 10.000151118013093,
+              "actualDistance": 16.185437250958422,
+              "command": "support"
+            },
+            {
+              "id": 2,
+              "target": {
+                "x": 17.270694172129307,
+                "z": 20.622883093610717
+              },
+              "distanceToReceiver": 23.27578243753719,
+              "actualDistance": 26.07281327284675,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3656.21666668561,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 19.729851394299644,
+            "z": 1.555269553458119
+          },
+          "planOwner": 1,
+          "lead": 0.4,
+          "helpers": [
+            {
+              "id": 0,
+              "target": {
+                "x": 21.366436066367186,
+                "z": -9.64978713195723
+              },
+              "distanceToReceiver": 10.278846637041461,
+              "actualDistance": 15.962350610967192,
+              "command": "support"
+            },
+            {
+              "id": 5,
+              "target": {
+                "x": 1.9438265959422751,
+                "z": -0.9073203207024756
+              },
+              "distanceToReceiver": 23.93113899055319,
+              "actualDistance": 22.87351931594035,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3656.383333352279,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 22.096392622990223,
+            "z": 1.7058104285760074
+          },
+          "planOwner": 1,
+          "lead": 0.30000000000000004,
+          "helpers": [
+            {
+              "id": 0,
+              "target": {
+                "x": 21.366436066367186,
+                "z": -9.64978713195723
+              },
+              "distanceToReceiver": 10.603970449294872,
+              "actualDistance": 15.708388318731249,
+              "command": "support"
+            },
+            {
+              "id": 5,
+              "target": {
+                "x": 3.673729231257608,
+                "z": -1.5269350965337747
+              },
+              "distanceToReceiver": 22.085813805822177,
+              "actualDistance": 22.29917389163545,
+              "command": "support"
+            }
+          ]
+        },
+        {
+          "time": 3656.5500000189477,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 24.366436066366887,
+            "z": 1.8502128680427519
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3656.7166666856165,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 26.545111257915487,
+            "z": 1.9888031727275477
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3656.8833333522853,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 28.637084521196396,
+            "z": 2.1218781777008533
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3657.050000018954,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 30.646611935450622,
+            "z": 2.2497086214927
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3657.216666685623,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 32.577584887338425,
+            "z": 2.3725420437386333
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3657.3833333522916,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 34.43356941818357,
+            "z": 2.490605288144177
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3657.5500000189604,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 36.21784035189565,
+            "z": 2.604106673436775
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3657.716666685629,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 37.93341101081387,
+            "z": 2.713237883655757
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3657.883333352298,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 39.58305918458415,
+            "z": 2.8181756200895363
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3658.050000018967,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 41.16934990294121,
+            "z": 2.919083049902194
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3658.2166666856356,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 42.69465547090808,
+            "z": 3.016111080616441
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3658.3833333523044,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 44.16117314984342,
+            "z": 3.1093994848437934
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3658.550000018973,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 45.570940806406675,
+            "z": 3.199077895749549
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3658.716666685642,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 46.92585080111328,
+            "z": 3.2852666905342334
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3658.8833333523107,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 48.22766234656403,
+            "z": 3.3680777765676515
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3659.0500000189795,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 49.47801253095245,
+            "z": 3.447615292618362
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3659.2166666856483,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 50.67842617375012,
+            "z": 3.5239762357954225
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        },
+        {
+          "time": 3659.383333352317,
+          "flightId": 931,
+          "target": 1,
+          "ball": {
+            "x": 51.830324656468235,
+            "z": 3.5972510232924906
+          },
+          "planOwner": null,
+          "lead": null,
+          "helpers": []
+        }
+      ]
+    }
+  }
+}
