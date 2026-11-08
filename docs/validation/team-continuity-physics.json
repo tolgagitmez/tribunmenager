@@ -1,0 +1,96 @@
+{
+  "baseline": "e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e",
+  "sources": {
+    "football-sim.js": "b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3",
+    "player-perception.js": "d0879e2e845a34bd8f08fd117e3100ac651ee79f28371e153a7aed3c48bc08b8",
+    "team-intent.js": "cce8be16d8dd88ef758051e0cf6761326ad21cb55b1733397c5fa3815aac0030",
+    "tests/touch-feasibility.test.cjs": "6f43713fe5021d61b26c28554fa407cd19025d3625bde4c0c3f55a68bef621c9",
+    "tests/team-continuity-integration.test.cjs": "e7f7312551ee050757960fbc55cba0c97b36105bd8b493a8766be9b51308d44f",
+    "tools/check-team-continuity-physics.cjs": "4b6e80b7e4b8ef836ac17f2557c5aa8a52638e7acb49efbecb2fc9175b38b9a6"
+  },
+  "method": "Exact source equality for BallPhysics and the named live movement/contact/release/referee/keeper methods against the retained published stage8 source. The stage9 test suite separately checks actual frames, physical intervention and prediction purity. Tactical intentions, observations and their preparation forecasts deliberately change.",
+  "ballPhysicsIdentical": true,
+  "methods": [
+    {
+      "name": "move",
+      "sha256": "0d4d63f4a9ad45be72f9983cbdeb417c35e12071286b22932fe3ac2797c61e5e",
+      "identical": true
+    },
+    {
+      "name": "effort",
+      "sha256": "ed94daecc4dc871700e8310c85a8b9ee559a0d14846f3a07dfa33595a6c8afc5",
+      "identical": true
+    },
+    {
+      "name": "contactPoint",
+      "sha256": "013d75e6625ae6f35b1365d0834ac6bdd855de209b47adf95dfc4aa6e60b1cd9",
+      "identical": true
+    },
+    {
+      "name": "touchContact",
+      "sha256": "70f6b2c17aec55324adcd03fa8246d9ff9bad64aa2088088d22b7eb58c9d622e",
+      "identical": true
+    },
+    {
+      "name": "touchPlan",
+      "sha256": "974192e77707028d645f77bef360e31a98e10902d3f38409461726d7fbedd9bb",
+      "identical": true
+    },
+    {
+      "name": "firstControlContact",
+      "sha256": "c8c404b641f1bdb549e13236cf2a793300b3d78239364172aa53187eb2e5d083",
+      "identical": true
+    },
+    {
+      "name": "tackleAccess",
+      "sha256": "34881298763c40018326674256252302c4e31b7fab29147db4fae1360915182e",
+      "identical": true
+    },
+    {
+      "name": "doTackle",
+      "sha256": "0a1a3dc8f71a8f7aa621bfa369f89e19db02239e40397ec985ee44ad2dacbaa0",
+      "identical": true
+    },
+    {
+      "name": "integrateBall",
+      "sha256": "201fbf332e1528098a24e398d93172f5db19a1e062fc7834bc71228a02f9c888",
+      "identical": true
+    },
+    {
+      "name": "ballStep",
+      "sha256": "41bd36006ddca6ba0ae94bb8e775fc8be03f6886d59340b0eec1c9716aa957de",
+      "identical": true
+    },
+    {
+      "name": "release",
+      "sha256": "e3d920e707f55f306b65adc6206f2b3da8d4d520233fb01f914528ef4b3ea37a",
+      "identical": true
+    },
+    {
+      "name": "kickStep",
+      "sha256": "468dae494173d5c20a2d00cf4ba549a7738cee76c2d441a829c4271c426bd1d9",
+      "identical": true
+    },
+    {
+      "name": "keeper",
+      "sha256": "a9697bf076e7e3fdeedaac2a7e4d8b2c612424cf88d7ea4a855a6011ff0b7739",
+      "identical": true
+    },
+    {
+      "name": "keeperVisibility",
+      "sha256": "4eb2eb1c818778109dd28a4d0cadc6d4854681c1f2259a977ca00ca0877e4080",
+      "identical": true
+    },
+    {
+      "name": "offsideTouch",
+      "sha256": "da8bbfae9424aa96f66407c6bf01cbce6a912498d7169b11344979eece365424",
+      "identical": true
+    },
+    {
+      "name": "receiverInterceptPoint",
+      "sha256": "533a97618f402012e07004bd1080948cbe50a57a9eaa53de5985b22a0ac204b9",
+      "identical": true
+    }
+  ],
+  "verified": true
+}

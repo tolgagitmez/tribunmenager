@@ -16,6 +16,8 @@ function fixture({side=1,speed=4,yaw=0,shield=false,lateral=.18,ballSpeed=3}={})
  return {m,p};
 }
 function clone(m,Engine=Match){return Object.assign(Object.create(Engine.prototype),structuredClone(m));}
+// Stage 9 adds decision metadata; this regression still compares every physical field and RNG value.
+function physical(m){const state=structuredClone(m);delete state.teamPhases;delete state._perceptionActive;delete state.telemetry.teamPhaseChanges;for(const p of state.players){delete p.perception;delete p.task;delete p.taskHistory;}return state;}
 function pose(p){return {x:p.x,z:p.z,vx:p.vx,vz:p.vz,face:p.face};}
 function firstLiveTouch(m,p){
  let captured;const query=m.touchPlan;
@@ -65,7 +67,7 @@ for(const side of [1,-1]){
  });
  test(`an ordinary straight stride retains the exact existing touch and physical step (${side})`,()=>{
   const {m,p}=fixture({side}),old=clone(m,OldMatch);assert.equal(m.dribbleTouch(p),true);assert.equal(old.dribbleTouch(old.players[p.id]),true);
-  assert.deepEqual(structuredClone(m),structuredClone(old));m.step(dt);old.step(dt);assert.deepEqual(structuredClone(m),structuredClone(old));
+  assert.deepEqual(physical(m),physical(old));m.step(dt);old.step(dt);assert.deepEqual(physical(m),physical(old));
   assert.equal(m.telemetry.strideTouches,1);assert.equal(m.telemetry.limitedTouches,undefined);
  });
  test(`next-contact prediction matches actual fixed steps across current owner command refreshes (${side})`,()=>{
@@ -105,7 +107,7 @@ for(const side of [1,-1]){
 }
 test('a physically available prepared forward reception retains the exact baseline control',()=>{
  const {m,p}=reception(1,0,0),old=clone(m,OldMatch);m.ballStep(dt);old.ballStep(dt);
- assert.equal(m.telemetry.directedTouches,1);assert.equal(p.receiveMode,'open');assert.deepEqual(structuredClone(m),structuredClone(old));
+ assert.equal(m.telemetry.directedTouches,1);assert.equal(p.receiveMode,'open');assert.deepEqual(physical(m),physical(old));
 });
 test('the selected side uses its actual left or right foot in both playing directions',()=>{
  for(const side of [1,-1])for(const foot of [0,1]){

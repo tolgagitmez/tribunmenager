@@ -85,20 +85,21 @@ figure(mesh,p,dt){
  mesh.loft([{p:shift(waist,0,0,.02),width:.208,depth:.145},{p:mix(waist,chest,.35),width:.193,depth:.138},{p:mix(waist,chest,.72),width:.246,depth:.16},{p:chest,width:.277,depth:.15},{p:shift(chest,-.012,0,.07),width:.20,depth:.125}],forward,side,shirt,segments);
  mesh.profile(shift(chest,0,0,.055),shift(pose.neck,0,0,.065),[[0,.067],[1,.061]],skin,segments);
  // A smaller adult head, jaw, ears and a hair cap replace the old large sphere.
+ const headFace=Number.isFinite(pose.headFace)?pose.headFace:p.face,headForward=[Math.cos(headFace),0,Math.sin(headFace)],headSide=[-headForward[2],0,headForward[0]],headShift=(a,f,s=0,y=0)=>[a[0]+headForward[0]*f+headSide[0]*s,a[1]+y,a[2]+headForward[2]*f+headSide[2]*s];
  const h=pose.head,headW=.106+(p.index||0)%3*.004;
  mesh.sphere(...h,headW,.142,.108,skin,detailed?10:6,detailed?16:10);
- mesh.sphere(...shift(h,.009,0,-.082),headW*.83,.064,.09,skin,5,segments);
- mesh.sphere(...shift(h,-.015,0,.105),headW*1.02,.063,.109,hair,5,segments);
+ mesh.sphere(...headShift(h,.009,0,-.082),headW*.83,.064,.09,skin,5,segments);
+ mesh.sphere(...headShift(h,-.015,0,.105),headW*1.02,.063,.109,hair,5,segments);
  if(detailed){
   for(const sign of [-1,1]){
-   mesh.sphere(...shift(h,-.009,sign*(headW-.002),-.006),.020,.036,.020,skin,5,8);
-   mesh.sphere(...shift(h,.100,sign*.041,.022),.010,.010,.016,[.86,.88,.88],4,7);
-   mesh.sphere(...shift(h,.108,sign*.041,.022),.006,.007,.009,[.09,.10,.095],4,6);
-   mesh.segment(...shift(h,.103,sign*.060,.045),...shift(h,.108,sign*.024,.049),.009,hair);
+   mesh.sphere(...headShift(h,-.009,sign*(headW-.002),-.006),.020,.036,.020,skin,5,8);
+   mesh.sphere(...headShift(h,.100,sign*.041,.022),.010,.010,.016,[.86,.88,.88],4,7);
+   mesh.sphere(...headShift(h,.108,sign*.041,.022),.006,.007,.009,[.09,.10,.095],4,6);
+   mesh.segment(...headShift(h,.103,sign*.060,.045),...headShift(h,.108,sign*.024,.049),.009,hair);
   }
-  mesh.tapered(shift(h,.105,0,-.002),shift(h,.142,0,-.023),.021,.012,skin,8);
-  mesh.segment(...shift(h,.105,-.028,-.060),...shift(h,.105,.028,-.060),.006,skin.map(c=>c*.65));
-  if((p.index||0)%4===2)mesh.sphere(...shift(h,.041,0,-.100),.076,.029,.067,hair.map(c=>c*1.2),4,9);
+  mesh.tapered(headShift(h,.105,0,-.002),headShift(h,.142,0,-.023),.021,.012,skin,8);
+  mesh.segment(...headShift(h,.105,-.028,-.060),...headShift(h,.105,.028,-.060),.006,skin.map(c=>c*.65));
+  if((p.index||0)%4===2)mesh.sphere(...headShift(h,.041,0,-.100),.076,.029,.067,hair.map(c=>c*1.2),4,9);
   const collar=shift(chest,.115,0,.056);mesh.segment(...shift(collar,0,-.052,.018),...shift(collar,.012,0,-.027),.013,trim);mesh.segment(...shift(collar,.012,0,-.027),...shift(collar,0,.052,.018),.013,trim);
   mesh.sphere(...shift(chest,.148,-.115,-.035),.013,.032,.023,trim,4,6);
   // Geometry-based jersey numbers; no downloaded faces or texture dependencies.

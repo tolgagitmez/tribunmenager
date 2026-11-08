@@ -57,9 +57,9 @@ function palette(p,assets,pose){
  for(let i=0;i<2;i++){
   const s=i===0?'L':'R',a=pose.arms[i],l=pose.legs[i],shoulder=mix(shift(pose.torsoUpper,-.01),a.shoulder,.84),handEnd=add(a.wrist,mul(unit(sub(a.wrist,a.elbow)),.125));frames['clavicle.'+s]=[shift(pose.torsoUpper,-.01),shoulder];frames['upper_arm.'+s]=[shoulder,a.elbow];frames['forearm.'+s]=[a.elbow,a.wrist];frames['hand.'+s]=[a.wrist,handEnd];frames['thigh.'+s]=[l.hip,l.knee];frames['shin.'+s]=[l.knee,l.ankle];frames['foot.'+s]=[l.ankle,shift(l.toe,-.075)];
  }
- const all=new Float32Array(assets.bones.length*16);
- assets.bones.forEach((bone,i)=>{const [a,b]=frames[bone.name],rest=unit(sub(bone.tail,bone.head)),start=yaw(rest),target=unit(sub(b,a)),ratio=clamp(len(sub(b,a))/len(sub(bone.tail,bone.head)),.5,1.7),M=new Float32Array(16);
-  for(let col=0;col<3;col++){let v=quatAlign(start,target,yaw(bone.matrix.slice(col*4,col*4+3)));if(col===1)v=mul(v,ratio);for(let j=0;j<3;j++)M[col*4+j]=v[j];}M[12]=a[0];M[13]=a[1];M[14]=a[2];M[15]=1;all.set(matmul(M,bone.inverseBind),i*16);
+ const all=new Float32Array(assets.bones.length*16),headYaw=Number.isFinite(pose.headYaw)?clamp(pose.headYaw,-.8,.8):0;
+ assets.bones.forEach((bone,i)=>{const scan=bone.name==='head'?headYaw:bone.name==='neck'?headYaw*.25:0,cs=Math.cos(scan),sn=Math.sin(scan),boneYaw=v=>{const u=yaw(v);return scan?[u[0]*cs-u[2]*sn,u[1],u[0]*sn+u[2]*cs]:u;};const [a,b]=frames[bone.name],rest=unit(sub(bone.tail,bone.head)),start=boneYaw(rest),target=unit(sub(b,a)),ratio=clamp(len(sub(b,a))/len(sub(bone.tail,bone.head)),.5,1.7),M=new Float32Array(16);
+  for(let col=0;col<3;col++){let v=quatAlign(start,target,boneYaw(bone.matrix.slice(col*4,col*4+3)));if(col===1)v=mul(v,ratio);for(let j=0;j<3;j++)M[col*4+j]=v[j];}M[12]=a[0];M[13]=a[1];M[14]=a[2];M[15]=1;all.set(matmul(M,bone.inverseBind),i*16);
  });return all;
 }
 class PlayerRenderer{

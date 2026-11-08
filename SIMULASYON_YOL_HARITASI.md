@@ -1,5 +1,19 @@
 # Gerçek futbol deneyimi: durum analizi ve geliştirme yol haritası
 
+## Dokuzuncu aşama uygulama durumu
+
+Bu aşama **`codex/team-continuity-perception` inceleme dalı** olarak hazırlanmıştır. Ortak görev/algı işlevi ve regresyonlar tamamdır; doğal maç dengesi kabulü beklediğinden `main` için varsayılan sürüm olarak sunulmaz.
+
+Karar ve takım görevi devamlılığı için ortak yaşam kuralları, dört takım evresi ve oyuncu başına gözlem belleği uygulandı. Destek, verkaç, bindirme, pres ve markaj; amaç/ortak, asgari devam, yeni aday doğrulaması ve kesin görev ömrüyle sürer. Aynı takım alımı görev dönemini sıfırlamaz. Güvenli hazır desteğe kısa kullanım penceresi tanınır; tehlike, gerçek temas ve ortak görev devri önceliklidir. Pas ve koşu tabloları son uygulanacak görevle uzlaştırılır.
+
+Kişisel rakip okuması görüş, baş taraması ve kısa belleği kullanır; kör taraftaki yeni konum değişimi doğrudan okunmaz. Markajcı kendi gözlemine göre seçilir. Takım koordinatörünün ortak görüntüsü hâlâ anlık iletişim varsayar. Görüş engelleri, ses, dikkat bütçesi ve iletişim gecikmesi açık geliştirme alanlarıdır. Baş taraması çizilirken gövde ve ayak temasları korunur.
+
+**245 test**, BallPhysics/16 canlı yöntem kaynak koruması ve WebGL-prosedürel/2D tarayıcı kontrolleri geçti. Kanıt, karşılaştırma yöntemi ve sınırlar DOGRULAMA başındadır. Görev değişimlerinin azalması tek başına hazır bağlantıların daha çok kullanıldığı veya daha iyi hücum oluştuğu anlamına gelmez.
+
+Dört 300 saniyelik son karşılaştırmada kısa topsuz görev değişimi 585/3529 (%16,58) → 389/3332 (%11,67) oldu. Büyük taşıma dönüşü sayısı 100 → 44 azalırken oranı %26,81 → %49,44 arttı; seçilmeden yeniden planlanan destek oranı %81,95 → %82,39 oldu. Top kaybı 27 → 59, tamamlanan pas 397/418 → 346/374, şut 2 → 1 ve yarıda kalan vuruş 1 → 3 oldu. Bu sonuçlar genel futbol/hücum kalitesi kabulü değildir.
+
+`main` öncesindeki öncelik **hazır bağlantının gerçek pas ve pozisyona dönüşmesini, kör baskının fark edilmesini ve fiziksel hazırlık iptallerini birlikte kalibre etmektir**. Bağlılık süresini tek başına artırmak yerine yeni boşluğun kaçırıldığı ve topun kaybedildiği durumlar ayrıştırılmalı. Ardından süreler farklı taktikler ve zayıf/güçlü profillerde, daha uzun maçlarda yorgunlukla birlikte ölçülmeli. Kör baskının geç fark edilmesi hem fiziksel olarak etkili hem izleyici açısından okunabilir olmalı. Aşağıdaki eski aşama durumları ve genel plan tarihsel dayanak olarak korunur.
+
 ## Sekizinci aşama uygulama durumu
 
 6 Kasım 2026: Yönlü ilk kontrol, top sürme, koruma ve açık oyun vuruş hazırlığı ortak ayak erişimi/sonraki temas hesabına bağlandı. Hesap gerçek hızlanma, fren, gövde ve top hareketini kısa süreli kopyada yürütür; seçilen ayağın temas süresini normal top sürme aralığından ayırır. Uygun olmayan darbe küçültülür veya ertelenir. Mevcut ayak noktası, mücadele ve serbest top korunur; tam anatomi/kuvvet/denge modeli tamamlanmış değildir.

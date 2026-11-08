@@ -1,3 +1,25 @@
+## Dokuzuncu aşama: görev devamlılığı ve oyuncu algısı
+
+İnceleme dalı: **`codex/team-continuity-perception`**. Ortak görev/algı uygulaması ve regresyon kontrolleri tamamlandı; maç dengesi `main` için henüz kabul edilmedi. Aşağıdaki komutlar bu inceleme sürümü içindir.
+
+Destek, verkaç, bindirme, pres ve markaj ortak görev kurallarıyla sürer. Oyuncu koşusunun amacını, bağlantı kurduğu oyuncuyu ve sürelerini korur; olağan bir yeni öneri önceki görevi anında kesmez. Top kaybı, görünür tehlike, acil temas ve takımın ortak görev devri beklemeyi aşabilir. Güvenli desteğe varışta, kesin görev ömrünü aşmayan **0,45 saniyelik** kısa bir kullanım penceresi açılır. Pasın hedef oyuncusu hazırlık sırasında ayrılır; sahiplik için gerçek top temasını bekler.
+
+Takım planı **topa sahip olma, savunma, top kazanımı ve top kaybı** evrelerini ayrı izler. Aynı takımın yeni bir pası alması diğer oyuncuların görev dönemini sıfırlamaz. Saha oyuncuları rakipleri kendi görüş ve kısa gözlem belleğinden okur; görülmeyen bir rakibin yeni konumu karar sorgusuna sızmaz. Kısa baş taramaları yeni bilgi sağlayabilir. Baş ve boyun çizimi taramayı gösterirken gövde yönü, ayaklar ve temas noktaları korunur.
+
+```sh
+npm ci
+npm run test:stage9
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+**245 test geçti; hata veya atlanan test yok.** Önceki 154 kontrolün yanında algı, görev yaşamı, motor entegrasyonu, takım görevi devri ve baş çizimi sınanır. BallPhysics ile 16 canlı fizik/kural yöntemi önceki yayımlanmış motorla aynı kaynağı kullanır. Gerçek Chromium'da WebGL/prosedürel ve 2D yolları, 22 oyuncu, algı/görev kayıtları, baş taraması ve duraklat/devam et kontrolleri geçti. Deneyler ve sınırları [DOGRULAMA.md](DOGRULAMA.md), uygulama düzeni [ARCHITECTURE.md](ARCHITECTURE.md) içindedir.
+
+Yerel sunucuda `tactics.html` üzerinden maçı başlat. Yeni alanlar geçici maç durumundadır; kayıt dönüşümü gerekmez. Eksik özgün data/assets nedeniyle yedek çizim yolları kullanılır; transfer ve günlük lig API'si statik sunucuya eklenmedi. Takım koordinatörünün ortak görüntüsü hâlâ anlık iletişim varsayar; görüş engelleri, ses ve ayrıntılı dikkat modeli açık kalır. Önceki aşamalar aşağıda tarihsel kayıttır.
+
+Dört 300 saniyelik sentetik karşılaştırmada kısa topsuz görev değişimi 585/3529'dan 389/3332'ye düştü. Buna karşılık top kaybı 27'den 59'a çıktı, şut 2'den 1'e indi; büyük taşıma dönüşü ve kullanılmayan destek oranları iyileşmedi. Ortak görev/algı temeli hazırdır; hazır bağlantı kullanımı ve maç dengesi sonraki kalibrasyon önceliğidir.
+
+---
+
 ## Sekizinci aşama: gövde, momentum ve ayakla ortak top kontrolü
 
 İlk kontrol, top sürme, top koruma ve açık oyundaki pas/vuruş hazırlığı artık aynı fiziksel uygulanabilirlik hesabını kullanır. Yakındaki bir topa erişmek tek başına keskin yön değişimi için yeterli değildir: oyuncunun mevcut hızı, gövdesi, kullanabileceği ayak ve bir sonraki temasa yetişmesi birlikte sınanır. İstenen dokunuş yetişmiyorsa gelen hızın bir kısmı korunur veya dokunuş ertelenir; top normal fizik altında ilerler. Alım ya da top koruma rakip müdahalesini engellemez.

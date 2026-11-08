@@ -1,3 +1,74 @@
+# Dokuzuncu aşama — görev devamlılığı ve oyuncu algısı
+
+Bu uygulama **`codex/team-continuity-perception` inceleme dalı** içindir. İşlev/regresyon kontrolleri geçti; aşağıdaki doğal maç sonuçları nedeniyle maç dengesi `main` için kabul edilmedi.
+
+Doğrulanan motor SHA-256: `b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3`. Karşılaştırma tabanı `docs/validation/baselines/stage8-football-sim.js.gz` içindeki `e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e` kaynağıdır; GitHub'da [68d0ea7](https://github.com/tolgagitmez/tribunmenager/commit/68d0ea748b8ad15d26f22be920a12836fae4ada9) ile yayımlanmıştır. Yerel eski `695f552` Git HEAD'i bu deneyin tabanı değildir. Önceki aşamalar ve raporları aşağıda tarihsel kayıttır.
+
+## Uygulanan davranış
+
+Dört takım evresi ve takımın hücum dönemi, ortak görev yaşamının bağlamıdır. Olağan yeni görev minimum devam/aday doğrulamasını bekler; güvenlik, acil temas, görev sonu ve takım devri ayrı gerekçelerle geçebilir. Desteğe geç varışta açılan bağlantı 0,45 sn kısa kullanım penceresi kazanır; kesin ömür ve güvenlik geçerlidir. Aynı takım alımı diğer görevleri sıfırlamaz. Hazırlanan pasın alıcısı önceden ayrılır; sahiplik gerçek temasla kazanılır. Son görev, pas/koşu plan tablolarına geri yazılır.
+
+Saha oyuncusunun rakip okuması görüş, baş taraması ve kısa belleğe dayanır. Görünmeyen rakibin yeni yeri/hızı sorgudan öğrenilmez. Kopyadaki hazırlık hesabı yeni gözlem veya RNG üretemez. Bireysel markaj kendi gözlemiyle seçilir; takım koordinatörü anlık ortak gözlem birleşimini kullanır. Pres biriminin pas bağlantısı hesabı gözlenen top sahibini, o görülmüyorsa topun ortak konumunu kullanır. Markaj devri, rakibin özel alıcı kimliği yerine topun 0,70 saniyelik görünen koridorunu sınar. Bu, tüm iletişim/dikkat veya görüş engellenmesi modelinin tamamlandığı anlamına gelmez. Topun ortak durumu ve kendi takımının pozisyon/komut bilgisi ayrıca görüşe bağlanmadı; yeni algı kısıtı rakip okumalarına uygulanır.
+
+## Geçen testler ve fizik koruması
+
+`npm run test:stage9`: **245 geçti, 0 hata, 0 atlanan**. Sayı ve kaynak özetleri [team-continuity-tests.json](docs/validation/team-continuity-tests.json) içindedir.
+
+| Test grubu | Kontrol |
+| --- | ---: |
+| Önceki aşamaların regresyonları | 154 |
+| Görüş, tarama, bellek ve kimlik yaşamı | 19 |
+| Ortak görev protokolü | 33 |
+| Algı/görev motor entegrasyonu | 15 |
+| Plan uzlaştırması, markaj/pres devri ve gizli hedefe erişmeme | 18 |
+| Baş çizimi ve gövde/temas saflığı | 6 |
+
+Gizli rakip konum/hız getter'ları hata verecek biçimde kurulur; karar/pas hazırlığının bunları okumaması sınanır. Rakip görünmeden yeni yerine tepki verilmemesi, unutulan kayda canlı konumla dönülmemesi ve aynı takım pasında görev döneminin sürmesi ayrıca kontrol edilir. Aktif verkaçın ceza sahası dağılımıyla ezilmesi, geç varan desteğin erken kesilmesi, aynı görevin yanlış temposu, iki presçi/markajcı oluşması ve uygulanmayan koşu noktasının pasçıya sunulması regresyon kapsamındadır. Pres bağlantısı seçiminde görünmeyen top sahibinin canlı koordinatına erişmeme ve yeni gözlemin seçimi değiştirebilmesi sınanır. Markaj devrinde gizli pas alıcısı kimliği yerine yalnız görünen top koridorunun etkili olması da ayrıca sınanır. Görülmeyen rakibin gerçek fiziksel müdahalesi çalışmaya devam eder.
+
+Önceki testlerdeki üç dosya yeni karar metadatasını fizik karşılaştırmasından ayırır: `first-control.test.cjs` evre metadatasını; `touch-feasibility.test.cjs` algı/görev/evre metadatasını ayırır. `post-receive-hold.test.cjs` canlı kare örneğinde arkadaki presçiyi önceden görülmüş bellekte kurar ve yeni yardımcı metadatayı ayırır. Fizik, saatler, top ve RNG eşitliği korunur. Görülmeyen presçiye karşı aynı düzeltmenin tetiklenmemesi yeni entegrasyon testindedir.
+
+`node tools/check-team-continuity-physics.cjs`, **BallPhysics ve 16 canlı fizik/kural yönteminin** tabanla kaynak düzeyinde aynı olduğunu doğruladı: hareket/efor, ayak temas kapıları, mücadele, top entegrasyonu, pas çıkışı, vuruş karesi, kaleci ve ofsayt dahil. Tam liste ve özetler [team-continuity-physics.json](docs/validation/team-continuity-physics.json) içindedir. Görev/algı ve hazırlık önizlemeleri bilinçli olarak değişir; bu kaynak kontrolü maç sonuçlarının aynı kalacağını iddia etmez.
+
+## Gerçek tarayıcı kontrolü
+
+Chromium/SwiftShader ile WebGL-prosedürel ve zorlanmış 2D yolları geçti. Taktik sayfasından başlatma, 22 aktif oyuncu, en az 15 sn normal maç adımı, modül yükleme sırası, algı/görev/tarihçe kayıtları, geçerli evreler, gözlenen/çizilen baş taraması ve gerçek duraklat/devam et düğmeleri kontrol edildi. Poz sorguları gövde/top/RNG durumunu değiştirmedi; JavaScript hatası oluşmadı. Çizilen baş açısı ±0,80 rad sınırında kaldı. Rapor: [team-continuity-browser.json](docs/validation/team-continuity-browser.json).
+
+`tools/check-team-continuity-browser.py` aynı kontrolün çalıştırılabilir aracıdır; Chromium ve Python Playwright gerektirir. Özgün oyuncu modeli, bazı görsel/font dosyaları mevcut checkout'ta eksiktir; eksik kaynaklar raporda listelenir. WebGL denemesi yedek prosedürel modeli doğrular; eksik ayrıntılı modelin tam cihaz testi değildir. Tarayıcı açılışında yalnız sahip olma/savunma evreleri görülmüştür; dört evrenin tamamı için entegrasyon ve maç ölçümleri esas alınır.
+
+## Maç karşılaştırmasının yöntemi ve sınırı
+
+`tools/profile-team-continuity.cjs`, biten canlı adımların hedef Map'lerini dışarıdan okur; karar, plan veya algı sorgusu çağırmaz ve motor yöntemlerini sarmalamaz. Sabit metrik tanımları iki motora uygulanır. Gözlemli/gözlemsiz ve deterministik tekrar koşuları tam V8 snapshot değerleriyle karşılaştırılır; referans, Map ve undefined değerlerini koruyan kanonik durum özeti de kaydedilir. Ham V8 byte dizisi tek başına değer eşitliği sayılmaz. Ortak/markaj kimliği motorun mevcut görev ve niyet kayıtlarından okunur; tabanda yeni ortak görev kaydı yoktur. Bu yüzden görev değişimi göstergesi yalnız koordinat titreşiminin ölçüsü değildir.
+
+**0,45 sn** içinde görev ailesi/ortak/markaj değişimi kararsızlık için bir göstergedir; acil doğru değişimler de sayılır. Taşıma hedefinin aynı oyuncu konumundan **1,10 rad**'dan fazla dönmesi fiziksel top dönüşü veya başarısız hareket sayılmaz. Kullanılmadan bırakılan destek, pas hazırlığı/çıkışı hedefi ve komut sonu üzerinden ölçülen vekil metriktir. Destek noktasına 3 m yakınlık pas yolunun açık veya vuruşun uygulanabilir olduğunu kanıtlamaz. Hazırlık, gerçek pas çıkışı ve alım birbirinden ayrıdır. Destek komutu alıcı koşusuna dönüşünce o bölüm kapanabilir; destek bölümü sürerken sayılan pas çıkışları, destekten başlayan bütün pasları kapsamaz. Daha az komut değişimi tek başına daha iyi futbol ya da topa sahip olma kanıtı değildir.
+
+## Dört tam kısa maç — sonuçlar ve açık kalan denge
+
+[Son matris](docs/validation/team-continuity-matrix.json), **dört yapılandırma × iki motor × 300 sn** içerir. Her motor/senaryo ayrıca gözlemcisiz eşleniği ve bağımsız deterministik tekrarıyla yürütüldü: toplam 24 tam koşu. Tam durum, kanonik özet ve özet metrik eşitlikleri geçti. Yeni motorda iki takımın dört evresi her senaryoda görüldü. Tüm maçlar tamamlandı; durumlar sonlu, skor gerçek gol olaylarıyla aynıydı. En büyük oyuncu adımı tabanda 0,122051, yenide 0,118704 m/60 Hz oldu; 0,15 m kontrol sınırı aşılmadı. Bu dört yapılandırmanın toplamları, önceki aşamaların farklı sekizli matrisleriyle doğrudan karşılaştırılmaz.
+
+| Devamlılık göstergesi | Sekizinci aşama tabanı | Dokuzuncu aşama |
+| --- | ---: | ---: |
+| 0,45 sn içinde biten / aynı sahiplik bağlamındaki topsuz görev değişimleri | 585/3529 (%16,58) | 389/3332 (%11,67) |
+| 1,10 rad üzeri taşıma dönüşü / ölçülen hedef değişimleri | 100/373 (%26,81) | 44/89 (%49,44) |
+| Hazırlık/çıkış hedefi seçilmeden değişen / yeniden planlanarak biten destek bölümleri | 1421/1734 (%81,95) | 1263/1533 (%82,39) |
+| Hedefe 3 m yaklaşmışken seçilmeden değişen destek bölümleri | 861 | 897 |
+
+Kısa topsuz görev değişimi hem sayı hem oran bakımından azaldı. Büyük taşıma dönüşlerinin sayısı azalırken, ölçülen tüm hedef değişimleri daha fazla azaldığı için büyük dönüş oranı **arttı**. Seçilmeden yeniden planlanan destek oranı da iyileşmedi; hedefe yaklaşmışken seçilmeden değişen destek sayısı arttı. Bu göstergeler açılmış gerçek pas fırsatlarının sayımı değildir, ancak hazır bağlantı kullanımının tamamlandığı sonucunu desteklemez.
+
+| Senaryo | Tamamlanan / tüm pas (taban → yeni) | Top kaybı | Şut | Skor |
+| --- | --- | ---: | ---: | --- |
+| balanced21 | 102/108 → 105/110 | 5 → 14 | 0 → 0 | 0–0 → 0–0 |
+| wide21 | 76/81 → 80/86 | 11 → 14 | 2 → 0 | 1–0 → 0–0 |
+| press42 | 73/82 → 85/95 | 7 → 17 | 0 → 0 | 0–0 → 0–0 |
+| weak442-77 | 146/147 → 76/83 | 4 → 14 | 0 → 1 | 0–0 → 0–1 |
+
+Toplam tamamlanan pas 397/418 (%94,98) → 346/374 (%92,51) oldu. Top kaybı **27 → 59**, şut **2 → 1**, yarıda kalan vuruş **1 → 3** oldu. wide21 ev sahibi golü kayboldu; weak442-77 yeni sürümde 0–1 bitti. Bu küçük sentetik örneklemde hücum ve sahiplik sonuçları kötüleşti; görev/algı temelinin eklenmesi genel futbol kalitesi artışı olarak kabul edilmedi. Süreleri uzatmadan önce güvenli hazır bağlantının gerçek pas ve pozisyona dönüşmesini, algı yenilemesinin kaçırdığı baskıyı ve hazırlık iptallerini ayrı kalibre etmek gerekir.
+
+Destek bölümünü hazırlıkta seçme sayısı **316 → 271** oldu. Destek bölümü hâlâ sürerken sayılan gerçek pas çıkışı **300 → 0** olarak kaydedildi; yeni alıcı rezervasyonu bölümü `receive-run` ile daha erken kapatabildiğinden bu son değer “destek kökenli hiç pas çıkmadı” anlamına gelmez. Gerçek toplam paslar yukarıdadır; hazırlık seçimi ise başarılı çıkış veya alım değildir.
+
+Karşılaştırmayı yeniden üretmek için `node tools/profile-team-continuity.cjs --seconds 300 --output docs/validation/team-continuity-matrix.json` kullanılabilir. Dört sentetik yapılandırma, iki tohum ve 65/82 oyuncu güçleri; 90 dakika, gerçek kadro, iletişim gecikmesi veya bütün taktikler için futbol dengesi kabulü değildir.
+
+---
+
 # Sekizinci aşama — ortak yerden dokunuş uygulanabilirliği (6 Kasım 2026)
 
 Yeni motor: `e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e`. Karşılaştırma tabanı `docs/validation/baselines/stage8-integration-base.js.gz` içindeki `16d6d78ac01b5490bbb8a178b4134a2f8c41224ad7091fb1e0b6b37aafa07360` kaynağıdır. Bu taban, GitHub main `82414b9` sürümünün uzaktaki alıcı için geç gövde hazırlığını yerel yedinci aşamanın tazelik/duran top/saat korumalarıyla birleştirir; ortak dokunuş modeli henüz eklenmemiştir. Git HEAD veya önceki 104 kayıplı matris bu deneyin tabanı değildir.

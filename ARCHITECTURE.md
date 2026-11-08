@@ -1,3 +1,42 @@
+# Dokuzuncu aşama — görev yaşamı, dört evre ve oyuncu algısı
+
+Destek, verkaç/bindirme, taşıma, pres ve markaj tek bir hedefi tekrar seçmekten öte bir görev yaşamına bağlandı. `team-intent.js` görev süresini ve geçişi, `player-perception.js` rakibin hangi gözlemden bilindiğini yönetir. İki modül CommonJS ve tarayıcı UMD olarak yüklenir; `match.html` bunları `football-sim.js` öncesinde açar. Yeni durum yalnız maç belleğindedir.
+
+## Takım evresi ve ortak görev dönemi
+
+`teamPhases[team]`, `phase`, `since`, `epoch` ve `attackEpoch` taşır. `win`/`possession` hücum; `loss`/`defence` savunma ailesidir. Gerçek karşı takım kazanımı hücum dönemini değiştirir ve eski görevleri gain/loss gerekçeleriyle bırakır. Aynı takım alımı bu dönemi değiştirmez. Geçiş süresi bitince uyumlu görev yeni evrede sürer; başlangıç ve kesin bitiş saatleri yenilenmez. Yeniden başlatma geçiş saatlerini, eski planları, görevleri ve gözlem belleğini temizler.
+
+`resolve`, `reserved` ve `clear` ortak görev protokolüdür. `p.task`; amaç/alt durum, evre/dönem, ortak ve odak kimlikleri, hedef, tempo, öncelik, başlangıç, asgari devam, kesin bitiş ve ilerleme bilgisini taşır. Son **24 geçiş gerekçesi** `taskHistory` içinde kalır. Yeni plan aynı görevin kesin bitişini sürekli ileri atmaz.
+
+| Görev | Asgari devam | Kesin ömür | Olağan yeni adayın doğrulanması |
+| --- | ---: | ---: | ---: |
+| Destek | 0,50 sn | 1,80 sn | 0,32 sn |
+| Koşu / bindirme | 0,70 sn | 3,20 sn | 0,36 sn |
+| Pres | 0,45 sn | 1,40 sn | 0,32 sn |
+| Markaj | 0,60 sn | 2,10 sn | 0,36 sn |
+| Kademe | 0,50 sn | 1,80 sn | 0,32 sn |
+| Taşıma | 0,45 sn | 1,20 sn | 0,28 sn |
+
+Hareketli markaj/pres hedefi aynı kimlikle takip edilir; bağlılık eski bir rakip konumuna koşmayı zorlamaz. Aynı görevin temposu ve önceliği güncel öneriden gelir. Görünür yol tıkanması, ortak/odak kaybı, oyuncu değişimi, evre ailesi değişimi, görev sonu, varış ve ilerleyememe ayrı bırakma gerekçeleridir. Acil kontrol/alıcı koşusu/blok ve ortak takım devri olağan beklemeyi aşabilir. Destek hedefine **0,85 m** yaklaşmak varış sayılır; kesin ömrü aşmadan **0,45 sn** kullanım penceresi başlatır. Güvenlik ve acil görevler bu pencereyi de kesebilir.
+
+Plan kurucuları bağlı oyuncuyu aday seçmeden önce rezerve eder. Aktif verkaç/geri destek niyeti ceza sahası dağılımıyla ezilmez. Pas hedefi hem hazırlık hem gerçek uçuş sırasında ayrılır; iptal sonrası alıcı görevi bırakılır. Son görev seçildiğinde destek, koşucu, bağlantı, bindirme ve ceza sahası tabloları uygulanacak hedefle uzlaştırılır. Pas değerlendirmesi oyuncunun koşmadığı yeni bir aday noktayı açık bağlantı gibi kullanmaz. Markaj ve pres devrinde eski görev sahibi asgari süreyi bekleyerek ikinci markajcı/presçi olarak kalmaz.
+
+## Görüş ve kısa gözlem belleği
+
+Gözlem yalnız canlı `step` içinde ilerler. `rivals(p,time)` yeni tarama veya canlı rakip okuması yapmadan değer kopyaları döndürür; rakibin hedefini veya gelecekteki kararını taşımaz. Görüş niteliğine bağlı gövde görüşü/menzil, **1,65 m** yakın temas duyumu, uygun aksiyonlar arasında deterministik **160 ms** baş taraması ve en fazla **1,60 sn** bellek vardır. Görülmeyen rakibin hareket kestirimi, son hızdan **0,40 sn** sönüm ufkuyla çıkar; güven azalır, belirsizlik artar ve süre sonunda kayıt silinir. Kör taraftaki yeni yön değişimi bu kestirimi güncellemez. Belirsizlik pas yolu/alıma güveni de sınırlar.
+
+Takım koordinatörü saha oyuncularının gözlemlerinin birleşimini kullanır; takım iletişimi anlık varsayılır. Bireysel markaj ancak o oyuncunun gözlemlediği adaylar arasından seçilir. Top taşıyanın baskı ve tempo okuması da kişiseldir. Pres biriminin alıcı seçimi ve önceki alıcıyı koruma hesabı aynı gözlenen kökene dayanır: kademe/presçinin belleğindeki top sahibi, kayıt yoksa topun ortak konumu. Derindeki markaj devri, topun BallPhysics ile 0,70 sn sonraki konumuna uzanan koridorda koşucunun bulunmasını okur; pasçının özel hedef oyuncu kimliğini okumaz. Şut bloku görünür şutçunun gövde yönünü, uçuş savunması görünen topun fiziksel izini okur; rakibin özel nişan/pas hedefi kullanılmaz.
+
+Hazırlık önizlemeleri karar verenin bildiği rakip kopyalarını ilerletir; görünmeyen canlı rakip sonradan eklenmez. Önizlemede baş taraması, yeni takım planı veya RNG çalışmaz. Görev ve tarihçe kopyaları canlı duruma geri yazılmaz. Doğrudan elle kurulan ve henüz `step` çalıştırılmamış kontrol durumları açıkça verilen dünya durumunu kullanır; normal canlı maç adımı algıyı etkinleştirir.
+
+## Baş çizimi ve kalan kapsam
+
+Rig, algının baş taramasını yalnız çizim için yumuşatarak en fazla **±0,80 rad** baş dönüşüne çevirir; prosedürel yüz ve GPU baş/boyun kemikleri bunu kullanır. Algıdaki **±1,55 rad** tarama ile görsel baş açısı farklı oyun yaklaşımlarıdır. `p.face`, gövde, ayaklar ve temas noktaları etkilenmez. Önbelleklenmiş pozun çizim sorgusu taramayı ilerletmez.
+
+Görüş engellenmesi, sesle fark etme, ayrıntılı dikkat bütçesi ve gecikmeli/sınırlı takım iletişimi henüz yoktur. Topun konumu ve sahiplik/oyun bilgisi ortak maç durumundan gelir; kendi takımının pozisyon ve komutları bilinir. Bu aşama bu bilgileri ayrı bir top/arkadaş algısına dönüştürmez. Fiziksel temas/müdahale, ofsayt hakemi, şut/ilk kontrolün gerçek temas baskısı, duran top yerleşimi ve mevcut kaleci yolları dünya gerçeğini kullanır. Görülmeyen rakip fiziksel müdahaleye devam eder; algı eksikliği koruma sağlamaz. BallPhysics ile 16 canlı fizik/kural yöntemi yayımlanmış sekizinci aşamayla kaynak düzeyinde aynı kalır; değişen görev/algı ve hazırlık önizlemeleri bu eşitlik iddiasına dahil değildir. Ekonomi, kayıt şeması ve ayrı günlük lig motoru birleştirilmedi.
+
+---
+
 # Sekizinci aşama — ortak yerden ayak teması ve sonraki kontrole erişim
 
 Önceki ilk kontrol kapısı topun mevcut ayak bölgesini, yedinci aşama ise alım sonrasındaki dar bir ters bekleme kararını sınırlandırıyordu. Topa bugün erişilmesi, oyuncu mevcut yönde koşarken seçilen her yeni top hızına yetişebileceği anlamına gelmiyordu. `touchContact`, `touchRecovery` ve `touchPlan` artık hazırlıklı yerden ilk kontrol, normal top sürme/top koruma ve açık oyun vuruş hazırlığında ortak kullanılır. Yönün uygulanabilirliği, mevcut hız ve gövdeyle bir sonraki gerçek temas bölgesine ulaşma denemesinden çıkarılır.

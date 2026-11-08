@@ -1,8 +1,13 @@
 {
   "name": "tribun-manager-3d",
-  "version": "1.27.0",
+  "version": "1.28.0",
   "private": true,
   "scripts": {
+    "test:stage9": "npm run test:stage8 && node --test tests/player-perception.test.cjs tests/team-intent.test.cjs tests/team-continuity-integration.test.cjs tests/team-plan-arbitration.test.cjs tests/scan-presentation.test.cjs",
+    "test:perception": "node tests/player-perception.test.cjs",
+    "test:team-intent": "node tests/team-intent.test.cjs",
+    "test:team-continuity": "node --test tests/team-continuity-integration.test.cjs tests/team-plan-arbitration.test.cjs",
+    "test:scan-presentation": "node tests/scan-presentation.test.cjs",
     "test:touch-feasibility": "node tests/touch-feasibility.test.cjs",
     "test:stage8": "npm run test:stage7 && npm run test:touch-feasibility",
     "test:post-receive-hold": "node tests/post-receive-hold.test.cjs",

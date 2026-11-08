@@ -77,7 +77,7 @@ test('aerial, goalkeeper, other recipient, unprepared and stale receptions retai
   if(['cross','long-pass'].includes(variant))m.flight.kind=variant;
   if(variant==='high')m.ball.y=.8;if(variant==='rising')m.ball.vy=.5;if(variant==='keeper')q.role='GK';if(variant==='untargeted')m.flight.target=from;
   if(variant==='unprepared')q.reception=null;if(variant==='stale')q.reception.at=9;
-  const old=clone(m,OldMatch);assert.equal(m.acquire(q),true);assert.equal(old.acquire(old.players[q.id]),true);assert.deepEqual(structuredClone(m),structuredClone(old),variant);
+  const old=clone(m,OldMatch);assert.equal(m.acquire(q),true);assert.equal(old.acquire(old.players[q.id]),true);const current=structuredClone(m),baseline=structuredClone(old);delete current.teamPhases;delete baseline.teamPhases;delete current.telemetry.teamPhaseChanges;delete baseline.telemetry.teamPhaseChanges;assert.deepEqual(current,baseline,variant);assert.equal(m.teamPhases[q.team].phase,'possession');
  }
 });
 test('the retained glancing cushion still responds to player technique and incoming speed',()=>{

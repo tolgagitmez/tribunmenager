@@ -1,0 +1,33 @@
+{
+  "command": "npm run test:stage9",
+  "total": 245,
+  "passed": 245,
+  "failed": 0,
+  "skipped": 0,
+  "logSHA256": "cd2979db31fca5eafb850b021a892b2917443a469a87d3b56d7dee432ca4b963",
+  "sources": {
+    "football-sim.js": "b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3",
+    "player-perception.js": "d0879e2e845a34bd8f08fd117e3100ac651ee79f28371e153a7aed3c48bc08b8",
+    "team-intent.js": "cce8be16d8dd88ef758051e0cf6761326ad21cb55b1733397c5fa3815aac0030",
+    "humanoid-rig.js": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+    "scene3d.js": "561be6f11bf54ab2d6d97d260fa5b10c057bc72b6baf7740f3094c7243924a2b",
+    "player-renderer.js": "ef384d6ba0028ee7f038db75b7c87da9455de0118133b691b02953483f18613c",
+    "match.html": "35d837d741be75f340b124973808100055a0108448a98d7357b0f4e8a3b130bc",
+    "package.json": "fdc7dc7a8c9bf6a9f5a2522eb152aa58c1a7e1caf0648f13e7737665f7acfce8",
+    "package-lock.json": "a399bd2d511a155a426ba3267639f7e37e7d62a407e72bc45f9dd61107de53dd",
+    "tests/first-control.test.cjs": "6bf0b915c2e07960e86cfc1dba6c32e496f6c8ca7fc5335e621a9143b6966b7f",
+    "tests/match-startup.test.cjs": "fd8f994543f02bb63f9b7a33d3d12b38bcad16190eeefbffc77fd2ff260a1119",
+    "tests/pass-arrival.test.cjs": "6165c5fe7c4facdad5c98670c1436bce3b99f88528abff0ab89391d607249dea",
+    "tests/pass-preparation.test.cjs": "59c8ce60e5987c3c823358e51564a28ba6591e7defd451f68568f931694fcdb5",
+    "tests/player-perception.test.cjs": "14696705e0733c0662510fe432a82f46a3664e45602c52f6d33eeeaec96966ee",
+    "tests/post-receive-hold.test.cjs": "a9ce9fccc1c9d91713ca0af60b6d493f69434639e3f93ee7ac243daad0a6435c",
+    "tests/receiver-interception.test.cjs": "50f1060f06b77e17d63eb1c7786e0ece1056a07f44edc0d7cf48f07ef1f3e6c5",
+    "tests/reception-facing.test.cjs": "a637b36be474b65be08390efe011680b187121d73bc8493bc1918aa934b43fa3",
+    "tests/scan-presentation.test.cjs": "241435787f0b73c9a0f41d5ed992f24c1489953bda8911678b587da53da833a2",
+    "tests/support-continuity.test.cjs": "c265f86263a43fd26d48c34dbc5c29aea6701e8981d457f3e3f794da9f4736a2",
+    "tests/team-continuity-integration.test.cjs": "e7f7312551ee050757960fbc55cba0c97b36105bd8b493a8766be9b51308d44f",
+    "tests/team-intent.test.cjs": "44dea37519081321264198daf03749ec276a1c4d802dab7512e0c7bbec6d1ae3",
+    "tests/team-plan-arbitration.test.cjs": "6af8c65a238dd9a79b5a4536f9c05ba99bfb9269ce708cf726b34c5a165a8b14",
+    "tests/touch-feasibility.test.cjs": "6f43713fe5021d61b26c28554fa407cd19025d3625bde4c0c3f55a68bef621c9"
+  }
+}

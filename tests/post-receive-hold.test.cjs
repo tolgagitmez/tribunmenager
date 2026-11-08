@@ -80,7 +80,8 @@ test('the retained point is a value copy and cannot mutate the current carrying 
  assert.notEqual(result.point,p.carryTarget);result.point.x+=10;assert.deepEqual(p.carryTarget,point);assert.deepEqual(p.carryIntent.point,point);
 });
 for(const side of [1,-1])test(`the ordinary owner step applies the retained intention through unchanged movement and ball physics (${side})`,()=>{
- const {m,p,choice}=fixture(side),expected=clone(m,OldMatch),old=clone(m,OldMatch),before={x:p.x,z:p.z},retained=m.postReceiveHold(p,choice);
+ const {m,p,choice}=fixture(side);const Perception=require('../player-perception'),face=p.face;p.face+=Math.PI;Perception.update(m.players,m.time,0,{scanAllowed:false});p.face=face;
+ const expected=clone(m,OldMatch),old=clone(m,OldMatch),before={x:p.x,z:p.z},retained=m.postReceiveHold(p,choice);
  assert.equal(retained.holdContinuation,true);
  m.choose=()=>choice;expected.choose=()=>retained;old.choose=()=>choice;
  m.step(dt);expected.step(dt);old.step(dt);
@@ -88,7 +89,8 @@ for(const side of [1,-1])test(`the ordinary owner step applies the retained inte
  assert(distance(p,before)<.15);assert.equal(m.owner,p);assert.equal(m.kick,null);
  assert(m.ball.vx*side>0);assert(old.ball.vx*side<0,'the unreviewed hold redirects the same physical ball backwards');
  delete m.telemetry.holdContinuations;for(const v of [m,expected,old])delete v.choose;
- assert.deepEqual(structuredClone(m),structuredClone(expected),'continuing the old run must use the exact stage6 physical path');
+ const physical=value=>{const state=structuredClone(value);delete state.teamPhases;delete state._perceptionActive;delete state.telemetry.teamPhaseChanges;for(const actor of state.players){delete actor.perception;delete actor.task;delete actor.taskHistory;}return state;};
+ assert.deepEqual(physical(m),physical(expected),'the observed-pressure continuation must use the exact stage6 physical path');
 });
 test('the pure hold review leaves released ball flight entirely under BallPhysics',()=>{
  const {m,p,choice}=fixture(),predicted=BallPhysics.predict(m.ball,.2),position={x:p.x,z:p.z};

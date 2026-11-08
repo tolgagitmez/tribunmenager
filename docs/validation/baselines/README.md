@@ -1,3 +1,13 @@
+# Dokuzuncu aşama için yayımlanmış sekizinci aşama tabanı
+
+`stage8-football-sim.js.gz`, dokuzuncu aşama karşılaştırması için yayımlanmış sekizinci aşama motorunu birebir korur. Açılmış SHA-256 değeri `e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e` olur. Kaynak, GitHub `main` üzerindeki [68d0ea748b8ad15d26f22be920a12836fae4ada9](https://github.com/tolgagitmez/tribunmenager/commit/68d0ea748b8ad15d26f22be920a12836fae4ada9) commit'iyle doğrulanmıştır.
+
+Bu taban ortak temas fiziğini içerir; yeni görev ve oyuncu algısı modüllerini içermez. `tools/profile-team-continuity.cjs` kaynağı ayrı CommonJS modülünde, aynı taktik kaynağıyla yükler. `tools/check-team-continuity-physics.cjs` BallPhysics ve belirtilen 16 canlı yöntemi bununla karşılaştırır. Yerel `695f552` HEAD'i aşama 9 tabanı değildir. Diğer gzip dosyaları ve matrisler aşağıdaki kendi tarihsel deneylerine aittir; farklı aşamaların toplamları tek deney gibi birleştirilmez.
+
+Dokuzuncu aşamanın dört 300 saniyelik karşılaştırması [team-continuity-matrix.json](../team-continuity-matrix.json), olumlu ve olumsuz sonuç yorumu [DOGRULAMA.md](../../../DOGRULAMA.md) içindedir. Yeni deneyin motor kaynağı `b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3` olarak raporlanır.
+
+---
+
 # Published stage 1 baseline
 
 `stage1-football-sim.js.gz` contains the exact `football-sim.js` from the delivered
