@@ -1,8 +1,10 @@
 {
+  "generatedAt": "2026-11-06T08:55:31.705Z",
   "sources": {
     "baseline": "7038778922feb9f8f24389003b5ddf92fb8c0790280af84ae9818a04198acf60",
-    "current": "8c3b3c1953ca95d02d2b78b5161131b4b1e1523a8b2b56850b4665b8fcadf703"
+    "current": "108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6"
   },
+  "baseline": "Exact retained published stage5 engine; Git HEAD is not used.",
   "changedExistingMatchMethods": [
     "projectPlayer",
     "move"
@@ -10,6 +12,7 @@
   "addedMatchMethods": [
     "receptionFacing"
   ],
+  "removedMatchMethods": [],
   "unchangedMatchMethods": [
     "hash",
     "random",
@@ -120,11 +123,574 @@
     "airTime",
     "verticalLaunch"
   ],
-  "naturalFirstReleaseEqual": [
-    "reception-facing-fork",
-    "reception-facing-loss-fork",
-    "reception-facing-chain-fork"
-  ],
-  "scopeNote": "Move changes desired reception facing only; acceleration, braking, angular-rate limits and physical acquisition remain active. A better desired angle is not guaranteed control or possession.",
+  "protectedMethods": {
+    "acquire": true,
+    "release": true,
+    "doTackle": true,
+    "startKick": true,
+    "kickStep": true,
+    "contactPoint": true,
+    "integrateBall": true,
+    "firstControlContact": true,
+    "effort": true,
+    "ballStep": true,
+    "ballCrossing": true,
+    "tackleAccess": true,
+    "prepareReception": true
+  },
+  "matchMethodHashes": {
+    "hash": {
+      "baseline": "393698af8ead95e2173cd4e3040224dee7ebd8c8293fef0c7ec2dfc0c0e9b2e1",
+      "current": "393698af8ead95e2173cd4e3040224dee7ebd8c8293fef0c7ec2dfc0c0e9b2e1",
+      "unchanged": true
+    },
+    "random": {
+      "baseline": "df3224834a58e89fe0e2a05ce1b9d4a7ab7c20ba167bc9f8845a99f33550310c",
+      "current": "df3224834a58e89fe0e2a05ce1b9d4a7ab7c20ba167bc9f8845a99f33550310c",
+      "unchanged": true
+    },
+    "team": {
+      "baseline": "84427f9bb1f8173c53f68859783ce41eff4c58625567a4c7e0427e4daea2c96a",
+      "current": "84427f9bb1f8173c53f68859783ce41eff4c58625567a4c7e0427e4daea2c96a",
+      "unchanged": true
+    },
+    "field": {
+      "baseline": "b749e7b52decd5c7517f277887de2999968b8843d71b49e39290675bafd5d729",
+      "current": "b749e7b52decd5c7517f277887de2999968b8843d71b49e39290675bafd5d729",
+      "unchanged": true
+    },
+    "tactics": {
+      "baseline": "8c38ee0afaee225f33ebe2236486684d3af020531f687c1c41cb479ca01d289b",
+      "current": "8c38ee0afaee225f33ebe2236486684d3af020531f687c1c41cb479ca01d289b",
+      "unchanged": true
+    },
+    "reset": {
+      "baseline": "d31899b5453703faf0cbb3cfa30ba9a9734be87be97ea6cc554b3816346319db",
+      "current": "d31899b5453703faf0cbb3cfa30ba9a9734be87be97ea6cc554b3816346319db",
+      "unchanged": true
+    },
+    "emit": {
+      "baseline": "537331d45e0b3c65766e927eb1e8631dfd07f108681be7fad963baece62aafcb",
+      "current": "537331d45e0b3c65766e927eb1e8631dfd07f108681be7fad963baece62aafcb",
+      "unchanged": true
+    },
+    "drain": {
+      "baseline": "5c2439b263bfdf7a8540a2c2ffb5b74b5ca6e45670f10b77cdf25198e31bb0fd",
+      "current": "5c2439b263bfdf7a8540a2c2ffb5b74b5ca6e45670f10b77cdf25198e31bb0fd",
+      "unchanged": true
+    },
+    "action": {
+      "baseline": "38a0ff35bad1276691f67cd9b6f782f58aa0387d3523ef403a80201e28d5f85a",
+      "current": "38a0ff35bad1276691f67cd9b6f782f58aa0387d3523ef403a80201e28d5f85a",
+      "unchanged": true
+    },
+    "setRestart": {
+      "baseline": "592f3e9c7cb23ec938cbafc56da801106e3fc933cbe670cac3aec6da0c010ad9",
+      "current": "592f3e9c7cb23ec938cbafc56da801106e3fc933cbe670cac3aec6da0c010ad9",
+      "unchanged": true
+    },
+    "laneRisk": {
+      "baseline": "88f791de07199d20d0b0b1d93d3a273eafaaf45057c927e8f4aa853d74535750",
+      "current": "88f791de07199d20d0b0b1d93d3a273eafaaf45057c927e8f4aa853d74535750",
+      "unchanged": true
+    },
+    "matchContext": {
+      "baseline": "5ae707692c964c35088d117515ac2a51fd150e982d89ba1a9dce15bc8d86bcba",
+      "current": "5ae707692c964c35088d117515ac2a51fd150e982d89ba1a9dce15bc8d86bcba",
+      "unchanged": true
+    },
+    "defenceLine": {
+      "baseline": "0f4731e72a79459c400d92059e0165751bd5ad337f89e3811e8e99dd6a020c2e",
+      "current": "0f4731e72a79459c400d92059e0165751bd5ad337f89e3811e8e99dd6a020c2e",
+      "unchanged": true
+    },
+    "receptionSafety": {
+      "baseline": "7abc98649eed208133a2a2113c2b0cd36c31f7535f1b065d7b7777b614fb35f0",
+      "current": "7abc98649eed208133a2a2113c2b0cd36c31f7535f1b065d7b7777b614fb35f0",
+      "unchanged": true
+    },
+    "giveGoLink": {
+      "baseline": "eb85bf1ae44795d57754117b5252bfb18e6adbe5e6e90a137b478f5037766b29",
+      "current": "eb85bf1ae44795d57754117b5252bfb18e6adbe5e6e90a137b478f5037766b29",
+      "unchanged": true
+    },
+    "plannedRun": {
+      "baseline": "9ce2646ad4641912f873defc2c2123ca904f22e1950b0cd0733e26b0ca030900",
+      "current": "9ce2646ad4641912f873defc2c2123ca904f22e1950b0cd0733e26b0ca030900",
+      "unchanged": true
+    },
+    "receiverPoint": {
+      "baseline": "6c331d3c11523805ca456930d9765aa326fe9964047aff0f01a335c24b5b3f50",
+      "current": "6c331d3c11523805ca456930d9765aa326fe9964047aff0f01a335c24b5b3f50",
+      "unchanged": true
+    },
+    "passOptions": {
+      "baseline": "0c2ef712df977222d08674cb30c497d2c01f2663ee6de4379a86d1d371fb0ef4",
+      "current": "0c2ef712df977222d08674cb30c497d2c01f2663ee6de4379a86d1d371fb0ef4",
+      "unchanged": true
+    },
+    "prepareReception": {
+      "baseline": "2dfdc335bc7336ce50a25c44a6e47be87a392078ccd855fe1c763e4e0752892d",
+      "current": "2dfdc335bc7336ce50a25c44a6e47be87a392078ccd855fe1c763e4e0752892d",
+      "unchanged": true
+    },
+    "preparedChoice": {
+      "baseline": "ca9d59319b44950925fcca2f49e079accc06ac404bf77bf81298d72a5af4862d",
+      "current": "ca9d59319b44950925fcca2f49e079accc06ac404bf77bf81298d72a5af4862d",
+      "unchanged": true
+    },
+    "controlOption": {
+      "baseline": "45e651bae4bcf9b21c1acbcbfb5066ea58e4d5443682e2ea111fcc800f36a455",
+      "current": "45e651bae4bcf9b21c1acbcbfb5066ea58e4d5443682e2ea111fcc800f36a455",
+      "unchanged": true
+    },
+    "dribbleTouch": {
+      "baseline": "d3c5f43b188b408e24b1994b770ad34b4e8fb924d70b9a1591fc88f58fadd69d",
+      "current": "d3c5f43b188b408e24b1994b770ad34b4e8fb924d70b9a1591fc88f58fadd69d",
+      "unchanged": true
+    },
+    "feintOption": {
+      "baseline": "e8373728f776be2b75f87a8aad82a8d3dc6146b99a48992d0afed1942905556e",
+      "current": "e8373728f776be2b75f87a8aad82a8d3dc6146b99a48992d0afed1942905556e",
+      "unchanged": true
+    },
+    "applyFeint": {
+      "baseline": "b24f417ed8081091a89e0aa56c907954373f848224663959fe3efb4520c1d7bb",
+      "current": "b24f417ed8081091a89e0aa56c907954373f848224663959fe3efb4520c1d7bb",
+      "unchanged": true
+    },
+    "canShield": {
+      "baseline": "03bfa783672639ebc07b91743277a1c1b2dca39c94b52f2fc77192be4a2a0d59",
+      "current": "03bfa783672639ebc07b91743277a1c1b2dca39c94b52f2fc77192be4a2a0d59",
+      "unchanged": true
+    },
+    "startCarry": {
+      "baseline": "5a6999c3e0221ee09845c13f717158105a7fe97b8a45dc1ecf07be2facfa59df",
+      "current": "5a6999c3e0221ee09845c13f717158105a7fe97b8a45dc1ecf07be2facfa59df",
+      "unchanged": true
+    },
+    "shieldOption": {
+      "baseline": "4b93c55a9803129d9fb8105cb1f929b2cb6657f84440b299090e187e294b9edd",
+      "current": "4b93c55a9803129d9fb8105cb1f929b2cb6657f84440b299090e187e294b9edd",
+      "unchanged": true
+    },
+    "carryOption": {
+      "baseline": "d8bf19bbcc4ee915dc5781a35ef8b3a44d7d9b579576a685233b948327888366",
+      "current": "d8bf19bbcc4ee915dc5781a35ef8b3a44d7d9b579576a685233b948327888366",
+      "unchanged": true
+    },
+    "shotWindow": {
+      "baseline": "73102526ae8cc374bad25e4d1178ae79e73228058282db8359b380e9d3bace4b",
+      "current": "73102526ae8cc374bad25e4d1178ae79e73228058282db8359b380e9d3bace4b",
+      "unchanged": true
+    },
+    "shotQuality": {
+      "baseline": "4e11823c4caf59a77416c8fe4e0dc7eeaed6a3e9137dc3250cb4a96c03735aab",
+      "current": "4e11823c4caf59a77416c8fe4e0dc7eeaed6a3e9137dc3250cb4a96c03735aab",
+      "unchanged": true
+    },
+    "clearFinish": {
+      "baseline": "bc474a54919d332df87b142b072b996c3f341bf50c620b59506bff96e3bbb4d8",
+      "current": "bc474a54919d332df87b142b072b996c3f341bf50c620b59506bff96e3bbb4d8",
+      "unchanged": true
+    },
+    "crossingOption": {
+      "baseline": "a06a8664b524a41d4524bef732b2e849c09ec43012fc2568d72a1c334eb3a9f6",
+      "current": "a06a8664b524a41d4524bef732b2e849c09ec43012fc2568d72a1c334eb3a9f6",
+      "unchanged": true
+    },
+    "choose": {
+      "baseline": "5cee7c254f4f7fca10326eabb49d09ef83d82b677db780f05e56ec6aa3c9feaf",
+      "current": "5cee7c254f4f7fca10326eabb49d09ef83d82b677db780f05e56ec6aa3c9feaf",
+      "unchanged": true
+    },
+    "aimShot": {
+      "baseline": "d1fc53dbfd3889b9c40f4ddf348d98554a12737e00ff3318994476fe64ad9697",
+      "current": "d1fc53dbfd3889b9c40f4ddf348d98554a12737e00ff3318994476fe64ad9697",
+      "unchanged": true
+    },
+    "startKick": {
+      "baseline": "1446dc3c7d250aa17fa2bc2da826f1ee278efd947080d42d38f958eef1f50af4",
+      "current": "1446dc3c7d250aa17fa2bc2da826f1ee278efd947080d42d38f958eef1f50af4",
+      "unchanged": true
+    },
+    "forecastPassRival": {
+      "baseline": "756f8d6a63b89450e025318d0b2cd8fbde0f0021481d26e5fad2211087f50e73",
+      "current": "756f8d6a63b89450e025318d0b2cd8fbde0f0021481d26e5fad2211087f50e73",
+      "unchanged": true
+    },
+    "passReceiverAt": {
+      "baseline": "c67c64f82f225c13b1c750686efc43039808a345d462235e7e97092a7207e1b9",
+      "current": "c67c64f82f225c13b1c750686efc43039808a345d462235e7e97092a7207e1b9",
+      "unchanged": true
+    },
+    "receiverAt": {
+      "baseline": "1c0a13d8069605eb1bc22581aa965e419d4852860ab9d19e197176f35a715f0c",
+      "current": "1c0a13d8069605eb1bc22581aa965e419d4852860ab9d19e197176f35a715f0c",
+      "unchanged": true
+    },
+    "projectPlayer": {
+      "baseline": "21287d1d8f6041ae195457b3c97f92f308c5fa536cfdb2f1943a8d7eb7f1cc2b",
+      "current": "330fb810e7e3dcf3d71804d372231fcb92d64395e6a610668873f111d4035b98",
+      "unchanged": false
+    },
+    "passReleaseRisk": {
+      "baseline": "19d919c5ac7b23070984717ea3fe90218c50966ce447c59b25cb05b0c9c324e9",
+      "current": "19d919c5ac7b23070984717ea3fe90218c50966ce447c59b25cb05b0c9c324e9",
+      "unchanged": true
+    },
+    "preparationContext": {
+      "baseline": "f2414981e1f074ad4d6b7df5580f515ce38908fc6c5aca27eeececca72f28fe7",
+      "current": "f2414981e1f074ad4d6b7df5580f515ce38908fc6c5aca27eeececca72f28fe7",
+      "unchanged": true
+    },
+    "controlPreparation": {
+      "baseline": "9f25be2abee00b1e1359244b40d90ab47359766d22ffef23c39c979e98cbead8",
+      "current": "9f25be2abee00b1e1359244b40d90ab47359766d22ffef23c39c979e98cbead8",
+      "unchanged": true
+    },
+    "passPreparation": {
+      "baseline": "f7038ba2b5f6a53730d197c247cbada877fa364ef51bdce2f3877fabbfcb8e54",
+      "current": "f7038ba2b5f6a53730d197c247cbada877fa364ef51bdce2f3877fabbfcb8e54",
+      "unchanged": true
+    },
+    "reviewPass": {
+      "baseline": "7635c7f6d6b327edd5d4e8e907fb209787e25d6a0bc0e7b0be803d6bec0bdb9e",
+      "current": "7635c7f6d6b327edd5d4e8e907fb209787e25d6a0bc0e7b0be803d6bec0bdb9e",
+      "unchanged": true
+    },
+    "contactPoint": {
+      "baseline": "013d75e6625ae6f35b1365d0834ac6bdd855de209b47adf95dfc4aa6e60b1cd9",
+      "current": "013d75e6625ae6f35b1365d0834ac6bdd855de209b47adf95dfc4aa6e60b1cd9",
+      "unchanged": true
+    },
+    "release": {
+      "baseline": "e3d920e707f55f306b65adc6206f2b3da8d4d520233fb01f914528ef4b3ea37a",
+      "current": "e3d920e707f55f306b65adc6206f2b3da8d4d520233fb01f914528ef4b3ea37a",
+      "unchanged": true
+    },
+    "afterPass": {
+      "baseline": "1eda4fe8babdc3cd7a8c876562d5f5e51218cdd03968b51ef6411d29d2227bea",
+      "current": "1eda4fe8babdc3cd7a8c876562d5f5e51218cdd03968b51ef6411d29d2227bea",
+      "unchanged": true
+    },
+    "firstControlContact": {
+      "baseline": "fb450cee0654f3ccb24b3212fd54e594697a63c6eaceb8eab429dad519f23ea1",
+      "current": "fb450cee0654f3ccb24b3212fd54e594697a63c6eaceb8eab429dad519f23ea1",
+      "unchanged": true
+    },
+    "acquire": {
+      "baseline": "c61a5b19a84f0f6b6690d6dec2639d247177b7dbc1aa83fa8b17b04e7154a844",
+      "current": "c61a5b19a84f0f6b6690d6dec2639d247177b7dbc1aa83fa8b17b04e7154a844",
+      "unchanged": true
+    },
+    "tackleAccess": {
+      "baseline": "34881298763c40018326674256252302c4e31b7fab29147db4fae1360915182e",
+      "current": "34881298763c40018326674256252302c4e31b7fab29147db4fae1360915182e",
+      "unchanged": true
+    },
+    "doTackle": {
+      "baseline": "0a1a3dc8f71a8f7aa621bfa369f89e19db02239e40397ec985ee44ad2dacbaa0",
+      "current": "0a1a3dc8f71a8f7aa621bfa369f89e19db02239e40397ec985ee44ad2dacbaa0",
+      "unchanged": true
+    },
+    "passSpeed": {
+      "baseline": "f767f9e49f435c316e7265af83cb3f4b64b4345e4ae2099157492eef8219f18e",
+      "current": "f767f9e49f435c316e7265af83cb3f4b64b4345e4ae2099157492eef8219f18e",
+      "unchanged": true
+    },
+    "passTime": {
+      "baseline": "9abd4c4775152ba3e9813df9d6634ed53b4ea1be7d5c584667a64e2e33467af9",
+      "current": "9abd4c4775152ba3e9813df9d6634ed53b4ea1be7d5c584667a64e2e33467af9",
+      "unchanged": true
+    },
+    "threat": {
+      "baseline": "5e2ed617b93e236a19ec90d6632f4a6591d3079c5cdf1a533c25ac4a2843a9a9",
+      "current": "5e2ed617b93e236a19ec90d6632f4a6591d3079c5cdf1a533c25ac4a2843a9a9",
+      "unchanged": true
+    },
+    "offsideTouch": {
+      "baseline": "da8bbfae9424aa96f66407c6bf01cbce6a912498d7169b11344979eece365424",
+      "current": "da8bbfae9424aa96f66407c6bf01cbce6a912498d7169b11344979eece365424",
+      "unchanged": true
+    },
+    "receiverInterceptPoint": {
+      "baseline": "533a97618f402012e07004bd1080948cbe50a57a9eaa53de5985b22a0ac204b9",
+      "current": "533a97618f402012e07004bd1080948cbe50a57a9eaa53de5985b22a0ac204b9",
+      "unchanged": true
+    },
+    "interceptPoint": {
+      "baseline": "0c42f3b44f188b997d13f32345e9bb78dfdf2e05f9489a1b9e49f21293924997",
+      "current": "0c42f3b44f188b997d13f32345e9bb78dfdf2e05f9489a1b9e49f21293924997",
+      "unchanged": true
+    },
+    "teamRole": {
+      "baseline": "b5a5bbbcd4a933887142ab4d9854d33ea8e3e877a1f28002d948d23e270e7769",
+      "current": "b5a5bbbcd4a933887142ab4d9854d33ea8e3e877a1f28002d948d23e270e7769",
+      "unchanged": true
+    },
+    "arrivalHelper": {
+      "baseline": "fdffea9f34ff57561db5d55d2b494407281442db2cd0f6ded76e8fb2803aa2a8",
+      "current": "fdffea9f34ff57561db5d55d2b494407281442db2cd0f6ded76e8fb2803aa2a8",
+      "unchanged": true
+    },
+    "coordinatedAttack": {
+      "baseline": "902c15645d927ea96d6aebca63e8b647394437a3381747cc60eae4cc185d0305",
+      "current": "902c15645d927ea96d6aebca63e8b647394437a3381747cc60eae4cc185d0305",
+      "unchanged": true
+    },
+    "supportRead": {
+      "baseline": "5fed31627203a5628e8ad1eb5cff9d6c4f9152a881da2e8502fe1d492b3ddb2c",
+      "current": "5fed31627203a5628e8ad1eb5cff9d6c4f9152a881da2e8502fe1d492b3ddb2c",
+      "unchanged": true
+    },
+    "supportTargets": {
+      "baseline": "81c55727f420bf25e73bc66885d4ceb245f027700e0bf4daa1221eeab4956e0f",
+      "current": "81c55727f420bf25e73bc66885d4ceb245f027700e0bf4daa1221eeab4956e0f",
+      "unchanged": true
+    },
+    "connectionPoint": {
+      "baseline": "d7e1ac6cdb7c3a64742b78c3e7f1f4ee4ce2e3150bb2dd3accd776e079fececf",
+      "current": "d7e1ac6cdb7c3a64742b78c3e7f1f4ee4ce2e3150bb2dd3accd776e079fececf",
+      "unchanged": true
+    },
+    "supportUnit": {
+      "baseline": "9d48e3b376a01bdef992be8c83b7aa8e20d15b1834a3c43b1c6632aff90848b2",
+      "current": "9d48e3b376a01bdef992be8c83b7aa8e20d15b1834a3c43b1c6632aff90848b2",
+      "unchanged": true
+    },
+    "flankSupport": {
+      "baseline": "e670fcb06b1eecd1695654fa1524be9de61d392e1f67acbe39f4aaa001676e1b",
+      "current": "e670fcb06b1eecd1695654fa1524be9de61d392e1f67acbe39f4aaa001676e1b",
+      "unchanged": true
+    },
+    "buildOutSupport": {
+      "baseline": "7b268fa744d1da59ee68b760a01222e67c45cb7c93dc0c990b741da1ba0a591e",
+      "current": "7b268fa744d1da59ee68b760a01222e67c45cb7c93dc0c990b741da1ba0a591e",
+      "unchanged": true
+    },
+    "boxAttack": {
+      "baseline": "6717476cc6e8fde1d6c254a03dd1e4f2bd49fd1064bcace886f2499f8b7d15a0",
+      "current": "6717476cc6e8fde1d6c254a03dd1e4f2bd49fd1064bcace886f2499f8b7d15a0",
+      "unchanged": true
+    },
+    "selectPress": {
+      "baseline": "e7e0c5d88c55b7cd36e6ffa6893a3af9bae1aa31a14886818d7a74a2b8f07abb",
+      "current": "e7e0c5d88c55b7cd36e6ffa6893a3af9bae1aa31a14886818d7a74a2b8f07abb",
+      "unchanged": true
+    },
+    "pressPolicy": {
+      "baseline": "2c4ad1a92a108ce3fbe11b8f3d25b7fb588d1a9280189fdbcc314a725ace3197",
+      "current": "2c4ad1a92a108ce3fbe11b8f3d25b7fb588d1a9280189fdbcc314a725ace3197",
+      "unchanged": true
+    },
+    "pressUnit": {
+      "baseline": "2c606f73ac9478617a406886cd3e1655941ead7604e0b8f7df706977e58b3333",
+      "current": "2c606f73ac9478617a406886cd3e1655941ead7604e0b8f7df706977e58b3333",
+      "unchanged": true
+    },
+    "defensiveUnit": {
+      "baseline": "e77b65c764e6f3a1a984f913b54d9538fe7bb563f158c189fde336ad75d508ef",
+      "current": "e77b65c764e6f3a1a984f913b54d9538fe7bb563f158c189fde336ad75d508ef",
+      "unchanged": true
+    },
+    "plan": {
+      "baseline": "f4253fe7f9653ad8c0075da4b4254948949b035f75278417fb4115766648d909",
+      "current": "f4253fe7f9653ad8c0075da4b4254948949b035f75278417fb4115766648d909",
+      "unchanged": true
+    },
+    "restartSpace": {
+      "baseline": "6ddd5a1867e23a60a565b1ccd445290050ffaae5931dc71aeee16ecffe4f5941",
+      "current": "6ddd5a1867e23a60a565b1ccd445290050ffaae5931dc71aeee16ecffe4f5941",
+      "unchanged": true
+    },
+    "takerSpace": {
+      "baseline": "e2f844479987bdf8de7d6cd373ed0b1df7102ef92bdbb8658d2d31b5940f2b11",
+      "current": "e2f844479987bdf8de7d6cd373ed0b1df7102ef92bdbb8658d2d31b5940f2b11",
+      "unchanged": true
+    },
+    "freeKickLayout": {
+      "baseline": "c230449c0e5dfbd094c8df872c7f3daf8b266f7a498713db6380e219f7944e8b",
+      "current": "c230449c0e5dfbd094c8df872c7f3daf8b266f7a498713db6380e219f7944e8b",
+      "unchanged": true
+    },
+    "planFreeKick": {
+      "baseline": "3dbad7d7f00d877ca940a76ab55a8373132ef125b33369916205500ecf21b999",
+      "current": "3dbad7d7f00d877ca940a76ab55a8373132ef125b33369916205500ecf21b999",
+      "unchanged": true
+    },
+    "freeKickChoice": {
+      "baseline": "8aee2324a1fb09b168aa57b930dcded3f61e57a1df272312e275d4d4b5881ac2",
+      "current": "8aee2324a1fb09b168aa57b930dcded3f61e57a1df272312e275d4d4b5881ac2",
+      "unchanged": true
+    },
+    "planRestart": {
+      "baseline": "08ceb55b81e36a7c22fbb5757b8393ca62066182071786cd417a0c89305fc2d1",
+      "current": "08ceb55b81e36a7c22fbb5757b8393ca62066182071786cd417a0c89305fc2d1",
+      "unchanged": true
+    },
+    "effort": {
+      "baseline": "ed94daecc4dc871700e8310c85a8b9ee559a0d14846f3a07dfa33595a6c8afc5",
+      "current": "ed94daecc4dc871700e8310c85a8b9ee559a0d14846f3a07dfa33595a6c8afc5",
+      "unchanged": true
+    },
+    "move": {
+      "baseline": "38cf512701523726ba915eb9ff8c193edf55c12adba94f46e0f6b5b258ebc824",
+      "current": "b10bdd0ae8692e8aef7bab658ca28b6885ad01a0251ee4386160f78c99e428f2",
+      "unchanged": false
+    },
+    "aerial": {
+      "baseline": "5b117c03ba93409b319ad856860738b07e5646d836d977eeb887d1e347cbcb9c",
+      "current": "5b117c03ba93409b319ad856860738b07e5646d836d977eeb887d1e347cbcb9c",
+      "unchanged": true
+    },
+    "integrateBall": {
+      "baseline": "201fbf332e1528098a24e398d93172f5db19a1e062fc7834bc71228a02f9c888",
+      "current": "201fbf332e1528098a24e398d93172f5db19a1e062fc7834bc71228a02f9c888",
+      "unchanged": true
+    },
+    "ballCrossing": {
+      "baseline": "b1069c94f61ec707bf648c3af2dda9b7e762920f4427240a1bbfec91bc32fa42",
+      "current": "b1069c94f61ec707bf648c3af2dda9b7e762920f4427240a1bbfec91bc32fa42",
+      "unchanged": true
+    },
+    "ballStep": {
+      "baseline": "41bd36006ddca6ba0ae94bb8e775fc8be03f6886d59340b0eec1c9716aa957de",
+      "current": "41bd36006ddca6ba0ae94bb8e775fc8be03f6886d59340b0eec1c9716aa957de",
+      "unchanged": true
+    },
+    "goalThreat": {
+      "baseline": "9d72cc4aef5f93b1a942d55a2cdfb7ae3b61bddc5677bc88d1c7ad9181278126",
+      "current": "9d72cc4aef5f93b1a942d55a2cdfb7ae3b61bddc5677bc88d1c7ad9181278126",
+      "unchanged": true
+    },
+    "keeperVisibility": {
+      "baseline": "4eb2eb1c818778109dd28a4d0cadc6d4854681c1f2259a977ca00ca0877e4080",
+      "current": "4eb2eb1c818778109dd28a4d0cadc6d4854681c1f2259a977ca00ca0877e4080",
+      "unchanged": true
+    },
+    "keeper": {
+      "baseline": "a9697bf076e7e3fdeedaac2a7e4d8b2c612424cf88d7ea4a855a6011ff0b7739",
+      "current": "a9697bf076e7e3fdeedaac2a7e4d8b2c612424cf88d7ea4a855a6011ff0b7739",
+      "unchanged": true
+    },
+    "kickoffReady": {
+      "baseline": "5aa5c864d20eac9c0f66fc69fe7fe84692be2e448a55e95f46c96a5f90bb58ca",
+      "current": "5aa5c864d20eac9c0f66fc69fe7fe84692be2e448a55e95f46c96a5f90bb58ca",
+      "unchanged": true
+    },
+    "restartReady": {
+      "baseline": "66e133c9e115d2fe6013880fcddb59b811bed4efa97d669d54823377783eea18",
+      "current": "66e133c9e115d2fe6013880fcddb59b811bed4efa97d669d54823377783eea18",
+      "unchanged": true
+    },
+    "restartStep": {
+      "baseline": "332a6e17aa21f8359dc1e5fd9edd8b87afeda48d9a4654e429cb2934dbb68f67",
+      "current": "332a6e17aa21f8359dc1e5fd9edd8b87afeda48d9a4654e429cb2934dbb68f67",
+      "unchanged": true
+    },
+    "kickStep": {
+      "baseline": "c17623d90855efeac0ec2e47a1d3f7b7f5c55dd50b65fa846ca1d9f72a32577f",
+      "current": "c17623d90855efeac0ec2e47a1d3f7b7f5c55dd50b65fa846ca1d9f72a32577f",
+      "unchanged": true
+    },
+    "step": {
+      "baseline": "0d1c1184628c4e5e2203a7f9bf23943641288dd0661be75960b8e1dc9608564e",
+      "current": "0d1c1184628c4e5e2203a7f9bf23943641288dd0661be75960b8e1dc9608564e",
+      "unchanged": true
+    },
+    "advance": {
+      "baseline": "12d92bab7f439c1a21a5b3c697b5a75873738db13f215bfba35156d71182f0ec",
+      "current": "12d92bab7f439c1a21a5b3c697b5a75873738db13f215bfba35156d71182f0ec",
+      "unchanged": true
+    },
+    "bench": {
+      "baseline": "1c19e97d46d593a718979e04c8b719403c09311c2b5bb0b5c2d773c8f28d2205",
+      "current": "1c19e97d46d593a718979e04c8b719403c09311c2b5bb0b5c2d773c8f28d2205",
+      "unchanged": true
+    },
+    "substitute": {
+      "baseline": "0623db099488f3572822009efb66c663ca94aa02307d8b68e8e63f77412aa4d7",
+      "current": "0623db099488f3572822009efb66c663ca94aa02307d8b68e8e63f77412aa4d7",
+      "unchanged": true
+    },
+    "receptionFacing": {
+      "baseline": null,
+      "current": "97bc11c4f0c18f9982393ea3b189d1917a0edefbb5cde183616ccc15046d12ee",
+      "unchanged": false
+    }
+  },
+  "ballPhysicsHashes": {
+    "radius": {
+      "baseline": "375878499e83ada12843c974233da73ff8677f75b5dd179df322ec75cca64483",
+      "current": "375878499e83ada12843c974233da73ff8677f75b5dd179df322ec75cca64483",
+      "unchanged": true
+    },
+    "gravity": {
+      "baseline": "5e496ae9693a449b119c2a646931a3b256975cef0448c4de986571da0ae1a03b",
+      "current": "5e496ae9693a449b119c2a646931a3b256975cef0448c4de986571da0ae1a03b",
+      "unchanged": true
+    },
+    "rolling": {
+      "baseline": "9f0e787f95cbd2f66f1e46e720ad917e5e2ccbf6336a4e7bbc9367db78b99a5f",
+      "current": "9f0e787f95cbd2f66f1e46e720ad917e5e2ccbf6336a4e7bbc9367db78b99a5f",
+      "unchanged": true
+    },
+    "drag": {
+      "baseline": "33489efa25ff2aa92293e9f6695187a8defe09e90fdf34dddea9d45be1c124a8",
+      "current": "33489efa25ff2aa92293e9f6695187a8defe09e90fdf34dddea9d45be1c124a8",
+      "unchanged": true
+    },
+    "restitution": {
+      "baseline": "26ccbceee7efe4bdc0ab3f0ce2788f731b59623d0e1ff9c8347a477a25278a1e",
+      "current": "26ccbceee7efe4bdc0ab3f0ce2788f731b59623d0e1ff9c8347a477a25278a1e",
+      "unchanged": true
+    },
+    "ground": {
+      "baseline": "a210075ee12af71f60be42cb24d4771c64f30bdec8ac6cf5742405d73ffaa2b6",
+      "current": "a210075ee12af71f60be42cb24d4771c64f30bdec8ac6cf5742405d73ffaa2b6",
+      "unchanged": true
+    },
+    "groundTime": {
+      "baseline": "a0a8289b1f5194fa6dc40736b83f8563ca64fcbfccc1df7d3f6af48061079350",
+      "current": "a0a8289b1f5194fa6dc40736b83f8563ca64fcbfccc1df7d3f6af48061079350",
+      "unchanged": true
+    },
+    "launchForGround": {
+      "baseline": "6b673fdb4c6a725f7ccfaa580befe1bc9a81b35e69b7527c7cd05ad06c33b2e3",
+      "current": "6b673fdb4c6a725f7ccfaa580befe1bc9a81b35e69b7527c7cd05ad06c33b2e3",
+      "unchanged": true
+    },
+    "step": {
+      "baseline": "828e09b2149d73eab081be57fc08b31cac9e1039888233d4ea90b738941424f3",
+      "current": "828e09b2149d73eab081be57fc08b31cac9e1039888233d4ea90b738941424f3",
+      "unchanged": true
+    },
+    "predict": {
+      "baseline": "8e2986dc5a0007cceded5167d7c51a1a742e9ade08e1389ebb93e63b62bf923f",
+      "current": "8e2986dc5a0007cceded5167d7c51a1a742e9ade08e1389ebb93e63b62bf923f",
+      "unchanged": true
+    },
+    "atX": {
+      "baseline": "060fcc9ca1d6093d991178ba47729b5006caf1054458e840dfbd9345d745fb61",
+      "current": "060fcc9ca1d6093d991178ba47729b5006caf1054458e840dfbd9345d745fb61",
+      "unchanged": true
+    },
+    "airTime": {
+      "baseline": "2d179d9f317c4dbc3ccb06cd115af5febeb27913d45ccdf48abbcfb8ba72e21e",
+      "current": "2d179d9f317c4dbc3ccb06cd115af5febeb27913d45ccdf48abbcfb8ba72e21e",
+      "unchanged": true
+    },
+    "verticalLaunch": {
+      "baseline": "f5ec385af5fb6833daed22208c80d7cf31e47092fd881a5c10d7b6fb6d281086",
+      "current": "f5ec385af5fb6833daed22208c80d7cf31e47092fd881a5c10d7b6fb6d281086",
+      "unchanged": true
+    }
+  },
+  "scopeReview": {
+    "newFacing": "Fresh targeted teammate ground pass/cutback outside restart contexts, non-goalkeeper, existing receive-run movement only.",
+    "unchangedPhysics": "No change to ball integration, foot contact, acquisition radius, kicking or tackling. Existing acceleration, braking and 4.5rad/s body turn limit remain in move.",
+    "projection": "projectPlayer carries the current flight reference read-only, copied ball and simulated clock into isolated normal movement; matching by player ID supports the projected copy."
+  },
   "verified": true
 }

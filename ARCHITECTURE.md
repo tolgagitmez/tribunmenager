@@ -1,20 +1,81 @@
-# Altıncı aşama — top gelmeden gövde hazırlığı
+# Sekizinci aşama — ortak yerden ayak teması ve sonraki kontrole erişim
 
-Önceki receive-run hareketi `p.reception.face` değerine, yani hazırlanmış sonraki pasın yönüne bakıyordu. Gelen top bu yönün arkasında kaldığında oyuncu ayak kontrol bölgesini hazırlayamıyor, gerçek alım anında önceki aşamanın cushion davranışına geçiyordu. Yeni `receptionFacing(p,travel)` bu duruşu top yaklaşırken düzenler.
+Önceki ilk kontrol kapısı topun mevcut ayak bölgesini, yedinci aşama ise alım sonrasındaki dar bir ters bekleme kararını sınırlandırıyordu. Topa bugün erişilmesi, oyuncu mevcut yönde koşarken seçilen her yeni top hızına yetişebileceği anlamına gelmiyordu. `touchContact`, `touchRecovery` ve `touchPlan` artık hazırlıklı yerden ilk kontrol, normal top sürme/top koruma ve açık oyun vuruş hazırlığında ortak kullanılır. Yönün uygulanabilirliği, mevcut hız ve gövdeyle bir sonraki gerçek temas bölgesine ulaşma denemesinden çıkarılır.
 
-Kapsam yalnız aynı takımın seçili, kaleci olmayan alıcısıdır: hazırlık flight.id ile eşleşir, tür pass/through/cutback ve top yerde (`y ≤ radius+0,01`, `|vy| ≤ 1e−6`) olmalıdır. Kapsam dışı hazırlıkta eski çıkış yönüne bakış korunur; hazırlık yoksa move normal davranır. Geçersiz/yönü olmayan hazırlık normal koşu bakışına düşer.
+## Temas, ayak ve saatler
 
-İstenen açık gövde açısı, oyuncudan mevcut topa olan yönün çevresinde çıkış yönüne doğru en fazla **±π/3** döner. İdeal duruşa ulaşılmış ve top 1,10 m uzaktaysa bu açı ileri bileşeni pozitif, yanal farkı yaklaşık ≤0,953 m tutar. Bu yalnız istenen geometridir: gerçek gövde dönüşü yetişmeyebilir, topun yönü değişebilir ve süpürme temasının anı kareler arasında kalabilir. Gerçek ilk kontrol uygunluğuna acquire içindeki değişmemiş ayak bölgesi kapısı karar verir.
+`touchContact` topu oyuncunun gövdesine göre ileri/yanal bileşenlere ayırır. Mevcut kontrol bölgesi merkezden en fazla **1,20 m**, ileri bileşen en az **−0,18 m**, mutlak yanal bileşen en fazla **1,00 m** olur. Yanal top konumu sol/sağ ayağı seçer; merkeze yakın top tercih edilen ayağı kullanır. Vuruş hazırlığı seçilmiş `kickFoot` ile sınanır. Seçilen ayağın ±0,18 m yanal merkezine göre erişim de denetlenir; erişilemeyen çapraz ayak teması reddedilir. Teknik hesabında tercih edilen ayak, dribbling ve zayıf ayak niteliği korunur. İnaktif veya mücadeleden toparlanan oyuncu hazır temas üretemez.
 
-Uzak alıcı erken dönüp koşusunu yavaşlatmasın diye hazırlık zamanlanır. Mevcut top/oyuncu göreli hızının topa doğru bileşeni >0,1 m/sn ise tahmini temas süresi `max(0,mesafe−1,10)/yaklaşmaHızı` olur; aksi halde sonsuz kabul edilir. Bu süre, istenen gövde açısına mevcut **4,5 rad/sn** dönüşle gereken süre + **0,15 sn** paydan kısaysa hazırlık başlar. Top zaten ≤2 m yakınsa da topa açılır. Diğer durumda normal koşu bakışı kullanılır. Bu yerel hız okumasıdır; gelecekteki rakip/takım kararları veya kusursuz temas zamanı bilinmez. 0,15 sn ve 2 m değerleri oyun katsayılarıdır.
+Top sürmenin `touchClock` saati ile bir ayağın fiziksel toparlanması ayrıdır. Taşıma/koruma yeni dokunuş için top sürme ritmini ve `receiveClock` süresini bekler. Pas hazırlığı ise `receiveClock` ile seçilmiş ayağın saatini bekler: son dribbling ayağı aynıysa mevcut `footTouch` değeri, diğer ayaksa sıfır kullanılır. Dribblingin **0,14 sn** ayak temas saati sürerken aynı ayakla hazırlık yapılamaz; boş diğer ayak veya toparlanmış aynı ayak, daha uzun dribbling ritmi bitmeden pas hazırlayabilir. Bu saat tam bir basış, destek ayağı ve eklem modeli değildir.
 
-move yalnız istenen bakışın seçimini değiştirir. Gövde açısı yine en fazla 4,5 rad/sn ilerler; mevcut hızlanma, fren, yorgunluk, hızın gövde dönüşüyle düşmesi ve kaçınma yürütülür. Oyuncu veya top yeniden konumlandırılmaz. Yeni duruş hareketi de etkileyebilir; pas alım saati/konumu önceki sürümle aynı kalmak zorunda değildir.
+## Tek sonraki temas için sınırlı fizik tahmini
 
-projectPlayer'ın yalıtılmış bağlamına mevcut uçuş bilgisi ve aynı gövde seçicisi eklenir. Seçili hedef, tahmin edilen oyuncu kopyasına eşlenir; gerçek uçuş hedefi değiştirilmez. Tahminde BallPhysics ile ilerleyen top ve sabit kendi koşu komutu altında aynı yerel gövde kuralı kullanılır. Yeni taktik plan veya rakip komutu okunmaz, RNG tüketilmez. Bu, gelecekteki kararları simüle eden bir oracle değildir; mevcut komut/politika sürerse tahminidir.
+`touchPlan` önce mevcut ayak erişimini ve gerekli saatleri denetler. İstenen top hızını; ardından mevcut gelen hız ile istenen hız arasındaki farkın **%75, %50 ve %25** uygulandığı adayları sırayla dener. İlk yetişilebilir aday kullanılır. Tam istek uygulanabiliyorsa sayısal değerleri aynen korunur. Hiçbiri uygun değilse yeni yön darbesi uygulanmaz; top fizik altında devam eder ve kısa süre sonra yeniden denenir. Erteleme mevcut kontrol saatini kısaltmaz.
 
-Yeni kayıt alanı/bağımlılık/telemetri sayacı yoktur. Değişen mevcut yöntemler yalnız move ve projectPlayer; acquire, firstControlContact, temas yarıçapı, vuruş/müdahale/gol hesabı ve BallPhysics aynıdır. Süre yetmezse cushion, yaklaşan savunmacı varsa gerçek kesme/müdahale çalışır. Açık gövdeyle alınan topun yanlış kontrol alanına yönlendirilmesi hâlâ mümkündür; doğal olumsuz karşıt bu sınırı gösterir.
+Her `touchRecovery`, oyuncu ve top kopyasında gerçek `move`/`effort` ve `BallPhysics.step` ile gelecekte en fazla **0,65 sn / 39 adet 60 Hz hareket adımı** yürütür. İçinde bulunulan canlı karenin ayrıca işlenecek top adımı aşağıdaki faz sırasına göre eklenir. Sonraki kullanılabilir kare, gerçek saatlerdeki tekrarlı `max(0, saat − 1/60)` hesabıyla bulunur; küçük pozitif saatler hazır sayılmaz. Geçersiz hız/poz, inaktif oyuncu, fazla ufuk ve gerçek vuruş sahibi bulunmayan setup sorgusu reddedilir. Taşıma sırasında 3,2 m, setup sırasında 2,4 m kontrol kaybı sınırının aşılması sonradan vaat edilen bir temasa çevrilmez.
 
-Taban, son yayımlanmış beşinci aşamanın tam kaynağıdır: `docs/validation/baselines/stage5-football-sim.js.gz` (`70387789…`). Sonuçlar ve karşı örnekler DOGRULAMA başında; eski aşamalar aşağıda tarihsel kayıttır.
+Mevcut sahip komutu kullanılır; yenileme gerektiğinde aynı taşıma/alım/koruma niyetinin normal takip hedefi ve temposu hesaplanır. Oyuncu, gerektiğinde topun güncel konumu ve 0,12 sn hız uzantısını izler. Arkadaşların gözlenen hızları normal kaçınma hesabına, rakiplerin gözlenen konum/hızları mevcut baskı hesabına girer. Yeni taktik karar, ilave dokunuş, gizli rakip komutu veya RNG çağrısı yoktur. Canlı oyuncu, top, hedef Map ve saatlere yazılmaz. Sonraki kararlar ve omuz temasları tahmini bozabilir; hazır sonuç topa sahip olma veya rakipten kaçma garantisi değildir.
+
+## Canlı kare sırası ve gerçek vuruş
+
+Taşıma/koruma darbesi, o karenin oyuncu hareketinden sonra ve top integrasyonundan önce gelir. Tahmin bu ilk top adımını işler; gelecekteki hareket/top adımlarını izleyip sonraki ayak denemesini **top integrasyonundan önce** gözler. İlk kontrol `acquire` içinde, mevcut karenin top integrasyonundan sonra gelir; bu yüzden fazladan başlangıç top adımı eklenmez. Alım tahmini kopyaya gerçekleşecek `receive` aksiyonunu da uygular; eski bir pas animasyonu oyuncuyu tahminde donduramaz. Setup tahmini de darbeden sonraki mevcut top adımını, ardından gelecekteki hareket ve top adımlarını işler; hazırlanmış vuruşu **top integrasyonundan sonra** değerlendirir. `time` ve `ballTime` bu faz farkını açıkça taşır.
+
+Hazırlıklı `pass`/`through`/`cutback` yerden alımında mevcut temas uygunsa yönlü ilk kontrol ortak sorguyla sınanır. Yetişilemeyen çıkışta mevcut yavaşlatma darbesi kalır, `receiveMode` cushion olur ve eski `nextAction`/`oneTouchUntil` temizlenir. Gerçek alım veya rakibin araya girmesi zorlanmaz. Top sürme ve koruma aynı sorgudan dönen hız darbesini uygular; oyuncu veya top yeni hedefe taşınmaz.
+
+Açık oyun vuruş hazırlığında top seçilmiş ayağın bölgesinde değilse oyuncu normal ivme/frenle gerçek topa yaklaşır ve sınırlı hızla ona döner. Sonraki hazırlık darbeleri de aynı modelden geçer. Gerçek çıkış için mevcut temas noktası farkı **0,11 m'den**, yön hatası **0,07 rad'dan** küçük olmalı; seçilmiş ayak erişilebilir, o ayağın saati ve `receiveClock` sıfır, top yüksekliği **0,45 m'den** küçük olmalıdır. Hızlı devam etiketi bu kapıları kaldırmaz. Rakip müdahalesi normal sırada çalışır; geç veya uzak hazırlık iptal olabilir. Vuruş sonrası uçuş BallPhysics'e aittir.
+
+## GitHub birleşimi, kanıt ve kapsam
+
+GitHub `main` kaynağı `82414b9`, uzak alıcının önce koşu yönünü koruyup top yakına geldiğinde veya geliş süresi dönüş bütçesine girdiğinde gövdeyi açmasını getiriyordu. Bu davranış, `through` kapsamı ve gelen topa göre **±π/3** açıklık korunarak yerel uçuş kimliği/tazelik/yerden temas kapıları ve tahmin bağlamındaki saat ilerlemesiyle birleştirildi. Önceki belgelerdeki 1 radyanlık erken açıklık anlatımı tarihsel sürüme aittir.
+
+Üç ayrı kaynak saklanır: yerel yedinci aşama, GitHub kaynağı ve fizik değişikliğinden önceki birleşik taban. Ortak dokunuş testleri/profili sonuncuyu kullanır; Git HEAD veya uzaktaki daha eski fizik sürümü tek başına taban sayılmaz. Dosyalar ve tam SHA-256 değerleri [baselines/README.md](docs/validation/baselines/README.md) içindedir. İki uzaktaki tarihsel doğrulama raporu da korunmuştur.
+
+`npm run test:stage8` toplam **154 test** çalıştırır: önceki aşamalar ve dört uzlaştırılmış alıcı yönü senaryosu dahil **119**, ortak model için **35**. Yeni testler canlı dokunuşla sonraki temasın poz/hız/gövde/top sonucunu doğru kare fazında birebir karşılaştırır; iki yön, zayıf/serbest/meşgul ayak, saat sınırları, eski alım aksiyonu, müdahale ve gerçek vuruş kapılarını kapsar. Genel maç metriklerine ilişkin sonuçlar ve sınırlamalar [DOGRULAMA.md](DOGRULAMA.md) içinde ayrı değerlendirilir.
+
+Bu aşama yerden ayak kontrolünü birleştirir; kafa topu, kaleci eli ve duran top/taç prosedürlerini yeniden yazmaz. Mevcut fizik ve hareket katsayıları ölçülmüş biyomekanik değildir. Yeni alanlar yalnız geçici maç durumudur; kayıt dönüşümü, ekonomi veya günlük lig şeması değişikliği gerekmez. Önceki aşamalar aşağıda tarihsel kayıt olarak korunmuştur.
+
+---
+
+# Yedinci aşama — alımdan sonraki ters bekleme kararının uygulanabilirliği
+
+Altıncı aşama gelen topa açık gövde hazırlığını iyileştirmişti; buna rağmen bir alımdan kısa süre sonra seçilen ters yönlü `hold` kararı, oyuncunun mevcut momentumu ve topun bağımsız hareketiyle çatışabiliyordu. Bu aşama ilk kontrol darbesini değiştirmez. Seçilmiş kararın normal hareketle yaklaşan müdahaleye açıldığı dar durumda, hâlâ geçerli önceki taşıma hedefiyle karşılaştırır.
+
+`postReceiveHold(p, choice)` salt okunur bir karar sorgusudur. Yeni yol yalnız şu koşullar birlikte sağlandığında çalışır:
+
+- Seçilen karar sonlu x/z noktası olan `carry` ve `hold` olmalıdır. Oyuncu aktif, kaleci olmayan gerçek sahip olmalı; duran top veya süren vuruş bulunmamalıdır.
+- `lastGain` aynı oyuncuya ait ve yaşı **0–1,5 sn** olmalıdır. Gerçek alımdaki `receiveMode`, `open` veya `protect`; kontrol saati bitmiş olmalıdır. Bu kapı pas türünü yeniden sınıflandırmaz; yalnız bu modlarda yapılmış yakın geçmiş alımları kapsar.
+- Önceki `carryIntent.until` hâlâ gelecekte olmalı; sonlu `carryTarget` oyuncudan en az **0,8 m** uzakta bulunmalıdır. Top yüksekliği **0,45 m'den**, oyuncu-top farkı **1,45 m'den** küçük olmalıdır.
+- Gözlenen hız en az **0,8 m/sn**, yeni hedefin yönüyle mevcut hız yönü arasındaki fark en az **1,1 rad** olmalıdır. Yakın rakip **5,5 m'den** az uzakta olmalı veya **10 m** içinde göreli kapanma hızı **0,75 m/sn** üzerinde bulunmalıdır.
+
+Kapsam dışındaki karar, aynı nesne olarak geri döner. Pas, şut, feint ve bekleme olmayan taşıma seçimleri bu sorguyla yeniden sıralanmaz. Güvenli bir bekleme de aynen korunur; eski hedefin niyet süresi bittiğinde yalnız önceki yön olduğu için kullanılmaz.
+
+Önce seçilen `hold`, mevcut `controlPreparation(p, choice, null, .75)` ile değerlendirilir. Bu yardımcı kopya oyuncu/top üzerinde normal `move`, `dribbleTouch`, `tackleAccess` ve BallPhysics akışını 60 Hz'de yürütür. Seçilen beklemede müdahale erişimi görülmezse karar korunur. Görülürse önceki hedefe normal taşıma komutu, aynı **0,75 sn / 45 adım** ufkunda sınanır. Devam yolunda müdahale görülmemesi ve en az bir gerçek `dribbleTouch` oluşması gerekir. Dokunuş görülmeyen, yalnız boşta kalmış top güvenli devam kabul edilmez.
+
+Uygun devam, eski hedefin değer kopyasıyla `carry`, `commit: .35` ve `holdContinuation: true` döndürür. `hold` kaldırılır; normal `startCarry` bu niyeti uygular. Gerçek `step` içinde sorgu, sahip kararından sonra ve normal karar saati/RNG hesabından önce çağrılır. `telemetry.holdContinuations` yalnız seçilen devam sayısıdır; kazanılan veya kaybedilmeyen top sayısı değildir. Oyuncu ve top taşınmaz, müdahale kapatılmaz; gerçek hareket, dokunuş ve sonraki kararlar normal motor tarafından belirlenir.
+
+Sorgu canlı oyuncu, top, saat, hedef Map, niyet veya RNG'ye yazmaz. `controlPreparation` mevcut gözlenen rakip konumu/hızını kullanır; gizli rakip komutları ve gelecekteki taktik plan çalıştırılmaz. Tahmin yeni bir geleceği bilmez: rakibin sonraki tercihi, arkadaş/omuz temasları ve sonraki komut değişimleri sonucu bozabilir. Önizlemede müdahale görülmemesi gerçek top koruma garantisi değildir; en fazla 0,75 saniyeyi ve tek aday komutun sürmesini kapsar. Yeni seçimden sonra başka bir karar yine top kaybına yol açabilir.
+
+Mevcut yöntemlerden yalnız `step` değişmiştir; `postReceiveHold` eklenmiş, diğer **95 Match yöntemi** ve BallPhysics korunmuştur. `controlPreparation`, alım, vuruş, gövde dönüşü, ayak temas bölgesi ve müdahale yöntemleri aynıdır. Yeni bağımlılık veya kalıcı kayıt alanı yoktur. Taban, önceki turun yerel kaynak ve ZIP görüntüsüyle byte düzeyinde kontrol edilen `docs/validation/baselines/stage6-football-sim.js.gz` dosyasıdır; açılmış SHA-256 değeri `108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6` olur. Bu, kullanıcının ayrıca yayımladığının doğrulandığı anlamına gelmez. Git HEAD eski yüklemeyi gösterir.
+
+Kontrollü ve doğal karşılaştırmalar ile ölçüm sınırları DOGRULAMA başındadır; önceki aşamalar aşağıda tarihsel kayıt olarak korunmuştur.
+
+---
+
+# Altıncı aşama — alım öncesinde gelen topa açık gövde
+
+Beşinci aşama, gerçek temas ayak bölgesinin dışındaysa yönlü kontrolü erteliyordu. Buna rağmen `move`, alım koşusundaki oyuncuyu koşulsuz olarak `reception.face` çıkış yönüne döndürüyordu. Böylece hazırlık, yaklaşan topu gövdenin arkasında bırakabiliyordu. Bu aşama çıkış niyetini değiştirmeden yalnız alım koşusunun gövde hedefini sınırlar.
+
+`receptionFacing(p)` salt okunur bir sorgudur. Yeni yol yalnız aktif, kaleci olmayan seçili alıcıda çalışır: `flight.target.id === p.id`, pasör aynı takım, tür `pass` veya `cutback`, hazırlığın `flightId` değeri aynı ve yaşı `0 ≤ time − at < 0,55 sn`, top `y ≤ radius + 0,01 m` ve `|vy| < 10⁻⁶ m/sn` olmalıdır. Duran top veya `kick.restartContext` bulunmamalıdır. Kapsam dışındaki alım koşusu eski `reception.face` değerini kullanır; kaleci, ara pas, hava topu, diğer alıcı ve eski/geçersiz hazırlık için yeni yön hesabı yapılmaz.
+
+Geliş yönü, oyuncudan **mevcut gerçek top konumuna** bakış açısıdır; pasör konumu veya top hızının tersi değildir. Çıkış niyeti ile bu açı arasındaki fark en fazla 1 radyansa sorgu sayısal olarak da aynı `reception.face` değerini döndürür. Daha büyük farkta hedef, gelen top yönünden çıkışa doğru en fazla 1 radyan açılır. Bu, anında uygulanan gövde dönüşü veya başarılı kontrol garantisi değildir. `move` mevcut 4,5 rad/sn dönüş sınırını, hızlanma/fren, enerji, kondisyon ve arkadaşlardan kaçınma hesabını uygular. Gövde yönü hareket hızını da etkileyebildiği için alıma yetişme ve sonraki kararlar değişebilir.
+
+`reception.face`, `next` ve kontrol noktası çıkış niyeti olarak korunur. Gerçek `acquire` anında beşinci aşamanın `firstControlContact` kapısı aynen çalışır; geç hazırlık hâlâ `cushion` kontrolüne düşebilir. Gerçek alım yarıçapı, rakip müdahalesi ve top fiziği değişmez. Hazırlıklı hızlı devam, normal `preparedChoice` → `startKick` → `kickStep` yolundan geçer; çıkış için süre, dönüş ve ayak-top teması gerekir.
+
+`projectPlayer` aynı sorguyu kopya hareketinde kullanabilmek için mevcut uçuşu salt okunur biçimde ve projeksiyon saatini bağlama taşır. Her adımda saat `this.time + elapsed`, top ise önceki hareket anına uygun olarak `BallPhysics.predict(this.ball, elapsed − dt)` olur. Böylece gövde hedefi, topun ilerlemesi ve hazırlığın tazelik süresinin bitişi kopyada da uygulanır. Canlı oyuncu, top, hedef Map, uçuş veya RNG değiştirilmez; rakip komutları ve gelecekteki takım planı okunmaz. Mevcut tahmin ufukları ve adım bütçeleri korunur.
+
+Yeni sorgu dışında değişen mevcut yöntemler yalnız `move` ve `projectPlayer` olur; diğer **93 yöntem** ve BallPhysics aynı kalır. Yeni bağımlılık, kalıcı kayıt alanı veya ekonomi/lig değişikliği yoktur. Taban, önceki teslimin tam kaynağını içeren `docs/validation/baselines/stage5-football-sim.js.gz` (`70387789…`) dosyasıdır; Git HEAD eski yüklemeyi gösterir.
+
+Bir radyan açıklık oyun katsayısıdır; anatomik ayak veya gövde modeli değildir. Sorgu mevcut top konumunu izler, gelecekteki temas konumunu veya rakibin sonraki hamlesini bilmez. Komut değişimi, omuz teması ve topun oyuncuyu geçmesi hazırlığı bozabilir. Ara pas/hava topu kontrolü, baskı altında çıkış puanları ve sonraki hücum tercihi bu dar aşamada yeniden yazılmaz. Testler ve olumlu/olumsuz doğal sonuçlar DOGRULAMA başındadır; aşağıdaki aşamalar tarihsel kayıttır.
 
 ---
 

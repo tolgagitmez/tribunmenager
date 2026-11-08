@@ -1,0 +1,863 @@
+{
+  "generatedAt": "2026-11-06T09:17:43.723Z",
+  "sources": {
+    "stage5": "7038778922feb9f8f24389003b5ddf92fb8c0790280af84ae9818a04198acf60",
+    "baseline": "108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6",
+    "current": "c1c1395a97a64f38a4c9704bde953e4f8ff8904f44784462313cfe15c83d694c",
+    "check": "19af8b11bbe46faa4b925a1f4bc28390e9c38f3b4749dd5765e616dfae3d7a4a"
+  },
+  "changedExistingMatchMethods": [
+    "step"
+  ],
+  "addedMatchMethods": [
+    "postReceiveHold"
+  ],
+  "removedMatchMethods": [],
+  "unchangedMatchMethods": [
+    "hash",
+    "random",
+    "team",
+    "field",
+    "tactics",
+    "reset",
+    "emit",
+    "drain",
+    "action",
+    "setRestart",
+    "laneRisk",
+    "matchContext",
+    "defenceLine",
+    "receptionSafety",
+    "giveGoLink",
+    "plannedRun",
+    "receiverPoint",
+    "passOptions",
+    "prepareReception",
+    "receptionFacing",
+    "preparedChoice",
+    "controlOption",
+    "dribbleTouch",
+    "feintOption",
+    "applyFeint",
+    "canShield",
+    "startCarry",
+    "shieldOption",
+    "carryOption",
+    "shotWindow",
+    "shotQuality",
+    "clearFinish",
+    "crossingOption",
+    "choose",
+    "aimShot",
+    "startKick",
+    "forecastPassRival",
+    "passReceiverAt",
+    "receiverAt",
+    "projectPlayer",
+    "passReleaseRisk",
+    "preparationContext",
+    "controlPreparation",
+    "passPreparation",
+    "reviewPass",
+    "contactPoint",
+    "release",
+    "afterPass",
+    "firstControlContact",
+    "acquire",
+    "tackleAccess",
+    "doTackle",
+    "passSpeed",
+    "passTime",
+    "threat",
+    "offsideTouch",
+    "receiverInterceptPoint",
+    "interceptPoint",
+    "teamRole",
+    "arrivalHelper",
+    "coordinatedAttack",
+    "supportRead",
+    "supportTargets",
+    "connectionPoint",
+    "supportUnit",
+    "flankSupport",
+    "buildOutSupport",
+    "boxAttack",
+    "selectPress",
+    "pressPolicy",
+    "pressUnit",
+    "defensiveUnit",
+    "plan",
+    "restartSpace",
+    "takerSpace",
+    "freeKickLayout",
+    "planFreeKick",
+    "freeKickChoice",
+    "planRestart",
+    "effort",
+    "move",
+    "aerial",
+    "integrateBall",
+    "ballCrossing",
+    "ballStep",
+    "goalThreat",
+    "keeperVisibility",
+    "keeper",
+    "kickoffReady",
+    "restartReady",
+    "restartStep",
+    "kickStep",
+    "advance",
+    "bench",
+    "substitute"
+  ],
+  "unchangedMatchMethodCount": 95,
+  "protectedMethods": {
+    "move": {
+      "sha256": "b10bdd0ae8692e8aef7bab658ca28b6885ad01a0251ee4386160f78c99e428f2",
+      "unchanged": true
+    },
+    "effort": {
+      "sha256": "ed94daecc4dc871700e8310c85a8b9ee559a0d14846f3a07dfa33595a6c8afc5",
+      "unchanged": true
+    },
+    "controlPreparation": {
+      "sha256": "9f25be2abee00b1e1359244b40d90ab47359766d22ffef23c39c979e98cbead8",
+      "unchanged": true
+    },
+    "preparationContext": {
+      "sha256": "f2414981e1f074ad4d6b7df5580f515ce38908fc6c5aca27eeececca72f28fe7",
+      "unchanged": true
+    },
+    "acquire": {
+      "sha256": "c61a5b19a84f0f6b6690d6dec2639d247177b7dbc1aa83fa8b17b04e7154a844",
+      "unchanged": true
+    },
+    "firstControlContact": {
+      "sha256": "fb450cee0654f3ccb24b3212fd54e594697a63c6eaceb8eab429dad519f23ea1",
+      "unchanged": true
+    },
+    "dribbleTouch": {
+      "sha256": "d3c5f43b188b408e24b1994b770ad34b4e8fb924d70b9a1591fc88f58fadd69d",
+      "unchanged": true
+    },
+    "release": {
+      "sha256": "e3d920e707f55f306b65adc6206f2b3da8d4d520233fb01f914528ef4b3ea37a",
+      "unchanged": true
+    },
+    "doTackle": {
+      "sha256": "0a1a3dc8f71a8f7aa621bfa369f89e19db02239e40397ec985ee44ad2dacbaa0",
+      "unchanged": true
+    },
+    "tackleAccess": {
+      "sha256": "34881298763c40018326674256252302c4e31b7fab29147db4fae1360915182e",
+      "unchanged": true
+    },
+    "startKick": {
+      "sha256": "1446dc3c7d250aa17fa2bc2da826f1ee278efd947080d42d38f958eef1f50af4",
+      "unchanged": true
+    },
+    "kickStep": {
+      "sha256": "c17623d90855efeac0ec2e47a1d3f7b7f5c55dd50b65fa846ca1d9f72a32577f",
+      "unchanged": true
+    },
+    "contactPoint": {
+      "sha256": "013d75e6625ae6f35b1365d0834ac6bdd855de209b47adf95dfc4aa6e60b1cd9",
+      "unchanged": true
+    },
+    "integrateBall": {
+      "sha256": "201fbf332e1528098a24e398d93172f5db19a1e062fc7834bc71228a02f9c888",
+      "unchanged": true
+    },
+    "ballStep": {
+      "sha256": "41bd36006ddca6ba0ae94bb8e775fc8be03f6886d59340b0eec1c9716aa957de",
+      "unchanged": true
+    },
+    "choose": {
+      "sha256": "5cee7c254f4f7fca10326eabb49d09ef83d82b677db780f05e56ec6aa3c9feaf",
+      "unchanged": true
+    },
+    "startCarry": {
+      "sha256": "5a6999c3e0221ee09845c13f717158105a7fe97b8a45dc1ecf07be2facfa59df",
+      "unchanged": true
+    }
+  },
+  "ballPhysics": [
+    {
+      "key": "radius",
+      "sha256": "375878499e83ada12843c974233da73ff8677f75b5dd179df322ec75cca64483",
+      "unchanged": true
+    },
+    {
+      "key": "gravity",
+      "sha256": "5e496ae9693a449b119c2a646931a3b256975cef0448c4de986571da0ae1a03b",
+      "unchanged": true
+    },
+    {
+      "key": "rolling",
+      "sha256": "9f0e787f95cbd2f66f1e46e720ad917e5e2ccbf6336a4e7bbc9367db78b99a5f",
+      "unchanged": true
+    },
+    {
+      "key": "drag",
+      "sha256": "33489efa25ff2aa92293e9f6695187a8defe09e90fdf34dddea9d45be1c124a8",
+      "unchanged": true
+    },
+    {
+      "key": "restitution",
+      "sha256": "26ccbceee7efe4bdc0ab3f0ce2788f731b59623d0e1ff9c8347a477a25278a1e",
+      "unchanged": true
+    },
+    {
+      "key": "ground",
+      "sha256": "a210075ee12af71f60be42cb24d4771c64f30bdec8ac6cf5742405d73ffaa2b6",
+      "unchanged": true
+    },
+    {
+      "key": "groundTime",
+      "sha256": "a0a8289b1f5194fa6dc40736b83f8563ca64fcbfccc1df7d3f6af48061079350",
+      "unchanged": true
+    },
+    {
+      "key": "launchForGround",
+      "sha256": "6b673fdb4c6a725f7ccfaa580befe1bc9a81b35e69b7527c7cd05ad06c33b2e3",
+      "unchanged": true
+    },
+    {
+      "key": "step",
+      "sha256": "828e09b2149d73eab081be57fc08b31cac9e1039888233d4ea90b738941424f3",
+      "unchanged": true
+    },
+    {
+      "key": "predict",
+      "sha256": "8e2986dc5a0007cceded5167d7c51a1a742e9ade08e1389ebb93e63b62bf923f",
+      "unchanged": true
+    },
+    {
+      "key": "atX",
+      "sha256": "060fcc9ca1d6093d991178ba47729b5006caf1054458e840dfbd9345d745fb61",
+      "unchanged": true
+    },
+    {
+      "key": "airTime",
+      "sha256": "2d179d9f317c4dbc3ccb06cd115af5febeb27913d45ccdf48abbcfb8ba72e21e",
+      "unchanged": true
+    },
+    {
+      "key": "verticalLaunch",
+      "sha256": "f5ec385af5fb6833daed22208c80d7cf31e47092fd881a5c10d7b6fb6d281086",
+      "unchanged": true
+    }
+  ],
+  "naturalFork": {
+    "provenance": "Complete exact stage5 engine from kickoff to149s using the retained counter-fork config, followed by exact stage6 for86 steps (to150.433333333345s). Both branches start from the identical complete state, including Map references and RNG. This is explicitly a mixed prefix, not a complete stage6 kickoff match.",
+    "config": {
+      "seed": 21,
+      "starters": [
+        8,
+        9,
+        10,
+        7,
+        5,
+        6,
+        4,
+        2,
+        3,
+        1,
+        0
+      ],
+      "formation": "4-3-3",
+      "awayFormation": "4-2-3-1",
+      "matchMinutes": 5,
+      "players": [
+        {
+          "id": 0,
+          "name": "Synthetic 0",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "left",
+          "weakFoot": 70
+        },
+        {
+          "id": 1,
+          "name": "Synthetic 1",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "right",
+          "weakFoot": 70
+        },
+        {
+          "id": 2,
+          "name": "Synthetic 2",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "left",
+          "weakFoot": 70
+        },
+        {
+          "id": 3,
+          "name": "Synthetic 3",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "right",
+          "weakFoot": 70
+        },
+        {
+          "id": 4,
+          "name": "Synthetic 4",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "left",
+          "weakFoot": 70
+        },
+        {
+          "id": 5,
+          "name": "Synthetic 5",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "right",
+          "weakFoot": 70
+        },
+        {
+          "id": 6,
+          "name": "Synthetic 6",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "left",
+          "weakFoot": 70
+        },
+        {
+          "id": 7,
+          "name": "Synthetic 7",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "right",
+          "weakFoot": 70
+        },
+        {
+          "id": 8,
+          "name": "Synthetic 8",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "left",
+          "weakFoot": 70
+        },
+        {
+          "id": 9,
+          "name": "Synthetic 9",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "right",
+          "weakFoot": 70
+        },
+        {
+          "id": 10,
+          "name": "Synthetic 10",
+          "rating": 82,
+          "passing": 82,
+          "shooting": 82,
+          "tackling": 82,
+          "vision": 82,
+          "composure": 82,
+          "dribbling": 82,
+          "pace": 82,
+          "agility": 82,
+          "fitness": 92,
+          "preferredFoot": "left",
+          "weakFoot": 70
+        }
+      ],
+      "tactics": {
+        "mentality": "balanced",
+        "playstyle": "possession",
+        "press": 58,
+        "tempo": 61,
+        "aggression": 55,
+        "marking": "zone",
+        "offside": "off",
+        "line": "normal",
+        "passing": "mixed",
+        "width": "balanced",
+        "onLoss": "regroup",
+        "onWin": "retain",
+        "fullbacks": "support",
+        "crossing": "mixed",
+        "shooting": "balanced"
+      },
+      "awayTactics": {
+        "mentality": "defensive",
+        "playstyle": "counter",
+        "press": 30,
+        "tempo": 76,
+        "aggression": 55,
+        "marking": "zone",
+        "offside": "off",
+        "line": "low",
+        "passing": "direct",
+        "width": "balanced",
+        "onLoss": "regroup",
+        "onWin": "counter",
+        "fullbacks": "hold",
+        "crossing": "mixed",
+        "shooting": "balanced"
+      }
+    },
+    "at": 150.4333333333452,
+    "initialSeed": 2471157294,
+    "initialOwner": 11,
+    "initialPlayer": {
+      "id": 11,
+      "index": 0,
+      "team": 1,
+      "role": "ATT",
+      "name": "Ethan Blake",
+      "num": 1,
+      "rosterId": 8,
+      "portraitId": 0,
+      "skill": 77,
+      "passing": 77,
+      "shooting": 77,
+      "tackling": 77,
+      "fitness": 92,
+      "stamina": 91.60169948794947,
+      "active": true,
+      "yellow": 0,
+      "x": -22.57138985241071,
+      "z": 5.772105831426442,
+      "homeX": -27,
+      "homeZ": 0,
+      "vx": -3.293620127382312,
+      "vz": -1.3763386922886727,
+      "speed": 3.56962767517689,
+      "face": 15.796273768034348,
+      "anim": 994.9232875063385,
+      "action": "run",
+      "actionClock": 0,
+      "actionElapsed": 0.19999999999999998,
+      "actionDuration": 0.18417364820287482,
+      "kickFoot": 1,
+      "decision": 0.013536114333197562,
+      "touchClock": 0.04000000000000015,
+      "tackleClock": 0,
+      "receiveClock": 0,
+      "personality": 0.6243357993662357,
+      "dribbling": 83,
+      "pace": 71,
+      "heading": 82,
+      "crossing": 77,
+      "agility": 82,
+      "duelRecovery": 0,
+      "feintCooldown": 0,
+      "skin": [
+        0.73,
+        0.54,
+        0.38
+      ],
+      "hair": [
+        0.12,
+        0.09,
+        0.07
+      ],
+      "energy": 0.9465000000000059,
+      "preferredFoot": 0,
+      "weakFoot": 65,
+      "vision": 77,
+      "composure": 77,
+      "kickMoving": false,
+      "reception": null,
+      "nextAction": null,
+      "holdingBall": false,
+      "holdClock": 0,
+      "runIntent": null,
+      "supportIntent": null,
+      "offerIntent": null,
+      "connectionIntent": {
+        "ownerId": 14,
+        "epoch": 7,
+        "point": {
+          "x": 0.24470917336733589,
+          "z": -4.506540962227395
+        },
+        "until": 124.06666666666099
+      },
+      "carryIntent": {
+        "point": {
+          "x": -26.951829498654526,
+          "z": 3.9080372238401293
+        },
+        "until": 150.78333333334496
+      },
+      "keeperRead": null,
+      "shieldUntil": 0,
+      "duelMemory": {
+        "opponentId": 3,
+        "count": 2,
+        "at": 112.68333333332822,
+        "origin": {
+          "x": -3.5886159672952616,
+          "z": -1.0817957316736668
+        }
+      },
+      "dribbleDuel": null,
+      "passReviewUntil": 0,
+      "feintReaction": 0,
+      "feintClock": 0,
+      "footTouch": 0,
+      "brainRole": "dribble",
+      "duty": "striker",
+      "boxRole": null,
+      "wasPressing": false,
+      "intent": {
+        "x": -26.951829498654526,
+        "z": 3.9080372238401293,
+        "pace": 0.98,
+        "state": "dribble",
+        "epoch": 76,
+        "until": 151.01666666667842
+      },
+      "lastPassFrom": 14,
+      "carryTime": 0.6000000000000002,
+      "carryTarget": {
+        "x": -26.951829498654526,
+        "z": 3.9080372238401293
+      },
+      "receiveMode": "protect",
+      "dribbleFoot": 0,
+      "touchPosition": {
+        "x": -21.633339162257073,
+        "z": 6.69595107291909
+      },
+      "touchMode": "control",
+      "oneTouchUntil": 0,
+      "settleUntil": 0,
+      "contactTime": 0.2833333333333333,
+      "escapeUntil": 114.13333333332822,
+      "escapeTarget": {
+        "x": -9.566814930456477,
+        "z": -1.2004663363023542
+      }
+    },
+    "initialBall": {
+      "x": -23.243219536709862,
+      "y": 0.11,
+      "z": 5.337187358250603,
+      "vx": -3.634780087107577,
+      "vy": 0,
+      "vz": -3.0678101128104363
+    },
+    "followSeconds": 5,
+    "branches": {
+      "baseline": {
+        "end": 155.43333333334917,
+        "firstOpponent": {
+          "time": 151.03333333334567,
+          "player": 4,
+          "team": 0
+        },
+        "finalOwner": 0,
+        "finalBall": {
+          "x": -1.0260946403561824,
+          "y": 0.11,
+          "z": -15.53938756358744,
+          "vx": 3.837533406080868,
+          "vy": 0,
+          "vz": -0.00896087855847691
+        },
+        "score": [
+          0,
+          0
+        ],
+        "maxPlayerStep": 0.11528257097152601,
+        "events": [
+          {
+            "type": "acquire",
+            "time": 151.03333333334567,
+            "player": 4,
+            "team": 0
+          },
+          {
+            "type": "release",
+            "time": 152.5833333333469,
+            "from": 4,
+            "target": 0,
+            "kind": "pass"
+          },
+          {
+            "type": "acquire",
+            "time": 154.28333333334825,
+            "player": 0,
+            "team": 0
+          }
+        ],
+        "changes": [],
+        "telemetry": {
+          "dribbleTouches": 127,
+          "receives": 78,
+          "looseBalls": 9,
+          "shotsAfterPasses": 0,
+          "restarts": 1,
+          "turnovers": 14,
+          "duels": 13,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 1,
+          "switches": 0,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 12,
+          "movingPasses": 33,
+          "movingShots": 0,
+          "preparedReceives": 61,
+          "oneTouchPasses": 0,
+          "directedTouches": 35,
+          "keeperCatches": 0,
+          "returnSupports": 41,
+          "giveGoReturns": 5,
+          "giveGoCompletions": 4,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 28,
+          "strideTouches": 7,
+          "shieldCarries": 0,
+          "duelOutlets": 4,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 35,
+          "markHandoffs": 5,
+          "markSamples": 1487,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 71,
+            "carry": 54,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 338,
+          "arrivalSupportPlans": 66,
+          "firstControlChecks": 60,
+          "coordinatedRuns": 67,
+          "arrivalSupportHandoffs": 61,
+          "passReviews": 95,
+          "arrivalSupportChoices": 21,
+          "arrivalSupportReleases": 21,
+          "cushionedReceives": 26
+        },
+        "observerConsistency": true
+      },
+      "current": {
+        "end": 155.43333333334917,
+        "firstOpponent": {
+          "time": 152.40000000001342,
+          "player": 4,
+          "team": 0
+        },
+        "finalOwner": 0,
+        "finalBall": {
+          "x": -12.969606857116851,
+          "y": 0.11,
+          "z": -13.133855871442941,
+          "vx": 6.268053250823969,
+          "vy": 0,
+          "vz": 1.2212190531130906
+        },
+        "score": [
+          0,
+          0
+        ],
+        "maxPlayerStep": 0.10938395526278423,
+        "events": [
+          {
+            "type": "acquire",
+            "time": 152.40000000001342,
+            "player": 4,
+            "team": 0
+          },
+          {
+            "type": "release",
+            "time": 153.2500000000141,
+            "from": 4,
+            "target": 0,
+            "kind": "pass"
+          },
+          {
+            "type": "acquire",
+            "time": 154.71666666668193,
+            "player": 0,
+            "team": 0
+          }
+        ],
+        "changes": [
+          {
+            "time": 150.45000000001187,
+            "player": 11,
+            "requested": {
+              "kind": "carry",
+              "point": {
+                "x": -20.989985822167586,
+                "z": 4.60109664661677
+              },
+              "hold": true
+            },
+            "returned": {
+              "kind": "carry",
+              "point": {
+                "x": -26.951829498654526,
+                "z": 3.9080372238401293
+              },
+              "commit": 0.35,
+              "holdContinuation": true
+            },
+            "queryStateEquality": true,
+            "liveRngGuard": true,
+            "futurePlanGuard": true,
+            "hiddenOpponentCommandGuard": true
+          }
+        ],
+        "telemetry": {
+          "dribbleTouches": 126,
+          "receives": 78,
+          "looseBalls": 9,
+          "shotsAfterPasses": 0,
+          "restarts": 1,
+          "turnovers": 14,
+          "duels": 13,
+          "throughBalls": 0,
+          "crosses": 0,
+          "cutbacks": 0,
+          "headers": 0,
+          "feints": 0,
+          "longPasses": 1,
+          "switches": 0,
+          "offsides": 0,
+          "pressRecoveries": 0,
+          "clearances": 0,
+          "giveGoes": 12,
+          "movingPasses": 32,
+          "movingShots": 0,
+          "preparedReceives": 61,
+          "oneTouchPasses": 0,
+          "directedTouches": 35,
+          "keeperCatches": 0,
+          "returnSupports": 41,
+          "giveGoReturns": 5,
+          "giveGoCompletions": 4,
+          "alignedThroughBalls": 0,
+          "closeControlTouches": 25,
+          "strideTouches": 7,
+          "shieldCarries": 0,
+          "duelOutlets": 5,
+          "feintResponses": 0,
+          "beatenDefenders": 0,
+          "firstTouchRechecks": 35,
+          "markHandoffs": 5,
+          "markSamples": 1487,
+          "screenedReads": 0,
+          "fastCatches": 0,
+          "decisions": {
+            "pass": 73,
+            "carry": 54,
+            "feint": 0,
+            "shot": 0,
+            "clearance": 0
+          },
+          "arrivalSupportSamples": 337,
+          "arrivalSupportPlans": 66,
+          "firstControlChecks": 60,
+          "coordinatedRuns": 66,
+          "arrivalSupportHandoffs": 61,
+          "passReviews": 98,
+          "arrivalSupportChoices": 21,
+          "arrivalSupportReleases": 21,
+          "cushionedReceives": 26,
+          "holdContinuations": 1
+        },
+        "observerConsistency": true
+      }
+    }
+  },
+  "verified": true
+}

@@ -3,6 +3,10 @@
   "version": "1.27.0",
   "private": true,
   "scripts": {
+    "test:touch-feasibility": "node tests/touch-feasibility.test.cjs",
+    "test:stage8": "npm run test:stage7 && npm run test:touch-feasibility",
+    "test:post-receive-hold": "node tests/post-receive-hold.test.cjs",
+    "test:stage7": "npm run test:stage6 && npm run test:post-receive-hold",
     "test:reception-facing": "node tests/reception-facing.test.cjs",
     "test:stage6": "npm run test:stage5 && npm run test:reception-facing",
     "test:first-control": "node tests/first-control.test.cjs",

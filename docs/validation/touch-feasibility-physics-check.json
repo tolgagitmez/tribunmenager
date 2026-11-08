@@ -1,0 +1,793 @@
+{
+  "generatedAt": "2026-11-06T15:10:24.243Z",
+  "sources": {
+    "baseline": "16d6d78ac01b5490bbb8a178b4134a2f8c41224ad7091fb1e0b6b37aafa07360",
+    "current": "e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e",
+    "checker": "7e977a036628aa446b1f85b59915fd879c42806831b5b000b56137a17305f1af"
+  },
+  "scope": {
+    "claim": "Deterministic consistency with the existing 60 Hz game movement, foot window and shared ball integrator.",
+    "clocks": {
+      "carryAndShield": "The global dribble cadence and receive cooldown must expire before another carry touch; the forecast uses the same literal 60 Hz clock decrements as live play.",
+      "firstControl": "The already-established receive and touch cooldowns determine the next ordinary carry-contact horizon.",
+      "setupAndRelease": "Ground kick setup and release use the selected foot's remaining existing footTouch recovery plus receive cooldown, rather than the global dribble cadence. A recently used dribble foot may still recover while the other foot is available. The existing kick nextSetup interval remains separate."
+    },
+    "limits": [
+      "These checks are not biomechanical validation of human balance, anatomy or real foot forces.",
+      "The foot window, acceleration limits and recovery horizons are gameplay approximations.",
+      "Live phase fixtures isolate a held owner intention without future decisions, extra control touches or interventions.",
+      "Other players in the forecast use their observed positions and velocities; their future actions and collisions are not predicted.",
+      "Small selected fixtures do not establish whole-match tactical quality or real-world football accuracy."
+    ]
+  },
+  "protectedFunctions": {
+    "release": {
+      "identicalToIntegrationBase": true,
+      "sha256": "e3d920e707f55f306b65adc6206f2b3da8d4d520233fb01f914528ef4b3ea37a"
+    },
+    "tackleAccess": {
+      "identicalToIntegrationBase": true,
+      "sha256": "34881298763c40018326674256252302c4e31b7fab29147db4fae1360915182e"
+    },
+    "doTackle": {
+      "identicalToIntegrationBase": true,
+      "sha256": "0a1a3dc8f71a8f7aa621bfa369f89e19db02239e40397ec985ee44ad2dacbaa0"
+    },
+    "integrateBall": {
+      "identicalToIntegrationBase": true,
+      "sha256": "201fbf332e1528098a24e398d93172f5db19a1e062fc7834bc71228a02f9c888"
+    },
+    "ballStep": {
+      "identicalToIntegrationBase": true,
+      "sha256": "41bd36006ddca6ba0ae94bb8e775fc8be03f6886d59340b0eec1c9716aa957de"
+    },
+    "step": {
+      "identicalToIntegrationBase": true,
+      "sha256": "5b0ae5e9769236b8504d6aafc05d79f093db48c5b7a6e3ee6baabd53cbff2b9a"
+    },
+    "startKick": {
+      "identicalToIntegrationBase": true,
+      "sha256": "1446dc3c7d250aa17fa2bc2da826f1ee278efd947080d42d38f958eef1f50af4"
+    },
+    "contactPoint": {
+      "identicalToIntegrationBase": true,
+      "sha256": "013d75e6625ae6f35b1365d0834ac6bdd855de209b47adf95dfc4aa6e60b1cd9"
+    },
+    "effort": {
+      "identicalToIntegrationBase": true,
+      "sha256": "ed94daecc4dc871700e8310c85a8b9ee559a0d14846f3a07dfa33595a6c8afc5"
+    },
+    "BallPhysics": {
+      "identicalToIntegrationBase": true,
+      "members": {
+        "radius": 0.11,
+        "gravity": 9.81,
+        "rolling": 1.15,
+        "drag": 0.012,
+        "restitution": 0.44,
+        "ground": {
+          "sha256": "a210075ee12af71f60be42cb24d4771c64f30bdec8ac6cf5742405d73ffaa2b6"
+        },
+        "groundTime": {
+          "sha256": "a0a8289b1f5194fa6dc40736b83f8563ca64fcbfccc1df7d3f6af48061079350"
+        },
+        "launchForGround": {
+          "sha256": "6b673fdb4c6a725f7ccfaa580befe1bc9a81b35e69b7527c7cd05ad06c33b2e3"
+        },
+        "step": {
+          "sha256": "828e09b2149d73eab081be57fc08b31cac9e1039888233d4ea90b738941424f3"
+        },
+        "predict": {
+          "sha256": "8e2986dc5a0007cceded5167d7c51a1a742e9ade08e1389ebb93e63b62bf923f"
+        },
+        "atX": {
+          "sha256": "060fcc9ca1d6093d991178ba47729b5006caf1054458e840dfbd9345d745fb61"
+        },
+        "airTime": {
+          "sha256": "2d179d9f317c4dbc3ccb06cd115af5febeb27913d45ccdf48abbcfb8ba72e21e"
+        },
+        "verticalLaunch": {
+          "sha256": "f5ec385af5fb6833daed22208c80d7cf31e47092fd881a5c10d7b6fb6d281086"
+        }
+      }
+    }
+  },
+  "pureQueries": {
+    "passed": true,
+    "repeatedQueries": 4,
+    "liveStateUnchanged": true,
+    "inputObjectsUnchanged": true,
+    "rngDraws": 0,
+    "opponentCommandIndependent": true,
+    "resultBallDoesNotAliasLiveBall": true
+  },
+  "liveCarry": [
+    {
+      "id": "ordinary-forward",
+      "side": 1,
+      "accepted": true,
+      "weight": 0.75,
+      "nominalInterval": 0.3416,
+      "contactTime": 0.35,
+      "ballTime": 0.35,
+      "nextFoot": 1,
+      "nextGap": 1.124521067905553,
+      "nextForward": 1.1174174574848799,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "turn-from-run",
+      "side": 1,
+      "accepted": true,
+      "weight": 0.25,
+      "nominalInterval": 0.3416,
+      "contactTime": 0.35,
+      "ballTime": 0.35,
+      "nextFoot": 1,
+      "nextGap": 0.29692089741243705,
+      "nextForward": 0.23613983001646927,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "turn-from-sprint",
+      "side": 1,
+      "accepted": false,
+      "reason": "next-contact",
+      "noImpulse": true
+    },
+    {
+      "id": "shield-from-sprint",
+      "side": 1,
+      "accepted": true,
+      "weight": 0.25,
+      "nominalInterval": 0.2116,
+      "contactTime": 0.21666666666666667,
+      "ballTime": 0.21666666666666667,
+      "nextFoot": 1,
+      "nextGap": 0.21225858199714165,
+      "nextForward": -0.11248869112687421,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "wide-front-sharp-turn",
+      "side": 1,
+      "accepted": true,
+      "weight": 0.25,
+      "nominalInterval": 0.3416,
+      "contactTime": 0.35,
+      "ballTime": 0.35,
+      "nextFoot": 1,
+      "nextGap": 0.8515261996820435,
+      "nextForward": 0.7798180342077543,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "standing-reverse-wide-ball",
+      "side": 1,
+      "accepted": true,
+      "weight": 0.75,
+      "nominalInterval": 0.44000000000000006,
+      "contactTime": 0.45,
+      "ballTime": 0.45,
+      "nextFoot": 1,
+      "nextGap": 0.5459657610712868,
+      "nextForward": 0.5448855412394652,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "literal-clock-forward",
+      "side": 1,
+      "accepted": true,
+      "weight": 0.5,
+      "nominalInterval": 0.35,
+      "contactTime": 0.36666666666666664,
+      "ballTime": 0.36666666666666664,
+      "nextFoot": 1,
+      "nextGap": 1.0272749146292168,
+      "nextForward": 1.0113820990241347,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "literal-clock-turn",
+      "side": 1,
+      "accepted": true,
+      "weight": 0.5,
+      "nominalInterval": 0.35,
+      "contactTime": 0.36666666666666664,
+      "ballTime": 0.36666666666666664,
+      "nextFoot": 1,
+      "nextGap": 1.197599770352134,
+      "nextForward": 1.1767157549759626,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "ordinary-forward",
+      "side": -1,
+      "accepted": true,
+      "weight": 0.75,
+      "nominalInterval": 0.3416,
+      "contactTime": 0.35,
+      "ballTime": 0.35,
+      "nextFoot": 1,
+      "nextGap": 1.124521067905553,
+      "nextForward": 1.1174174574848799,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "turn-from-run",
+      "side": -1,
+      "accepted": true,
+      "weight": 0.25,
+      "nominalInterval": 0.3416,
+      "contactTime": 0.35,
+      "ballTime": 0.35,
+      "nextFoot": 1,
+      "nextGap": 0.29692089741243705,
+      "nextForward": 0.23613983001646935,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "turn-from-sprint",
+      "side": -1,
+      "accepted": false,
+      "reason": "next-contact",
+      "noImpulse": true
+    },
+    {
+      "id": "shield-from-sprint",
+      "side": -1,
+      "accepted": true,
+      "weight": 0.25,
+      "nominalInterval": 0.2116,
+      "contactTime": 0.21666666666666667,
+      "ballTime": 0.21666666666666667,
+      "nextFoot": 1,
+      "nextGap": 0.21225858199714165,
+      "nextForward": -0.11248869112687424,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "wide-front-sharp-turn",
+      "side": -1,
+      "accepted": true,
+      "weight": 0.25,
+      "nominalInterval": 0.3416,
+      "contactTime": 0.35,
+      "ballTime": 0.35,
+      "nextFoot": 1,
+      "nextGap": 0.8515261996820435,
+      "nextForward": 0.7798180342077543,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "standing-reverse-wide-ball",
+      "side": -1,
+      "accepted": true,
+      "weight": 1,
+      "nominalInterval": 0.44000000000000006,
+      "contactTime": 0.45,
+      "ballTime": 0.45,
+      "nextFoot": 1,
+      "nextGap": 0.8608684318377421,
+      "nextForward": 0.8608680797135077,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "literal-clock-forward",
+      "side": -1,
+      "accepted": true,
+      "weight": 0.5,
+      "nominalInterval": 0.35,
+      "contactTime": 0.36666666666666664,
+      "ballTime": 0.36666666666666664,
+      "nextFoot": 1,
+      "nextGap": 1.0272749146292168,
+      "nextForward": 1.0113820990241347,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    },
+    {
+      "id": "literal-clock-turn",
+      "side": -1,
+      "accepted": true,
+      "weight": 0.5,
+      "nominalInterval": 0.35,
+      "contactTime": 0.36666666666666664,
+      "ballTime": 0.36666666666666664,
+      "nextFoot": 1,
+      "nextGap": 1.197599770352134,
+      "nextForward": 1.1767157549759624,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "positionChangedOnlyByBallPhysics": true
+    }
+  ],
+  "liveReceive": [
+    {
+      "side": 1,
+      "priorPassActionClock": 0,
+      "weight": 0.25,
+      "contactTime": 0.18333333333333332,
+      "ballTime": 0.16666666666666666,
+      "nextGap": 0.2709999839680918,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": 1,
+      "priorPassActionClock": 0.15,
+      "weight": 0.25,
+      "contactTime": 0.18333333333333332,
+      "ballTime": 0.16666666666666666,
+      "nextGap": 0.2709999839680918,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": 1,
+      "priorPassActionClock": 0.3,
+      "weight": 0.25,
+      "contactTime": 0.18333333333333332,
+      "ballTime": 0.16666666666666666,
+      "nextGap": 0.2709999839680918,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": 1,
+      "priorPassActionClock": 0.6,
+      "weight": 0.25,
+      "contactTime": 0.18333333333333332,
+      "ballTime": 0.16666666666666666,
+      "nextGap": 0.2709999839680918,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": -1,
+      "priorPassActionClock": 0,
+      "weight": 0.25,
+      "contactTime": 0.18333333333333332,
+      "ballTime": 0.16666666666666666,
+      "nextGap": 0.2709999839680918,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": -1,
+      "priorPassActionClock": 0.15,
+      "weight": 0.25,
+      "contactTime": 0.18333333333333332,
+      "ballTime": 0.16666666666666666,
+      "nextGap": 0.2709999839680918,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": -1,
+      "priorPassActionClock": 0.3,
+      "weight": 0.25,
+      "contactTime": 0.18333333333333332,
+      "ballTime": 0.16666666666666666,
+      "nextGap": 0.2709999839680918,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": -1,
+      "priorPassActionClock": 0.6,
+      "weight": 0.25,
+      "contactTime": 0.18333333333333332,
+      "ballTime": 0.16666666666666666,
+      "nextGap": 0.2709999839680918,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "cooldownsExactlyZero": true,
+      "noPositionCorrection": true
+    }
+  ],
+  "liveSetup": [
+    {
+      "id": "front-stationary",
+      "side": 1,
+      "accepted": true,
+      "weight": 1,
+      "contactTime": 0.16666666666666666,
+      "ballTime": 0.18333333333333332,
+      "nextGap": 0.8993264511503142,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "selectedFootClockExactlyZero": true,
+      "receiveClockExactlyZero": true,
+      "heldIntentionOnly": true
+    },
+    {
+      "id": "recover-behind-stationary",
+      "side": 1,
+      "accepted": true,
+      "weight": 1,
+      "contactTime": 0.06666666666666667,
+      "ballTime": 0.08333333333333333,
+      "nextGap": 0.4274824881704012,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "selectedFootClockExactlyZero": true,
+      "receiveClockExactlyZero": true,
+      "heldIntentionOnly": true
+    },
+    {
+      "id": "front-running-turn",
+      "side": 1,
+      "accepted": true,
+      "weight": 1,
+      "contactTime": 0.16666666666666666,
+      "ballTime": 0.18333333333333332,
+      "nextGap": 0.9004120657390162,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "selectedFootClockExactlyZero": true,
+      "receiveClockExactlyZero": true,
+      "heldIntentionOnly": true
+    },
+    {
+      "id": "front-sprint-reverse",
+      "side": 1,
+      "accepted": true,
+      "weight": 0.75,
+      "contactTime": 0.43333333333333335,
+      "ballTime": 0.45,
+      "nextGap": 0.18186491947371586,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "selectedFootClockExactlyZero": true,
+      "receiveClockExactlyZero": true,
+      "heldIntentionOnly": true
+    },
+    {
+      "id": "unrecoverable-behind-sprint",
+      "side": 1,
+      "accepted": false,
+      "kickEnded": true
+    },
+    {
+      "id": "front-stationary",
+      "side": -1,
+      "accepted": true,
+      "weight": 1,
+      "contactTime": 0.16666666666666666,
+      "ballTime": 0.18333333333333332,
+      "nextGap": 0.8993264511503142,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "selectedFootClockExactlyZero": true,
+      "receiveClockExactlyZero": true,
+      "heldIntentionOnly": true
+    },
+    {
+      "id": "recover-behind-stationary",
+      "side": -1,
+      "accepted": true,
+      "weight": 1,
+      "contactTime": 0.06666666666666667,
+      "ballTime": 0.08333333333333333,
+      "nextGap": 0.42748248817040135,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "selectedFootClockExactlyZero": true,
+      "receiveClockExactlyZero": true,
+      "heldIntentionOnly": true
+    },
+    {
+      "id": "front-running-turn",
+      "side": -1,
+      "accepted": true,
+      "weight": 1,
+      "contactTime": 0.16666666666666666,
+      "ballTime": 0.18333333333333332,
+      "nextGap": 0.9004120657390162,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "selectedFootClockExactlyZero": true,
+      "receiveClockExactlyZero": true,
+      "heldIntentionOnly": true
+    },
+    {
+      "id": "front-sprint-reverse",
+      "side": -1,
+      "accepted": true,
+      "weight": 0.75,
+      "contactTime": 0.43333333333333335,
+      "ballTime": 0.45,
+      "nextGap": 0.17502170343263165,
+      "actualMatchesForecast": true,
+      "actualFootAvailable": true,
+      "selectedFootClockExactlyZero": true,
+      "receiveClockExactlyZero": true,
+      "heldIntentionOnly": true
+    },
+    {
+      "id": "unrecoverable-behind-sprint",
+      "side": -1,
+      "accepted": false,
+      "kickEnded": true
+    }
+  ],
+  "selectedFootClocks": [
+    {
+      "side": 1,
+      "foot": 0,
+      "lastDribbleFoot": 0,
+      "sameFoot": true,
+      "globalDribbleClock": 0.4,
+      "selectedFootClock": 0.14,
+      "initialSetupAllowed": false,
+      "carryAndShieldStillBlocked": true,
+      "receiveCooldownStillBlocks": true,
+      "forecastExpiresSelectedFootRecovery": true,
+      "pureQuery": true
+    },
+    {
+      "side": 1,
+      "foot": 0,
+      "lastDribbleFoot": 1,
+      "sameFoot": false,
+      "globalDribbleClock": 0.4,
+      "selectedFootClock": 0,
+      "initialSetupAllowed": true,
+      "carryAndShieldStillBlocked": true,
+      "receiveCooldownStillBlocks": true,
+      "forecastExpiresSelectedFootRecovery": true,
+      "pureQuery": true
+    },
+    {
+      "side": 1,
+      "foot": 1,
+      "lastDribbleFoot": 1,
+      "sameFoot": true,
+      "globalDribbleClock": 0.4,
+      "selectedFootClock": 0.14,
+      "initialSetupAllowed": false,
+      "carryAndShieldStillBlocked": true,
+      "receiveCooldownStillBlocks": true,
+      "forecastExpiresSelectedFootRecovery": true,
+      "pureQuery": true
+    },
+    {
+      "side": 1,
+      "foot": 1,
+      "lastDribbleFoot": 0,
+      "sameFoot": false,
+      "globalDribbleClock": 0.4,
+      "selectedFootClock": 0,
+      "initialSetupAllowed": true,
+      "carryAndShieldStillBlocked": true,
+      "receiveCooldownStillBlocks": true,
+      "forecastExpiresSelectedFootRecovery": true,
+      "pureQuery": true
+    },
+    {
+      "side": -1,
+      "foot": 0,
+      "lastDribbleFoot": 0,
+      "sameFoot": true,
+      "globalDribbleClock": 0.4,
+      "selectedFootClock": 0.14,
+      "initialSetupAllowed": false,
+      "carryAndShieldStillBlocked": true,
+      "receiveCooldownStillBlocks": true,
+      "forecastExpiresSelectedFootRecovery": true,
+      "pureQuery": true
+    },
+    {
+      "side": -1,
+      "foot": 0,
+      "lastDribbleFoot": 1,
+      "sameFoot": false,
+      "globalDribbleClock": 0.4,
+      "selectedFootClock": 0,
+      "initialSetupAllowed": true,
+      "carryAndShieldStillBlocked": true,
+      "receiveCooldownStillBlocks": true,
+      "forecastExpiresSelectedFootRecovery": true,
+      "pureQuery": true
+    },
+    {
+      "side": -1,
+      "foot": 1,
+      "lastDribbleFoot": 1,
+      "sameFoot": true,
+      "globalDribbleClock": 0.4,
+      "selectedFootClock": 0.14,
+      "initialSetupAllowed": false,
+      "carryAndShieldStillBlocked": true,
+      "receiveCooldownStillBlocks": true,
+      "forecastExpiresSelectedFootRecovery": true,
+      "pureQuery": true
+    },
+    {
+      "side": -1,
+      "foot": 1,
+      "lastDribbleFoot": 0,
+      "sameFoot": false,
+      "globalDribbleClock": 0.4,
+      "selectedFootClock": 0,
+      "initialSetupAllowed": true,
+      "carryAndShieldStillBlocked": true,
+      "receiveCooldownStillBlocks": true,
+      "forecastExpiresSelectedFootRecovery": true,
+      "pureQuery": true
+    }
+  ],
+  "liveReleaseClocks": [
+    {
+      "side": 1,
+      "foot": 0,
+      "sameFoot": true,
+      "time": 0.15000000000000746,
+      "selectedFootClock": 0,
+      "globalDribbleClock": 0.25000000000000006,
+      "receiveClock": 0,
+      "setupImpulse": false,
+      "selectedFootAvailableAtActualRelease": true,
+      "globalCarryCadenceDoesNotBlockTheAvailableFoot": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": 1,
+      "foot": 0,
+      "sameFoot": false,
+      "time": 0.13333333333333997,
+      "selectedFootClock": 0,
+      "globalDribbleClock": 0.2666666666666667,
+      "receiveClock": 0,
+      "setupImpulse": true,
+      "selectedFootAvailableAtActualRelease": true,
+      "globalCarryCadenceDoesNotBlockTheAvailableFoot": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": 1,
+      "foot": 1,
+      "sameFoot": true,
+      "time": 0.15000000000000746,
+      "selectedFootClock": 0,
+      "globalDribbleClock": 0.25000000000000006,
+      "receiveClock": 0,
+      "setupImpulse": false,
+      "selectedFootAvailableAtActualRelease": true,
+      "globalCarryCadenceDoesNotBlockTheAvailableFoot": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": 1,
+      "foot": 1,
+      "sameFoot": false,
+      "time": 0.13333333333333997,
+      "selectedFootClock": 0,
+      "globalDribbleClock": 0.2666666666666667,
+      "receiveClock": 0,
+      "setupImpulse": true,
+      "selectedFootAvailableAtActualRelease": true,
+      "globalCarryCadenceDoesNotBlockTheAvailableFoot": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": -1,
+      "foot": 0,
+      "sameFoot": true,
+      "time": 0.15000000000000746,
+      "selectedFootClock": 0,
+      "globalDribbleClock": 0.25000000000000006,
+      "receiveClock": 0,
+      "setupImpulse": false,
+      "selectedFootAvailableAtActualRelease": true,
+      "globalCarryCadenceDoesNotBlockTheAvailableFoot": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": -1,
+      "foot": 0,
+      "sameFoot": false,
+      "time": 0.13333333333333997,
+      "selectedFootClock": 0,
+      "globalDribbleClock": 0.2666666666666667,
+      "receiveClock": 0,
+      "setupImpulse": true,
+      "selectedFootAvailableAtActualRelease": true,
+      "globalCarryCadenceDoesNotBlockTheAvailableFoot": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": -1,
+      "foot": 1,
+      "sameFoot": true,
+      "time": 0.15000000000000746,
+      "selectedFootClock": 0,
+      "globalDribbleClock": 0.25000000000000006,
+      "receiveClock": 0,
+      "setupImpulse": false,
+      "selectedFootAvailableAtActualRelease": true,
+      "globalCarryCadenceDoesNotBlockTheAvailableFoot": true,
+      "noPositionCorrection": true
+    },
+    {
+      "side": -1,
+      "foot": 1,
+      "sameFoot": false,
+      "time": 0.13333333333333997,
+      "selectedFootClock": 0,
+      "globalDribbleClock": 0.2666666666666667,
+      "receiveClock": 0,
+      "setupImpulse": true,
+      "selectedFootAvailableAtActualRelease": true,
+      "globalCarryCadenceDoesNotBlockTheAvailableFoot": true,
+      "noPositionCorrection": true
+    }
+  ],
+  "summary": {
+    "passed": true,
+    "protectedFunctions": 10,
+    "pureQueryChecks": true,
+    "carryFixtures": 16,
+    "acceptedCarry": 14,
+    "deferredCarry": 2,
+    "receiveFixtures": 8,
+    "setupFixtures": 10,
+    "acceptedSetup": 8,
+    "selectedFootClockFixtures": 8,
+    "actualReleaseClockFixtures": 8
+  }
+}

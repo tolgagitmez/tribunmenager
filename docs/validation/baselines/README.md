@@ -46,9 +46,48 @@ historical evidence and were not relaxed to accommodate stage 5.
 ## Stage 5 baseline for stage 6
 
 `stage5-football-sim.js.gz` preserves the exact source delivered in
-`tribun-menajer-asama5.zip` and subsequently published by the user. Its decompressed
-SHA-256 is `7038778922feb9f8f24389003b5ddf92fb8c0790280af84ae9818a04198acf60`.
-The bytes were checked against that ZIP before stage 6 application edits.
-`profile-reception-facing.cjs` uses this source for its matrix and complete natural
-prefixes from kickoff. The retained six-second forks branch at tick boundaries
-before a real pass release; they require no runtime snapshot or mixed prefix.
+`tribun-menajer-asama5.zip`. Its decompressed SHA-256 is
+`7038778922feb9f8f24389003b5ddf92fb8c0790280af84ae9818a04198acf60`.
+The retained workspace source was compared byte-for-byte with that ZIP before
+the stage 6 application edit. Git HEAD still names the original v1.27 upload;
+it is not the baseline for this comparison. The new reception-facing tests and
+profiler load this retained source separately from the current engine. Previous
+test files, sources and reports remain historical evidence.
+
+## Stage 6 baseline for stage 7
+
+`stage6-football-sim.js.gz` preserves the exact engine left in the workspace at
+the end of the preceding turn. Its decompressed SHA-256 is
+`108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6`.
+Before the stage 7 application edit, the workspace bytes were checked against
+the local source snapshot `work/tribun-menajer-asama6.zip`. This records local
+provenance; it does not establish that the user separately published that ZIP.
+The new post-receive-hold tests and `profile-control-exit.cjs` load the retained
+stage 6 source separately from the current engine. Git HEAD remains the original
+v1.27 upload, and previous tests and reports remain historical evidence.
+
+## Stage 8: local, remote and integrated physical baselines
+
+Three distinct sources were retained before the shared ground-touch change:
+
+| Retained source | Provenance | Decompressed SHA-256 |
+| --- | --- | --- |
+| `stage7-football-sim.js.gz` | Exact local stage 7 engine at the start of this turn | `c1c1395a97a64f38a4c9704bde953e4f8ff8904f44784462313cfe15c83d694c` |
+| `remote-main-82414b9-football-sim.js.gz` | GitHub `main` at commit `82414b9d9ec49f9b295f0a009e257327d3427961` | `8c3b3c1953ca95d02d2b78b5161131b4b1e1523a8b2b56850b4665b8fcadf703` |
+| `stage8-integration-base.js.gz` | Local stage 7 plus the reconciled remote receiver-facing behavior, before the shared physical touch model | `16d6d78ac01b5490bbb8a178b4134a2f8c41224ad7091fb1e0b6b37aafa07360` |
+
+The remote branch preserves the receiver's travel direction until proximity or
+arrival time calls for opening the body. It includes ground through balls and
+limits the opening to ±π/3 from the incoming-ball bearing. The integrated base
+retains that behavior alongside local flight identity, preparation freshness,
+ground-contact guards and advancing forecast time. Two historical validation
+reports present only in the remote branch were also restored; earlier sources
+and reports remain historical evidence.
+
+`tests/touch-feasibility.test.cjs` and `tools/profile-touch-feasibility.cjs` load
+the retained **integration base**, checking its decompressed SHA-256, so the
+comparison isolates the shared touch model from receiver-facing reconciliation.
+The local stage 7 source and the remote source remain provenance records; neither
+Git HEAD nor either source alone substitutes for that physical baseline. All
+retained engines are loaded as separate CommonJS modules for validation. The
+application continues to load the current `/football-sim.js`.

@@ -1,69 +1,236 @@
-# Altıncı aşama doğrulaması — top gelmeden gövde hazırlığı (5 Kasım 2026)
+# Sekizinci aşama — ortak yerden dokunuş uygulanabilirliği (6 Kasım 2026)
 
-Taban, kullanıcının son yayımladığı beşinci aşama motorudur: `70387789…`; yeni kaynak `8c3b3c19…`. Tam taban `docs/validation/baselines/stage5-football-sim.js.gz` içinde, önceki teslim ZIP'iyle birebir kontrol edilerek saklanır. Git HEAD eski yüklemedir ve bu karşılaştırmanın tabanı değildir. Eski testler/raporlar ve aşağıdaki aşamalar tarihsel kayıt olarak korunur.
+Yeni motor: `e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e`. Karşılaştırma tabanı `docs/validation/baselines/stage8-integration-base.js.gz` içindeki `16d6d78ac01b5490bbb8a178b4134a2f8c41224ad7091fb1e0b6b37aafa07360` kaynağıdır. Bu taban, GitHub main `82414b9` sürümünün uzaktaki alıcı için geç gövde hazırlığını yerel yedinci aşamanın tazelik/duran top/saat korumalarıyla birleştirir; ortak dokunuş modeli henüz eklenmemiştir. Git HEAD veya önceki 104 kayıplı matris bu deneyin tabanı değildir.
 
-Alıcı top yaklaşırken gövdesini gelen top ve seçilmiş çıkış yönüne göre açar; uzak koşuda normal bakışını korur. **İlk kontrolün geometrisi düzelir, ancak her hücumun devamı iyileşmez.** Top kaybettiren doğal karşıt ve toplam kayıplardaki artış aşağıda açıkça tutulur.
+Uzak kaynak `8c3b3c19…`, önceki yerel kaynak `c1c1395a…` ve birleştirme tabanı ayrı gzip dosyalarında korunur. Uzak daldaki iki ek tarihsel reception-facing raporu da korunmuştur. Önceki aşamaların metin ve raporları aşağıda tarihsel kayıttır.
 
-## Geçen kontroller ve oynanabilir sürüm
+## Yeni davranış ve kapsam
 
-`npm run test:stage6`: **97 test geçti**; önceki 85 kontrolün altı dosyası önceki teslimle byte düzeyinde aynıdır, 12 yeni test eklendi. Gerçek step/ballStep temasları iki yönde, dönüş süresi yeten/yetmeyen alımlar, 4,5 rad/sn sınırı, uzak koşu duruşu, farklı çıkış yönleri, gerçek hareketle yalıtılmış tahminin eşitliği ve canlı durumun korunması sınanır. On kapsam dışı durumda hareket beşinci aşamayla tam eşittir. RNG/gizli rakip komutu/gelecek plan okunmaz; serbest top bağımsız ilerler, rakip gerçek pası kesebilir ve doğru kontrol sonrası müdahale edebilir. Eski testler gevşetilmedi.
+`touchContact`, mevcut gövdeye göre ayak erişimini, kullanılacak ayağı/tekniği ve seçilen ayağın kalan temas süresini okur. `touchRecovery`, istenen top hızından sonraki temas zamanına kadar oyuncu/top kopyalarını gerçek `move`, `effort` ve BallPhysics ile ilerletir. `touchPlan` önce istenen darbeyi, yetişilemiyorsa mevcut top hızıyla 0,75/0,50/0,25 oranlı daha küçük değişimleri sınar. Hiçbiri uygun değilse yeni yönlü darbe ertelenir; oyuncu/top taşınmaz.
 
-[Kaynak/kapsam kanıtı](docs/validation/reception-facing-physics-check.json): değişen mevcut yöntemler move ve projectPlayer, yeni yöntem receptionFacing'dir. Diğer **93 yöntem**, BallPhysics'in 13 sabit/fonksiyon üyesi, acquire/firstControlContact, süpürme yarıçapı, vuruş/temas/müdahale ve gol hesabı aynıdır. move içindeki hızlanma, fren ve açısal hız sınırları değiştirilmedi; istenen gövde yönü değişir. Üç doğal dalda ilk gerçek pasın zamanı/türü, hedefi, çıkış noktası, pasör/alıcı ve çıkış öncesi/sonrası top durumu aynıdır; bundan sonraki alıcı hareketi ve temas saati ayrışabilir.
+Aynı hesap normal top sürme ve koruma dokunuşunda, hazırlıklı yerden yönlü ilk kontrolde ve açık oyundaki pas/şut hazırlık dokunuşunda kullanılır. Pasın nihai çıkışı ayrıca mevcut yatay ayak-top farkı <0,11 m ve yön hatası <0,07 rad kapılarını bekler; yeni kapı seçilen ayağın toparlanmasını, alım saatinin bitmesini ve topun alçakta olmasını da arar. Topun vuruştan sonraki serbest uçuşu değişmez.
 
-[Gerçek Chromium](docs/validation/reception-facing-browser.json): taktik ekranından maç, 22 oyuncu, 15 saniyeden fazla ilerleme, destek planları, saat ve duraklat/devam hem prosedürel WebGL hem zorlanmış gerçek 2D çizimde geçti. Betik hatası yoktur. Eksik özgün model/font/portre/görsel 404'leri sürer. Yerel HTTP/DOM başlangıcı da 97 test içindedir. Bunlar telefon/60 FPS veya uzun tarayıcı maçı kanıtı değildir.
+Normal taşıma/koruma, mevcut dribbling aralığını kullanır. Pas hazırlığında bu aralık iki ayağa birden uygulanmaz: seçilen ayağın önceki dribbling temasından kalan mevcut `footTouch` süresi (başlangıçta 0,14 sn) kullanılır. Diğer ayak serbestse hazırlık başlayabilir. Vuruşun `nextSetup` aralığı ve gerçek temas kapısı ayrıca korunur. Topla mücadeleye karşı koruma eklenmez.
 
-## Aynı doğal pas, üç farklı devam
+Önizleme en fazla **0,65 sn / 39 gelecek hareket adımıdır**. Saatler canlı motorla aynı sıfıra kırpma ve 60 Hz azalmayla yürür; küçük pozitif kayan nokta kalıntısı erken hazır sayılmaz. Kare sırası da aynıdır: taşıma ve hazırlık darbesinin mevcut karedeki top adımı hesaba katılır; alım sonrasında bu adım tekrar uygulanmaz. Sonraki taşıma/alım teması top entegrasyonundan önce, hazırlanmış vuruş kontrolü sonra okunur. Alım önizlemesi, canlı `acquire` tarafından uygulanacak receive eylemini kullanır; eski pas animasyonunu taşımaz.
 
-Her örnek tam beşinci aşama motorunu başlangıçtan belirtilen tick sınırına kadar aynı sentetik kadro/taktik/tohumla yürütür. Tam oyuncu/top/Map/RNG durumu iki sürüme klonlanır; sonraki **6 saniye** normal plan, koşu, vuruş ve müdahaleyle ilerler. Karma eski sürüm öneki, zorlanmış RNG, hedefe taşıma veya hazır sonuç yoktur. Her dalın gözlemcisiz tam durum eşitliği geçer; bütün bu örneklerin iki skoru da 0–0 kalır.
+Başlık/hava topu, kaleci eli, taç ve yerleştirilmiş duran top modelleri yeniden yazılmadı. Bu bir tam anatomi/kuvvet/denge modeli değildir: ayak erişimi, katsayılar ve kısa süre aynı komutun sürmesi oyun yaklaşımıdır. Rakibin sonraki kararı, omuz teması ve yeni takım planı bilinmez. Uygun sonraki temas, başarılı hücum veya sürekli sahiplik garantisi değildir.
 
-- **[Olumlu pas zinciri](docs/validation/reception-facing-chain-fork.json):** narrow21, dallanma **166,633333** sn. Aynı 5 → 0 normal pası **166,650**'de çıkar. Eski alım **167,800**'de cushion, topun ileri bileşeni −0,961488 m ve gövde-top açısı 2,782971 rad'dır; rakip 16 **168,383333**'te topu alır. Yeni alım **167,733333**'te open, ileri bileşen +0,940130 m ve açı 0,363694 rad'dır. Alım konumu/saati değişmiştir; aynı temas anı diye sunulmaz. Gerçek hedef alımları 0 → 5 için **168,916667**, 5 → 3 için **171,200**, 3 → 6 için **172,450** olur; altı saniye sonunda kendi oyuncusu 6 topa sahiptir. Bu sınırlı zincir sonrası gol veya sürekli top koruma garantisi yoktur.
-- **[Geometrik düzelme, hedef kaçırılan devam](docs/validation/reception-facing-fork.json):** press42, dallanma **24,050** sn. Aynı 13 → 11 pası **24,066667**'de çıkar. Eski alım **25,316667**'de cushion; gövde-top açısı 2,338653 rad, ileri bileşen −0,654844 m. Yeni alım **25,200**'de open; açı 0,982736 rad, ileri bileşen +0,592773 m. Sonraki 11 → 15 pasını **27,466667**'de hedef 15 yerine kendi oyuncusu 13 alır; hedef başarısı sayılmaz. Pencere sonunda top boştadır. Eski dal da daha sonra kendi oyuncusu 13'le topu toparlayıp 13 → 12 pasını **29,500**'de tamamlar; yeni dalın bütün devamı üstün değildir.
-- **[Olumsuz karşıt](docs/validation/reception-facing-loss-fork.json):** balanced21, dallanma **24,250** sn. Aynı 5 → 2 pası **24,266667**'de çıkar; iki alım da **25,133333**'tedir. Eski cushion alımında ileri bileşen −0,510029 m; yeni open alımında +0,459432 m olur. Buna rağmen yeni dalda rakip 18 **25,800**'de, yani kontrolden **0,666667 sn** sonra topu kazanır. Eski dal 2 → 5 pasını **26,283333**'te tamamlar. Eski dal da daha geç, **30,233333**'te topu kaybeder; karşılaştırma penceresinde sonsuza dek top koruduğu iddia edilmez.
+## Geçen kontroller
 
-## Sekiz tam kısa maç
+`npm run test:stage8`: **154/154 test geçti**, atlanan kontrol yok. Önceki 115 kontrole, uzak dalın alıcı davranışıyla uzlaştırılan dört ek kontrol ve 35 yeni ortak dokunuş testi dahildir. Beklenen alıcı açıklığı artık ±π/3 ve ara pası da kapsar; uzaktaki normal koşu, hızlı gelen top ve hazırlığın tazelik bitişi açıkça sınanır.
 
-[Matris](docs/validation/reception-facing-matrix.json): 8 senaryo × 2 motor × 300 sn; üç tohum, farklı rakip planları, 65/82/91 sentetik kadro ve 4-3-3/4-4-2/3-5-2. Genişlik ve pas tercihi çiftlerinde aynı kadro/rakiple yalnız ilgili talimat değişir. **16 gözlemcili tam maç, aynı 16 koşulda gözlemcisiz tam durum eşitliği ve iki deterministik tekrar geçti.** Sekiz taban koşusu önceki aşamanın sonuçlarını yeni pasif temas ölçümü dışındaki alanlarda aynen yeniden üretir. Skorlar gerçek gol olaylarıyla eşit, durumlar sonludur. En büyük oyuncu adımı **0,118822 → 0,127858 m/60 Hz**; 0,15 m sınırı aşılmaz.
+Yeni testler iki yönde sprintte ters dokunuşun sınırlandırılması/ertelenmesi, normal dokunuşun korunması, gerçek sonraki temas ve komut yenileme eşitliği, koruma, ilk kontrol, eski alım animasyonu, pas hazırlığının toparlanması, sol/sağ/zayıf ayak, seçilen ayağın meşgul olması, serbest diğer ayak, yüksek top, mücadele, serbest top, saat sınırı ve canlı durum/RNG saflığını kapsar. Eski kare sırasını bellekte geri getiren denemeler ilgili yeni testleri düşürür; toleranslar gevşetilerek geçirilmedi.
 
-Temas ölçümü yalnız gerçekten alınmış, hazırlanmış hedefli yerden pass/through/cutback ve kaleci olmayan oyuncuları içerir. Kaçan veya rakibin aldığı paslar bu ölçüme girmez. Eski **863** kapsam içi alımın **485**'i (%56,20), yeni **762** alımın **756**'sı (%99,21) mevcut ayak bölgesine uygundur. Hazır olmayan temas **378 → 6**, ortalama gövde-top açısı **1,427609 → 0,862832 rad** olur. Bu oyunun geometrik kapısıdır; bütün pasların alındığı, ilk dokunuşun güvenli olduğu veya gerçekçi insan başarı oranına ulaşıldığı anlamına gelmez. Yakın rakip <3 m alt kümesinde hazır temas **11/22 → 35/35**; farklı yollar nedeniyle aynı baskı olaylarının birebir karşılaştırması değildir.
+[Bağımsız kaynak ve canlı adım kontrolü](docs/validation/touch-feasibility-physics-check.json): 10 korunan fonksiyon grubu, BallPhysics ve salt okunur sorgu kontrolleri geçti. 16 taşıma/koruma, sekiz alım, 10 hazırlık, sekiz ayak saati ve sekiz gerçek hızlı vuruş durumu olmak üzere **50 seçilmiş fizik durumu** sınandı. Kabul edilen tahminler doğru canlı karede oyuncu konumu/hızı/gövdesi ve top durumuyla eşleşir. Bu durumlar gelecekteki karar/temas eklenmeden tutulmuş niyet senaryolarıdır; bütün olası maç durumları için kanıt değildir.
 
-Uçuş tablosu iki takımı birlikte sayar; yalnız gerçek release gözlemcisinin izlediği hedefli paslar vardır. Hedefin alması, başka kendi oyuncusunun alması ve rakibin alması ayrı tutulur; pencere sonunda yolda kalanlar çözülen paydaya girmez.
+BallPhysics, `release`, `doTackle`, `tackleAccess`, `startKick`, `choose`, `plan`, `controlPreparation`, `passPreparation` ve ana `step` gövdeleri birleştirme tabanıyla aynıdır. Yeni model bu mevcut yolların çağırdığı dokunuşları değiştirir. Olasılık/şut gücü veya gol sayısı istenen sonucu elde etmek için ayarlanmadı.
 
-| Senaryo | Hedef alımı / çözülen hedefli uçuş (beşinci → altıncı) | Skor (beşinci → altıncı) |
+[Gerçek Chromium](docs/validation/touch-feasibility-browser.json): taktik ekranından maç başlangıcı, 22 oyuncu, 15 saniyeden fazla ilerleme, destek planları, saat ve duraklat/devam hem WebGL/prosedürel hem gerçek 2D yedekte geçti; betik hatası yok. Eksik özgün varlıkların 404'leri sürer. Bu masaüstü kontrolü telefon, tam maç seyir kalitesi veya 60 FPS kanıtı değildir.
+
+## Aynı doğal durumdan kontrol örneği
+
+[Doğal temas kaydı](docs/validation/touch-feasibility-natural-contact.json) ve [beş saniyelik dal](docs/validation/touch-feasibility-natural-fork.json), tam birleştirme tabanını balanced21 başlangıcından **63,433333 sn**'ye kadar yürütür. İki dal aynı tam oyuncu/top/Map/RNG durumundan başlar. **63,450000**'de oyuncu 14, yaklaşık 4,911 m/sn hızla gerçek bir top sürme teması dener. Temas öncesindeki tam canlı durum iki dalda eşittir.
+
+Eski motorun ileri dokunuşu topa yaklaşık (−4,298286; −1,843598) m/sn yatay hız verir. Aynı niyet sürdürülürse sonraki ayak farkı **1,3016 m**, mevcut 1,20 m kontrol alanının dışındadır. Yeni motor bu dokunuşu erteler; mevcut (−6,022568; −2,540435) m/sn serbest yuvarlanmayı korur. Bu örnek ters dokunuş değil, ileri dokunuşta yeniden erişim sınırıdır. Keskin ters dönüşler ayrı kontrollü testlerde sınanır.
+
+İki doğal dal da daha sonra topu kaybeder: eski dalın 64,000 civarında çıkan pasını rakip **64,033333**'te alır; yeni dalda rakip **64,550000**'de kazanır. Yaklaşık 0,517 sn gecikme sürekli top koruma başarısı diye sayılmaz. İki dalda gözlemcili/gözlemcisiz tam durum ve RNG tutarlılığı geçti; konum, hedef veya rastgele sonuç zorlanmadı.
+
+## Sekiz tam kısa maç — iyileşen ve kötüleşen ölçümler
+
+[Matris](docs/validation/touch-feasibility-matrix.json): sekiz senaryo × iki motor × 300 sn. Üç tohum, 65/82/91 sentetik kadro gücü, farklı rakip planları ve üç diziliş korunur. Bağımsız senaryo çağrıları aynı kaynak hash'leri doğrulanarak birleştirildi. 16 gözlemcili maçın tümü gözlemcisiz eşleniğiyle tam durum olarak eşit; her senaryo/motor için deterministik tekrar da eşit. Bütün maçlar tamamlandı; değerler sonlu ve skor gerçek gol olaylarıyla eşitti. En büyük oyuncu adımı tabanda 0,127858, yenide 0,122125 m/60 Hz; 0,15 m sınırı aşılmadı.
+
+| Senaryo | Hedef alımı / çözülen uçuş (taban → yeni) | Top kaybı | Skor |
+| --- | --- | --- | --- |
+| balanced21 | 104/117 → 99/105 | 23 → 5 | 0–0 → 0–0 |
+| press42 | 118/126 → 110/119 | 9 → 9 | 0–0 → 0–0 |
+| narrow21 | 104/110 → 138/142 | 8 → 3 | 1–0 → 1–0 |
+| wide21 | 80/86 → 97/101 | 15 → 9 | 0–0 → 0–0 |
+| short42 | 72/82 → 112/116 | 23 → 8 | 0–0 → 0–0 |
+| direct42 | 121/128 → 87/98 | 8 → 8 | 0–0 → 0–1 |
+| weak442-77 | 137/139 → 138/147 | 5 → 4 | 0–1 → 0–0 |
+| strong352-21 | 62/70 → 92/100 | 28 → 14 | 0–0 → 0–0 |
+
+İki takım toplamında top kaybı **119 → 60**, hedef alımı **798/858 → 873/928**, pas/tamamlanan pas **862/820 → 935/905** olur. Rakibin hedefli pası alması **28 → 16**, başka kendi oyuncusunun alması **21 → 29**, takımın son dokunuşuyla dışarı giden hedefli uçuş **1 → 1**. Pencere sonunda yoldaki hedefli uçuş **3 → 4** olup çözülen paydadan çıkarılır.
+
+**Her ölçüm iyileşmedi:** şut **5 → 4**, yarıda kalan vuruş **0 → 4**. Direct42 ve weak442-77 hedef alımı oranları kötüleşir; direct42 ev sahibi için skor da kötüleşir. Azalan top kaybı, daha fazla pas veya daha yüksek alım oranı tek başına gerçek futbol/hücum kalitesi kanıtı değildir. İlk farklı davranıştan sonra yollar ayrışır; toplamlar tek dokunuşun bağımsız nedensel kazancı sayılamaz. Bunlar sekiz 5 dakikalık sentetik maçtır; 90 dakika veya gerçek maç dağılımı kalibrasyonu değildir.
+
+Yeni motorda 226 darbe sınırlandırma ve 150 dokunuş erteleme; ayrıca sekiz hazırlık darbesi sınırlandırma ve 713 hazırlık denemesi erteleme sayılmıştır. Bunlar deneme sayaçlarıdır; benzersiz pas, kazanılmış top veya başarı sayısı değildir. Aynı vuruş birkaç kez bekleyebilir.
+
+Dar hazırlanmış yerden alım kümesinde 1 sn penceresi **781 tamamlanan/2 bekleyen → 846/1**, rakip kazanımı **10 → 6**; 2 sn penceresi **779/4 → 843/4**, rakip kazanımı **28 → 18**, rakibe duran top **1 → 2**. Baskı <3 m altında tamamlanan 2 sn penceresi **23 → 37**, kazanım **7 → 4**, rakibe duran top **0 → 1**. Alt kümeler değiştiği için sabit pozisyon eşleştirmesi değildir. Kazanım ve duran top aynı pencerede birlikte olabilir; toplanarak benzersiz kayıp türetilmez. Bekleyen süre başarı sayılmaz; kazanım görülmemesi sürekli sahiplik değildir.
+
+[Gözlemci sınır kontrolü](docs/validation/touch-feasibility-observer-check.json), tam 1/2 sn kazanım/duran top, 1,5 sn kazanımı, süre dışı olay ve bekleyen pencere için yedi kontrollü denemeyi geçer. Önceki yerel raporlar korunur; uzak dalın önceki dosya sürümleri de GitHub `82414b9` ebeveyn commitindedir.
+
+## Yeniden üretme
+
+```sh
+npm run test:stage8
+node tools/check-touch-physics.cjs
+node tools/check-touch-observer.cjs
+node tools/profile-touch-feasibility.cjs --mode matrix --seconds 300 --output /tmp/touch-feasibility-matrix.json
+node tools/profile-touch-feasibility.cjs --mode fork --scenario balanced21 --at 63.433333333331014 --follow-seconds 5 --output /tmp/touch-feasibility-natural-fork.json
+```
+
+Kayıt dönüşümü gerekmez; yeni alanlar geçici maç durumu/telemetridir. İlk kontrolün bütün adaylarının ortak puanlanması, takım kararlarının bu sınırlara daha erken uyarlanması, kuvvet/denge ve tam iki ayaklı adım döngüsü sonraki geliştirmelerdir. Yerel çalıştırma ve eksik data/assets sınırları README başındadır.
+
+---
+
+# Yedinci aşama doğrulaması — alım sonrası ters bekleme kararının uygulanabilirliği (6 Kasım 2026)
+
+Taban, önceki aşamanın tam kaynağıdır: `108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6`; `docs/validation/baselines/stage6-football-sim.js.gz` içinde saklanır. Yeni motor `c1c1395a97a64f38a4c9704bde953e4f8ff8904f44784462313cfe15c83d694c`. Git HEAD karşılaştırma tabanı değildir. Önceki aşamaların metin ve raporları aşağıda tarihsel kayıt olarak korunmuştur.
+
+Hazırlanmış top alımından hemen sonra seçilen bir `hold` kararı, oyuncu hâlâ önceki koşunun hızıyla giderken topu ters yöne gönderebiliyordu. Yeni `postReceiveHold`, bu dar durumda istenen bekleme ile mevcut taşıma hedefini aynı gerçek hareket/top hesabında karşılaştırır. İstenen bekleme müdahaleye açılıyorsa, önceki hedef ancak önizlemede müdahale görülmemiş ve gerçek bir dribbling dokunuşu oluşmuşsa kısa süre korunur. **Bir doğal kayıp önlendi; başka bir doğal örnekte kayıp yalnız gecikti. Bu örneklem genel baskı altında top koruma artışı göstermiyor.**
+
+## Kapsam ve geçen kontroller
+
+Yeni karşılaştırma yalnız gerçek sahipte, hazırlanmış `open/protect` alımından sonraki en fazla 1,5 sn'de, kontrol saati bitmiş ve mevcut taşıma niyeti hâlâ geçerliyken çalışır. Seçilen karar `carry + hold` olmalı; hız en az 0,8 m/sn, seçilen yön ile hız yönü arasındaki fark en az 1,1 rad olmalıdır. Rakip yakın veya gözlenen hareketle yaklaşıyor olmalıdır. Kaleci, duran top, vuruş, topun en az 0,45 m yüksekte olması ve kapsam dışındaki diğer kararlar eski yolu izler. Kapı önceki pasın türünü yeniden sınıflandırmaz; tam koşullar ARCHITECTURE başındadır.
+
+Her aday mevcut `controlPreparation` ile **0,75 sn / en fazla 45 adım** sınanır; en fazla iki aday vardır. Normal `move`, `dribbleTouch`, `tackleAccess` ve BallPhysics kopyalarda yürütülür. Gelecekteki takım planı, gizli rakip komutu veya RNG okunmaz. Müdahale öngörüsü kazanılmış top değildir; bu kısa sürede müdahale görülmemesi de gelecekteki güvenli sahipliği kanıtlamaz. Dönen sonuç yalnız yeni bir hareket niyetidir; gerçek müdahaleyi veya top kaybını engelleyen bir kural eklenmedi.
+
+`npm run test:stage6` içindeki önceki **101 test** ve `npm run test:post-receive-hold` içindeki **14 yeni test** ayrı koşularda geçti: toplam **115 test**, atlanan kontrol yok. `npm run test:stage7` aynı iki grubu sırayla çalıştırır. Yeni testler iki saha yönünde ters bekleme, güvenli beklemenin korunması, önceki hedefin de riskli olması, önizlemede dokunuş oluşmaması, süresi dolmuş/geçersiz kapsam, diğer kararların korunması, momentumla uyumlu bekleme, uzaktaki uzaklaşan rakip, salt okunurluk ve gerçek sahip adımıyla normal hareket/top fiziğini sınar. Kontrollü yerleşimler doğal maç kazanımı diye sunulmaz; önceki testler gevşetilmedi.
+
+[Kaynak ve fizik kanıtı](docs/validation/hold-continuation-physics-check.json): yalnız mevcut `step` yöntemi değişti; `postReceiveHold` eklendi. Diğer **95 Match yöntemi** ve BallPhysics'in **13 üyesi** birebir aynıdır. İlk alım, ilk kontrol darbesi, ayak/alım yarıçapı, dribbling, vuruş ve müdahale uygulamaları değişmedi. Yeni sorguda tam canlı durum eşitliği ile RNG, gelecek plan ve gizli rakip komutu korumaları da geçti.
+
+[Gerçek Chromium kontrolü](docs/validation/control-exit-browser.json): taktik ekranından maç başlangıcı, 22 oyuncu, 15 saniyeden fazla ilerleme, destek planları, saat, duraklat/devam hem WebGL/prosedürel hem zorlanmış gerçek 2D modda geçti; betik hatası yok. Eksik özgün model/font/portre 404'leri sürer. Bu kısa masaüstü kontrolü telefon veya 60 FPS performans kanıtı değildir.
+
+## Aynı doğal durumdan bir düzeltme ve bir sınır
+
+[Yeni doğal karşılaştırma](docs/validation/control-exit-fork.json), tam altıncı aşama motorunu `short42` yapılandırmasıyla başlangıç vuruşundan **212,133333 sn**'ye kadar çalıştırır. Sahip oyuncu 3'tür; iki dal aynı tam oyuncu/top/Map/RNG durumundan, RNG **681157795** ile sonraki **5 sn** yürür. Sonuç için konum, karar, taktik veya rastgelelik zorlanmaz. Her dalın gözlemcili/gözlemcisiz tam durum eşitliği geçti. Pencere başlamadan alınmış top yeni bir alım diye sayılmaz.
+
+| Aynı başlangıç | Altıncı aşama | Yedinci aşama |
 | --- | --- | --- |
-| balanced21 | 118/129 → 109/116 | 0–0 → 0–0 |
-| press42 | 121/126 → 97/103 | 0–0 → 0–0 |
-| narrow21 | 128/132 → 103/113 | 0–0 → 1–0 |
-| wide21 | 98/107 → 89/93 | 0–0 → 0–0 |
-| short42 | 120/130 → 104/110 | 0–0 → 0–0 |
-| direct42 | 101/114 → 95/102 | 0–0 → 0–0 |
-| weak442-77 | 131/136 → 112/118 | 0–0 → 0–0 |
-| strong352-21 | 63/71 → 69/79 | 0–0 → 0–0 |
+| İlk gerçek rakip kazanımı | Rakip 11, **212,933333**'te kazanır | 5 sn pencerede rakip kazanımı yok |
+| Kendi pas devamı | İlk sahip topu kaybeder | 3 → 0 pası **214,450000**'de gerçekten çıkar; **215,733333**'te hedef alır |
+| Pencere sonundaki devam | Rakip 11 → 16 pası tamamlanır | 0 → 3 pası **216,700000**'de çıkar; pencere sonunda hâlâ yolda, başarı sayılmaz |
 
-Toplam hedef alımı **880/945 (%93,12) → 778/834 (%93,29)**, rakibin hedefli pası alması **28 → 20**, başka kendi oyuncusunun alması **24 → 29** olur. En küçük örneklenmiş yatay alıcı/top farkı ortalaması **1,9357 → 1,7065 m**; bu merkez farkı süpürme teması veya hava topu yüksekliğinin yerine geçmez. Toplam pas/tamamlanan pas **948/905 → 837/807**. İlk farklı davranıştan sonra yollar ayrışır; oran değişimi tek bir pasın nedensel genel yararını kanıtlamaz. Özellikle narrow21 hedef alım oranı 128/132'den 103/113'e geriler.
+Bu sınırlı dalda bir bekleme kararı mevcut koşunun devamına çevrildi. Beş saniye boyunca rakibin kazanmaması sürekli kendi sahipliği anlamına gelmez: kendi pasları sırasında top serbest uçuşta kalır. Daha sonraki başarı veya maç sonucu garanti edilmez.
 
-**Olumsuzlar:** takımın son dokunuşuyla doğrudan dışarı giden hedefli pas **0 → 1**, toplam telemetri top kaybı **101 → 111**, düello **105 → 126**, boşta top **89 → 100** olur. Şut **1 → 5**, gol **0 → 1** (narrow21 ev sahibi) olur; bu küçük örnek üretken hücum veya skor dengesi kanıtı değildir. Şut/gol kotası veya istenen skora göre katsayı ayarı yapılmadı.
+[Önceki olumsuz örneğin yeniden yürütülmesi](docs/validation/hold-continuation-physics-check.json), farklı bir önektir: tam beşinci aşama başlangıçtan **149 sn**'ye, ardından tam altıncı aşama **86 adım** ile **150,433333 sn**'ye yürür. Bu karışık önek açıkça raporlanır; tam altıncı aşama başlangıç maçı diye sunulmaz. İki yeni dal aynı tam durumdan 5 sn ilerler. **150,450000**'de ters `hold`, önceki taşıma hedefine çevrilir; buna rağmen rakip 4 iki dalda da kazanır: eski dalda **151,033333**, yeni dalda **152,400000**. Kayıp yaklaşık **1,366667 sn gecikir**, önlenmez. İlk alımdan sonraki 2 sn'lik pencerenin dışına kayması, beş saniyelik başarı olarak yorumlanamaz. Bu iki dalda da gözlemcili/gözlemcisiz durum eşitliği geçti.
 
-Hazırlıklı gerçek hedef alımından sonraki bir saniyede rakip alımı **4/881 → 4/778** kalır. Eski 881 pencerenin 878'i tamam, üçü maç sonunda eksik; yeni 778'in tamamı kapanır. Yakın rakip <3 m alt kümesinde **2/24 → 2/37**, eksik pencere yoktur. Eksik pencereler korunmuş top sayılmaz. Bir saniye rakip alımı olmaması sürekli sahiplik anlamına gelmez; boşta top, kendi pası veya sonraki geç kayıp olabilir.
+## Sekiz tam maç: dar ve seyrek etki
 
-Uçuş gözlemcisi aerial() içinde üretilen kafa paslarını izlemez; gerçek acquire gözlemcisi bunları da görebilir. Uçuş tablosunun hedef alımı 880/778, hazırlanmış gerçek alım sayısı 881/778'dir; paydalar birbirinin yerine kullanılmaz. Üretilen kafa pası telemetrisi 2 → 1'dir; üretilen her kafa pası tamamlanmış alım değildir.
+[Matris](docs/validation/control-exit-matrix.json), aynı sekiz senaryoyu iki motorda **300'er sn** çalıştırır. Üç tohum, farklı rakip planları, 65/82/91 sentetik kadro gücü ve 4-3-3/4-4-2/3-5-2 korunur. Sekiz bağımsız `--scenario` çağrısı, aynı kaynak hash'leri doğrulanarak özgün sırada birleştirilmiştir. **16 gözlemcili tam maçın her biri gözlemcisiz eşleniğiyle tam durum olarak eşit; her senaryo/motor için deterministik tekrar da eşit.** Bütün maçlar tamamlandı; değerler sonlu, skorlar gerçek gol olaylarıyla eşittir. İki motorda da en büyük oyuncu adımı **0,125617 m/60 Hz** oldu; 0,15 m sınırı aşılmadı.
 
-Taktiğin yerleşim etkisi korunur: yeni narrow21 ev sahibi ortalama genişliği **36,53 m**, aynı kadro/rakipli wide21 **44,86 m**; ortalama savunma çizgisi sırasıyla −20,24 ve −18,47 m. Bunlar saniyede bir açık oyun örnekleridir. Maç yolları ayrıştığından genişlik talimatının bütün sonuç etkisi izole edilmiş sayılmaz. Pas mesafeleri, genişlik/çizgi ve geçiş telemetrisi her ham satırda vardır.
+Yeni `holdContinuations` sayacı yalnız kararı sayar; top kazanımı veya tamamlanan pas saymaz. Matrisin yalnız **short42** satırında bir kez çalıştı; diğer yedi satırda sıfırdı ve raporlanan ölçümler aynı kaldı. Short42'de hedef alımı **100/110 → 104/114**, toplam top kaybı **17 → 16**, pas/tamamlanan pas **111/106 → 114/111** olur; skor iki dalda da **0–1** kalır. İlk değişen karar sonrası yollar ayrıştığı için sonraki bütün farklar tek bir yerel kararın bağımsız nedensel kazancı sayılamaz.
+
+| İki takım ve sekiz maç toplamı | Altıncı aşama | Yedinci aşama |
+| --- | --- | --- |
+| Gerçek hedef alımı / çözülen hedefli uçuş | 808 / 871 | 812 / 875 |
+| Pas / tamamlanan pas | 882 / 843 | 885 / 848 |
+| Toplam top kaybı | 105 | 104 |
+| Rakibin hedefli pası alması / başka kendi oyuncusunun alması | 19 / 30 | 19 / 31 |
+| Takımın son dokunuşuyla dışarı giden hedefli uçuş | 1 | 1 |
+| Pencere sonunda hâlâ yoldaki hedefli uçuş | 4 | 3 |
+| Şut | 5 | 5 |
+
+Hedef alımı gerçek başarılı `acquire` olayıdır. Payda yalnız gerçek alım, kesilme, dışarı çıkış, gol veya uçuş kapanmasıyla çözülen hedefli uçuşları içerir; bekleyenler çıkarılır. Başka kendi oyuncusunun alması hedef başarısı veya rakip kazanımı diye sayılmaz. Toplamın bir kayıp azalması, yedi senaryoda hiç devreye girmeyen bu dar değişiklik için genel üstünlük kanıtı değildir.
+
+Alım sonrası gözlem, önceki aşamayla aynı dar temas kümesini kullanır: hedefli, kaleci olmayan, taze hazırlıklı, yerden normal pas/geri pas alımları; bu küme yeni kararın her alımda çalıştığını söylemez. Gerçek ayak bölgesine uygun temas **772/786 → 776/790**, uygun olmayan temas **14 → 14** olur. Alım kodu değişmedi; sayılar sonraki maç yollarının değişmesinden etkilenir.
+
+| Dar alım kümesindeki kısa pencere | Altıncı aşama | Yedinci aşama |
+| --- | --- | --- |
+| Alım / tamamlanan 1 sn pencere / bekleyen | 786 / 784 / 2 | 790 / 787 / 3 |
+| 1 sn içinde gerçek rakip kazanımı | 11 | 10 |
+| Tamamlanan 2 sn pencere / bekleyen | 782 / 4 | 784 / 6 |
+| 2 sn içinde gerçek rakip kazanımı / rakibe duran top | 29 / 2 | 26 / 2 |
+| Baskı <3 m: tamamlanan 2 sn pencere / bekleyen | 28 / 0 | 26 / 0 |
+| Baskı <3 m: 2 sn içinde gerçek rakip kazanımı / rakibe duran top | 7 / 1 | 7 / 1 |
+
+Rakip kazanımı yalnız gerçek başarılı `acquire` olayından kaydedilir; rakibe duran top ayrı tutulur ve aynı pencerede ikisi de olabileceğinden toplanıp benzersiz kayıp sayısı türetilmez. Bekleyen pencere başarı sayılmaz; rakip kazanımı görülmeyen süre sürekli sahiplik anlamına gelmez. Alım alt kümeleri iki motorda değiştiği için paydalar sabit bir pozisyon eşleştirmesi değildir. Özellikle baskı <3 m grubunda **7/28 → 7/26** sonucu, baskılı alımlarda genel iyileşme göstermiyor.
+
+[Gözlemci sınır kontrolü](docs/validation/control-exit-observer-check.json), **7 kontrollü denemede** tam 1/2 sn rakip kazanımı ve duran topu, 1,5 sn kazanımı, süre dışı olayı ve bekleyen pencereyi doğrular. Gerçek motor yöntemleri gözlemcili/gözlemcisiz eşlenik durumlarda çalışır; elle seçilmiş olay zamanları doğal maç örneği diye sunulmaz. Eski araç ve raporlar değiştirilmedi.
 
 ## Yeniden üretme ve sınırlar
 
 ```sh
-npm run test:stage6
-node tools/profile-reception-facing.cjs --mode matrix --output /tmp/reception-facing-matrix.json
-node tools/profile-reception-facing.cjs --mode fork --output /tmp/reception-facing-fork.json
-node tools/profile-reception-facing.cjs --mode fork --scenario balanced21 --at 24.25 --output /tmp/reception-facing-loss.json
-node tools/profile-reception-facing.cjs --mode fork --scenario narrow21 --at 166.63333333333333 --output /tmp/reception-facing-chain.json
+npm run test:stage7
+node tools/check-hold-physics.cjs
+node tools/check-control-exit-observer.cjs
+node tools/profile-control-exit.cjs --mode matrix --seconds 300 --output /tmp/control-exit-matrix.json
+node tools/profile-control-exit.cjs --mode fork --scenario short42 --at 212.1333333333943 --follow-seconds 5 --output /tmp/control-exit-fork.json
 ```
 
-Varsayılan doğal örnek press42/24,05 sn, izleme **6 saniye**dir. Araç tam taban/güncel motor, taktik ve gözlemci hash'lerini kaydeder. Gözlemciler bütün parametreleri korur; tam durum eşitliğinde yalnız kendi acquire/release/setRestart sarmalayıcıları silinir. Runtime snapshot zorunlu değildir. Kısa pilot tam maç yerine sayılmaz; yeni motorla tam 90 dakika doğrulandığı iddia edilmez.
+Önizleme, mevcut komut ve gözlenen rakip hareketinin kısa süre devamını varsayar; yeni taktik karar, omuz ayrıştırması veya rakibin sonraki hamlesini bilmez. Eski hedefte bir dokunuş gözlenmesi, sonraki dokunuşun veya pasın da uygulanabileceğini kanıtlamaz. Hızlı pas seçimi, ilk kontrol yönünün bütün adayları ve daha uzun süreli taşıma kararları bu dar aşamada yeniden yazılmadı. Yerel çalıştırma, eksik data/assets ve kayıt koruma bilgileri README başındadır.
 
-Yeni duruş istenen açıdır; 4,5 rad/sn dönüş, hız/baskı ve değişen top yönü nedeniyle temas yine hazır olmayabilir. Ayak bölgesi içindeki çıkış açısı, ilk kontrol mesafesi ve baskıya göre güvenli devam hâlâ sınırlamadır. Sonraki öncelik bu kontrol/çıkış seçimini iyileştirmektir; olumsuz balanced21 örneği saklanır. Hava topu, kaleci, serbest top veya eksik oyunculu kadro/rol sistemi bu aşamada genişletilmedi.
+---
 
-Ekonomi, transfer, günlük lig, kayıt şeması, oyun varlıkları ve ödeme/reklam kodu değişmedi. Eksik özgün data/assets nedeniyle transfer/günlük lig API'si ve depoda bulunmayan tarihsel testlerin tamamı doğrulanamadı. Yerel maç gerçek gol olaylarından skor üretip aynı durumu çizer; günlük lig ayrı sonuç hesabını sürdürür. Çalıştırma ve eski kayıtları koruma talimatları README başındadır.
+# Altıncı aşama doğrulaması — alım öncesi gövde hazırlığı (6 Kasım 2026)
+
+Taban, önceki teslim ZIP'iyle birebir kontrol edilen beşinci aşama kaynağıdır: `7038778922feb9f8f24389003b5ddf92fb8c0790280af84ae9818a04198acf60`. Tam kaynak `docs/validation/baselines/stage5-football-sim.js.gz` içinde tutulur. Güncel motor `108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6`; Git HEAD eski yüklemeyi gösterir. Önceki aşamalar ve raporları aşağıda tarihsel kayıt olarak korunmuştur.
+
+Yeni davranış, hedefli normal yerden pas/geri pas alıcısının çıkışa tamamen dönmek yerine gelen topa yarı açık hazırlanmasıdır. **Ayak bölgesi uygunluğu belirgin arttı; bu örneklem genel top koruma artışı göstermedi.** Uygun temas, seçilmiş çıkışın baskı altında güvenli olduğunu göstermiyor.
+
+## Geçen kontroller
+
+`npm run test:stage6`: **101/101 test geçti**, atlanan test yok. Önceki 85 test korunarak 16 yeni test eklendi. İki saha yönünde gerçek hareket ve `ballStep` ile yeterli/geç hazırlık, aynı alım yarıçapı, dönüş hızı, hazırlığın çıkış niyetini koruması, gerçek devam pası ve 16 kapsam dışı durumda tam beşinci aşama durum eşitliği sınanır. Tahmin ile aynı komutun gerçek hareketi 0,3 ve 0,7 sn'de, hazırlığın tazelik bitişi dahil karşılaştırılır. Canlı durum/RNG değişmemesi, gizli rakip komutu ve gelecek plan okunmaması, bağımsız top fiziği ve gerçek rakip kesmesi de sınanır. HTTP maç başlatma testi, localhost soketi açılmasına izin verilen yürütmede geçti; ilk kısıtlı denemedeki EPERM başarı sayılmadı.
+
+Hazır devam testinde yalnız normal `step` ilerletilir: alım saati bitmeden vuruş başlamaz; gerçek `preparedChoice` → `startKick` → `kickStep` çıkışında ayak-top farkı <0,11 m, yön hatası <0,07 rad ve hazırlık saati tamamlanmış olmalıdır. `one-touch` etiketi sıfır gecikmeli veya tek anatomik temaslı pas diye sayılmaz.
+
+[Kaynak/kapsam raporu](docs/validation/reception-facing-physics-check.json): yalnız mevcut `move` ve `projectPlayer` yöntemleri değişti; `receptionFacing` eklendi. Diğer **93 Match yöntemi** ve BallPhysics'in 13 üyesi birebir aynıdır. `acquire`, `firstControlContact`, `release`, `doTackle`, `startKick`, `kickStep`, `contactPoint` ve top entegrasyonu korunur. Alım/ayak yarıçapı, müdahale veya vuruş hatası kolaylaştırılmadı.
+
+[Gerçek Chromium kontrolü](docs/validation/reception-facing-browser.json): taktik ekranından açılan maç WebGL/prosedürel ve gerçek 2D yedek modunda çalıştı; 22 oyuncu, 15 saniyeden fazla motor ilerlemesi, saat, destek planları ve duraklat/devam geçti. Betik hatası yok. Özgün model/font/portre varlıkları hâlâ eksik; bu kontrol telefon veya 60 FPS performans kanıtı değildir.
+
+## Aynı doğal durumdan olumlu ve olumsuz sonuçlar
+
+Üç karşılaştırma da tam beşinci aşama motorunu başlangıç vuruşundan belirtilen ana kadar çalıştırır. Tam oyuncu/top/Map/RNG durumu iki motora aynı biçimde klonlanır; sonraki 5 saniye normal plan, hareket, müdahale ve temasla yürür. Konum, hedef, taktik veya rastgele sonuç zorlanmaz. Her dalda gözlemcili/gözlemcisiz tam durum eşitliği geçti. Fork başladığında zaten yolda olan pas, yeni çıkış diye sayılmaz; en küçük fark ölçümü yalnız bu pencerenin başlangıcından itibaren geçerlidir.
+
+| Aynı durum | Beşinci aşama | Altıncı aşama |
+| --- | --- | --- |
+| [press42, 9,433333 sn](docs/validation/reception-facing-fork.json), 4 → 5 pası | 10,416667'de gerçek alım; top gövdeye göre arkada, `cushion` | 10,400000'de gerçek alım; ayak uygun, `open`; 5 → 3 pası 13,433333'te çıkar ve 14,250000'de alınır |
+| [short42, 193,233333 sn](docs/validation/reception-facing-pressure-fork.json), 13 → 12 pası | 194,116667'de gerçek alım; yanal fark 1,085677 m, hazırlanan hızlı devam `cushion` olur; 12 → 16 çıkışı 194,616667 | Aynı anda gerçek alım; yanal fark 0,863575 m, hızlı devam niyeti korunur; gerçek çıkış 194,383333, yani yaklaşık 0,233333 sn erken |
+| [balanced21, 149 sn](docs/validation/reception-facing-counter-fork.json), 14 → 11 pası | 149,833333'te `cushion`; sonra 11 → 14 ve 14 → 12 pasları gerçekten alınır; 5 sn içinde rakip kazanımı yok | Aynı anda ayak uygun `protect` alımı; rakip 4, 151,033333'te, alımdan **1,2 sn sonra** gerçekten kazanır |
+
+İkinci örnekte başlangıç RNG 3868005481 ve ilk alım öncesi gerçek top konumu/hızı aynıdır. Gövde hedefi hareket hızını da etkilediği için alıcı konumu yaklaşık 5,8 cm farklıdır; aynı oyuncu konumunda yalnız açının değiştirildiği bir deney diye sunulmaz. İki dal da sonraki pasları tamamlar; daha erken çıkış kendi başına top koruma artışı değildir. İlk örneğin ilk alımından sonraki 2 sn'de iki dalda da rakip kazanımı yoktur; sonraki alım pencere sonunda hâlâ bekliyor olabilir.
+
+Olumsuz örnekte yeni dal daha iyi ayak açısıyla yine top kaybeder. İlk 1 sn ölçümü bu farkı kaçırır; 2 sn penceresi kaybı yakalar. Çıkış seçimi ve kontrol darbesinin baskıyla birlikte yeniden değerlendirilmesi hâlâ gereklidir.
+
+## Sekiz tam maçın ölçümleri
+
+[Matris](docs/validation/reception-facing-matrix.json): 8 senaryo × 2 motor × 300 sn. Üç tohum, farklı rakip planları, 65/82/91 sentetik kadro gücü ve 4-3-3/4-4-2/3-5-2 kullanılır. Dar/geniş ve kısa/doğrudan çiftlerinde aynı kadro/rakiple yalnız belirtilen taktik alanı değiştirilir. **16 gözlemcili tam maçın her biri gözlemcisiz eşleniğiyle tam durum olarak eşit; iki tam deterministik tekrar da eşit.** Bütün maçlar tamamlandı; top/oyuncu değerleri sonlu ve skor gerçek gol olaylarıyla eşitti. En büyük oyuncu adımı eski motorda 0,118822, yenide 0,125617 m/60 Hz; 0,15 m sınırı aşılmadı.
+
+Aşağıdaki hedef alımı bütün pas türleri içindir. Payda yalnız gerçek alım, kesilme, dışarı çıkış, gol veya uçuş kapanmasıyla çözülen hedefli uçuşları içerir. Başka kendi oyuncusunun alması ayrı tutulur. İlk farklı hareket/karardan sonra maç yolları ayrışır; bu tablo tek bir kontrol kararının nedensel fayda ölçümü değildir.
+
+| Senaryo | Hedef alımı / çözülen hedefli uçuş (5 → 6) | Top kaybı (5 → 6) | Skor (5 → 6) |
+| --- | --- | --- | --- |
+| balanced21 | 118/129 → 115/119 | 17 → 11 | 0–0 → 0–0 |
+| press42 | 121/126 → 115/123 | 12 → 13 | 0–0 → 0–0 |
+| narrow21 | 128/132 → 105/113 | 12 → 16 | 0–0 → 0–0 |
+| wide21 | 98/107 → 89/95 | 9 → 14 | 0–0 → 1–0 |
+| short42 | 120/130 → 100/110 | 7 → 17 | 0–0 → 0–1 |
+| direct42 | 101/114 → 106/115 | 15 → 8 | 0–0 → 0–0 |
+| weak442-77 | 131/136 → 122/131 | 3 → 9 | 0–0 → 0–0 |
+| strong352-21 | 63/71 → 56/65 | 26 → 17 | 0–0 → 0–0 |
+
+İki takımın toplamı: hedef alımı **880/945 (%93,12) → 808/871 (%92,77)**; pas/tamamlanan pas **948/905 → 882/843**; toplam top kaybı **101 → 105**. Rakibin hedefli pası alması **28 → 19**, başka kendi oyuncusunun alması **24 → 30**; takımın son dokunuşuyla dışarı giden hedefli uçuş **0 → 1**. Uçuş sonunda hâlâ yolda kalan hedefli paslar **1 → 4** olup paydalardan çıkarılır. Şut **1 → 5** olur; iki gol içeren yeni yol genel hücum başarısı kanıtı değildir. Yalnız normal pass/cutback kategorisinde hedef alımı **860/911 → 786/833**; bu geniş uçuş kategorisi her temasın dar gövde hazırlığı kapsamında olduğunu söylemez.
+
+Yeni davranışın dar temas kapsamındaki **gerçek başarılı alımlar** ayrıca ölçülür: hedefli, kaleci olmayan, taze hazırlıklı, yerden pass/cutback, duran top dışında. Bu alımlarda mevcut ayak bölgesine uygun temas **485/860 (%56,40) → 772/786 (%98,22)**; uygun olmayan temas **375 → 14**. Bu oran kaçırılan bütün pasların paydası değildir; gerçek alınmış topun kontrol geometrisidir.
+
+| Dar kapsamdaki alım sonrası gözlem | Beşinci aşama | Altıncı aşama |
+| --- | --- | --- |
+| Alımlar / tamamlanan 1 sn pencere / bekleyen | 860 / 857 / 3 | 786 / 784 / 2 |
+| 1 sn içinde gerçek rakip kazanımı | 3 | 11 |
+| Tamamlanan 2 sn pencere / bekleyen | 855 / 5 | 782 / 4 |
+| 2 sn içinde gerçek rakip kazanımı | 19 | 29 |
+| 2 sn içinde rakibe duran top | 0 | 2 |
+| Baskı <3 m: alım / tamamlanan 2 sn pencere | 19 / 19 | 28 / 28 |
+| Baskı <3 m: 2 sn içinde rakip kazanımı / rakibe duran top | 1 / 0 | 7 / 1 |
+
+Rakip kazanımı yalnız başarılı gerçek `acquire` olayından sayılır; duran top ayrı sütundur ve aynı pencerede ikisi birden olabileceğinden toplanarak benzersiz kayıp sayısı türetilmez. Bekleyen pencereler başarı kabul edilmez. Rakip kazanımı görülmeyen süre, sürekli kendi sahipliği anlamına gelmez; serbest top veya kendi pası bulunabilir. Dar alım alt kümeleri ve baskı durumu iki motorda değiştiği için yüzdeler aynı sabit pozisyonların eşleştirilmiş sonucu değildir.
+
+[Gözlemci sınır kontrolü](docs/validation/reception-facing-observer-check.json) **7 kontrollü denemede** tam 1/2 sn rakip kazanımı ve duran topu, 1,5 sn kaybı, süre dışı olayı ve bekleyen pencereyi doğrular. Gerçek motor yöntemleri eşlenik gözlemcili/gözlemcisiz durumlarda çalışır; kontrollü zamanlar doğal maç olayı diye sunulmaz. Yeni aracın duran top sarmalayıcısında olay, tam sınır anında pencere kapanmadan kaydedilir; önceki tarihsel raporlar değiştirilmedi.
+
+## Yeniden üretme ve açık sınırlar
+
+```sh
+npm run test:stage6
+node tools/check-reception-observer.cjs
+node tools/profile-reception-facing.cjs --mode matrix --seconds 300 --output /tmp/reception-facing-matrix.json
+node tools/profile-reception-facing.cjs --mode fork --scenario press42 --at 9.433333333333382 --follow-seconds 5 --output /tmp/reception-facing-fork.json
+node tools/profile-reception-facing.cjs --mode fork --scenario short42 --at 193.23333333337925 --follow-seconds 5 --output /tmp/reception-facing-pressure-fork.json
+node tools/profile-reception-facing.cjs --mode fork --scenario balanced21 --at 149 --follow-seconds 5 --output /tmp/reception-facing-counter-fork.json
+```
+
+Bir radyan açıklık oyun katsayısıdır; anatomik gövde/ayak modeli değildir. Tam arka eksende küçük top yönü değişimleri yarı açık duruşun sol/sağ tercihini değiştirebilir; mevcut dönüş sınırı yine uygulanır. Tahmin mevcut komutun sürmesini varsayar; yeni plan, omuz teması ve rakibin sonraki kararı bilinmez. Daha iyi ayak açısı ile ilk kontrolün seçilmiş yönünün güvenliği ayrı sorunlardır. Sıradaki öncelik, baskı altında yönlü kontrol/hızlı devam seçimini gerçek gövde hazırlığı ve rakibin yetişme süresiyle birlikte değerlendirmek. Yerel maç çalıştırma, eksik data/assets ve kayıt koruma bilgileri README başındadır.
 
 ---
 

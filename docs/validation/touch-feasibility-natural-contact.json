@@ -1,0 +1,265 @@
+{
+  "generatedAt": "2026-11-06T15:19:05.740Z",
+  "baseline": "16d6d78ac01b5490bbb8a178b4134a2f8c41224ad7091fb1e0b6b37aafa07360",
+  "current": "e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e",
+  "scenario": "balanced21",
+  "preStepTime": 63.433333333331014,
+  "prefix": "Exact retained integration-base engine from kickoff; the branch state is captured before the selected complete 60 Hz step.",
+  "scanObserverConsistency": {
+    "completeObservedPlainStateEqual": true,
+    "observedSeed": 2186787802,
+    "plainSeed": 2186787802
+  },
+  "completeLiveStateEqualImmediatelyBeforeSelectedTouch": true,
+  "selectedNaturalContact": {
+    "scenario": "balanced21",
+    "preStepTime": 63.433333333331014,
+    "eventTime": 63.44999999999768,
+    "playerBefore": {
+      "id": 14,
+      "team": 1,
+      "x": -2.210263619928338,
+      "z": -7.095388336218169,
+      "vx": -4.668535652959607,
+      "vz": -1.5246023883486008,
+      "speed": 4.91117476633781,
+      "face": -9.109126957963877,
+      "preferredFoot": 1,
+      "dribbleFoot": 0,
+      "touchClock": 0,
+      "receiveClock": 0,
+      "carryTarget": {
+        "x": -6.775567881740685,
+        "z": -9.05367153150973
+      }
+    },
+    "ballBefore": {
+      "x": -3.313837232016422,
+      "y": 0.11,
+      "z": -6.859150695183889,
+      "vx": -6.022568190202077,
+      "vy": 0,
+      "vz": -2.5404346454408278
+    },
+    "oldTouch": {
+      "velocity": {
+        "vx": -4.298286326884829,
+        "vy": 0.16,
+        "vz": -1.843597724096576
+      },
+      "interval": 0.28,
+      "forwardVelocity": 4.6582452357038955,
+      "momentumVelocity": 4.6582452357038955,
+      "targetAlongMomentum": 4.891491758835599,
+      "targetAlongBody": 0.9959921997406563,
+      "mode": "carry"
+    },
+    "oldTouchRecovery": {
+      "ready": false,
+      "reason": "next-contact",
+      "interval": 0.28,
+      "time": 0.2833333333333333,
+      "ballTime": 0.2833333333333333,
+      "foot": 1,
+      "gap": 1.301576401182989,
+      "forward": 1.3015634891386767,
+      "lateral": -0.005797573424775937,
+      "maxGap": 1.3506860559175213,
+      "lost": false,
+      "player": {
+        "x": -3.1916575675129377,
+        "z": -7.2607061710777305,
+        "vx": -2.936380545442232,
+        "vz": -0.24528508219710116,
+        "face": -9.3414383051655
+      },
+      "ball": {
+        "x": -4.489186277412586,
+        "y": 0.11,
+        "z": -7.3632750508737725,
+        "vx": -3.969598241847317,
+        "vy": 0,
+        "vz": -1.7026186083679145
+      }
+    },
+    "currentSameContact": {
+      "applied": false,
+      "velocity": {
+        "vx": -6.022568190202077,
+        "vy": 0,
+        "vz": -2.5404346454408278
+      },
+      "touchClock": 0.05,
+      "deferrals": 1,
+      "limitedTouches": 0
+    },
+    "queryPureOnLive": true
+  },
+  "firstActualStep": {
+    "baseline": {
+      "events": [
+        {
+          "before": {
+            "time": 63.44999999999768,
+            "player": {
+              "id": 14,
+              "team": 1,
+              "x": -2.210263619928338,
+              "z": -7.095388336218169,
+              "vx": -4.668535652959607,
+              "vz": -1.5246023883486008,
+              "speed": 4.91117476633781,
+              "face": -9.109126957963877,
+              "preferredFoot": 1,
+              "dribbleFoot": 0,
+              "touchClock": 0,
+              "receiveClock": 0,
+              "carryTarget": {
+                "x": -6.775567881740685,
+                "z": -9.05367153150973
+              }
+            },
+            "ball": {
+              "x": -3.313837232016422,
+              "y": 0.11,
+              "z": -6.859150695183889,
+              "vx": -6.022568190202077,
+              "vy": 0,
+              "vz": -2.5404346454408278
+            }
+          },
+          "applied": true,
+          "after": {
+            "player": {
+              "id": 14,
+              "team": 1,
+              "x": -2.210263619928338,
+              "z": -7.095388336218169,
+              "vx": -4.668535652959607,
+              "vz": -1.5246023883486008,
+              "speed": 4.91117476633781,
+              "face": -9.109126957963877,
+              "preferredFoot": 1,
+              "dribbleFoot": 0,
+              "touchClock": 0.28,
+              "receiveClock": 0,
+              "carryTarget": {
+                "x": -6.775567881740685,
+                "z": -9.05367153150973
+              }
+            },
+            "ball": {
+              "x": -3.313837232016422,
+              "y": 0.11,
+              "z": -6.859150695183889,
+              "vx": -4.298286326884829,
+              "vy": 0.16,
+              "vz": -1.843597724096576
+            }
+          }
+        }
+      ],
+      "stepEnd": {
+        "time": 63.44999999999768,
+        "owner": 14,
+        "ball": {
+          "x": -3.385441847575643,
+          "y": 0.11130339775021628,
+          "z": -6.889862959616832,
+          "vx": -4.294268773029384,
+          "vy": -0.003573135931254953,
+          "vz": -1.8418745366257911
+        },
+        "seed": 2186787802
+      },
+      "completeObservedPlainStateEqual": true
+    },
+    "current": {
+      "events": [
+        {
+          "before": {
+            "time": 63.44999999999768,
+            "player": {
+              "id": 14,
+              "team": 1,
+              "x": -2.210263619928338,
+              "z": -7.095388336218169,
+              "vx": -4.668535652959607,
+              "vz": -1.5246023883486008,
+              "speed": 4.91117476633781,
+              "face": -9.109126957963877,
+              "preferredFoot": 1,
+              "dribbleFoot": 0,
+              "touchClock": 0,
+              "receiveClock": 0,
+              "carryTarget": {
+                "x": -6.775567881740685,
+                "z": -9.05367153150973
+              }
+            },
+            "ball": {
+              "x": -3.313837232016422,
+              "y": 0.11,
+              "z": -6.859150695183889,
+              "vx": -6.022568190202077,
+              "vy": 0,
+              "vz": -2.5404346454408278
+            }
+          },
+          "applied": false,
+          "after": {
+            "player": {
+              "id": 14,
+              "team": 1,
+              "x": -2.210263619928338,
+              "z": -7.095388336218169,
+              "vx": -4.668535652959607,
+              "vz": -1.5246023883486008,
+              "speed": 4.91117476633781,
+              "face": -9.109126957963877,
+              "preferredFoot": 1,
+              "dribbleFoot": 0,
+              "touchClock": 0.05,
+              "receiveClock": 0,
+              "carryTarget": {
+                "x": -6.775567881740685,
+                "z": -9.05367153150973
+              }
+            },
+            "ball": {
+              "x": -3.313837232016422,
+              "y": 0.11,
+              "z": -6.859150695183889,
+              "vx": -6.022568190202077,
+              "vy": 0,
+              "vz": -2.5404346454408278
+            }
+          }
+        }
+      ],
+      "stepEnd": {
+        "time": 63.44999999999768,
+        "owner": 14,
+        "ball": {
+          "x": -3.4140007780409154,
+          "y": 0.11,
+          "z": -6.901401597871018,
+          "vx": -5.997068421062961,
+          "vy": 0,
+          "vz": -2.529678354282989
+        },
+        "seed": 2186787802
+      },
+      "completeObservedPlainStateEqual": true
+    }
+  },
+  "reproduce": {
+    "scan": "node work/stage8/natural-touch-scan.cjs balanced21 300 any-direction",
+    "fullPrefixFork": "node tools/profile-touch-feasibility.cjs --mode fork --scenario balanced21 --at 63.433333333331014 --follow-seconds 5 --output docs/validation/touch-feasibility-natural-fork.json"
+  },
+  "limits": [
+    "This selected contact is a forward-moving natural control limit, not a sharp reversal. It does not demonstrate a naturally occurring sharp reversal.",
+    "The held-intention forecast is a query at the observed real contact; the separate five-second fork records subsequent decisions and opponent interventions.",
+    "No player or ball coordinates, RNG values or opponent commands are forced. A delayed turnover does not establish successful possession."
+  ]
+}

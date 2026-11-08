@@ -1,0 +1,80 @@
+{
+  "engineSha256": "e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e",
+  "runs": [
+    {
+      "mode": "webgl",
+      "state": {
+        "time": 15.250000000000338,
+        "players": 22,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          6,
+          0
+        ],
+        "arrivalSupportPlans": 5,
+        "arrivalSupportHandoffs": 5,
+        "clock": "00:15",
+        "webgl": true
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face4.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/favicon.svg",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ],
+      "assertedChecks": {
+        "startFromTactics": true,
+        "twentyTwoPlayers": true,
+        "expectedRenderMode": true,
+        "pauseFlag": true,
+        "pausedAdvanceLeavesTimeUnchanged": true,
+        "resumeAdvancesTime": true,
+        "noScriptErrors": true
+      }
+    },
+    {
+      "mode": "2d",
+      "state": {
+        "time": 15.8333333333337,
+        "players": 22,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          6,
+          0
+        ],
+        "arrivalSupportPlans": 5,
+        "arrivalSupportHandoffs": 5,
+        "clock": "00:15",
+        "webgl": false
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face4.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ],
+      "assertedChecks": {
+        "startFromTactics": true,
+        "twentyTwoPlayers": true,
+        "expectedRenderMode": true,
+        "pauseFlag": true,
+        "pausedAdvanceLeavesTimeUnchanged": true,
+        "resumeAdvancesTime": true,
+        "noScriptErrors": true
+      }
+    }
+  ]
+}

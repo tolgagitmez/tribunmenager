@@ -1,6 +1,42 @@
-## Altıncı aşama: top gelmeden gövde hazırlığı
+## Sekizinci aşama: gövde, momentum ve ayakla ortak top kontrolü
 
-Hazırlıklı yerden pasın alıcısı artık doğrudan sonraki pas yönüne bakmıyor. Top yaklaşırken gövdesini, gelen topu önünde tutup seçilmiş çıkış yönüne de açılabilecek şekilde çeviriyor. Uzak koşuda normal koşu duruşunu koruyor. Dönüş süresi yetmezse önceki aşamanın topu yavaşlatıp toparlama davranışı çalışıyor; alım ve rakip müdahalesi gerçek temasa bağlı kalıyor.
+İlk kontrol, top sürme, top koruma ve açık oyundaki pas/vuruş hazırlığı artık aynı fiziksel uygulanabilirlik hesabını kullanır. Yakındaki bir topa erişmek tek başına keskin yön değişimi için yeterli değildir: oyuncunun mevcut hızı, gövdesi, kullanabileceği ayak ve bir sonraki temasa yetişmesi birlikte sınanır. İstenen dokunuş yetişmiyorsa gelen hızın bir kısmı korunur veya dokunuş ertelenir; top normal fizik altında ilerler. Alım ya da top koruma rakip müdahalesini engellemez.
+
+Hesap gerçek hareket/enerji ve BallPhysics kurallarıyla, en fazla **0,65 saniye / 39 sabit adım** boyunca kopyada çalışır. Pas hazırlığı, kullanılan ayağın mevcut **0,14 saniyelik** temas/toparlanma saatini dikkate alır; diğer ayak boşsa sırf top sürme ritmi sürüyor diye pası bekletmez. Gerçek pas çıkışı yine hazır ayak, gövde yönü ve topun temas noktasına gelmesini gerektirir. Bu, yerden ayak kontrolünün ortak modelidir; tam bir biyomekanik yürüyüş modeli değildir.
+
+```sh
+npm ci
+npm run test:stage8
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+`test:stage8`, önceki aşamalar ve GitHub alıcı yönü uzlaştırmasına ait **119 kontrolü** ve **35 yeni ortak dokunuş testini** birlikte çalıştırır: toplam **154 test**. Canlı dokunuş ile sonraki gerçek temasın kare sırası, sağ/sol ayak, koruma, ilk kontrol ve pas hazırlığı sınanır. Geçen fizik senaryoları genel pas veya hücum kalitesi artışı göstermez; karşılaştırmalar ve ölçüm sınırları [DOGRULAMA.md](DOGRULAMA.md), yöntem [ARCHITECTURE.md](ARCHITECTURE.md) içindedir.
+
+GitHub `main` üzerindeki `82414b9` sürümünün alıcıyı top yaklaşırken açma davranışı, yerel hazırlık tazeliği ve tahmin saati kontrolleriyle birleştirildi. Ortak dokunuşun karşılaştırma tabanı bu birleşimden sonra, fizik değişikliğinden önce saklanan kaynaktır; Git HEAD değildir. Kaynakların ayrımı ve SHA-256 değerleri [taban kaydı](docs/validation/baselines/README.md) içinde korunur.
+
+Yerel sunucunun `tactics.html` sayfasından maçı başlat. Eksik özgün data/assets nedeniyle mevcut prosedürel WebGL veya 2D yedek çizim kullanılır; statik sunucu transfer/günlük lig API'sini açmaz. `server.py` hâlâ eksik transfer kuralları ve oyuncu kataloğunu gerektirir. Yeni alanlar yalnız geçici maç durumundadır; kayıt dönüşümü gerekmez. Mevcut tarayıcı profili/adresini, `tribun-manager-pro09` anahtarını ve SQLite dosyanı koru. Önceki aşamalar aşağıda tarihsel kayıt olarak bırakılmıştır.
+
+---
+
+## Yedinci aşama: alımdan sonra ters bekleme kararını sınama
+
+Oyuncu, alımdan sonraki **1,5 saniyede** hâlâ geçerli bir taşıma niyeti varken koşusunun tersine bir bekleme (`hold`) kararı verirse, yakın veya yaklaşan baskı altında iki komut karşılaştırılır. Mevcut `controlPreparation`, her komutu en fazla **0,75 saniye** gerçek hareket, top ve müdahale kurallarıyla kopyada yürütür. Yeni bekleme müdahaleye açılıyor, önceki hedefe devam ise müdahalesiz ve gerçek bir kontrol dokunuşuyla uygulanabiliyorsa oyuncu o hedefi sürdürür. Güvenli bekleme korunur; önceki hedef de tehlikeliyse körü körüne devam edilmez.
+
+`npm run test:stage7` ile **115 test** çalışır: önceki 101 kontrol ve 14 yeni test. Aynı durumdan karşılaştırmalar, çoklu maç ölçümleri ve sınırlar [DOGRULAMA.md](DOGRULAMA.md) başındadır. Bu kısa karar önizlemesi, sonraki hamlelerde top kaybı olmayacağını veya genel hücum kalitesinin arttığını göstermez.
+
+Yerel maç için proje klasöründe `python3 -m http.server 8000 --bind 127.0.0.1` çalıştırıp aynı sunucunun `tactics.html` sayfasından maçı başlat. Geliştirici kontrolleri için önce `npm ci`, ardından `npm run test:stage7` kullan. Eksik özgün data/assets nedeniyle maç mevcut prosedürel WebGL veya 2D yedek çizimi kullanır; statik sunucu transfer/günlük lig API'sini açmaz. `server.py` hâlâ eksik transfer kuralları ve oyuncu kataloğunu gerektirir.
+
+Kayıt dönüşümü gerekmez. Mevcut tarayıcı profili/adresini, `tribun-manager-pro09` anahtarını ve SQLite dosyanı koru; sentetik denemeyi ayrı profilde yap. Ekonomi, kayıt şeması ve ödeme/reklam kodu değişmedi. Önceki aşamalar aşağıda tarihsel kayıt olarak korunmuştur.
+
+---
+
+## Altıncı aşama: top gelmeden gövdeyi hazırlama
+
+Kendi takımının hedefli normal yerden pası ve yerden geri pasında alıcı, çıkış niyetini korurken gövdesini gelen topa en fazla **1 radyan** açık hazırlıyor. Önceden doğrudan çıkış yönüne dönmek topu oyuncunun arkasında bırakabiliyordu. Yeni yön bir hareket hedefidir: oyuncu mevcut **4,5 rad/sn** dönüş sınırını izler; gerçek alımda `firstControlContact` ayak bölgesini yine kontrol eder. Hazırlık geç kalırsa top hâlâ yavaşlatılıp normal hareketle toparlanır; hazır devam pası da gerçek vuruş hazırlığı ve ayak temasını bekler.
+
+`npm run test:stage6` ile **101 test** çalışır. Aynı durumdan olumlu ve olumsuz doğal karşılaştırmalar, çoklu maç ölçümleri ve sınırlar [DOGRULAMA.md](DOGRULAMA.md) başındadır. Bu dar gövde hazırlığı değişikliği için genel pas veya hücum kalitesi artışı iddia edilmez.
+
+Yerel oynanabilir maç için proje klasöründe:
 
 ```sh
 npm ci
@@ -8,13 +44,9 @@ npm run test:stage6
 python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Yerel sunucunun `tactics.html` sayfasından maçı başlat. Prosedürel WebGL ve 2D yedek çizim çalışır. Testler, aynı durumdan olumlu/olumsuz doğal karşılaştırmalar ve sekiz kısa maçın sonuçları [DOGRULAMA.md](DOGRULAMA.md) başında; algoritma [ARCHITECTURE.md](ARCHITECTURE.md) başındadır. Gövde açısının düzelmesi güvenli ilk dokunuş veya başarılı hücum garantisi değildir.
+Aynı sunucuda `tactics.html` sayfasından maçı başlat. Eksik özgün data/assets nedeniyle mevcut prosedürel WebGL veya 2D yedek maç modu kullanılır; bu statik sunucu transfer/günlük lig API'sini açmaz. `server.py` için eksik `data/transfer-rules.json` ve oyuncu kataloğu hâlâ gereklidir. Yerel maçın skoru gerçek gol çizgisi olaylarından üretilir; günlük lig ayrı sonuç hesabını kullanır.
 
-Kayıt dönüşümü gerekmez: `tribun-manager-pro09` anahtarını, mevcut tarayıcı profili/adresini ve SQLite dosyanı koru. Mevcut transfer oturumuna dokunmadan sentetik yerel maçı ayrı profilde deneyebilirsin. Ekonomi, transfer, oyun varlıkları, kayıt şeması ve ödeme/reklam kodu değişmedi. Gerçek ödeme/reklam sağlayıcısı etkinleştirilmedi.
-
-Eksik özgün data/assets nedeniyle transfer/günlük lig API'si hâlâ doğrulanamıyor; `server.py` depoda olmayan transfer kuralları/oyuncu kataloğunu gerektiriyor. Yerel maçın skoru gerçek gol çizgisi olaylarından oluşur ve görüntü aynı durumu çizer. Günlük lig ayrı katsayı/Poisson sonuç hesabını sürdürür.
-
-Sıradaki öncelik, bu gövde hazırlığını baskı altında ilk dokunuşun mesafesi ve çıkış zamanlamasıyla birleştirmek. Önceki aşamalar aşağıda tarihsel kayıt olarak korunmuştur.
+Kayıt dönüşümü gerekmez. `tribun-manager-pro09` anahtarını, mevcut tarayıcı profili/adresini ve SQLite dosyanı koru; sentetik yerel denemeyi ayrı profilde yap. Ekonomi, kayıt şeması, oyun varlıkları ve ödeme/reklam kodu değişmedi. Önceki aşamalar aşağıda tarihsel kayıt olarak korunmuştur.
 
 ---
 

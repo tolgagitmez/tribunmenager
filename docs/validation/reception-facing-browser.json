@@ -1,10 +1,10 @@
 {
-  "engineSha256": "8c3b3c1953ca95d02d2b78b5161131b4b1e1523a8b2b56850b4665b8fcadf703",
+  "engineSha256": "108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6",
   "runs": [
     {
       "mode": "webgl",
       "state": {
-        "time": 15.600000000000355,
+        "time": 15.23333333333367,
         "players": 22,
         "score": [
           0,
@@ -14,26 +14,36 @@
           6,
           0
         ],
-        "arrivalSupportPlans": 6,
-        "arrivalSupportHandoffs": 6,
+        "arrivalSupportPlans": 5,
+        "arrivalSupportHandoffs": 4,
         "clock": "00:15",
         "webgl": true
       },
       "scriptErrors": [],
       "missingResources": [
-        "/assets/face5.png",
+        "/assets/face6.png",
         "/assets/player/player-model-data.js",
         "/assets/ui/favicon.svg",
         "/assets/ui/fonts/barlow-condensed-semibold.ttf",
         "/assets/ui/fonts/manrope-variable.ttf",
         "/assets/ui/stadium-night.png",
         "/assets/ui/stadium-silhouette.svg"
-      ]
+      ],
+      "assertedChecks": {
+        "startFromTactics": true,
+        "twentyTwoPlayers": true,
+        "advanceAtLeast15s": true,
+        "expectedRenderMode": true,
+        "pauseFlag": true,
+        "pausedAdvanceLeavesTimeUnchanged": true,
+        "resumeAdvancesTime": true,
+        "noScriptErrors": true
+      }
     },
     {
       "mode": "2d",
       "state": {
-        "time": 15.200000000000335,
+        "time": 15.43333333333368,
         "players": 22,
         "score": [
           0,
@@ -43,20 +53,32 @@
           6,
           0
         ],
-        "arrivalSupportPlans": 6,
-        "arrivalSupportHandoffs": 6,
+        "arrivalSupportPlans": 5,
+        "arrivalSupportHandoffs": 4,
         "clock": "00:15",
         "webgl": false
       },
       "scriptErrors": [],
       "missingResources": [
-        "/assets/face5.png",
+        "/assets/face6.png",
         "/assets/player/player-model-data.js",
         "/assets/ui/fonts/barlow-condensed-semibold.ttf",
         "/assets/ui/fonts/manrope-variable.ttf",
         "/assets/ui/stadium-night.png",
         "/assets/ui/stadium-silhouette.svg"
-      ]
+      ],
+      "assertedChecks": {
+        "startFromTactics": true,
+        "twentyTwoPlayers": true,
+        "advanceAtLeast15s": true,
+        "expectedRenderMode": true,
+        "pauseFlag": true,
+        "pausedAdvanceLeavesTimeUnchanged": true,
+        "resumeAdvancesTime": true,
+        "noScriptErrors": true
+      }
     }
-  ]
+  ],
+  "method": "Real installed Chromium, separate fresh browser pages for WebGL/procedural and forced 2D. Start from tactics.html; advance 15s; actual assertions check initialized players, support plans, render mode, pause flag, no advance while paused and resumed time advancement before the run is recorded.",
+  "qaScriptSha256": "609ea28d973597613fe523348b5f9cc0f3a29cab87f55bca3832e15705305dd2"
 }

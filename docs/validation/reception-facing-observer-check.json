@@ -1,0 +1,175 @@
+{
+  "generatedAt": "2026-11-06T08:57:48.231Z",
+  "sources": {
+    "engine": "108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6",
+    "observer": "0d6a9b048fcd8d9dfe166c9c616d4d37db0426fb1b1a44146c530b741a112f11",
+    "extractedObserver": "b2dbef6254b8df7ba27ce0d06c1408185bfed717527e098602a128c2f080e475",
+    "check": "b3e7d8b2865d6d4a0e0e87a3b8c6c7b7909b818ef8229daeb8e225caa1973933"
+  },
+  "method": "Extract the exact observe() and its exact data helpers from profile-reception-facing.cjs into a VM. Run real unchanged Match.acquire and Match.setRestart methods in paired observed/plain controlled fixtures. Select timestamps explicitly; these event-boundary fixtures do not claim a naturally simulated physical reception.",
+  "tests": [
+    {
+      "name": "opponent restart at exactly 1s is in both windows",
+      "actual": {
+        "restart1": 1,
+        "restart2": 1,
+        "acquire1": 0,
+        "acquire2": 0,
+        "elapsed1": 1,
+        "elapsed2": 0,
+        "pending2": 1
+      },
+      "expected": {
+        "restart1": 1,
+        "restart2": 1,
+        "acquire1": 0,
+        "acquire2": 0,
+        "elapsed1": 1,
+        "elapsed2": 0,
+        "pending2": 1
+      },
+      "passiveStateEquality": true,
+      "passed": true
+    },
+    {
+      "name": "opponent restart at exactly 2s is in the 2s window",
+      "actual": {
+        "restart1": 0,
+        "restart2": 1,
+        "acquire1": 0,
+        "acquire2": 0,
+        "elapsed1": 1,
+        "elapsed2": 1,
+        "pending2": 0
+      },
+      "expected": {
+        "restart1": 0,
+        "restart2": 1,
+        "acquire1": 0,
+        "acquire2": 0,
+        "elapsed1": 1,
+        "elapsed2": 1,
+        "pending2": 0
+      },
+      "passiveStateEquality": true,
+      "passed": true
+    },
+    {
+      "name": "opponent acquisition at exactly 1s is in both windows",
+      "actual": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 1,
+        "acquire2": 1,
+        "elapsed1": 1,
+        "elapsed2": 0,
+        "pending2": 1
+      },
+      "expected": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 1,
+        "acquire2": 1,
+        "elapsed1": 1,
+        "elapsed2": 0,
+        "pending2": 1
+      },
+      "passiveStateEquality": true,
+      "passed": true
+    },
+    {
+      "name": "opponent acquisition at exactly 2s is in the 2s window",
+      "actual": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 0,
+        "acquire2": 1,
+        "elapsed1": 1,
+        "elapsed2": 1,
+        "pending2": 0
+      },
+      "expected": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 0,
+        "acquire2": 1,
+        "elapsed1": 1,
+        "elapsed2": 1,
+        "pending2": 0
+      },
+      "passiveStateEquality": true,
+      "passed": true
+    },
+    {
+      "name": "1.5s opponent acquisition is absent from 1s and present in 2s",
+      "actual": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 0,
+        "acquire2": 1,
+        "elapsed1": 1,
+        "elapsed2": 0,
+        "pending2": 1
+      },
+      "expected": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 0,
+        "acquire2": 1,
+        "elapsed1": 1,
+        "elapsed2": 0,
+        "pending2": 1
+      },
+      "passiveStateEquality": true,
+      "passed": true
+    },
+    {
+      "name": "an event beyond 2s is outside both windows",
+      "actual": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 0,
+        "acquire2": 0,
+        "elapsed1": 1,
+        "elapsed2": 1,
+        "pending2": 0
+      },
+      "expected": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 0,
+        "acquire2": 0,
+        "elapsed1": 1,
+        "elapsed2": 1,
+        "pending2": 0
+      },
+      "passiveStateEquality": true,
+      "passed": true
+    },
+    {
+      "name": "a 1.5s observation leaves the 2s window pending",
+      "actual": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 0,
+        "acquire2": 0,
+        "elapsed1": 1,
+        "elapsed2": 0,
+        "pending2": 1
+      },
+      "expected": {
+        "restart1": 0,
+        "restart2": 0,
+        "acquire1": 0,
+        "acquire2": 0,
+        "elapsed1": 1,
+        "elapsed2": 0,
+        "pending2": 1
+      },
+      "passiveStateEquality": true,
+      "passed": true
+    }
+  ],
+  "total": 7,
+  "verified": true
+}
