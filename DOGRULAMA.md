@@ -1,3 +1,137 @@
+# Onuncu aşama — hücum aşamaları, süre paydaları ve kapsam
+
+Bu tanılama **`codex/team-continuity-perception` inceleme dalı** içindir. Motorun karar/fizik davranışı bu aşamada değiştirilmedi; dokuzuncu aşamanın denge kabulü açık kalır. Gözlenen motor `b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3`, gözlemci `259e977fe017dd5e38f04ce0abbce765db0a689c58ec17d1709cb6b56c3db237` olur. Yayımlanmış sekizinci aşama `e16642b5…` aynı ölçüm tanımlarıyla ayrı karşılaştırma motorudur. Farklı kaynak ve konfigürasyonlardaki önceki şut toplamları bu deneyle tek örneklem gibi birleştirilmez.
+
+## Test ve motorun korunması
+
+`npm run test:stage10`: **309 geçti, 0 hata, 0 atlanan**. [Test raporu](docs/validation/attack-chain-tests.json), kaynak özetlerini ve motorun yayımlanmış dokuzuncu aşamayla byte düzeyinde aynı olduğunu kaydeder.
+
+| Test grubu | Geçen kontrol |
+| --- | ---: |
+| Önceki dokuz aşamanın regresyonları | 245 |
+| Gözlemci, olay/süre/payda ve kayıt yaşamı | 19 |
+| Bağımsız gerçek maç entegrasyonu | 15 |
+| Analiz paneli ve dışa aktarma | 7 |
+| Kontrollü hava oyunu/kaleci kapsamı | 23 |
+
+Gerçek maçta tam durum/RNG eşitliği, gözlem kancaları kaldırıldıktan sonra descriptor eşitliği, hazırlık önizlemelerine sızmama ve ek AI sorgusu olmaması sınanır. Aynı karedeki gerçek çıkış/alımın korunması, hazırlık ile fiziksel şutun ayrılması, yeni kontrol onayı, iki yönde gerçek hat/bölge geçişi, boş payda, pending/censored kayıtları ve aynı karede son aşamanın geriye düşmemesi ayrıca kapsanır. Kontrol edilmeden planlanan uzak hedef ilerleme kazanamaz. Gözlemci raporunu okumak aktif hücumu bitirmez veya maç durumunu değiştirmez.
+
+## Tanımlar ve yorum sınırı
+
+Süre, gerçek maç saati farkıdır; simülasyon hız düğmesi veya duvar saati payda değildir. Açık oyun vuruş hazırlığı ve kaleci elde topu bekletmesi oyunda; yerleştirilmiş duran top hazırlığı ve gol arası dışarıdadır. Kare başındaki sınıf kullanıldığı için olay sınırında en fazla bir adım sınıflandırma belirsizliği vardır. Kontrollü top/uçuş/boş top süreleri oyunda kalma süresini; duran top/gol arası süreleri oyun dışını böler. Örneklenmemiş uzun manuel aralıklar ayrıca tutulur.
+
+Kazanım teması ile onaylanmış kontrol ayrılır. Olağan onay, top 1,45 m içinde ve 0,65 m altında (veya ellerde) en az 0,15 sn kalınca; gerçek çıkış/temas ise kendi olayıyla oluşur. Başlangıçta 4 m'den yakın rakip varsa baskıdan çıkış değerlendirilebilir: kontrollü top ve en yakın rakibe en az 5 m mesafe 0,50 sn sürmelidir. Baskısız başlangıç başarı sayılmaz. Hat kırma, en az iki öndeki rakibin dondurulmuş ve güncel konumunu gerçek kontrolle geçmeye dayanan operasyonel geometrik yaklaşımdır; tam formasyon tanıma değildir.
+
+Son bölge takım yönünde x≥52/3 m, ceza sahası x≥35,5 m ve |z|≤20,16 m olur. Planlanan pas/koşu noktası veya yalnız havada geçen top bölgeye ulaşma sayılmaz. Başlangıçta zaten ileri olanlar `at-start/startedBeyond` ile ayrılır; panelde ilerleme payı `eligibleReached/stageEligibility` olur. Marjinal aşama kayıtları sıralı huni değildir. Profil, onaylı gerçek kazanımları başlangıç baskısı/uygun rakip hattına göre dört ayrı sıralı yolda inceler; gerekmeyen aşamayı gerçekleşmiş saymaz.
+
+Bitiş aşaması gözlenen en ileri aşamadır. Gerçek bitiş olayı ile destek, bekleme, pas hazırlığı ve ceza sahası koşusu kanıtları ayrı tutulur. Destek hedefine 3 m yakınlık uygulanabilir/açık pas kanıtı değildir. Eski bir mücadele veya iptal izi daha sonraki gerçek pas kesilmesini yanlış neden olarak örtemez. Şut çıkışı hücum bölümünü bitirir; gol/kurtarış/blok/dışarı sonucu ayrı şut kaydında çözülür. Pas/own-goal olayı fiziksel şut üretmez.
+
+`pending` hücum sürüyor, `censored` ölçüm/maç sınırında devamı gözlenemedi demektir; bunlar taktik başarısızlık tablosuna eklenmez. Paydası sıfır oran `null`/`—` olur. Aşama oranları gözlem penceresindeki ilerlemeyi anlatır; bekleyen hücumların nihai başarı oranı değildir. Ayrıntı sınırları açık kaydedilir; toplamlar korunur.
+
+## Gerçek tarayıcı kontrolü
+
+[Chromium raporu](docs/validation/attack-chain-browser.json), son `259e977f…` gözlemci kaynağında WebGL/prosedürel ve zorlanmış 2D yollarını doğrular. İki modda da 22 oyuncu, normal maç ilerlemesi ve **17 kontrol** geçti: doğru aşama payı, ileri başlangıç ayrımı, süre toplamları, gerçek pas/şut eşleşmesi, özet/rapor uyumu, panel/rapor okumalarının tam maç durumunu koruması, duraklatma, açık kullanıcı isteğiyle JSON indirme, dar görünümde indirme/yatay taşma, devam ve yeniden başlatmada temiz sayaçlar. JavaScript hatası yoktur. Eksik özgün varlık/font kaynakları raporda ayrıca listelenir; bu test eksik ayrıntılı modelin cihaz kalite kabulü değildir.
+
+Yeniden üretme: `python3 tools/check-attack-chain-browser.py`. Chromium ve Python Playwright gerekir. Analiz paneli sayısal kayıtları gösterir; kullanıcı tıklamadan JSON indirme başlatmaz.
+
+## Doğal karşılaştırmanın yöntemi
+
+`tools/profile-attack-chain.cjs` aynı sekiz sentetik konfigürasyonu, yayımlanmış sekizinci aşama ile değişmeyen dokuzuncu aşama motorunda 300 sn yürüttü. Gerçek çağrı gözlemcisi ek karar/plan sorgulamaz. Her gözlemcili koşu bağımsız gözlemcisiz koşuyla ve deterministik tekrar ile tam durum olarak karşılaştırılır; orijinal yöntem/descriptor sözleşmesi geri yüklenir. Kaynak özetleri uyuşmayan koşular birleştirilmez.
+
+Onaylı kazanım kökenlerinin sıralı yolu ile bütün kökenlerin marjinal aşama kayıtları ayrıdır. İleride başlayan kazanımlar, baskısız veya hattı uygun olmayan başlangıçlar ayrıca belirtilir. Geçiş paydaları gerçekleşen, sonraki aşamaya geçmeden biten, sırası uyumsuz ilk kilometre taşı olan, süren ve sınırda kesilen kayıtları ayırır. Bunlar karşı-olgusal neden veya bütün futbolda geçerli denge hedefi değildir.
+
+## Sekiz kısa maçta görülen zincir
+
+[Okunabilir özet](docs/validation/attack-chain-summary.json) ve [tam hücum/şut izleri — JSON.gz](docs/validation/attack-chain-matrix.json.gz), aynı sekiz konfigürasyonu iki motor için korur. **16 gözlemcili maçın tümü** bağımsız gözlemcisiz koşusuyla ve gözlemcili deterministik tekrarıyla tam durum/RNG olarak eşittir; yöntem/descriptor geri yükleme kontrolleri de geçti. Tekrarlanan doğrulama koşuları yeni bağımsız örnek diye sayılmaz. Her motorun asıl ölçüm penceresi 8 × 300 = **2400 sn** olur.
+
+| İki takımın toplamı; motor başına sekiz maç | Yayımlanmış aşama 8 (`e166…`) | İnceleme motoru (`b29…`) |
+| --- | ---: | ---: |
+| Ölçülen maç süresi (sn) | 2400 | 2400 |
+| Top oyunda (sn) | 2026,03 | 1969,70 |
+| Duran top / gol arası (sn) | 373,97 | 430,30 |
+| Kontrollü top (sn) | 1103,38 | 1100,18 |
+| Uçuş (sn) | 789,32 | 620,67 |
+| Boş top (sn) | 133,33 | 248,85 |
+| Gözlenen hücum | 89 | 169 |
+| Biten / sınırda kesilen / süren hücum | 82 / 7 / 0 | 162 / 7 / 0 |
+| Gerçek şut çıkışı | 4 | 4 |
+| Şut / 10 dakika top oyunda | 1,185 | 1,218 |
+| Şut / gözlenen hücum | %4,49 | %2,37 |
+| Tamamlanan / çıkan pas | 905 / 935 | 677 / 730 |
+| Kazanım teması / kontrolü onaylanan | 60 / 53 | 137 / 120 |
+
+İki motorda da dört şut vardır; süre paydasıyla iki takım toplam şut yoğunluğu yaklaşık **1,185 → 1,218 / 10 dakika top oyunda** olur. Buna karşılık hücum sayısı 89 → 169 olduğundan şut/gözlenen hücum %4,49 → %2,37 olur. Bu bir tanılama sonucudur; onuncu aşama motoru değiştirmedi. Bir şut sayısını veya tek oranı futbol dengesi hükmüne çevirmek uygun değildir. Her motorda yedi hücum maç sınırında kesilmiş, örneklenmemiş süre sıfır kalmıştır.
+
+### Sıralı kazanım yolu ve asıl inceleme noktası
+
+Aşağıdaki kohort yalnız **kontrolü onaylanmış, başlangıçta son bölgede olmayan, başlangıç baskısı ve uygun rakip hattı bulunan gerçek kazanımlardır**. Diğer kökenler ve gerekmeyen düğümleri atlayan üç ayrı kazanım yolu tam özette korunur.
+
+| Sıralı ilk kayıt | Aşama 8 | İnceleme motoru |
+| --- | ---: | ---: |
+| Onaylı kazanım | 43 | 100 |
+| Ardından baskıdan çıkış | 26 | 70 |
+| Ardından hat kırma | 11 | 29 |
+| Ardından son bölge | 1 | 3 |
+| Ardından ceza sahası | 0 | 1 |
+| Ardından şut | 0 | 1 |
+
+İnceleme motorunda **hat kırma → son bölge** geçişine giren 29 hücumun üçü sıradaki ilk kayda ulaştı. Kalanların **21'i bu kayıt olmadan bitti**, dördünün ilk bölge/hat kayıt sırası bu dar yol ile uyumsuzdu, biri maç sınırında kesildi. Dolayısıyla 26 kesin kayıp yazılmaz. Biten 21 örnekte altı mücadele sonrası kayıp, altı pasın rakibe geçmesi, üç diğer rakip kontrolü ve **altı kazanılmış faul** vardır: 15 top kaybı ile takımda duran topla devam eden altı bölüm ayrıdır. Bu kohort hat kırma sonrasındaki bağlantıyı incelemeyi önceliklendirir; bütün hücumların tek nedeni olduğu sonucunu vermez.
+
+Bu 21 hücumun tüm aşamalarında 81 bekleme kararı ve 34,42 sn bekleme; 0,38 sn destek görevi yokluğu, 18,92 sn hedefine uzak destek ve 237,42 sn hedefine yakın destek kaydedildi. Süreler yalnız hat kırma sonrası aralığa ait değildir. Yakın destek güvenli/uygulanabilir pas demek olmadığından bu sayılar gereksiz beklemeyi veya kötü pas tercihini kanıtlamaz; ilgili karar/temas izlerine dönmek için işaret sağlar.
+
+### Biten bölümün en ileri aşaması ve saha kanıtları
+
+Bu tablo bütün kökenleri içerir; başlangıç konumu, kazanılan faul veya şutla bitiş de bölüm sonudur. Sansürlü kayıtlar tabloya alınmaz. Bütün bitişleri top kaybı saymak yanlış olur.
+
+| Bitişteki en ileri aşama | Aşama 8 | İnceleme motoru |
+| --- | ---: | ---: |
+| İlk ilerleme kaydı öncesi | 19 | 35 |
+| Kazanım | 20 | 32 |
+| Baskıdan çıkış | 9 | 31 |
+| Hat kırma | 12 | 33 |
+| Son bölge | 11 | 23 |
+| Ceza sahası | 7 | 4 |
+| Şut çıkışı | 4 | 4 |
+
+İnceleme motorunda bütün bölümlerin terminal olayları 74 mücadele sonrası kayıp, 40 pasın rakibe geçmesi, 22 diğer rakip kontrolü, 19 kazanılan faul, iki rakibe aut, bir hazırlık iptali sonrası kayıp ve dört şut çıkışıdır. Hat kırma en ileri aşamasında biten 33 bölümde 12 mücadele sonrası kayıp, sekiz pas kesilmesi, altı diğer rakip kontrolü ve yedi kazanılan faul bulunur. İlk ilerleme kaydı öncesindeki 35 bitiş de erken kontrol/bağlantı incelemesini gerekli kılar.
+
+| Açıklayıcı kayıt; tek başına neden değildir | Aşama 8 | İnceleme motoru |
+| --- | ---: | ---: |
+| Bekleme kararı / bekleme süresi (sn) | 235 / 106,45 | 303 / 131,03 |
+| Destek görevi yok / hedefine uzak / hedefine yakın (sn) | 1,12 / 67,35 / 1034,92 | 2,90 / 92,22 / 1005,07 |
+| Gerçek pas hazırlığı iptali | 4 | 5 |
+| Atanmış hücum koşusu görevi / ceza sahasında görülen görevli | 180 / 16 | 286 / 6 |
+
+Son satırın ham alanları `boxRunnerCommands` ve `boxRunnerArrivals` adını korur. Bunlar `box-run`/`cutback-support` yanında `channel-run`/`penetration` görevlerini de kapsar; hedefin ceza sahası içinde olması gerekmez. Görülme sayısı, bu göreve atanmış oyuncunun ceza sahasında en az bir kez gözlenmesidir; önceden orada bulunan oyuncu da dahildir. **Gerçek yeni ceza sahası girişi veya yalnız kutuya yöneltilmiş koşu emri değildir; 6/286 bir varış başarı oranı olarak kullanılamaz.**
+
+### Doğal hava oyunu ve kaleci örneklerinin sınırı
+
+Aşama 8'de beş orta çıkışı/dört kafa teması, bir kafa şutu, üç kafayla pas ve bir başarılı geriye çıkarma görülür. İnceleme motorunda iki orta çıkışı/iki kafa teması, sıfır kafa şutu, bir kafayla pas ve sıfır geriye çıkarma vardır. İki motorda da gerçek ofsayt olayı yoktur; aşama 8'de bir uçuşta bayraklı oyuncu bulunmuş fakat o oyuncuyla bayraklı temas gerçekleşmemiştir. Kalecinin işlediği fırsat anahtarı 5 → 6, hazırlık 3 → 3; iki motorda da tutuş ve çelme sıfırdır. Bunlar tüm olası kaleci fırsatlarının veya genel kaleci kalitesinin paydaları değildir.
+
+Kayıtlar hava/kaleci yollarının az örneklendiğini gösterir; bozukluk hükmü vermez. Aşama 8'deki iki golün biri fiziksel şutla, biri şut olmayan gol olayıyla ilişkilidir; bunları şut/gol dönüşümünde birleştirmemek gerekir. Kontrollü kapsam aşağıda ayrı tutulur.
+
+### Arşiv ve yeniden üretme
+
+Tam JSON arşivi **6.728.052 byte** açılmış içerik ve **447.838 byte** gzip dosyasıdır; hiçbir hücum/şut izi çıkarılmamıştır. Ham SHA-256 `853c73c9c0bc5e2c689d810c2556ff07bb4a9e8bb48c69a4c9a739e4c1b409f6`, gzip SHA-256 `d6e5f8b2a15b9d45145e6eafee5d3519b2cc48cd9d9a92e8abcac05d82ce1003` olur. [Okunabilir özet](docs/validation/attack-chain-summary.json) her senaryonun normalize sayılarını, kaynakları ve bütün tekrar doğrulamalarını saklar. Rapor üretim saati maç süresi değildir.
+
+```sh
+node tools/profile-attack-chain.cjs --seconds 300 --engine both --output work/stage10/attack-chain-matrix.raw.json
+node tools/check-attacking-coverage.cjs
+python3 tools/check-attack-chain-browser.py
+```
+
+Yeni örneklem önceliği, kontrol onayından önceki erken bitişleri ve baskıdan çıkış/hat kırma sonrası gerçek pas bağlantısını aynı pozisyon izinden incelemektir. Destek hedefi yakınlığı, oyuncunun gördüğü baskı ve vuruşun fiziksel uygulanabilirliği birlikte değerlendirilmelidir. Ceza sahasına yeni giriş, orada önceden bulunmadan ayrılmalı; hava/kaleci kalitesi daha çeşitli doğal uçuşlarla ve eşleştirilmiş kontrollü örneklerle ölçülmelidir. Tanılama bu incelemeyi görünür kılar; bu aşamada davranış iyileştirmesi yapıldığı iddia edilmez.
+
+## Kontrollü hava oyunu ve kaleci kapsamı
+
+[attacking-coverage.json](docs/validation/attacking-coverage.json), **21 seçilmiş durumu** doğal maçlardan ayrı tutar. Beş gerçek orta çıkışında dört uygun kafa teması: iki kafa şutu, bir kafayla pas, bir savunma uzaklaştırması; bir örnekte uygun kafa teması yoktur. Dört geriye çıkarma örneği takım alımı, rakip alımı ve sert kontrolde boşa top yollarını kapsar. Gerçek şut bloğu ve ofsayt/onside teması ayrı doğrulanır.
+
+Dokuz kaleci tehdit uçuşunun sekizi rakip şutu, biri geri pastır; dört tutuş, iki çelme, bir ayak kontrolü ve iki temas öncesi gol görülür. GK 60/94 eşleştirmesi aynı 30 m/sn top ve gerçek iki el riginde yalnız nitelik farkını sınar. Bütün seçilmiş durumlar tam Match/RNG tekrar eşitliğiyle doğrulandı. Alan uçuşları gerçek hazırlık/çıkıştan sonra sabit gövdeli top adımlarını; kaleci örnekleri normal `Match.step` görüş/tepki/el yollarını kullanır. Oyuncu uçuş sırasında taşınmaz, sonuç veya RNG zorlanmaz.
+
+`node tools/check-attacking-coverage.cjs` kapsam raporunu yeniden üretir. Bu seçilmiş örneklerin tutuş/kafa oranları doğal frekans veya genel kalite oranı değildir. Doğal rapordaki sıfır fırsat da özelliğin eksik/bozuk olduğu hükmü vermez.
+
+---
+
 # Dokuzuncu aşama — görev devamlılığı ve oyuncu algısı
 
 Bu uygulama **`codex/team-continuity-perception` inceleme dalı** içindir. İşlev/regresyon kontrolleri geçti; aşağıdaki doğal maç sonuçları nedeniyle maç dengesi `main` için kabul edilmedi.

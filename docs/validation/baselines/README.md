@@ -1,3 +1,18 @@
+# Stage 9 engine retained for stage 10 observation
+
+`stage9-football-sim.js.gz` preserves the exact engine published on the review branch in [commit c64270f4c8a861fb1118fdd49d2b3d46cb7c2fd1](https://github.com/tolgagitmez/tribunmenager/commit/c64270f4c8a861fb1118fdd49d2b3d46cb7c2fd1). Its decompressed SHA-256 is `b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3`. Stage 10 leaves `football-sim.js` byte-identical; the passive observer, adapter and presentation files have separate hashes in the test/browser reports.
+
+`tools/profile-attack-chain.cjs` compares the unchanged current engine with the published stage 8 `e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e` source, under identical configurations and observation definitions. The current engine includes the stage 9 task/perception behavior; the baseline does not. This comparison explains their existing attack production rather than claiming that instrumentation improves either engine's quality. The review branch remains subject to match-balance calibration before `main` acceptance.
+
+The natural profile preserves full episode and shot traces in standard JSON, published as a deterministic gzip archive. A separate readable summary records source hashes, raw/archive hashes, per-case normalized aggregates and complete-state observation/replay verification. Compression removes no trace data. The profile's report-generation timestamp is not a simulated-time denominator. Controlled aerial/keeper coverage is a separate selected dataset and is not pooled into natural conversion/save rates.
+
+Earlier matrices retain their own source/configuration/window definitions. Their raw shot totals must not be treated as one experiment or compared without in-play exposure and attack denominators.
+
+
+Final natural artifacts are [attack-chain-summary.json](../attack-chain-summary.json) and [attack-chain-matrix.json.gz](../attack-chain-matrix.json.gz). The archive preserves all 6,728,052 raw JSON bytes in 447,838 gzip bytes. Raw SHA-256: `853c73c9c0bc5e2c689d810c2556ff07bb4a9e8bb48c69a4c9a739e4c1b409f6`; gzip SHA-256: `d6e5f8b2a15b9d45145e6eafee5d3519b2cc48cd9d9a92e8abcac05d82ce1003`. All eight scenarios for both engines passed observed/plain full-state equality, deterministic replay and descriptor restoration. Each engine contributes 2400 observed seconds; verification repeats are not additional independent matches. Both produced four physical shots, but their in-play exposures differ, so raw totals alone do not describe attack production.
+
+---
+
 # Dokuzuncu aşama için yayımlanmış sekizinci aşama tabanı
 
 `stage8-football-sim.js.gz`, dokuzuncu aşama karşılaştırması için yayımlanmış sekizinci aşama motorunu birebir korur. Açılmış SHA-256 değeri `e16642b50e1d0b7d31cdc375dea7a83af85cf3da194a28362b65007f8420ad2e` olur. Kaynak, GitHub `main` üzerindeki [68d0ea748b8ad15d26f22be920a12836fae4ada9](https://github.com/tolgagitmez/tribunmenager/commit/68d0ea748b8ad15d26f22be920a12836fae4ada9) commit'iyle doğrulanmıştır.

@@ -1,3 +1,39 @@
+# Onuncu aşama — pasif hücum tanılaması
+
+`attack-diagnostics.js`, CommonJS/tarayıcı modülü olarak gerçek maç çağrılarını gözler. `attach(match)` asıl yöntemleri aynı `this`, argümanlar, dönüş değeri ve hata davranışıyla iletir. Kalıtılan yöntemlerin gözlem kancaları `non-enumerable` olur; hazırlık önizlemelerinin `Object.assign` kopyalarına taşınmaz. Önceden bir own-method override varsa descriptor özellikleri korunur; başka bir `this` ile çalışan kopya yalnız asıl yöntemi çağırır ve olayı kaydetmez. `detach()` önceki own-property descriptor'larını ve kalıtım görünürlüğünü birebir geri yükler. Gözlemci ek karar, plan, pas seçeneği, kaleci tahmini veya RNG sorgusu çalıştırmaz.
+
+Uygulama normal 60 Hz adımını gözlemcinin `step` yolu üzerinden yalnız bir kez yürütür. Süre sınıfı karenin başındaki durumdan, süre miktarı gerçek maç saati farkından alınır. Açık oyundaki vuruş hazırlığı ve kaleci elde topu bekletmesi oyunda; yerleştirilmiş duran top hazırlığı ve gol arası oyunda değildir. Olay sınırında sınıflandırma belirsizliği en fazla verilen bir adımdır. Kontrollü top, uçuş ve boştaki top süreleri oyunda kalma süresini böler. Uzun, örneklenmemiş manuel aralıklar ayrı kaydedilir.
+
+Hücum bölümleri gerçek kazanım, duran top çıkışı, ölçüm başladığında sürmekte olan sahiplik veya aynı takımın şut dönüşü kontrolü kökenlerini taşır. Başlangıç anındaki bir alım teması ile yerleşmiş kontrol ayrı kayıtlarıdır: normal kontrol onayı en az 0,15 sn süreyle top merkezinin 1,45 m içinde ve 0,65 m altında olmasıyla veya gerçek çıkışla oluşur. Gerçek kafa teması ayrı fiziksel temas kanıtıdır. Fiziksel şut bölümü bitirir; şutun gol/kurtarış/blok/dışarı sonucu sonraki olaylarda ayrı çözülür.
+
+| Aşama | Kaydedilen gözlem |
+| --- | --- |
+| Top kazanımı | Gerçek karşı takım kazanım teması; kontrol onayı ayrıca tutulur |
+| Baskıdan çıkış | Başlangıçta 4 m'den yakında saha rakibi bulunması gerekir; kontrollü top ve en yakın rakibe en az 5 m mesafe 0,50 sn sürer |
+| Hat kırma | Gerçek başlangıç/çıkışta önde ve 12 m yanal bantta en az iki rakip kimliği dondurulur; kontrol en az 2 m ilerler ve her iki rakibin hem eski hem güncel derinliğini en az 1 m geçer |
+| Son bölge | Takım yönüne göre fiziksel top x konumu en az 52/3 m; olağan örneklemede 0,15 sn kontrollü varış |
+| Ceza sahası | Takım yönünde x en az 35,5 m ve mutlak z en fazla 20,16 m; aynı gerçek kontrol/temas kuralı |
+| Şut | Gerçek ayak çıkışı veya gerçek kafa şutuyla şut sayısının artması; hazırlık sayılmaz |
+
+Hat kırma, ölçülebilir geometrik bir yaklaşımdır; sertifikalı formasyon/hat tanıma değildir. Bölge başında başlayan bir hücumun giriş kaydı `at-start` olarak ayrılır. `stageCounts` bütün gözlenen kayıtları, `eligibleReached/stageEligibility` başlangıçta zaten ileride olanları dışlayan ölçüm penceresi ilerlemesini verir. Bunlar otomatik sıralı huni sayılmaz; doğal profil onaylı kazanım kökenlerini baskı/hat uygunluğuna göre ayırarak sıralı yolları ayrıca çıkarır.
+
+Son aşama sıralamada ulaşılan en ileri aşama olur; aynı karede daha erken bir aşamanın sonradan doğrulanması bunu geriye düşürmez. Gerçek bitiş nedeni ile gözlemsel açıklama ayrı saklanır. Rakip kontrolü, pasın rakibe geçmesi, dışarı, ofsayt, mücadele/kontrol toparlama sonrası kayıp, duran top, gol ve şut çıkışı olay kayıtlarıdır. Destek hedefine yakınlık (3 m), bekleme süresi/kararı, hareketsiz kontrol, atanmış hücum koşusu görevi/ceza sahasında görülme ve hazırlık iptali ek kanıttır. Destek yakınlığı açık ve uygulanabilir pas garantisi değildir.
+
+Rapor sorgusu aktif hücumu bitirmez. Ölçüm sonunda süren kayıt `pending`, maç/pencere sınırında gözlenemeyen devam `censored` olarak ayrılır; taktik başarısızlık tablosuna eklenmez. Paydası sıfır oran `null`, ekranda `—` olur. Ayrıntılı bölüm/şut sınırı ve bölüm içi gözlem kesilmesi raporda açıklanır; toplamlar korunur. `summary()` canlı ekrana toplamlar ve son kayıtları, `report()` JSON dışa aktarmaya ayrıntıları verir.
+
+`attack-analysis-ui.js` rapor okur; oyuncu/AI durumuna yazmaz. `match3d.js` gözlemci yaşamını maç başlatma/yeniden başlatma ile yönetir. Her yeni maç eski kancaları kaldırıp yeni sayaçlarla başlar. Fiziksel motor, kayıt şeması ve günlük lig sonucu hesabı bu tanılama için değiştirilmez.
+
+Tam doğal izler standart JSON'un deterministik gzip arşivi olarak, okunabilir özet ayrı JSON olarak yayımlanır. Arşiv ve açılmış içerik için SHA-256, kaynaklar ve gözlemci/plain/tekrar doğrulamaları özette korunur; sıkıştırma ayrıntı atmaz. Rapora yazılan üretim saati deneyin ölçüm paydası değildir. Doğal örneklem ile seçilmiş kontrollü kapsam, sayaç veya kalite oranında birleştirilmez.
+
+Kaynak sınırı: `football-sim.js` SHA-256 değeri `b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3` olarak aynı kalır. Gözlemci `259e977f…`, arayüz `5aaa31a8…` ayrı kaynaklardır; tam özetler test ve tarayıcı raporlarında bulunur.
+
+
+`boxRunnerCommands/boxRunnerArrivals` ham adları korunur: ilk alan box-run/cutback-support/channel-run/penetration görevlerini, ikinci alan bu görevlinin ceza sahasında en az bir kez görülmesini sayar. Görev hedefi kutu dışında olabilir ve oyuncu zaten ceza sahasında bulunabilir; yeni giriş veya kutuya koşu başarı oranı çıkarılmaz.
+
+Son doğal deneyin [okunabilir özeti](docs/validation/attack-chain-summary.json), 8 × 300 sn × iki motorda gözlemci/plain/tekrar ve descriptor kontrollerini doğrular. [Tam JSON.gz](docs/validation/attack-chain-matrix.json.gz) bütün bölüm ve şut izlerini korur. İki motorda dört şut, farklı oyunda kalma süreleriyle 10 dakika başına yaklaşık 1,185/1,218 toplam şuttur. Bu, motor davranışı değişikliği veya denge kabulü değildir; aşama/olay tanımlarıyla mevcut davranışı açıklar.
+
+---
+
 # Dokuzuncu aşama — görev yaşamı, dört evre ve oyuncu algısı
 
 Destek, verkaç/bindirme, taşıma, pres ve markaj tek bir hedefi tekrar seçmekten öte bir görev yaşamına bağlandı. `team-intent.js` görev süresini ve geçişi, `player-perception.js` rakibin hangi gözlemden bilindiğini yönetir. İki modül CommonJS ve tarayıcı UMD olarak yüklenir; `match.html` bunları `football-sim.js` öncesinde açar. Yeni durum yalnız maç belleğindedir.

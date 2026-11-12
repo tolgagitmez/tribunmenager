@@ -1,3 +1,26 @@
+## Onuncu aşama: hücum zincirinin nerede bittiğini görme
+
+İnceleme dalı **`codex/team-continuity-perception`** ve [taslak PR #1](https://github.com/tolgagitmez/tribunmenager/pull/1) üzerinde geliştirilir. Bu aşama hücumu ölçer; önceki görev/algı sürümünün maç dengesi kabulünü veya `main` geçişini otomatik sağlamaz.
+
+Maç ekranındaki **Hücum analizi**, top kazanımı → baskıdan çıkış → hat kırma → son bölge → ceza sahası → gerçek şut çıkışını, hücumun bittiği aşama ve olayla birlikte gösterir. Topun oyunda kaldığı süre, duran top/ara süresi ve 10 dakika top oyunda başına şut birlikte okunur. **Analizi JSON olarak indir**, hücum izlerini ve destek/bekleme/koşu kayıtlarını dışarı verir.
+
+Planlanan hedef veya şut hazırlığı gerçekleşmiş ilerleme sayılmaz. İleride başlayan hücumlar, baskısız başlangıçlar ve ölçüm sonunda süren hücumlar ayrı tutulur. Destek mesafesi veya bekleme kaydı olası açıklamadır; tek başına kötü tercih ya da gereksiz bekleme kanıtı değildir.
+
+```sh
+npm ci
+npm run test:stage10
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+Yerel sunucuda `tactics.html` üzerinden maçı başlat; **Hücum analizi** bağlantısını kullan. **309 test geçti; 0 hata, 0 atlanan.** Gerçek Chromium'da WebGL/prosedürel ve 2D panel, süre paydaları, JSON indirme, duraklat/devam ve yeniden başlatma kontrolleri geçti. Ayrıca 21 kontrollü hava oyunu/kaleci durumu ayrı sınandı; bunlar doğal başarı oranı sayılmaz. Kanıtlar ve ölçüm sınırları [DOGRULAMA.md](DOGRULAMA.md), yöntem [ARCHITECTURE.md](ARCHITECTURE.md) içindedir.
+
+`football-sim.js`, dokuzuncu aşamanın `b29a8f9b…` kaynağıyla byte düzeyinde aynıdır. Ölçüm ek AI veya RNG sorgusu çalıştırmaz. Kayıt dönüşümü gerekmez; transfer ve günlük lig motoru değişmedi. Özgün data/assets eksikleri ve önceki denge kalibrasyonu işleri sürer. Aşağıdaki aşamalar tarihsel kayıttır.
+
+
+Aynı sekiz kısa maçta iki motorda da dört şut çıktı; iki takım toplamında 10 dakika top oyunda başına yaklaşık **1,185 / 1,218 şut** oldu. Güncel inceleme motorunun baskılı ve uygun hatlı onaylı kazanımlarında sıralı iz **100 → 70 → 29 → 3 → 1 → 1** olur. Hat kırma sonrası son bölgeye sırayla geçemeden biten 21 bölümün 15'i top kaybı, altısı kazanılmış fauldür; ayrıca dört ilk-kayıt sıra uyumsuzluğu ve bir sansürlü kayıt ayrıdır. Ayrıntılar [okunabilir özet](docs/validation/attack-chain-summary.json), [tam JSON.gz izleri](docs/validation/attack-chain-matrix.json.gz) ve DOGRULAMA içindedir. Bu ölçüm hangi pozisyonların inceleneceğini gösterir; tek başına kötü kararın nedenini kanıtlamaz.
+
+---
+
 ## Dokuzuncu aşama: görev devamlılığı ve oyuncu algısı
 
 İnceleme dalı: **`codex/team-continuity-perception`**. Ortak görev/algı uygulaması ve regresyon kontrolleri tamamlandı; maç dengesi `main` için henüz kabul edilmedi. Aşağıdaki komutlar bu inceleme sürümü içindir.

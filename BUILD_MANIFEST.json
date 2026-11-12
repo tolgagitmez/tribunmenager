@@ -1,8 +1,9 @@
 {
-  "version": "1.28.0",
-  "simulationStage": 9,
+  "version": "1.29.0",
+  "simulationStage": 10,
   "simulationSHA256": "b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3",
-  "description": "Every distributed file except this manifest. Review build pending match-balance calibration: shared task lifetimes, four team phases and local opponent observations with preserved stage8 ground-touch physics. Original data/assets remain unavailable. Dependencies, scratch files, Git metadata, caches and local databases are excluded.",
+  "diagnosticsSHA256": "259e977fe017dd5e38f04ce0abbce765db0a689c58ec17d1709cb6b56c3db237",
+  "description": "Every distributed file except this manifest. Passive attack-chain diagnostics and live analysis/export; the stage9 review engine is byte-identical and match-balance calibration remains open. Full natural traces are retained as deterministic gzip. Dependencies, scratch files, Git metadata, caches and local databases are excluded.",
   "files": [
     {
       "path": ".gitignore",
@@ -16,8 +17,8 @@
     },
     {
       "path": "ARCHITECTURE.md",
-      "bytes": 48459,
-      "sha256": "9f8bd7a9865c5ef7b69dcf08c825ed81358ace80aec9865bf20dd8fd1899106e"
+      "bytes": 54709,
+      "sha256": "826ece073a972a28b29116670ef47e4e498d4c136805a330417027b22191470a"
     },
     {
       "path": "ASSET_SOURCES.md",
@@ -41,8 +42,8 @@
     },
     {
       "path": "DOGRULAMA.md",
-      "bytes": 101735,
-      "sha256": "2c419a5434c3993aa9428f8f3d5efd06a498dc076a2ce0aa08f7fefad5c79fc9"
+      "bytes": 117216,
+      "sha256": "ea9dc0ecca4805fe3fe3a90c3caf40f038bfaf868ed83f66207a4239b09a1b45"
     },
     {
       "path": "FIFA_REFERANSI.md",
@@ -51,8 +52,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 24616,
-      "sha256": "2603771fe4115bca6da17fdc9e7375d5851a260489b371f1d787831bb4f52855"
+      "bytes": 27406,
+      "sha256": "955c2a7c8800bdb1fbca3a687ff64f7fd8846f27db1bfb28f434f53d4f1cdb92"
     },
     {
       "path": "RELEASE_NOTES.md",
@@ -61,8 +62,8 @@
     },
     {
       "path": "SIMULASYON_YOL_HARITASI.md",
-      "bytes": 24690,
-      "sha256": "582c74277256ca06191960ef2d59b00b14df13ebd315c8e98834af457ab53d46"
+      "bytes": 27600,
+      "sha256": "815b89cf10160837ed59fcbc547d1b25f7b803b58ba80bcca83391873a2bbe35"
     },
     {
       "path": "TRANSFER_SISTEMI.md",
@@ -90,14 +91,49 @@
       "sha256": "d9294c0205fd811f20364676d6636e11949fb84d1b42d36963677e74ebffc469"
     },
     {
+      "path": "attack-analysis-ui.js",
+      "bytes": 7920,
+      "sha256": "5aaa31a880ad7a43030b2295dd59a6f6c181ee436d03cc695c8c8d1ad1a62f05"
+    },
+    {
+      "path": "attack-diagnostics.js",
+      "bytes": 31530,
+      "sha256": "259e977fe017dd5e38f04ce0abbce765db0a689c58ec17d1709cb6b56c3db237"
+    },
+    {
       "path": "club-data.js",
       "bytes": 3875,
       "sha256": "416ec501f2fd9c7bbe1d506f555f07b4b15b9318aa2d2edffd9e37555cc7124f"
     },
     {
+      "path": "docs/validation/attack-chain-browser.json",
+      "bytes": 27670,
+      "sha256": "a5fb67178bad48d08432fc8291d867c2216883775d92017e9c685dfae3f70489"
+    },
+    {
+      "path": "docs/validation/attack-chain-matrix.json.gz",
+      "bytes": 447838,
+      "sha256": "d6e5f8b2a15b9d45145e6eafee5d3519b2cc48cd9d9a92e8abcac05d82ce1003"
+    },
+    {
+      "path": "docs/validation/attack-chain-summary.json",
+      "bytes": 345279,
+      "sha256": "1ba359b02890d2895039e4e3417d2f78eeabfa508438e7fcea03c5529d8d5cbd"
+    },
+    {
+      "path": "docs/validation/attack-chain-tests.json",
+      "bytes": 3109,
+      "sha256": "26dae17d55c2714b9ab7bdd738c73c2912d934600f8fe5590ec5f588b013ec19"
+    },
+    {
+      "path": "docs/validation/attacking-coverage.json",
+      "bytes": 217660,
+      "sha256": "a5114ff1793ead26433873c12ddfe83768b396f1948e195c24407a0b162c5282"
+    },
+    {
       "path": "docs/validation/baselines/README.md",
-      "bytes": 6976,
-      "sha256": "221acad381305fe21a75a3d81b0e11365d82ba77e1e9d8229ef490735cb15cdc"
+      "bytes": 9524,
+      "sha256": "bbcd74425fc5d668b24532260938e78b192b1988ef768b707764dde02a72fb2c"
     },
     {
       "path": "docs/validation/baselines/remote-main-82414b9-football-sim.js.gz",
@@ -148,6 +184,11 @@
       "path": "docs/validation/baselines/stage8-integration-base.js.gz",
       "bytes": 51419,
       "sha256": "7f745f1f575e714c65a7c71cccbaa400a6eb20d9b6a9c762a2f7c0562b6b7631"
+    },
+    {
+      "path": "docs/validation/baselines/stage9-football-sim.js.gz",
+      "bytes": 56486,
+      "sha256": "cf108d77dea0b0535f149a48092a395e76df57f5a42a4fbd61764b5b90823661"
     },
     {
       "path": "docs/validation/control-exit-browser.json",
@@ -451,28 +492,28 @@
     },
     {
       "path": "match.html",
-      "bytes": 8475,
-      "sha256": "35d837d741be75f340b124973808100055a0108448a98d7357b0f4e8a3b130bc"
+      "bytes": 8741,
+      "sha256": "11d181335f3fb702e94227c317fbb4870f83d9f87d62f59a4c055176d2368aa8"
     },
     {
       "path": "match3d.css",
-      "bytes": 13407,
-      "sha256": "11f3cb5c6a5efd4f21e2f293f15a10ad4938d2301aed3b9f1a1096c988785d69"
+      "bytes": 15234,
+      "sha256": "65d7578af07258fb400e74fe382d7a68c1d6648e5fa6ba5796096e9ceaeec91f"
     },
     {
       "path": "match3d.js",
-      "bytes": 12514,
-      "sha256": "1aadf489df472be0e9784ddee5039fa54b6fb41a891d1f0dbf5f82b206972ac4"
+      "bytes": 12932,
+      "sha256": "a5c39c7beaf01c109a1337a16caa46f526b793173b4b5d2dbe07e6edcf4b3c23"
     },
     {
       "path": "package-lock.json",
       "bytes": 18410,
-      "sha256": "a399bd2d511a155a426ba3267639f7e37e7d62a407e72bc45f9dd61107de53dd"
+      "sha256": "0d8cdbb70ba886826eba817b3052bda494fc49f0e33a2ea6d2e4a266351394e1"
     },
     {
       "path": "package.json",
-      "bytes": 2784,
-      "sha256": "fdc7dc7a8c9bf6a9f5a2522eb152aa58c1a7e1caf0648f13e7737665f7acfce8"
+      "bytes": 3130,
+      "sha256": "923a2ed86ba57d73b99a1aa1d228792edaf6d25bd739fad53ff7375f9b438e05"
     },
     {
       "path": "player-perception.js",
@@ -555,6 +596,26 @@
       "sha256": "d7c90b76a7ef5c91976de1eef1b791acc06e795fe6400f34be8f9df14bfcbdf9"
     },
     {
+      "path": "tests/attack-analysis-ui.test.cjs",
+      "bytes": 5190,
+      "sha256": "ec044ad43f3ec4a3114f41e57a5b3d4211f067dae5ba5485c7573e48d5beaf68"
+    },
+    {
+      "path": "tests/attack-diagnostics-integration.test.cjs",
+      "bytes": 11047,
+      "sha256": "53a8333097d5dda2c232e0f479a294b20a203f76477544835d83b6c4fc108746"
+    },
+    {
+      "path": "tests/attack-diagnostics.test.cjs",
+      "bytes": 11534,
+      "sha256": "5342e1cb283137fbdcfa37f10cf1adc9f36dd717ee1547cfa24a152cf0570556"
+    },
+    {
+      "path": "tests/attacking-coverage.test.cjs",
+      "bytes": 5268,
+      "sha256": "770d24a44307168e49eae9381387359cacf6cf86b8e131a32cb0ca3630bcc081"
+    },
+    {
       "path": "tests/first-control.test.cjs",
       "bytes": 8863,
       "sha256": "6bf0b915c2e07960e86cfc1dba6c32e496f6c8ca7fc5335e621a9143b6966b7f"
@@ -625,6 +686,16 @@
       "sha256": "6f43713fe5021d61b26c28554fa407cd19025d3625bde4c0c3f55a68bef621c9"
     },
     {
+      "path": "tools/check-attack-chain-browser.py",
+      "bytes": 16327,
+      "sha256": "a063342917ee619ab054039192ac70949e33f83ce0a4dea4942f27050f56d4cf"
+    },
+    {
+      "path": "tools/check-attacking-coverage.cjs",
+      "bytes": 15531,
+      "sha256": "642acf5159f79f198ba6acfa9541bb6feea2db84bc23ae290f3a92046e15cb7e"
+    },
+    {
       "path": "tools/check-control-exit-observer.cjs",
       "bytes": 5820,
       "sha256": "de4cd641cd09cced43fce79c2c74e882818028996f025b784b612b8d5727c820"
@@ -668,6 +739,11 @@
       "path": "tools/compare-pass-preparation.cjs",
       "bytes": 9379,
       "sha256": "2081d35d195b86ee1526d7dee154cb5fb6ccd0d570287cbf845ba1cf8783d088"
+    },
+    {
+      "path": "tools/profile-attack-chain.cjs",
+      "bytes": 18334,
+      "sha256": "ff7ffa3f8fee59e2a09bd6ed4da666349fcf4a367a0dd8855f278372e2f93742"
     },
     {
       "path": "tools/profile-control-exit.cjs",

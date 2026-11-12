@@ -53,6 +53,20 @@ body[data-screen=match] .stadium-beam{display:none}
 .advanced-match button{width:100%;padding:10px;text-align:left;min-height:39px;border:0;background:transparent;color:var(--muted);border-radius:5px;font-size:10px}
 .advanced-match button:hover{background:#28402b;color:var(--text)}
 .bottom-panels{display:grid;grid-template-columns:1.2fr 1fr;gap:17px;margin-top:17px}
+.controls .analysis-link{display:inline-flex;align-items:center;min-height:39px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;color:var(--accent);font-size:10px;text-decoration:none}
+.attack-analysis{margin-top:17px;scroll-margin-top:20px}
+.attack-analysis>p,.attack-analysis>details,.attack-analysis>button{margin:14px 18px}
+.attack-overview{font-size:12px;line-height:1.7;color:var(--text)}
+.attack-note{font-size:11px;line-height:1.6;color:var(--muted)}
+.attack-analysis summary{cursor:pointer;color:var(--accent);padding:8px 0;font-size:13px;font-weight:700}
+.attack-table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.attack-table th,.attack-table td{padding:10px 5px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+.attack-table th:first-child{text-align:left}.attack-table tbody th{font-weight:600}.attack-table small{display:block;font-size:10px;font-weight:400;color:var(--muted);margin-top:4px}
+.attack-endings,.attack-evidence{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.attack-analysis h3{font-size:12px;margin:0 0 9px}.attack-endings ul{padding-left:18px;font-size:11px;line-height:1.8}.attack-evidence p{font-size:11px;line-height:1.6;color:var(--muted)}
+.attack-analysis>button{background:var(--surface);border:1px solid var(--line);color:var(--accent);padding:10px 14px;border-radius:6px;cursor:pointer}
+.attack-analysis-error{color:#ffd49e;font-size:11px}.attack-table .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(max-width:600px){.attack-endings,.attack-evidence{grid-template-columns:1fr}.attack-table{font-size:11px}.attack-analysis>p,.attack-analysis>details,.attack-analysis>button{margin-left:12px;margin-right:12px}}
 .section{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:20px}
 .section>header{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:18px}
 .section>header>b{font-size:10px;letter-spacing:1px}

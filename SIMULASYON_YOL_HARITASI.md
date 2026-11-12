@@ -1,5 +1,19 @@
 # Gerçek futbol deneyimi: durum analizi ve geliştirme yol haritası
 
+## Onuncu aşama uygulama durumu
+
+Hücum zinciri için pasif ölçüm, canlı **Hücum analizi** paneli ve JSON dışa aktarma eklendi. Gerçek kazanım/kontrol, baskıdan çıkış, operasyonel hat kırma, son bölge/ceza sahası varışı ve fiziksel şut ayrılır. Her hücumun son aşaması ve gerçek bitiş olayı; destek, bekleme, pas hazırlığı ve koşu kanıtlarından ayrı kaydedilir. Süre paydası topun oyunda kaldığı zamandır. Planlanan hedefler ve bitmemiş hücumlar tamamlanmış başarı/başarısızlık sayılmaz.
+
+**309 test** ve son kaynakta WebGL/prosedürel–2D tarayıcı kontrolleri geçti. 21 kontrollü hava oyunu/kaleci durumu doğal örneklemden ayrı doğrulandı. Motor, yayımlanmış dokuzuncu aşamanın `b29a8f9b…` kaynağıyla byte düzeyinde aynı kalır; bu katman kararları veya fizik dengesini değiştirmez. `codex/team-continuity-perception` inceleme dalının `main` öncesi kalibrasyon gereği sürer.
+
+Kalibrasyon, tek toplam şut sayısına katsayı uygulamak yerine ölçülen zinciri hedeflemeli: kontrolü onaylayamadan kaybedilen kazanımlar; baskı altında bekleme ve destek mesafesi; hat kırma sonrası pas bitişleri; hücum koşusu görevleri ile gerçek yeni ceza sahası girişi arasındaki fark; uygulanamayan hazırlıklar. Bekleme veya yakın destek kaydı tek başına yanlış tercih kanıtı değildir; bu durumlar aynı pozisyondaki fiziksel hazırlık ve pas sonuçlarıyla incelenmeli.
+
+Hava oyunu ve kalecide yol kapsamı sağlandı; doğal frekans ve kalite kabulü açık kalır. Farklı seed/taktik/güç dağılımları ve uzun maçlarda yorgunluk, kaleci görünürlük/tepki/el fırsat paydaları, seken toplar ve tekrar şutları ayrıca ölçülmeli. Önceki aşama durumları aşağıda tarihsel dayanak olarak korunur.
+
+Son sekizli ölçümde her motor 2400 sn gözlendi; top oyunda 2026,03 / 1969,70 sn ve gerçek şut 4 / 4 oldu. Güncel motorun baskılı/uygun hatlı onaylı kazanım kohortu **100 → 70 → 29 → 3 → 1 → 1** ilerledi. Hat kırmadan sonraki 29 örnekte üç sıralı son bölge kaydı; sonraki kayıt olmadan biten 21 bölümde 15 top kaybı ve altı kazanılan faul; ayrıca dört ilk-kayıt sıra uyumsuzluğu ve bir sansürlü kayıt vardır. Bu ayrım, bütün geçmeyenleri başarısız saymadan bağlantı incelemesini önceliklendirir.
+
+İlk çalışma paketi, erken kontrol kayıpları ve bu hat kırma sonrası pozisyonlarda gerçek pas yolu/algılanan baskı/hazırlık ilişkisini incelemelidir. Yakın destek görevi güvenli pas değildir; ham koşucu sayaçları da yeni ceza sahası girişi saymaz. Yeni giriş olayını önceden orada bulunmadan ayırmak, ardından doğal hava/kaleci fırsatlarını çeşitlendirmek gerekir. [Sonuç özeti](docs/validation/attack-chain-summary.json) ve [tam iz arşivi](docs/validation/attack-chain-matrix.json.gz) yeniden incelenebilir.
+
 ## Dokuzuncu aşama uygulama durumu
 
 Bu aşama **`codex/team-continuity-perception` inceleme dalı** olarak hazırlanmıştır. Ortak görev/algı işlevi ve regresyonlar tamamdır; doğal maç dengesi kabulü beklediğinden `main` için varsayılan sürüm olarak sunulmaz.

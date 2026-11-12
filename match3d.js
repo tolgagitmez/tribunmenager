@@ -7,11 +7,13 @@ function config(){if(window.MATCH_CFG)return window.MATCH_CFG;let explicit=null,
 
 function label(id,text,name){const el=$(id);if(window.TribunUI){el.innerHTML=(name?window.TribunUI.icon(name):'')+'<span>'+text+'</span>';el.setAttribute('aria-label',text);}else el.textContent=text;}
 const cfg=config(),scene=new Stadium3D($('stadiumCanvas'));
-let game,paused=false,speed=1,accumulator=0,lastMetric=-1,shownFinish=false,overlayTime=0;
+let game,attackObserver,attackView,paused=false,speed=1,accumulator=0,lastMetric=-1,shownFinish=false,overlayTime=0;
 const portrait=p=>`assets/face${(p?.portraitId??4)%17}.png`;
 const clock=seconds=>{seconds=Math.max(0,Math.floor(seconds+1e-7));return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');};
 function init(){
- game=new window.TribunFootball.Match(cfg,Rig);paused=false;speed=1;accumulator=0;lastMetric=-1;shownFinish=false;overlayTime=0;
+ if(attackObserver)attackObserver.detach();
+ game=new window.TribunFootball.Match(cfg,Rig);attackObserver=window.TribunAttackDiagnostics.attach(game);
+ if(!attackView)attackView=window.TribunAttackAnalysisUI.mount($('attackAnalysis'),{summary:()=>attackObserver.summary(),report:()=>attackObserver.report()});paused=false;speed=1;accumulator=0;lastMetric=-1;shownFinish=false;overlayTime=0;
  $('eventList').innerHTML='';$('finishScreen').hidden=true;$('subPanel').hidden=true;$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');
  label('playButton','Duraklat','pause');label('speedButton','1× Hız');label('camButton','Kamera: '+(scene.camera==='close'?'Yakın':scene.camera==='tactical'?'Taktik':'TV'),'target');label('rigButton','İskelet: '+(scene.debugRig?'Açık':'Kapalı'),'studio');label('soundButton','Tribün sesi: '+(crowd.enabled?'Açık':'Kapalı'),'sound');label('restartButton','Baştan oynat','refresh');$('momentum').dataset.left=50;$('momentum').style.setProperty('--homeWidth','50%');
  if($('sessionTitle'))$('sessionTitle').textContent=game.duration===5400?'90 DAKİKA · DENEYSEL MAÇ':`${game.duration/60} DAKİKALIK ${game.duration===300?'DENEME':'KISA MAÇ'}`;
@@ -38,6 +40,7 @@ function event(e){
 }
 function consume(){for(const e of game.drain())event(e);}
 function metrics(){
+ if(attackView)attackView.render();
  const m=game,total=m.possession[0]+m.possession[1],pos=total?Math.round(m.possession[0]/total*100):50;
  $('matchClock').textContent=clock(m.time);
  $('halfLabel').textContent=m.time>=m.duration/2?'2. DEVRE':'1. DEVRE';$('progressBar').style.width=m.time/m.duration*100+'%';$('realTime').textContent=clock(Math.ceil(m.duration-m.time))+' kaldı';
@@ -53,7 +56,7 @@ function metrics(){
 }
 function tick(dt){
  if(paused||game.done)return;accumulator+=Math.min(.25,Math.max(0,dt))*speed;
- while(accumulator+1e-10>=1/60&&!game.done){accumulator-=1/60;game.step();for(const p of game.players){p.selected=p===game.owner;if(p.active)Rig.update(p,1/60);}if(overlayTime>0){overlayTime-=1/60;if(overlayTime<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}}}
+ while(accumulator+1e-10>=1/60&&!game.done){accumulator-=1/60;attackObserver.step();for(const p of game.players){p.selected=p===game.owner;if(p.active)Rig.update(p,1/60);}if(overlayTime>0){overlayTime-=1/60;if(overlayTime<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}}}
  consume();const metric=Math.floor(game.time*5+1e-7);if(metric!==lastMetric||game.done){metrics();lastMetric=metric;}
 }
 function renderSubs(){
@@ -84,5 +87,5 @@ window.addEventListener('DOMContentLoaded',()=>{
   window.TribunTransfers.sync().then(data=>{const current=window.TribunTransfers.cached();cfg.players=data.players;cfg.starters=window.TribunClubData.repairStarters(current.starters,data.players,cfg.formation);cfg.special=current.special||cfg.special;controls.forEach(b=>b.disabled=false);start();}).catch(()=>{$('sessionTitle').textContent='TRANSFER BAĞLANTISI KURULAMADI · SAYFAYI YENİLE';});
  }else start();
 });
-window.TRIBUN_MATCH_TEST={getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
+window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();

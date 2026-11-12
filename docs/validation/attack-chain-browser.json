@@ -1,0 +1,926 @@
+{
+  "generatedAt": "2026-11-10T08:12:02.876086+00:00",
+  "sources": {
+    "football-sim.js": "b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3",
+    "player-perception.js": "d0879e2e845a34bd8f08fd117e3100ac651ee79f28371e153a7aed3c48bc08b8",
+    "team-intent.js": "cce8be16d8dd88ef758051e0cf6761326ad21cb55b1733397c5fa3815aac0030",
+    "humanoid-rig.js": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+    "scene3d.js": "561be6f11bf54ab2d6d97d260fa5b10c057bc72b6baf7740f3094c7243924a2b",
+    "player-renderer.js": "ef384d6ba0028ee7f038db75b7c87da9455de0118133b691b02953483f18613c",
+    "attack-diagnostics.js": "259e977fe017dd5e38f04ce0abbce765db0a689c58ec17d1709cb6b56c3db237",
+    "attack-analysis-ui.js": "5aaa31a880ad7a43030b2295dd59a6f6c181ee436d03cc695c8c8d1ad1a62f05",
+    "match3d.js": "a5c39c7beaf01c109a1337a16caa46f526b793173b4b5d2dbe07e6edcf4b3c23",
+    "match.html": "11d181335f3fb702e94227c317fbb4870f83d9f87d62f59a4c055176d2368aa8",
+    "match3d.css": "65d7578af07258fb400e74fe382d7a68c1d6648e5fa6ba5796096e9ceaeec91f",
+    "tools/check-attack-chain-browser.py": "a063342917ee619ab054039192ac70949e33f83ce0a4dea4942f27050f56d4cf"
+  },
+  "method": "Actual Chromium/SwiftShader WebGL procedural drawing and forced canvas2D fallback. Start through tactics, observe natural fixed-step match exposure, compare live stage cells/rates/clock bins with the observer report and actual engine releases, pause through the real controls, prove repeated reports/UI refresh/export leave complete engine values and RNG unchanged, download exact JSON, repeat the export at 390px width, resume and create fresh observers through the real restart path. Natural short browser exposure is not full-match balance or controlled aerial/keeper quality evidence.",
+  "runs": [
+    {
+      "mode": "webgl-procedural",
+      "exposure": {
+        "time": 22.133333333333358,
+        "players": 22,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          10,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "webgl": true,
+        "playerQuality": "YEDEK OYUNCU MODELİ",
+        "clock": {
+          "start": 0,
+          "end": 22.133333333333358,
+          "observedSeconds": 22.133333333333358,
+          "inPlaySeconds": 17.20000000000004,
+          "deadBallSeconds": 4.933333333333321,
+          "restartSeconds": 4.933333333333321,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            8.483333333333363,
+            0.533333333333303
+          ],
+          "flightSeconds": [
+            8.183333333333373,
+            0
+          ],
+          "looseSeconds": 0,
+          "unobservedSeconds": 0
+        },
+        "teams": [
+          {
+            "team": 0,
+            "attacks": 1,
+            "origins": {
+              "restart": 1
+            },
+            "contactGains": 0,
+            "confirmedGains": 0,
+            "unsettledGains": 0,
+            "stageCounts": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 1,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "stageEligibility": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 1,
+              "finalThird": 1,
+              "box": 1,
+              "shot": 1
+            },
+            "eligibleReached": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 1,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "startedBeyond": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "notRequired": {
+              "gain": 0,
+              "pressureEscape": 1,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "endedByStage": {
+              "lineBreak": {
+                "pass-interception": 1
+              }
+            },
+            "endReasons": {
+              "pass-interception": 1
+            },
+            "pending": 0,
+            "censored": 0,
+            "ended": 1,
+            "passes": {
+              "attempted": 10,
+              "completed": 9,
+              "intercepted": 1,
+              "looseOrDeflected": 0,
+              "out": 0,
+              "offside": 0,
+              "interrupted": 0,
+              "unknown": 0,
+              "returnedToSender": 0,
+              "goalsWithoutShot": 0,
+              "headerContacts": 0,
+              "defensiveHeaders": 0,
+              "pending": 0
+            },
+            "shots": 0,
+            "evidence": {
+              "holdDecisions": 3,
+              "holdSeconds": 1.383333333333355,
+              "stationaryControlSeconds": 2.2833333333333092,
+              "heldStationarySeconds": 0,
+              "supportMissingSeconds": 0,
+              "supportUnreadySeconds": 0.48333333333331296,
+              "readySupportSeconds": 8.00000000000005,
+              "passPreparationAborts": 0,
+              "preparationReplans": 0,
+              "boxRunnerCommands": 3,
+              "boxRunnerArrivals": 0,
+              "boxRunnerCommandSeconds": 6.016666666666696,
+              "boxRunnerReadySeconds": 0,
+              "duelDislodgements": 0,
+              "controlDislodgements": 0
+            },
+            "rates": {
+              "shotsPer10InPlay": 0,
+              "shotsPerAttack": 0,
+              "passesPerAttack": 10,
+              "stageConversions": {
+                "gain": null,
+                "pressureEscape": null,
+                "lineBreak": 1,
+                "finalThird": 0,
+                "box": 0,
+                "shot": 0
+              }
+            }
+          },
+          {
+            "team": 1,
+            "attacks": 1,
+            "origins": {
+              "gain": 1
+            },
+            "contactGains": 1,
+            "confirmedGains": 1,
+            "unsettledGains": 0,
+            "stageCounts": {
+              "gain": 1,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "stageEligibility": {
+              "gain": 1,
+              "pressureEscape": 1,
+              "lineBreak": 1,
+              "finalThird": 1,
+              "box": 1,
+              "shot": 1
+            },
+            "eligibleReached": {
+              "gain": 1,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "startedBeyond": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "notRequired": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "endedByStage": {},
+            "endReasons": {},
+            "pending": 1,
+            "censored": 0,
+            "ended": 0,
+            "passes": {
+              "attempted": 0,
+              "completed": 0,
+              "intercepted": 0,
+              "looseOrDeflected": 0,
+              "out": 0,
+              "offside": 0,
+              "interrupted": 0,
+              "unknown": 0,
+              "returnedToSender": 0,
+              "goalsWithoutShot": 0,
+              "headerContacts": 0,
+              "defensiveHeaders": 0,
+              "pending": 0
+            },
+            "shots": 0,
+            "evidence": {
+              "holdDecisions": 0,
+              "holdSeconds": 0,
+              "stationaryControlSeconds": 0.01666666666666572,
+              "heldStationarySeconds": 0,
+              "supportMissingSeconds": 0.01666666666666572,
+              "supportUnreadySeconds": 0,
+              "readySupportSeconds": 0.5166666666666373,
+              "passPreparationAborts": 0,
+              "preparationReplans": 0,
+              "boxRunnerCommands": 1,
+              "boxRunnerArrivals": 0,
+              "boxRunnerCommandSeconds": 0.3333333333333144,
+              "boxRunnerReadySeconds": 0,
+              "duelDislodgements": 0,
+              "controlDislodgements": 0
+            },
+            "rates": {
+              "shotsPer10InPlay": 0,
+              "shotsPerAttack": 0,
+              "passesPerAttack": 0,
+              "stageConversions": {
+                "gain": 1,
+                "pressureEscape": 0,
+                "lineBreak": 0,
+                "finalThird": 0,
+                "box": 0,
+                "shot": 0
+              }
+            }
+          }
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 10,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 0,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "valid": true,
+        "errors": [],
+        "episodeCount": 2,
+        "ui": {
+          "rows": 6,
+          "tableValues": [
+            [
+              {
+                "value": "—",
+                "text": "—"
+              },
+              {
+                "value": "1 / 1",
+                "text": "1 / 1"
+              }
+            ],
+            [
+              {
+                "value": "—",
+                "text": "—Gerekmedi: 1"
+              },
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              }
+            ],
+            [
+              {
+                "value": "1 / 1",
+                "text": "1 / 1"
+              },
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              }
+            ],
+            [
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              },
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              }
+            ],
+            [
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              },
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              }
+            ],
+            [
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              },
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              }
+            ]
+          ],
+          "overview": "Top oyunda 00:17 · Duran top / ara 00:04 · Ölçülen 00:22. Şut / 10 dakika top oyunda: 0 – 0.",
+          "heading": "HÜCUM ANALİZİCANLI ÖLÇÜM",
+          "stageCellsAgree": true,
+          "reportAndSummaryAgree": true
+        },
+        "checks": {
+          "clockAddsUp": true,
+          "deadClockAddsUp": true,
+          "inPlayBinsAddUp": true,
+          "clockMatchesMatch": true,
+          "releasedPassesMatch": true,
+          "physicalShotsMatch": true
+        }
+      },
+      "moduleState": {
+        "observer": true,
+        "ui": true,
+        "engine": true,
+        "scripts": [
+          "/ui-shell.js",
+          "/humanoid-rig.js",
+          "/assets/player/player-model-data.js",
+          "/player-renderer.js",
+          "/scene3d.js",
+          "/tactics.js",
+          "/player-perception.js",
+          "/team-intent.js",
+          "/football-sim.js",
+          "/attack-diagnostics.js",
+          "/attack-analysis-ui.js",
+          "/club-data.js",
+          "/transfer-client.js",
+          "/match3d.js"
+        ]
+      },
+      "pausedQueries": {
+        "paused": true,
+        "reportReadIsIdempotent": true,
+        "queriesAndUiRenderPreserveState": true,
+        "snapshotBytes": 430933
+      },
+      "export": {
+        "path": "work/stage10/attack-export-webgl-procedural.json",
+        "sha256": "13da6e4928a851ae062d1429bb8ec30b54789d06193b0525e86829590b6aea84",
+        "episodeCount": 2,
+        "matchesPausedReport": true,
+        "mobileMatchesDesktop": true
+      },
+      "mobile": {
+        "viewport": 390,
+        "documentWidth": 390,
+        "panelLeft": 16,
+        "panelRight": 374,
+        "tableLeft": 49,
+        "tableRight": 341,
+        "buttonLeft": 49,
+        "buttonRight": 225.640625,
+        "buttonEnabled": true,
+        "rows": 6
+      },
+      "reset": {
+        "time": 0,
+        "twoFreshObserversHaveZeroCounters": true,
+        "rows": 6
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face4.png",
+        "/assets/face5.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/favicon.svg",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ],
+      "screenshots": [
+        "work/stage10/attack-panel-webgl-procedural.png",
+        "work/stage10/attack-panel-webgl-procedural-mobile.png"
+      ],
+      "assertedChecks": {
+        "startFromTactics": true,
+        "moduleScriptsLoadedBeforeAdapter": true,
+        "twentyTwoPlayers": true,
+        "expectedRenderMode": true,
+        "stageCellsUseEligibleNumerator": true,
+        "advancedStartsRemainSeparate": true,
+        "clockPartitionsAddUp": true,
+        "releasedPassesAndShotsMatchEngine": true,
+        "reportAndSummaryAgree": true,
+        "queriesAndUiRefreshLeaveFullStateUnchanged": true,
+        "pausedAdvanceLeavesTimeUnchanged": true,
+        "explicitJsonDownloadMatchesReport": true,
+        "mobileExportMatchesDesktop": true,
+        "mobilePanelHasNoHorizontalOverflow": true,
+        "resumeAdvancesTime": true,
+        "restartClearsDiagnostics": true,
+        "noScriptErrors": true
+      }
+    },
+    {
+      "mode": "2d",
+      "exposure": {
+        "time": 20.516666666666783,
+        "players": 22,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          9,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "webgl": false,
+        "playerQuality": "2D YEDEK",
+        "clock": {
+          "start": 0,
+          "end": 20.516666666666783,
+          "observedSeconds": 20.516666666666783,
+          "inPlaySeconds": 15.583333333333462,
+          "deadBallSeconds": 4.933333333333321,
+          "restartSeconds": 4.933333333333321,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            7.75000000000007,
+            0
+          ],
+          "flightSeconds": [
+            7.833333333333392,
+            0
+          ],
+          "looseSeconds": 0,
+          "unobservedSeconds": 0
+        },
+        "teams": [
+          {
+            "team": 0,
+            "attacks": 1,
+            "origins": {
+              "restart": 1
+            },
+            "contactGains": 0,
+            "confirmedGains": 0,
+            "unsettledGains": 0,
+            "stageCounts": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 1,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "stageEligibility": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 1,
+              "finalThird": 1,
+              "box": 1,
+              "shot": 1
+            },
+            "eligibleReached": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 1,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "startedBeyond": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "notRequired": {
+              "gain": 0,
+              "pressureEscape": 1,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "endedByStage": {},
+            "endReasons": {},
+            "pending": 1,
+            "censored": 0,
+            "ended": 0,
+            "passes": {
+              "attempted": 9,
+              "completed": 9,
+              "intercepted": 0,
+              "looseOrDeflected": 0,
+              "out": 0,
+              "offside": 0,
+              "interrupted": 0,
+              "unknown": 0,
+              "returnedToSender": 0,
+              "goalsWithoutShot": 0,
+              "headerContacts": 0,
+              "defensiveHeaders": 0,
+              "pending": 0
+            },
+            "shots": 0,
+            "evidence": {
+              "holdDecisions": 3,
+              "holdSeconds": 1.383333333333355,
+              "stationaryControlSeconds": 1.816666666666669,
+              "heldStationarySeconds": 0,
+              "supportMissingSeconds": 0,
+              "supportUnreadySeconds": 0.48333333333331296,
+              "readySupportSeconds": 7.266666666666757,
+              "passPreparationAborts": 0,
+              "preparationReplans": 0,
+              "boxRunnerCommands": 3,
+              "boxRunnerArrivals": 0,
+              "boxRunnerCommandSeconds": 5.283333333333404,
+              "boxRunnerReadySeconds": 0,
+              "duelDislodgements": 0,
+              "controlDislodgements": 0
+            },
+            "rates": {
+              "shotsPer10InPlay": 0,
+              "shotsPerAttack": 0,
+              "passesPerAttack": 9,
+              "stageConversions": {
+                "gain": null,
+                "pressureEscape": null,
+                "lineBreak": 1,
+                "finalThird": 0,
+                "box": 0,
+                "shot": 0
+              }
+            }
+          },
+          {
+            "team": 1,
+            "attacks": 0,
+            "origins": {},
+            "contactGains": 0,
+            "confirmedGains": 0,
+            "unsettledGains": 0,
+            "stageCounts": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "stageEligibility": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "eligibleReached": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "startedBeyond": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "notRequired": {
+              "gain": 0,
+              "pressureEscape": 0,
+              "lineBreak": 0,
+              "finalThird": 0,
+              "box": 0,
+              "shot": 0
+            },
+            "endedByStage": {},
+            "endReasons": {},
+            "pending": 0,
+            "censored": 0,
+            "ended": 0,
+            "passes": {
+              "attempted": 0,
+              "completed": 0,
+              "intercepted": 0,
+              "looseOrDeflected": 0,
+              "out": 0,
+              "offside": 0,
+              "interrupted": 0,
+              "unknown": 0,
+              "returnedToSender": 0,
+              "goalsWithoutShot": 0,
+              "headerContacts": 0,
+              "defensiveHeaders": 0,
+              "pending": 0
+            },
+            "shots": 0,
+            "evidence": {
+              "holdDecisions": 0,
+              "holdSeconds": 0,
+              "stationaryControlSeconds": 0,
+              "heldStationarySeconds": 0,
+              "supportMissingSeconds": 0,
+              "supportUnreadySeconds": 0,
+              "readySupportSeconds": 0,
+              "passPreparationAborts": 0,
+              "preparationReplans": 0,
+              "boxRunnerCommands": 0,
+              "boxRunnerArrivals": 0,
+              "boxRunnerCommandSeconds": 0,
+              "boxRunnerReadySeconds": 0,
+              "duelDislodgements": 0,
+              "controlDislodgements": 0
+            },
+            "rates": {
+              "shotsPer10InPlay": 0,
+              "shotsPerAttack": null,
+              "passesPerAttack": null,
+              "stageConversions": {
+                "gain": null,
+                "pressureEscape": null,
+                "lineBreak": null,
+                "finalThird": null,
+                "box": null,
+                "shot": null
+              }
+            }
+          }
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 9,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 0,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "valid": true,
+        "errors": [],
+        "episodeCount": 1,
+        "ui": {
+          "rows": 6,
+          "tableValues": [
+            [
+              {
+                "value": "—",
+                "text": "—"
+              },
+              {
+                "value": "—",
+                "text": "—"
+              }
+            ],
+            [
+              {
+                "value": "—",
+                "text": "—Gerekmedi: 1"
+              },
+              {
+                "value": "—",
+                "text": "—"
+              }
+            ],
+            [
+              {
+                "value": "1 / 1",
+                "text": "1 / 1"
+              },
+              {
+                "value": "—",
+                "text": "—"
+              }
+            ],
+            [
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              },
+              {
+                "value": "—",
+                "text": "—"
+              }
+            ],
+            [
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              },
+              {
+                "value": "—",
+                "text": "—"
+              }
+            ],
+            [
+              {
+                "value": "0 / 1",
+                "text": "0 / 1"
+              },
+              {
+                "value": "—",
+                "text": "—"
+              }
+            ]
+          ],
+          "overview": "Top oyunda 00:15 · Duran top / ara 00:04 · Ölçülen 00:20. Şut / 10 dakika top oyunda: 0 – 0.",
+          "heading": "HÜCUM ANALİZİCANLI ÖLÇÜM",
+          "stageCellsAgree": true,
+          "reportAndSummaryAgree": true
+        },
+        "checks": {
+          "clockAddsUp": true,
+          "deadClockAddsUp": true,
+          "inPlayBinsAddUp": true,
+          "clockMatchesMatch": true,
+          "releasedPassesMatch": true,
+          "physicalShotsMatch": true
+        }
+      },
+      "moduleState": {
+        "observer": true,
+        "ui": true,
+        "engine": true,
+        "scripts": [
+          "/ui-shell.js",
+          "/humanoid-rig.js",
+          "/assets/player/player-model-data.js",
+          "/player-renderer.js",
+          "/scene3d.js",
+          "/tactics.js",
+          "/player-perception.js",
+          "/team-intent.js",
+          "/football-sim.js",
+          "/attack-diagnostics.js",
+          "/attack-analysis-ui.js",
+          "/club-data.js",
+          "/transfer-client.js",
+          "/match3d.js"
+        ]
+      },
+      "pausedQueries": {
+        "paused": true,
+        "reportReadIsIdempotent": true,
+        "queriesAndUiRenderPreserveState": true,
+        "snapshotBytes": 405875
+      },
+      "export": {
+        "path": "work/stage10/attack-export-2d.json",
+        "sha256": "2a731a4a62be6479bcda8ce548aaaf95bd3979622f797a11c225e1b03ba37ac8",
+        "episodeCount": 1,
+        "matchesPausedReport": true,
+        "mobileMatchesDesktop": true
+      },
+      "mobile": {
+        "viewport": 390,
+        "documentWidth": 390,
+        "panelLeft": 16,
+        "panelRight": 374,
+        "tableLeft": 49,
+        "tableRight": 341,
+        "buttonLeft": 49,
+        "buttonRight": 225.640625,
+        "buttonEnabled": true,
+        "rows": 6
+      },
+      "reset": {
+        "time": 0,
+        "twoFreshObserversHaveZeroCounters": true,
+        "rows": 6
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face4.png",
+        "/assets/face5.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ],
+      "screenshots": [
+        "work/stage10/attack-panel-2d.png",
+        "work/stage10/attack-panel-2d-mobile.png"
+      ],
+      "assertedChecks": {
+        "startFromTactics": true,
+        "moduleScriptsLoadedBeforeAdapter": true,
+        "twentyTwoPlayers": true,
+        "expectedRenderMode": true,
+        "stageCellsUseEligibleNumerator": true,
+        "advancedStartsRemainSeparate": true,
+        "clockPartitionsAddUp": true,
+        "releasedPassesAndShotsMatchEngine": true,
+        "reportAndSummaryAgree": true,
+        "queriesAndUiRefreshLeaveFullStateUnchanged": true,
+        "pausedAdvanceLeavesTimeUnchanged": true,
+        "explicitJsonDownloadMatchesReport": true,
+        "mobileExportMatchesDesktop": true,
+        "mobilePanelHasNoHorizontalOverflow": true,
+        "resumeAdvancesTime": true,
+        "restartClearsDiagnostics": true,
+        "noScriptErrors": true
+      }
+    }
+  ],
+  "verified": true
+}
