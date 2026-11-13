@@ -96,7 +96,7 @@ test('a restart clears task reservations and observations before the next live f
 test('substitution discards the outgoing player task and observation identity',()=>{
  const {m,p,q,d}=fixture();Object.assign(d,{x:5,z:3});Perception.update(m.players,m.time,0,{scanAllowed:false});Intent.resolve(q,{x:10,z:8,state:'support',partnerId:p.id},m.taskContext(q));
  m.cfg.players=[{id:999,name:'Fresh midfielder',rating:83,fitness:95,passing:84,owned:true,pos:'MID'}];assert(q.task);assert(Perception.rivals(q,m.time).length);
- const result=m.substitute(q.index,999);assert.equal(result.ok,true);assert.equal(q.rosterId,999);assert.equal(q.task,null);assert.deepEqual(Perception.rivals(q,m.time),[]);assert(q.taskHistory.some(e=>e.reason==='substitution'));
+ m.goalPause={clock:2,team:0};const result=m.substitute(q.index,999);assert.equal(result.ok,true);assert.equal(q.rosterId,999);assert.equal(q.task,null);assert.deepEqual(Perception.rivals(q,m.time),[]);assert(q.taskHistory.some(e=>e.reason==='substitution'));
 });
 test('a quiet real step activates perception without extra random draws or physical integration',()=>{
  const {m,p,d}=fixture({observe:false});Object.assign(d,{x:25,z:-15});p.touchClock=100;p.decision=100;m.planClock=0;m.ball.vx=1;const before={seed:m.seed,time:m.time,p:{x:p.x,z:p.z},ball:{...m.ball}},expected=BallPhysics.predict(m.ball,dt),random=m.random;

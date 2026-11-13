@@ -1,3 +1,30 @@
+## Aşama 12 — kural, yaşam döngüsü ve kurulum doğrulaması
+
+**Son doğrulama: 435/435 test geçti** (413 JS + 22 Python), hata/atlanan yok. Gerçek Chromium WebGL ve 2D yollarında 16’şar kontrol geçti. Bir normal 300 saniyelik nominal senaryo, gözlemcili/gözlemcisiz/tekrar olarak üç kez aynı tam durumu üretti; 164 + 150 saniyelik devreler ve 8 saniyelik ara ile 322 saniyede tamamlandı. Bu senaryoda bir penaltı kararı ve bir gol gözlendi; tek örnekten denge veya özellik sıklığı sonucu çıkarılmıyor.
+
+`npm run test:stage12`, önceki aşamaları, `match-rules`, `referee-laws`, `pitch-laws`, gerçek motor bütünleştirmesini ve yerel başlatıcı HTTP testlerini içerir. Kanıtlar `docs/validation/match-laws-{tests,browser,coverage,natural}.json` dosyalarındadır. Eski aşama 10/11 raporları yeni motorun kanıtı olarak yeniden etiketlenmez.
+
+- Kontrollü sınırlar: ceza sahası çizgisi/içi/dışı ve iki yön, avantaj geri dönüşü, ertelenen sarı, doğrudan kırmızı/asgari oyuncu, gerçek penaltı ayak çıkışı, son anda penaltı, bütün-top çıkışı, hızlı direk/üst direk ve gol öncesi blok, devre arası donması ve ters santra, kafa pası ofsaytı, rakip kontrolü/sekme ayrımı, değişiklik sayısı/penceresi.
+- Chromium: gerçek `start.py` sunucusu üzerinden WebGL/prosedürel ve 2D; mola paneli, duran fizik ve saat, saha değişimi, gerçek değişiklik, son düdük, ek süre ilanı, 390 px ve hata kontrolü. Kısa yapılandırılmış devreler bu kontrollere hız kazandırır; doğal maç örneklemi sayılmaz.
+- Normal beş dakikalık nominal maç: gözlemcili, gözlemcisiz ve gözlemcili tekrarın tam seri durum eşitliği, sonlu fizik, saat bölümleri ve tamamlanma doğrulanır. Tek doğal senaryonun üç çalıştırılmasıdır; üç bağımsız doğal maç sayılmaz.
+- Başlatıcı: gerçek HTTP'de sayfalar/modüller, yerel sağlık yanıtı, kapalı API açıklaması, özel dosya engeli ve eksik tam-mod verisi için açıklayıcı çıkış. Windows betiği bu Linux ortamında yerel olarak çalıştırılmadı. Tam ekonomi sunucusunun gerçek katalogla uçtan uca çalıştığı iddia edilmez; veri dosyaları bu kopyada bulunmuyor.
+
+Tekrar komutları:
+
+```sh
+npm ci
+npm run test:stage12
+python3 tools/check-match-laws-browser.py
+node tools/check-attacking-coverage.cjs
+node tools/profile-match-laws.cjs
+```
+
+Tarayıcı kontrolü ayrıca Playwright ve Chromium gerektirir. 21 seçilmiş hava oyunu/kaleci durumu doğal frekanslara katılmaz. Merkezlenmiş vücut-blok vuruşunun sabit 0,5 RNG istisnası raporda korunur. Tarihî fizik karşılaştırmaları yalnız yeni devre saatini fizik karşılaştırmasından çıkarır; hareket/top eşitliği ve sınırlar korunur. Eski yapay alıcı örnekleri yeni ofsayt yasasına uygun çıkış konumları kullanır; süre sınırı örnekleri nominal `duration` alanını değiştirmek yerine ikinci devre saatini kurar.
+
+[Uygulama sözleşmesi ve model sınırları](docs/MATCH_RULES.md) · [Kurulum](KURULUM.md).
+
+---
+
 # On birinci aşama — oyuncu kimliği ve kadro sözleşmesi
 
 **361/361 test geçti:** 343 JavaScript + 12 Python oyuncu modeli + 6 gerçek HTTP API testi; hata, atlanan veya iptal edilen test yok. Test kaynağı ve günlük SHA kayıtları [player-identity-tests.json](docs/validation/player-identity-tests.json) içindedir. Gerçek Chromium'da WebGL/prosedürel ve zorunlu 2D yollarında 16'şar kontrol, son kaynak eşliğiyle geçti; [tarayıcı raporu](docs/validation/player-identity-browser.json) bunu saklar.

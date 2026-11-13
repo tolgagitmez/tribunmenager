@@ -2,6 +2,8 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {Match}=require('../football-sim'),Diagnostics=require('../attack-diagnostics');
 const dt=1/60;
+function endIn(m,seconds){m.period=m.matchClock.period=2;m.matchClock.periodElapsed=m.rules.periodSeconds-seconds;m.matchClock.announcedAdded[1]=0;m.matchClock.addedAfterAnnouncement[1]=0;m.matchClock.rules.addedTime=false;}
+
 function fixture(t=0,x=0,z=0){
  const m=new Match({seed:21});m.restart=null;m.goalPause=null;m.time=10;m.planClock=100;m.phase='open';m.players.forEach(p=>p.active=false);
  const p=m.players[t?14:3],q=m.players[t?16:5],r=m.players[t?3:14];
@@ -51,7 +53,7 @@ test('shot preparation is not a shot and only the actual release ends its episod
  f.m.release();r=o.report();assert.equal(r.teams[0].shots,1);assert.equal(r.episodes[0].endReason,'shot');assert.equal(r.episodes[0].lastStage,'shot');assert.equal(r.shots[0].status,'pending');assert.equal(f.m.shots[0],1);o.detach();
 });
 test('a goal from a non-shot flight is never counted as a shot-conversion success',()=>{
- const f=fixture(0,49,0),o=Diagnostics.attach(f.m);gain(f);release(f);f.m.ball={x:52.01,y:.11,z:0,vx:1,vy:0,vz:0};f.m.ballStep(dt);const r=o.report();assert.equal(f.m.score[0],1);assert.equal(f.m.shots[0],0);assert.equal(r.coverage.shots.goalEvents,1);assert.equal(r.coverage.shots.nonShotGoalEvents,1);assert.equal(r.coverage.shots.goals,0);assert.equal(r.teams[0].passes.goalsWithoutShot,1);assertPassPartition(r);o.detach();
+ const f=fixture(0,49,0),o=Diagnostics.attach(f.m);gain(f);release(f);f.m.ball={x:51.99,y:.11,z:0,vx:12,vy:0,vz:0};f.m.ballStep(dt);const r=o.report();assert.equal(f.m.score[0],1);assert.equal(f.m.shots[0],0);assert.equal(r.coverage.shots.goalEvents,1);assert.equal(r.coverage.shots.nonShotGoalEvents,1);assert.equal(r.coverage.shots.goals,0);assert.equal(r.teams[0].passes.goalsWithoutShot,1);assertPassPartition(r);o.detach();
 });
 test('an actual out-of-play pass is resolved at the restart and cannot later become a deflection',()=>{
  const f=fixture(),o=Diagnostics.attach(f.m);gain(f);release(f);f.m.setRestart('throw',1,{x:8,z:34});let r=o.report();assert.equal(r.teams[0].passes.out,1);assert.equal(r.teams[0].passes.looseOrDeflected,0);assert.equal(r.teams[0].passes.pending,0);assertPassPartition(r);
@@ -69,7 +71,7 @@ test('hold evidence counts the applied carry and never queries a fresh decision'
  const r=o.report();assert.equal(r.teams[0].evidence.holdDecisions,1);assert(r.teams[0].evidence.holdSeconds>0);assert(r.episodes[0].observations.some(e=>e.type==='carry-decision'&&e.hold&&e.supportCommands===0));f.m.choose=original;o.detach();
 });
 test('clock categories partition actual in-play time, including goalkeeper hands and a clamped last step',()=>{
- const f=fixture(),o=Diagnostics.attach(f.m);gain(f);f.p.role='GK';f.p.holdingBall=true;f.p.holdClock=1;f.m.ball.y=.95;steps(o,2);f.m.duration=f.m.time+dt/2;o.step(dt);const r=o.report(),c=r.clock;assert.equal(f.m.done,true);assert(Math.abs(c.observedSeconds-(2.5/60))<1e-9);assert(Math.abs(c.inPlaySeconds-c.controlledSeconds[0]-c.controlledSeconds[1]-c.flightSeconds[0]-c.flightSeconds[1]-c.looseSeconds)<1e-9);assert(c.controlledSeconds[0]>.04);assert.equal(r.episodes[0].status,'censored');o.detach();
+ const f=fixture(),o=Diagnostics.attach(f.m);gain(f);f.p.role='GK';f.p.holdingBall=true;f.p.holdClock=1;f.m.ball.y=.95;steps(o,2);endIn(f.m,dt/2);o.step(dt);const r=o.report(),c=r.clock;assert.equal(f.m.done,true);assert(Math.abs(c.observedSeconds-(2.5/60))<1e-9);assert(Math.abs(c.inPlaySeconds-c.controlledSeconds[0]-c.controlledSeconds[1]-c.flightSeconds[0]-c.flightSeconds[1]-c.looseSeconds)<1e-9);assert(c.controlledSeconds[0]>.04);assert.equal(r.episodes[0].status,'censored');o.detach();
 });
 test('manual gaps and time rewind are explicit rather than invented tactical exposure',()=>{
  const {m}=fixture(),o=Diagnostics.attach(m);m.time+=1;o.sample();let r=o.report();assert.equal(r.clock.unobservedSeconds,1);assert.equal(r.clock.inPlaySeconds,0);m.time-=2;o.sample();r=o.report();assert.equal(r.valid,false);assert.match(r.errors[0].message,/backwards/);o.detach();
@@ -79,7 +81,7 @@ test('an unobserved sample gap cannot bridge two partial control dwells into a c
 });
 test('a new receiver must settle before a completed pass can earn a controlled line break',()=>{
  const f=fixture(),second=f.m.players[15];Object.assign(f.r,{x:5,z:0});Object.assign(second,{...f.r,id:second.id,index:second.index,x:7,z:0});Object.assign(f.q,{x:10,z:0});
- const o=Diagnostics.attach(f.m);gain(f);steps(o,9);release(f);Object.assign(f.m.ball,{x:10.3,z:0,y:.11});assert(f.m.acquire(f.q));f.q.touchClock=f.q.decision=100;f.m.planClock=100;o.sample();
+ const o=Diagnostics.attach(f.m);gain(f);steps(o,9);f.q.x=4;release(f);f.q.x=10;Object.assign(f.m.ball,{x:10.3,z:0,y:.11});assert(f.m.acquire(f.q));f.q.touchClock=f.q.decision=100;f.m.planClock=100;o.sample();
  assert.equal(o.report().teams[0].stageCounts.lineBreak,0);steps(o,9);assert.equal(o.report().teams[0].stageCounts.lineBreak,1);o.detach();
 });
 test('bounded trace retention keeps aggregate counts and summary only returns recent episodes',()=>{

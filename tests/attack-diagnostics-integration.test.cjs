@@ -4,6 +4,8 @@ const assert=require('node:assert/strict');
 const {Match}=require('../football-sim');
 const Diagnostics=require('../attack-diagnostics');
 const dt=1/60;
+function endIn(m,seconds){m.period=m.matchClock.period=2;m.matchClock.periodElapsed=m.rules.periodSeconds-seconds;m.matchClock.announcedAdded[1]=0;m.matchClock.addedAfterAnnouncement[1]=0;m.matchClock.rules.addedTime=false;}
+
 function fixture({team=0,x=0,moving=false}={}){
  const m=new Match({seed:21});m.restart=null;m.kick=null;m.goalPause=null;m.time=10;m.planClock=100;m.phase='carry';
  for(const p of m.players)p.active=false;
@@ -61,7 +63,7 @@ test('in-play time includes open windup and keeper possession but excludes resta
 });
 
 test('exposure uses the actual clamped final interval, and repeated samples add no time',()=>{
- const {m}=fixture();m.duration=m.time+dt/2;const o=Diagnostics.attach(m);o.step(dt);const before=structuredClone(summary(o));
+ const {m}=fixture();endIn(m,dt/2);const o=Diagnostics.attach(m);o.step(dt);const before=structuredClone(summary(o));
  assert(Math.abs(before.clock.observedSeconds-dt/2)<1e-10);assert(Math.abs(before.clock.inPlaySeconds-dt/2)<1e-10);
  o.sample();o.sample();assert.deepEqual(summary(o),before);o.detach();
 });
@@ -84,7 +86,7 @@ test('a shot preparation event is not a released shot, and repeated sampling can
 test('a released pass and its same-timestamp reception both survive before the next sampled frame',()=>{
  const {m,p}=fixture(),q=m.players[5];Object.assign(q,{active:true,x:3,z:0,vx:0,vz:0,speed:0,face:0,duelRecovery:0,touchClock:0,receiveClock:0,action:'idle',actionClock:0});p.touchClock=0;
  const o=Diagnostics.attach(m);assert(m.startKick(p,'pass',q,{x:q.x,z:q.z}));m.release();assert.equal(m.passes[0],1);
- m.ball.x=q.x+.2;m.ball.z=q.z;assert(m.acquire(q));assert.equal(m.completed[0],1);o.sample();
+ q.x=40;m.ball.x=q.x+.2;m.ball.z=q.z;assert(m.acquire(q));assert.equal(m.completed[0],1);o.sample();
  const passes=summary(o).teams[0].passes;assert.equal(passes.attempted,1);assert.equal(passes.completed,1);assert.equal(passes.intercepted,0);o.detach();
 });
 
@@ -110,9 +112,9 @@ test('final-third and box entries require actual controlled motion and are symme
 
 test('a release confirming several stages cannot move the terminal stage backwards from the box to a broken line',()=>{
  const {m,p}=fixture(),q=m.players[5],r=m.players[0];
- for(const [a,x,z]of [[q,40,0],[r,44,4],[m.players[14],10,-4],[m.players[15],12,4]])Object.assign(a,{active:true,x,z,vx:0,vz:0,speed:0,face:0,action:'idle',actionClock:0,touchClock:0,tackleClock:100,duelRecovery:0,receiveClock:0,decision:100});
+ for(const [a,x,z]of [[q,5,0],[r,44,4],[m.players[14],10,-4],[m.players[15],12,4]])Object.assign(a,{active:true,x,z,vx:0,vz:0,speed:0,face:0,action:'idle',actionClock:0,touchClock:0,tackleClock:100,duelRecovery:0,receiveClock:0,decision:100});
  p.touchClock=0;const o=Diagnostics.attach(m);assert(m.startKick(p,'pass',q,{x:q.x,z:q.z}));m.release();
- m.ball.x=q.x+.2;m.ball.z=q.z;assert(m.acquire(q));assert(m.startKick(q,'pass',r,{x:r.x,z:r.z}));m.release();o.sample();
+ q.x=40;m.ball.x=q.x+.2;m.ball.z=q.z;assert(m.acquire(q));assert(m.startKick(q,'pass',r,{x:r.x,z:r.z}));m.release();o.sample();
  const episode=o.report().episodes.at(-1);assert(episode.stages.lineBreak);assert(episode.stages.finalThird);assert(episode.stages.box);assert.equal(episode.lastStage,'box');o.detach();
 });
 
@@ -130,7 +132,7 @@ test('a carried ball breaks the same frozen two-player line in both attacking di
 test('an actual gain still settling at the time limit is censored rather than a tactical loss',()=>{
  const {m,p}=fixture();m.owner=null;m.lastTeam=1;m.lastTouch=m.players[14];const o=Diagnostics.attach(m);
  assert(m.acquire(p));assert.equal(summary(o).teams[0].pending,1);assert.equal(summary(o).teams[0].confirmedGains,0);
- m.duration=m.time+dt*4;for(let i=0;i<4;i++)o.step(dt);
+ endIn(m,dt*4);for(let i=0;i<4;i++)o.step(dt);
  const aggregate=summary(o).teams[0],episode=o.report().episodes.find(e=>e.origin==='gain');
  assert.equal(aggregate.censored,1);assert.equal(aggregate.ended,0);assert.equal(aggregate.pending,0);assert.deepEqual(aggregate.endReasons,{});
  assert.equal(episode.status,'censored');assert.equal(episode.endReason,'match-end');o.detach();

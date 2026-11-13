@@ -47,7 +47,7 @@ test('GPU head and neck yaw do not rotate the body palette or change bone anchor
  for(const offset of [0,16,32])assert.deepEqual(scanned.slice(offset+12,offset+16),baseline.slice(offset+12,offset+16));
 });
 test('procedural eyes follow head facing while the body and feet keep their pose',()=>{
- const fs=require('node:fs'),vm=require('node:vm'),window={TribunHumanoidRig:Rig};
+ const fs=require('node:fs'),vm=require('node:vm'),window={TribunHumanoidRig:Rig,TribunPitchLaws:require('../pitch-laws')};
  vm.runInNewContext(fs.readFileSync(require.resolve('../scene3d'),'utf8'),{window});
  const p=player({active:true,team:0,index:0}),pose=Rig.update(p,dt),figure=window.Stadium3D.prototype.figure;
  const draw=headFace=>{

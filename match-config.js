@@ -74,6 +74,7 @@ async function prepare(input={}){
   let snapshot;
   try{snapshot=await fixtureSnapshot(token);}catch{demo(cfg,'league-unavailable');}
   if(snapshot){
+   if(snapshot.competitionRules)cfg.rules={...cfg.rules,...clone(snapshot.competitionRules)};
    cfg.fixture=clone(snapshot.fixture);cfg.fixture.snapshotAt=snapshot.snapshotAt;
    cfg.homeName=snapshot.ownTeam.name;
    const opponent=snapshot.opponent;

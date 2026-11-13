@@ -222,7 +222,7 @@ def local_match(token, now=None):
         enemy=c.execute('SELECT * FROM teams WHERE league=? AND slot=?',(person['league'],enemy_slot)).fetchone()
         if enemy is None:raise ValueError('Fikstürün rakip kulübü bulunamadı.')
         phase='completed' if fixture['home_score'] is not None else 'live' if fixture['kickoff']<=now<fixture['kickoff']+300 else 'scheduled'
-        return {'version':1,'snapshotAt':now,
+        return {'version':1,'snapshotAt':now,'competitionRules':{'maxSubstitutions':5,'substitutionWindows':3,'minPlayers':7},
             'fixture':{key:fixture[key] for key in ('league','round','home','away','kickoff')} |
                 {'isHome':fixture['home']==person['slot'],'state':phase},
             'ownTeam':football_team_snapshot(c,person),'opponent':football_team_snapshot(c,enemy)}
@@ -281,14 +281,15 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError,json.JSONDecodeError) as e:return self.json_response({'error':str(e)},400)
     def log_message(self,format,*args):pass
 
-def run():
+def run(host='127.0.0.1', port=None):
+    port=PORT if port is None else port
     init_db();transfer_service().import_catalog(json.loads((ROOT/'data/player-catalog.json').read_text()))
-    print(f'Tribün Manager 3D development server: http://localhost:{PORT} | database: {DATA}',flush=True)
+    print(f'Tribün Manager 3D development server: http://{host}:{port} | database: {DATA}',flush=True)
     def worker():
         while True:
             try:settle_due();transfer_service().settle_all()
             except Exception as e:print('scheduler:',repr(e),flush=True)
             time.sleep(10)
     threading.Thread(target=worker,daemon=True).start()
-    ThreadingHTTPServer(('0.0.0.0',PORT),Handler).serve_forever()
+    ThreadingHTTPServer((host,port),Handler).serve_forever()
 if __name__=='__main__':run()

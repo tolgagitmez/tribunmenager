@@ -1,3 +1,19 @@
+# Kurulum ve başlatma
+
+**[Oyunu kurmak ve çalıştırmak için adım adım KURULUM.md rehberini aç.](KURULUM.md)** Python 3.10+ yeterlidir: Windows’ta `BASLAT.bat`, macOS/Linux’ta `sh BASLAT.sh`. Varsayılan yerel maç modu eksik ekonomi kataloğuna ihtiyaç duymaz.
+
+## On ikinci aşama: maç kuralları ve yaşam döngüsü — v1.31.0
+
+**Son doğrulama: 435/435 test geçti** (413 JS + 22 Python), hata/atlanan yok. Gerçek Chromium WebGL ve 2D yollarında 16’şar kontrol geçti. Bir normal 300 saniyelik nominal senaryo, gözlemcili/gözlemcisiz/tekrar olarak üç kez aynı tam durumu üretti; 164 + 150 saniyelik devreler ve 8 saniyelik ara ile 322 saniyede tamamlandı. Bu senaryoda bir penaltı kararı ve bir gol gözlendi; tek örnekten denge veya özellik sıklığı sonucu çıkarılmıyor.
+
+Penaltı, avantaj/geri dönüş, doğrudan kırmızı, gerçek devre arası, saha değişimi ve telafi edilen ek süre artık maç akışındadır. Çizgilerde bütün top sınanır; direk/üst direk süpürülmüş çarpışması gol kararından önce çözülür. Kafa pası ofsaytı ve seçilmiş aktif etkileme durumları izlenir. Oyuncu değişikliği müsabaka oyuncu/pencere sınırlarına bağlıdır; kaleci değişebilir ve canlı oyunda anlık değişiklik yapılamaz.
+
+[Kural sözleşmesi, kontrollü sınırlar ve kalan işler](docs/MATCH_RULES.md) · [Kurulum](KURULUM.md). `npm run test:stage12` tüm önceki kontrolleri ve yeni kural/başlatıcı testlerini çalıştırır. Gerçek tarayıcı doğrulaması belgelenen `start.py` başlatıcısını kullanır. Tam sunucu, ayrıca ekonomi kuralları ve oyuncu kataloğu gerektirir; varsayılan yerel maç modu bu dosyalar olmadan açılır.
+
+Önceki aşamaların ölçümleri aşağıda tarihsel kayıttır; kaynak hash'leri yayımlandıkları sürüme aittir. Hücum ve oyuncu kalite dengesi kalibrasyonu açık kalır.
+
+---
+
 ## On birinci aşama: ortak oyuncu modeli ve fikstür kadrosu
 
 **v1.30.0**, kadro ekranındaki maç gücünü, iki takımın maç oyuncularını ve oyuncu değişikliklerini aynı `player-model.js` hesabına bağlar. Form ve mevki uyumu teknik uygulamayı; kondisyon hız, ivme ve çevikliği; güç ve denge erişilebilir ikili mücadeleyi etkiler. Aynı genel puandaki hızlı bitirici, güçlü stoper ve oyun kurucu farklı koşu, pas ve mücadele profilleri taşır. Başlangıç kadrosu kurmaca, açıkça tanımlanmış profiller kullanır; yeni futbol özellikleri oyuncu sırasından veya kimlik numarasından üretilmez.

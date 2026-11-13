@@ -1,3 +1,13 @@
+## Aşama 12: ortak hakem, saha ve müsabaka yaşamı
+
+`referee-laws.js` olay konumundan faul/penaltı/kart kararını üretir. `Match.adjudicateFoul` karar kaydını, avantaj durumunu, ertelenen disiplini ve gerçek yeniden başlatmayı yönetir. Penaltı normal hazırlık/ayak/kaleci temas zincirini kullanır. `pitch-laws.js` bütün-top çizgi geçişi ve süpürülmüş kale çerçevesinin ortak geometri kaynağıdır; çizim aynı ölçüleri okur.
+
+`match-rules.js`, iki nominal devre, mola, minimum ek süre ve değişiklik pencerelerini yönetir. `match.time` kronolojik kalır; kullanıcı `clockState()` görür. Mola sırasında fizik/AI çalışmaz. İkinci devrede bütün taktik, kaleci, gol ve ofsayt yönleri `Match.direction(team)` üzerinden tersine döner. Hücum gözlemcisi mola süresini ayrı ölü-top alt bölmesine koyar ve eski devrenin hücumunu sansürler. Sınırdaki bir adım gözlem sınıflandırma belirsizliği rapor sözleşmesinde korunur.
+
+`start.py` yalnız standart kütüphane kullanan yerel/tam mod başlatıcısıdır. Yerel mod statik oyunu sunar ve kapalı API'lere açıklayıcı 503 yanıtı verir; özel dosya yollarını sunmaz. Tam mod eksik veri için açılmadan önce anlaşılır hata verir. Başlatma betikleri ve [KURULUM.md](KURULUM.md) aynı girişi kullanır. [Kural sözleşmesi](docs/MATCH_RULES.md) uygulanan sezgileri ve eksik IFAB kapsamını açıklar.
+
+---
+
 # On birinci aşama — ortak oyuncu ve maç başlangıç sözleşmesi
 
 `player-model.js`, tarayıcı/CommonJS üzerinde ham kadro kaydını etkin maç değerlerine çevirir. `club-data.js` mevki uyumunu ve `manager.js` maç gücünü bu modülden alır. `Match.reset` iki takımın kayıtlarını aynı `forSlot` yolundan geçirir; `substitute` aynı slot hesabını yeniden kullanır. Ham kadro nesnelerine maç yorgunluğu veya etkin puan yazılmaz. Genel kalite göstergesi eski kadro formülünü korur; alt özelliklerin davranışa etkisi ayrı ve açıktır.

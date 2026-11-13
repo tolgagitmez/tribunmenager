@@ -21,7 +21,7 @@ function fixture({side=1,speed=4,yaw=0,shield=false,lateral=.18,ballSpeed=3}={})
 }
 function clone(m,Engine=Match){return Object.assign(Object.create(Engine.prototype),structuredClone(m));}
 // Stage 9 adds decision metadata; this regression still compares every physical field and RNG value.
-function physical(m){const state=structuredClone(m);delete state.teamPhases;delete state._perceptionActive;delete state.telemetry.teamPhaseChanges;for(const p of state.players){delete p.perception;delete p.task;delete p.taskHistory;}return state;}
+function physical(m){const state=structuredClone(m);delete state.matchClock;delete state.teamPhases;delete state._perceptionActive;delete state.telemetry.teamPhaseChanges;for(const p of state.players){delete p.perception;delete p.task;delete p.taskHistory;}return state;}
 function pose(p){return {x:p.x,z:p.z,vx:p.vx,vz:p.vz,face:p.face};}
 function firstLiveTouch(m,p){
  let captured;const query=m.touchPlan;

@@ -93,7 +93,7 @@ for(const side of [1,-1])test(`the ordinary owner step applies the retained inte
  assert(distance(p,before)<.15);assert.equal(m.owner,p);assert.equal(m.kick,null);
  assert(m.ball.vx*side>0);assert(old.ball.vx*side<0,'the unreviewed hold redirects the same physical ball backwards');
  delete m.telemetry.holdContinuations;for(const v of [m,expected,old])delete v.choose;
- const physical=value=>{const state=structuredClone(value);delete state.teamPhases;delete state._perceptionActive;delete state.telemetry.teamPhaseChanges;for(const actor of state.players){delete actor.perception;delete actor.task;delete actor.taskHistory;}return state;};
+ const physical=value=>{const state=structuredClone(value);delete state.matchClock;delete state.teamPhases;delete state._perceptionActive;delete state.telemetry.teamPhaseChanges;for(const actor of state.players){delete actor.perception;delete actor.task;delete actor.taskHistory;}return state;};
  assert.deepEqual(physical(m),physical(expected),'the observed-pressure continuation must use the exact stage6 physical path');
 });
 test('the pure hold review leaves released ball flight entirely under BallPhysics',()=>{

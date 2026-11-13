@@ -1,0 +1,130 @@
+{
+  "generatedAt": "2026-11-13T15:22:34.871189+00:00",
+  "sources": {
+    "start.py": "2ce2c84570ecc2be729e4c33c50b1cbaa9a9aa13810c63cdfda3405763d8ff88",
+    "football-sim.js": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd",
+    "match-rules.js": "8bbf5af5ac74be2a0e64154297f083686e1bbfae455da538657a1be8d0295876",
+    "referee-laws.js": "e5e5d3694f9da9f65054f07030a0beb06149d33c16abf25b8a51616ffe31ab87",
+    "pitch-laws.js": "55b35441c614dc3b15dbaa1b0e9722082e77fa01ebba398d0c50e9a2d9ef06fa",
+    "match3d.js": "fce569132d86aea6bc05af90bf5df9a773a8979960d5c34973fe7d94556df3b7",
+    "match.html": "b2c8e74b79ccfdeb02e11060cbd2b13da2fa7747fb176becc3ace7c5d9f5fe0e",
+    "match3d.css": "97656e445cb8feaeaf0a3fbbcd96945b9d4ebd3f0b5fa511a0d9cb316064f921",
+    "scene3d.js": "c3e536c6cd650940da00cfa1a319f17c2c144c6ad4c937d8649ba65d196de506",
+    "attack-diagnostics.js": "9176b438e591ad7fb411ab1b89cde25d6a4cf602288485798be3c031901c9ebb",
+    "tools/check-match-laws-browser.py": "a277eaaa3af8df1e155088863c9767c38a6977af8fa5c6b8277321660b84a043"
+  },
+  "method": "Actual documented start.py local launcher and Chromium; two-second configured periods accelerate real lifecycle transitions. These are controlled UI checks, not natural balance samples.",
+  "runs": [
+    {
+      "mode": "webgl-procedural",
+      "checks": {
+        "startup": true,
+        "halftime": true,
+        "frozenPhysics": true,
+        "frozenClock": true,
+        "halftimeExposure": true,
+        "secondKickoff": true,
+        "endsChanged": true,
+        "competitionLabel": true,
+        "actualSubstitution": true,
+        "finalWhistle": true,
+        "observerValid": true,
+        "addedTimeAnnouncement": true,
+        "extraTimeRemainsLive": true
+      },
+      "time": 4.816666666666655,
+      "periods": [
+        1.9999999999999978,
+        1.9999999999999978
+      ],
+      "clock": {
+        "start": 0,
+        "end": 4.816666666666655,
+        "observedSeconds": 4.816666666666655,
+        "inPlaySeconds": 0,
+        "deadBallSeconds": 4.816666666666655,
+        "restartSeconds": 3.999999999999991,
+        "goalPauseSeconds": 0,
+        "halftimeSeconds": 0.8166666666666638,
+        "controlledSeconds": [
+          0,
+          0
+        ],
+        "flightSeconds": [
+          0,
+          0
+        ],
+        "looseSeconds": 0,
+        "unobservedSeconds": 0
+      },
+      "subCount": 1,
+      "windowCount": 1,
+      "goalDimensions": {
+        "halfLength": 52,
+        "halfWidth": 34,
+        "goalHalfWidth": 3.66,
+        "goalHeight": 2.44,
+        "postRadius": 0.06,
+        "ballRadius": 0.11
+      },
+      "mobile390Overflow": false,
+      "scriptErrors": []
+    },
+    {
+      "mode": "2d",
+      "checks": {
+        "startup": true,
+        "halftime": true,
+        "frozenPhysics": true,
+        "frozenClock": true,
+        "halftimeExposure": true,
+        "secondKickoff": true,
+        "endsChanged": true,
+        "competitionLabel": true,
+        "actualSubstitution": true,
+        "finalWhistle": true,
+        "observerValid": true,
+        "addedTimeAnnouncement": true,
+        "extraTimeRemainsLive": true
+      },
+      "time": 5.2999999999999865,
+      "periods": [
+        1.9999999999999978,
+        1.9999999999999978
+      ],
+      "clock": {
+        "start": 0,
+        "end": 5.2999999999999865,
+        "observedSeconds": 5.2999999999999865,
+        "inPlaySeconds": 0,
+        "deadBallSeconds": 5.2999999999999865,
+        "restartSeconds": 3.999999999999991,
+        "goalPauseSeconds": 0,
+        "halftimeSeconds": 1.2999999999999954,
+        "controlledSeconds": [
+          0,
+          0
+        ],
+        "flightSeconds": [
+          0,
+          0
+        ],
+        "looseSeconds": 0,
+        "unobservedSeconds": 0
+      },
+      "subCount": 1,
+      "windowCount": 1,
+      "goalDimensions": {
+        "halfLength": 52,
+        "halfWidth": 34,
+        "goalHalfWidth": 3.66,
+        "goalHeight": 2.44,
+        "postRadius": 0.06,
+        "ballRadius": 0.11
+      },
+      "mobile390Overflow": false,
+      "scriptErrors": []
+    }
+  ],
+  "verified": true
+}

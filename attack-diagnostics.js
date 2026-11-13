@@ -1,18 +1,17 @@
 'use strict';
-/* Passive attack analysis. No rule, decision, forecast or random query is made. */
+/* Passive attack analysis. No decision, forecast or random query is made. */
 (function(root){
 const attached=new WeakMap(),stages=['gain','pressureEscape','lineBreak','finalThird','box','shot'];
 const passKinds=new Set(['pass','through','cross','cutback','long-pass']);
 const supportStates=new Set(['support','build-support','return-support','between-lines','wide-support','inside-support']);
 const boxStates=new Set(['box-run','cutback-support','channel-run','penetration']);
-const side=t=>t===0?1:-1,finite=Number.isFinite,team=t=>t===0||t===1;
+const defaultSide=t=>t===0?1:-1,finite=Number.isFinite,team=t=>t===0||t===1;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z),point=p=>p&&finite(p.x)&&finite(p.z)?{x:p.x,z:p.z}:null;
 const clone=value=>JSON.parse(JSON.stringify(value));
 const add=(o,k,n=1)=>{o[k]=(o[k]||0)+n;};
 const emptyStages=()=>Object.fromEntries(stages.map(s=>[s,0]));
 const ratio=(a,b)=>b>0?a/b:null;
 const segment=(p,a,b)=>{const x=b.x-a.x,z=b.z-a.z,n=x*x+z*z,u=n?Math.max(0,Math.min(1,((p.x-a.x)*x+(p.z-a.z)*z)/n)):0;return {u,d:Math.hypot(p.x-a.x-x*u,p.z-a.z-z*u)};};
-const inBox=(p,t)=>p.x*side(t)>=35.5&&Math.abs(p.z)<=20.16;
 const definitions={
  version:1,stages,
  attack:'An episode starts on an actual successful acquire, actual restart release or an already active possession at attachment. A physical shot release ends the episode; a same-team rebound control starts another episode. New opponent control or a dead ball also ends it. Window/match end is right-censored, not failure.',
@@ -20,7 +19,7 @@ const definitions={
  zones:'Team-relative physical ball position, never a commanded destination. Final third begins at 52/3m; box begins at 35.5m and |z|<=20.16m. A sampled zone needs 0.15 continuous controlled seconds; actual release/header contact qualifies immediately. An episode starting inside a zone is labelled at-start and excluded from that zone progression denominator.',
  pressureEscape:'Eligible only when a live opposing outfielder is within 4m at episode start. After confirmed control, keep the ball controlled with nearest rival>=5m for 0.5 continuous sampled seconds. No initial pressure is not-required, not a successful escape. This geometric pressure proxy is not the player perception model.',
  lineBreak:'Operational proxy, not certified formation recognition: freeze at least two outfield rival IDs ahead of the physical origin (>=1m) within a 12m lateral band. At a later confirmed control/release, advance>=2m and be>=1m beyond both their frozen and current positions. The reference is refreshed from an actual pass release, not its planned destination.',
- clocks:'Classify each observer.step interval from the state before the real step, using actual match time delta. Open-play windup, loose ball and goalkeeper holding are in play; placed restart windup and goal pause are dead. A boundary has at most one supplied step of classification uncertainty. Manual sample gaps over 0.05s are unobserved, not invented in-play time. Controlled, flight and loose bins partition in-play seconds.',
+ clocks:'Classify each observer.step interval from the state before the real step, using actual match time delta. Open-play windup, loose ball and goalkeeper holding are in play; placed restart windup, goal pause and halftime are dead. Restart, goal-pause and halftime bins partition dead-ball seconds. Territory uses the current period attack direction; halftime censors the old episode before the ends change. A boundary has at most one supplied step of classification uncertainty. Manual sample gaps over 0.05s are unobserved, not invented in-play time. Controlled, flight and loose bins partition in-play seconds.',
  evidence:'Hold decisions/time, low-speed control, support commands/readiness by centre gap<=3m and box runner commands/arrivals are observed facts. They do not prove unnecessary waiting, a safe available pass, the best decision, or a causal tactical defect. No additional choose/passOptions/shotWindow/forecast query is made.',
  coverage:'Natural counters measure actual processed windows and method/event outcomes. Descending cross windows and candidate reach are geometric samples; keeper processing opportunities are distinct keeperRead keys actually created by the engine. They are not all possible chances or quality ratings. Controlled scenario reports must remain separate.',
  truncation:'Team aggregates retain every observed episode. maxEpisodes bounds detailed closed-episode and shot traces; dropped detail counts are explicit. Reading a report never ends an active episode.'
@@ -28,10 +27,12 @@ const definitions={
 function attach(match,options={}){
  if(!match||typeof match.step!=='function')throw new TypeError('A Match instance is required');
  if(attached.has(match))throw new Error('Attack diagnostics already attached to this match');
+ const side=t=>typeof match.direction==='function'?match.direction(t):defaultSide(t);
+ const inBox=(p,t)=>p.x*side(t)>=35.5&&Math.abs(p.z)<=20.16;
  const maxEpisodes=Math.max(1,Math.floor(finite(options.maxEpisodes)?options.maxEpisodes:2000));
  const originals=new Map(),errors=[],records=[],shotRecords=[],passRecords=new Map(),seenFlights=new WeakMap();
  let detached=false,active=null,serial=0,foreignSerial=0,dropped=0,droppedShots=0,lastBoundary=null,lastShot=null,pendingShot=null,pendingKick=null,keeperDepth=0;
- const clock={start:Number(match.time)||0,end:Number(match.time)||0,observedSeconds:0,inPlaySeconds:0,deadBallSeconds:0,restartSeconds:0,goalPauseSeconds:0,controlledSeconds:[0,0],flightSeconds:[0,0],looseSeconds:0,unobservedSeconds:0};
+ const clock={start:Number(match.time)||0,end:Number(match.time)||0,observedSeconds:0,inPlaySeconds:0,deadBallSeconds:0,restartSeconds:0,goalPauseSeconds:0,halftimeSeconds:0,controlledSeconds:[0,0],flightSeconds:[0,0],looseSeconds:0,unobservedSeconds:0};
  const evidence=()=>({holdDecisions:0,holdSeconds:0,stationaryControlSeconds:0,heldStationarySeconds:0,supportMissingSeconds:0,supportUnreadySeconds:0,readySupportSeconds:0,passPreparationAborts:0,preparationReplans:0,boxRunnerCommands:0,boxRunnerArrivals:0,boxRunnerCommandSeconds:0,boxRunnerReadySeconds:0,duelDislodgements:0,controlDislodgements:0});
  const passTotals=()=>({attempted:0,completed:0,intercepted:0,looseOrDeflected:0,out:0,offside:0,interrupted:0,unknown:0,returnedToSender:0,goalsWithoutShot:0,headerContacts:0,defensiveHeaders:0});
  const teams=[0,1].map(t=>({team:t,attacks:0,origins:{},contactGains:0,confirmedGains:0,unsettledGains:0,stageCounts:emptyStages(),stageEligibility:emptyStages(),eligibleReached:emptyStages(),startedBeyond:emptyStages(),notRequired:emptyStages(),endedByStage:{},endReasons:{},pending:0,censored:0,ended:0,passes:passTotals(),shots:0,evidence:evidence()}));
@@ -126,16 +127,16 @@ function attach(match,options={}){
  }
  function controlValid(owner=match.owner,b=match.ball){return alive(owner)&&!!b&&(owner.holdingBall===true||b.y<=.65&&distance(owner,b)<=1.45);}
  function frame(){
-  const owner=match.owner,controlled=controlValid(owner),dead=!!match.restart||!!match.kick?.restartContext||!!match.goalPause;
+  const owner=match.owner,halftime=match.lifecycle==='halftime',controlled=!halftime&&controlValid(owner),dead=halftime||!!match.restart||!!match.kick?.restartContext||!!match.goalPause;
   let allocation='loose',allocationTeam=null;if(controlled){allocation='controlled';allocationTeam=owner.team;}else if(team(match.flight?.from?.team)){allocation='flight';allocationTeam=match.flight.from.team;}
-  return {time:time(),dead,restart:!!match.restart||!!match.kick?.restartContext,goalPause:!!match.goalPause,allocation,allocationTeam,ownerId:owner?.id??null,ownerTeam:owner?.team??null,controlled,speed:owner?.speed??Math.hypot(owner?.vx||0,owner?.vz||0),ball:point(match.ball),ownerGap:owner&&match.ball?distance(owner,match.ball):null,episodeId:active?.id??null,episode:active,hold:!!active&&time()<active.holdUntil,support:active&&controlled?supportFacts(active):null,aborted:match.telemetry?.abortedKicks||0,looseBalls:match.telemetry?.looseBalls||0};
+  return {time:time(),dead,halftime,restart:!!match.restart||!!match.kick?.restartContext,goalPause:!!match.goalPause,allocation,allocationTeam,ownerId:owner?.id??null,ownerTeam:owner?.team??null,controlled,speed:owner?.speed??Math.hypot(owner?.vx||0,owner?.vz||0),ball:point(match.ball),ownerGap:owner&&match.ball?distance(owner,match.ball):null,episodeId:active?.id??null,episode:active,hold:!!active&&time()<active.holdUntil,support:active&&controlled?supportFacts(active):null,aborted:match.telemetry?.abortedKicks||0,looseBalls:match.telemetry?.looseBalls||0};
  }
  let previous=frame();
  function sampleWith(before,explicit=false){
   const now=time(),dt=now-clock.end;if(dt< -1e-8){errors.push({time:now,message:'Match time moved backwards; detach and attach a new observer after reset'});clock.end=now;previous=frame();return;}
   clock.end=now;if(dt>0){clock.observedSeconds+=dt;
    if(!explicit&&dt>.05+1e-8){clock.unobservedSeconds+=dt;if(active){active.settledSeconds=0;active.pressureSafeSeconds=0;active.zoneDwell.finalThird=active.zoneDwell.box=0;}}
-   else if(before.dead){clock.deadBallSeconds+=dt;if(before.goalPause)clock.goalPauseSeconds+=dt;else clock.restartSeconds+=dt;}
+   else if(before.dead){clock.deadBallSeconds+=dt;if(before.halftime)clock.halftimeSeconds+=dt;else if(before.goalPause)clock.goalPauseSeconds+=dt;else clock.restartSeconds+=dt;}
    else{
     clock.inPlaySeconds+=dt;if(before.allocation==='controlled')clock.controlledSeconds[before.allocationTeam]+=dt;else if(before.allocation==='flight')clock.flightSeconds[before.allocationTeam]+=dt;else clock.looseSeconds+=dt;
     if(before.episode&&before.controlled){
@@ -178,7 +179,7 @@ function attach(match,options={}){
   if(name==='aerial')return {flight:f,flightId:flightKey(f),resolved:f?.aerialResolved,ball:{...match.ball},shots:[...(match.shots||[0,0])],headedPasses:match.telemetry?.headedPasses||0};
   if(name==='doTackle')return {owner:match.owner,duels:match.telemetry?.duels||0};
   if(name==='keeper'){keeperDepth++;return {reads:new Map((match.players||[]).filter(p=>p.role==='GK').map(p=>[p.id,{ref:p.keeperRead,key:p.keeperRead?.key}]))};}
-  if(name==='setRestart')return {flightId:flightKey(f)};
+  if(name==='setRestart')return {flightId:flightKey(f),boundaryType:lastBoundary?.time===time()?lastBoundary.type:null};
   if(name==='offsideTouch'){coverage.offsides.contactChecks++;if(f?.offsidePlayers?.includes(args[0]?.id)&&f.from?.team===args[0]?.team)coverage.offsides.flaggedContactChecks++;}
   return null;
  }
@@ -206,9 +207,10 @@ function attach(match,options={}){
   }
   if(name==='startCarry'&&active?.team===args[0]?.team){if(args[1]?.hold){bump('holdDecisions');active.holdUntil=Math.max(active.holdUntil,args[0].settleUntil||time());}const facts=supportFacts(active);note('carry-decision',{hold:!!args[1]?.hold,shield:!!args[1]?.shield,playerId:args[0].id,stage:active.lastStage,supportCommands:facts.support.length,readySupportCommands:facts.support.filter(q=>q.ready).length,boxRunners:facts.box});}
   if(name==='setRestart'){
-   const kind=args[0],t=args[1],same=active?.team===t,boundary=lastBoundary?.time===time()?lastBoundary.type:null;
-   const reason=boundary==='offside'?'offside':kind==='free-kick'?(same?'foul-won':'foul-conceded'):kind==='throw'?(same?'out-retained':'out-loss'):kind==='corner'?(same?'corner-won':'corner-conceded'):kind==='goal-kick'?(same?'goal-kick-retained':'goal-kick-conceded'):'restart';
-   const record=passRecords.get(before.flightId);if(record)passOutcome(record,reason==='offside'?'offside':kind==='free-kick'?'interrupted':'out');
+   if(!match.restart&&match.done)return;
+   const kind=match.restart?.kind??args[0],t=match.restart?.team??args[1],same=active?.team===t,sameRequest=kind===args[0]&&t===args[1]&&(!match.restart?.spot||distance(match.restart.spot,args[2])<1e-8),boundary=sameRequest?before.boundaryType:null;
+   const reason=boundary==='offside'?'offside':['free-kick','penalty'].includes(kind)?(same?'foul-won':'foul-conceded'):kind==='throw'?(same?'out-retained':'out-loss'):kind==='corner'?(same?'corner-won':'corner-conceded'):kind==='goal-kick'?(same?'goal-kick-retained':'goal-kick-conceded'):'restart';
+   const record=passRecords.get(before.flightId);if(record)passOutcome(record,reason==='offside'?'offside':['free-kick','penalty'].includes(kind)?'interrupted':'out');
    end(reason);if(pendingShot){coverage.shots.out++;resolveShot('out',{restartKind:kind,restartTeam:t});}pendingKick=null;lastBoundary=null;
   }
   if(name==='aerial'&&before.flight?.kind==='cross'){
@@ -238,6 +240,7 @@ function attach(match,options={}){
    if(type==='goal'){const scoring=args[4]??p?.team??0;coverage.shots.goalEvents++;if(pendingShot&&pendingShot.team===scoring)coverage.shots.goals++;else if(pendingShot)coverage.shots.unattributedGoalEvents++;else coverage.shots.nonShotGoalEvents++;resolveShot('goal',{scoringTeam:scoring});const record=passRecords.get(flightKey(match.flight));if(record)passOutcome(record,'goal-without-shot');if(active)end(scoring===active.team?'goal':'opponent-goal');}
    if(type==='block'){coverage.shots.blocked++;resolveShot('blocked',{playerId:p?.id??null});note('shot-blocked');}
    if(type==='save'){const caught=!!p?.holdingBall;coverage.keepers[caught?'catches':'parries']++;resolveShot(caught?'keeper-catch':'keeper-parry',{playerId:p?.id??null});}
+   if(type==='half'&&match.lifecycle==='halftime'&&active)end('halftime','censored');
    if(type==='end'&&active)end('match-end','censored');
   }
  }

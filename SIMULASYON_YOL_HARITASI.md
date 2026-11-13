@@ -1,3 +1,13 @@
+## Aşama 12 — temel kurallar, maç yaşamı ve kurulabilir sürüm
+
+Tamamlanan model akışları: olay konumundan penaltı/serbest vuruş; avantaj ve ilk faul yerine dönüş; ertelenen disiplin/doğrudan kırmızı; gerçek mola ve iki takımın saha değişimi; ilan edilen minimum ve yeni gecikmeyle uzayan ek süre; bütün topun çizgi geçişi ve kale çerçevesi; kafa teması ofsaytı ve seçilmiş aktif etkileme; müsabakaya bağlı oyuncu/değişiklik pencereleri. [Kural sözleşmesi](docs/MATCH_RULES.md) ve [kurulum rehberi](KURULUM.md) eklendi.
+
+Sıradaki kapsam: tam penaltı ihlal/yeniden vuruş matrisi ve kaleci ayak çizgisi ölçümü; ofsaytta en ileri geçerli vücut parçası; elle oynama; sakatlık/VAR; uzatma/seri penaltı ve turnuva formatları. Mevcut yaklaşım ihlalli penaltı çıkışını engeller, sonradan bütün ihlal kombinasyonlarını yargılamaz. Aktif etkileme ve bariz gol şansı geometrik sezgilerdir.
+
+Hücum üretimi, profil kalibrasyonu ve kayıtlı olmayan bilgisayar kadroları önceki önceliklerini korur. Tek maçın son düdüğe ulaşması futbol dengesinin çözüldüğü anlamına gelmez. Normal kurulum artık veri dosyası eksikliğinde yerel maçı açar; tam lig/transfer kurulumu gerçek ekonomi ve katalog dosyalarını gerektirir. Doğrulamalar aşama 12 raporlarıyla, eski matrise ait sonuçlar kendi sürümleriyle değerlendirilir.
+
+---
+
 # On birinci aşama uygulama durumu — oyuncu kimliği ve ortak kadro
 
 Ortak oyuncu modeli, genel mevki/form/kondisyon kalite hesabı, iki takımın aynı şemadan kurulması ve oyuncu değişikliği tamamlandı. Kurmaca başlangıç kadrosu belirgin profillere sahiptir; katalogdan verilen ayak, rol ve özellikler transferde korunur. Eksik bilgi oyuncu sırasından türetilmez. Eşit genel puanlı hızlı forvet, güçlü stoper ve oyun kurucunun sahadaki farkı gerçek hareket, pas ve mücadele durumlarıyla sınanır.

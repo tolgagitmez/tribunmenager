@@ -1,6 +1,7 @@
 'use strict';
 /* TRIBUN 3D: tiny zero-dependency WebGL renderer. Real 3D geometry, perspective and depth. */
 (function(){
+const goal=window.TribunPitchLaws.dimensions;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const add=(a,b)=>a.map((v,i)=>v+b[i]);const sub=(a,b)=>a.map((v,i)=>v-b[i]);
 const norm=a=>{let d=Math.hypot(...a)||1;return a.map(v=>v/d)};
@@ -40,7 +41,7 @@ const line=(x,z,X,Z,w=.18)=>m.line(x,.055,z,X,.055,Z,w,white);line(-52,-34,52,-3
 for(let a=-1;a<=1;a+=2){let x=52*a,inner=35*a;line(x,-20,inner,-20);line(inner,-20,inner,20);line(inner,20,x,20);let small=46*a;line(x,-9,small,-9);line(small,-9,small,9);line(small,9,x,9);m.sphere(41.5*a,.08,0,.2,.09,.2,white);}
 for(let i=0;i<48;i++){let a=i*Math.PI/24,b=(i+1)*Math.PI/24;line(Math.cos(a)*9.15,Math.sin(a)*9.15,Math.cos(b)*9.15,Math.sin(b)*9.15,.16)}m.sphere(0,.08,0,.24,.08,.24,white);
 // 3d goals and nets
-for(let sign of [-1,1]){let x=52*sign,bx=x+sign*2.8;let pole=[.9,.94,.93],net=[.45,.65,.74];m.segment(x,0,-3.75,x,2.52,-3.75,.13,pole);m.segment(x,0,3.75,x,2.52,3.75,.13,pole);m.segment(x,2.52,-3.75,x,2.52,3.75,.13,pole);m.segment(x,2.52,-3.75,bx,2.22,-3.75,.06,pole);m.segment(x,2.52,3.75,bx,2.22,3.75,.06,pole);for(let zz=-3.75;zz<=3.76;zz+=.75){m.segment(x,0,zz,bx,0,zz,.018,net);m.segment(x,2.52,zz,bx,2.18,zz,.018,net)}for(let xx=0;xx<=2.8;xx+=.7){let p=x+sign*xx;for(let y of [0,1.05,2.15])m.segment(p,y,-3.75,p,y,3.75,.014,net)}}
+for(let sign of [-1,1]){let w=goal.goalHalfWidth+goal.postRadius,h=goal.goalHeight+goal.postRadius,r=goal.postRadius;let x=goal.halfLength*sign,bx=x+sign*2.8;let pole=[.9,.94,.93],net=[.45,.65,.74];m.segment(x,0,-w,x,h,-w,r,pole);m.segment(x,0,w,x,h,w,r,pole);m.segment(x,h,-w,x,h,w,r,pole);m.segment(x,h,-w,bx,2.22,-w,.06,pole);m.segment(x,h,w,bx,2.22,w,.06,pole);for(let zz=-w;zz<=w+.001;zz+=.75){m.segment(x,0,zz,bx,0,zz,.018,net);m.segment(x,h,zz,bx,2.18,zz,.018,net)}for(let xx=0;xx<=2.8;xx+=.7){let p=x+sign*xx;for(let y of [0,1.05,2.15])m.segment(p,y,-w,p,y,w,.014,net)}}
 // digital advertising and elevated stands
 for(let z of [-1,1]){m.box(0,1,z*37.3,117,2,1.05,[.04,.17,.28]);m.box(0,2,z*38.05,115,.12,.27,[.10,.63,.94]);for(let row=0;row<11;row++)m.box(0,2.8+row*.96,z*(39.5+row*1.23),124,row===0?.5:.52,1.5,row%2?seat:[.075,.16,.24]);}
 for(let x of [-1,1]){m.box(x*57,1,0,1.5,2,82,[.04,.17,.28]);for(let row=0;row<10;row++)m.box(x*(59+row*1.22),3+row*.94,0,1.6,.52,87,row%2?seat:[.08,.15,.22]);}
@@ -116,7 +117,7 @@ ctx.fillStyle='#061a2c';ctx.fillRect(0,0,w,h);polygon([[-74,-.45,-54],[74,-.45,-
 for(let i=0;i<12;i++){let x=-52+i*104/12,xx=-52+(i+1)*104/12;polygon([[x,0,-34],[xx,0,-34],[xx,0,34],[x,0,34]],i%2?'#195b2d':'#206c35')}
 for(let side of [-1,1]){for(let tier=0;tier<9;tier++){let z=side*(38+tier*1.6);polygon([[-61,tier*.8+2,z], [61,tier*.8+2,z],[61,tier*.8+2,z+side*1.8],[-61,tier*.8+2,z+side*1.8]],tier%2?'#20435d':'#17354c')}}
 let white='#e4f5e6',y=.05;for(let [a,b] of [[[-52,y,-34],[52,y,-34]],[[-52,y,34],[52,y,34]],[[-52,y,-34],[-52,y,34]],[[52,y,-34],[52,y,34]],[[0,y,-34],[0,y,34]],[[-52,y,-20],[-35,y,-20]],[[-35,y,-20],[-35,y,20]],[[-35,y,20],[-52,y,20]],[[52,y,-20],[35,y,-20]],[[35,y,-20],[35,y,20]],[[35,y,20],[52,y,20]],[[-52,y,-9],[-46,y,-9]],[[-46,y,-9],[-46,y,9]],[[-46,y,9],[-52,y,9]],[[52,y,-9],[46,y,-9]],[[46,y,-9],[46,y,9]],[[46,y,9],[52,y,9]]])stroke(a,b,white,Math.max(1,w/900));for(let j=0;j<48;j++){let a=j*2*Math.PI/48,b=(j+1)*2*Math.PI/48;stroke([9.2*Math.cos(a),y,9.2*Math.sin(a)],[9.2*Math.cos(b),y,9.2*Math.sin(b)],white,w/900)}
-for(let sign of [-1,1]){stroke([sign*52,.1,-3.7],[sign*52,2.6,-3.7],'white',2);stroke([sign*52,.1,3.7],[sign*52,2.6,3.7],'white',2);stroke([sign*52,2.6,-3.7],[sign*52,2.6,3.7],'white',2)}
+for(let sign of [-1,1]){const w=goal.goalHalfWidth+goal.postRadius,h=goal.goalHeight+goal.postRadius;stroke([sign*goal.halfLength,.1,-w],[sign*goal.halfLength,h,-w],'white',2);stroke([sign*goal.halfLength,.1,w],[sign*goal.halfLength,h,w],'white',2);stroke([sign*goal.halfLength,h,-w],[sign*goal.halfLength,h,w],'white',2)}
 let sorted=players.filter(p=>p.active).map(p=>({p,xy:project(p.x,0,p.z)})).sort((a,b)=>b.xy[2]-a.xy[2]);for(let {p,xy} of sorted){let foot=project(p.x,0,p.z),head=project(p.x,1.8,p.z),size=Math.max(2,Math.hypot(foot[0]-head[0],foot[1]-head[1]));ctx.strokeStyle=p.referee?'#f5d63c':p.team===0?'#4fb5f3':'#f04455';ctx.lineWidth=Math.max(2,size*.25);ctx.lineCap='round';ctx.beginPath();ctx.moveTo((foot[0]+head[0])/2,foot[1]);ctx.lineTo(head[0],head[1]+size*.22);ctx.stroke();ctx.beginPath();ctx.fillStyle='#d9af86';ctx.arc(head[0],head[1],Math.max(2,size*.15),0,Math.PI*2);ctx.fill()}
 let bp=project(ball.x,ball.y,ball.z);ctx.beginPath();ctx.fillStyle='white';ctx.arc(bp[0],bp[1],Math.max(3,w/310),0,Math.PI*2);ctx.fill();ctx.strokeStyle='#142a37';ctx.lineWidth=1.4;ctx.stroke();ctx.fillStyle='#acd6e7';ctx.font=`${Math.round(w/69)}px Arial`;ctx.fillText('2D yedek görünüm · WebGL devre dışı',15,h-18);
 }

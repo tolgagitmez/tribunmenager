@@ -23,6 +23,10 @@ function harness({token='',transfers,reply=snapshot(),fail=false}={}){
  return {api:root.TribunMatchConfig,requests:()=>requests,setToken:value=>{token=value;},setReply:value=>{reply=value;},session};
 }
 const input=()=>({players:C.createRoster(),starters:C.starters.slice(),formation:'4-3-3',tactics:{tempo:47},transferProfileId:'own',transferRevision:7});
+test('the fixture competition supplies substitution limits while local clock preferences survive',async()=>{
+ const reply={...snapshot(),competitionRules:{maxSubstitutions:2,substitutionWindows:1,minPlayers:7}},h=harness({token:'league-secret',reply}),source={...input(),rules:{maxSubstitutions:9,halftimeSeconds:12}};
+ const cfg=await h.api.prepare(source);assert.equal(cfg.rules.maxSubstitutions,2);assert.equal(cfg.rules.substitutionWindows,1);assert.equal(cfg.rules.minPlayers,7);assert.equal(cfg.rules.halftimeSeconds,12);
+});
 
 test('official opponent snapshot preserves selected players, foot, profile, tactics and away venue',async()=>{
  const reply=snapshot(false),h=harness({token:'league-secret',reply}),cfg=await h.api.prepare(input());
