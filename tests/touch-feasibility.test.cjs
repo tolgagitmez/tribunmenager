@@ -7,15 +7,21 @@ assert.equal(crypto.createHash('sha256').update(source).digest('hex'),'16d6d78ac
 const baseline=new Module(path.join(__dirname,'../touch-feasibility-baseline.js'),module);
 baseline.filename=path.join(__dirname,'../touch-feasibility-baseline.js');baseline.paths=module.paths;baseline._compile(source.toString(),baseline.filename);
 const OldMatch=baseline.exports.Match,dt=1/60;
+// Isolate control/momentum from roster tuning. 75 is the neutral runtime
+// acceleration, turn and endurance profile; fitness=100 makes fatigue use the
+// same stamina fraction in the archived and current movement integrators.
+const physicalProfile={skill:82,passing:82,shooting:82,tackling:82,dribbling:82,pace:82,heading:82,crossing:82,vision:82,composure:82,agility:75,acceleration:75,endurance:75,strength:75,balance:75,fitness:100,stamina:92,energy:1,preferredFoot:1,footPreference:'right',weakFoot:70,goalkeeping:82,reactions:82,handling:82};
 function fixture({side=1,speed=4,yaw=0,shield=false,lateral=.18,ballSpeed=3}={}){
- const m=new Match({seed:21});m.restart=null;m.kick=null;m.time=10;m.planClock=100;m.players.forEach(q=>q.active=false);
+ const m=new Match({seed:21});m.restart=null;m.kick=null;m.time=10;m.planClock=100;m.players.forEach(q=>Object.assign(q,physicalProfile,{active:false}));
  const p=m.players[3],target={x:6*Math.cos(yaw)*side,z:6*Math.sin(yaw)*side};
- Object.assign(p,{active:true,x:0,z:0,vx:speed*side,vz:0,speed,face:side>0?0:Math.PI,skill:82,dribbling:82,agility:82,pace:82,stamina:95,energy:1,touchClock:0,receiveClock:0,duelRecovery:0,action:'idle',actionClock:0,decision:100,carryTarget:target,shieldUntil:shield?11:0,shieldFace:side>0?0:Math.PI,preferredFoot:1,kickFoot:1});
+ Object.assign(p,{active:true,x:0,z:0,vx:speed*side,vz:0,speed,face:side>0?0:Math.PI,skill:82,dribbling:82,agility:75,pace:82,stamina:95,energy:1,touchClock:0,receiveClock:0,duelRecovery:0,action:'idle',actionClock:0,decision:100,carryTarget:target,shieldUntil:shield?11:0,shieldFace:side>0?0:Math.PI,preferredFoot:1,kickFoot:1});
  m.owner=p;m.lastTouch=p;m.lastTeam=p.team;m.ball={x:.8*side,y:.11,z:lateral*side,vx:ballSpeed*side,vy:0,vz:0};
  m.targets=new Map([[p,{...target,state:shield?'shield':'dribble',pace:shield?.56:.98}]]);
  return {m,p};
 }
 function clone(m,Engine=Match){return Object.assign(Object.create(Engine.prototype),structuredClone(m));}
+// Stage 9 adds decision metadata; this regression still compares every physical field and RNG value.
+function physical(m){const state=structuredClone(m);delete state.matchClock;delete state.teamPhases;delete state._perceptionActive;delete state.telemetry.teamPhaseChanges;for(const p of state.players){delete p.perception;delete p.task;delete p.taskHistory;}return state;}
 function pose(p){return {x:p.x,z:p.z,vx:p.vx,vz:p.vz,face:p.face};}
 function firstLiveTouch(m,p){
  let captured;const query=m.touchPlan;
@@ -65,7 +71,7 @@ for(const side of [1,-1]){
  });
  test(`an ordinary straight stride retains the exact existing touch and physical step (${side})`,()=>{
   const {m,p}=fixture({side}),old=clone(m,OldMatch);assert.equal(m.dribbleTouch(p),true);assert.equal(old.dribbleTouch(old.players[p.id]),true);
-  assert.deepEqual(structuredClone(m),structuredClone(old));m.step(dt);old.step(dt);assert.deepEqual(structuredClone(m),structuredClone(old));
+  assert.deepEqual(physical(m),physical(old));m.step(dt);old.step(dt);assert.deepEqual(physical(m),physical(old));
   assert.equal(m.telemetry.strideTouches,1);assert.equal(m.telemetry.limitedTouches,undefined);
  });
  test(`next-contact prediction matches actual fixed steps across current owner command refreshes (${side})`,()=>{
@@ -105,7 +111,7 @@ for(const side of [1,-1]){
 }
 test('a physically available prepared forward reception retains the exact baseline control',()=>{
  const {m,p}=reception(1,0,0),old=clone(m,OldMatch);m.ballStep(dt);old.ballStep(dt);
- assert.equal(m.telemetry.directedTouches,1);assert.equal(p.receiveMode,'open');assert.deepEqual(structuredClone(m),structuredClone(old));
+ assert.equal(m.telemetry.directedTouches,1);assert.equal(p.receiveMode,'open');assert.deepEqual(physical(m),physical(old));
 });
 test('the selected side uses its actual left or right foot in both playing directions',()=>{
  for(const side of [1,-1])for(const foot of [0,1]){

@@ -1,0 +1,226 @@
+{
+  "generatedAt": "2026-11-08T07:18:14.019342+00:00",
+  "sources": {
+    "football-sim.js": "b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3",
+    "player-perception.js": "d0879e2e845a34bd8f08fd117e3100ac651ee79f28371e153a7aed3c48bc08b8",
+    "team-intent.js": "cce8be16d8dd88ef758051e0cf6761326ad21cb55b1733397c5fa3815aac0030",
+    "humanoid-rig.js": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+    "scene3d.js": "561be6f11bf54ab2d6d97d260fa5b10c057bc72b6baf7740f3094c7243924a2b",
+    "player-renderer.js": "ef384d6ba0028ee7f038db75b7c87da9455de0118133b691b02953483f18613c",
+    "match3d.js": "1aadf489df472be0e9784ddee5039fa54b6fb41a891d1f0dbf5f82b206972ac4",
+    "match.html": "35d837d741be75f340b124973808100055a0108448a98d7357b0f4e8a3b130bc",
+    "tools/check-team-continuity-browser.py": "bfc9c7c932b2b768065bc427043442651af87be5302299f868bc6a43af7dd245"
+  },
+  "method": "Actual Chromium with SwiftShader WebGL/procedural renderer plus forced canvas2D fallback. Start from tactics UI, execute normal match ticks for >=15s, inspect existing read-only test-state/cached rig poses, pause and resume through actual controls. Head orientation changes remain presentation fields; physical body/ball/seed are unchanged by pose reads. Browser smoke does not establish whole-match football balance or complete four-phase scenario coverage.",
+  "runs": [
+    {
+      "mode": "webgl-procedural",
+      "state": {
+        "time": 15.850000000000367,
+        "players": 22,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          6,
+          0
+        ],
+        "clock": "00:15",
+        "teamPhases": [
+          {
+            "phase": "possession",
+            "since": 4.949999999999988,
+            "epoch": 1,
+            "attackEpoch": 0
+          },
+          {
+            "phase": "defence",
+            "since": 4.949999999999988,
+            "epoch": 1,
+            "attackEpoch": 0
+          }
+        ],
+        "webgl": true,
+        "playerQuality": "YEDEK OYUNCU MODELİ",
+        "stats": {
+          "perceptionActorSamples": 19800,
+          "storedRivalSamples": 113278,
+          "scanningActorSamples": 2486,
+          "drawnScanSamples": 5163,
+          "taskSamples": 13094,
+          "maxTaskActors": 20,
+          "maxPerceptionActors": 22,
+          "maxStoredRivals": 169,
+          "maxObservedHeadYaw": 1.55,
+          "maxDrawnHeadYaw": 0.7714608053221982,
+          "taskHistoryRecords": 17,
+          "poseQueriesLeavePhysicalStateUnchanged": true,
+          "drawnHeadMatchesBodyPlusYaw": true,
+          "phaseSamples": {
+            "0:possession": 655,
+            "1:defence": 655
+          },
+          "firstScan": {
+            "time": 4.949999999999988,
+            "id": 1,
+            "bodyFace": 3.141592653589793,
+            "observedHeadYaw": -1.55,
+            "drawnHeadYaw": -0.2267749515409686,
+            "drawnHeadFace": 2.9148177020488246
+          }
+        }
+      },
+      "moduleState": {
+        "perception": true,
+        "intent": true,
+        "engine": true,
+        "rig": true,
+        "scripts": [
+          "/ui-shell.js",
+          "/humanoid-rig.js",
+          "/assets/player/player-model-data.js",
+          "/player-renderer.js",
+          "/scene3d.js",
+          "/tactics.js",
+          "/player-perception.js",
+          "/team-intent.js",
+          "/football-sim.js",
+          "/club-data.js",
+          "/transfer-client.js",
+          "/match3d.js"
+        ]
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face4.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/favicon.svg",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ],
+      "screenshot": "work/stage9/match-webgl-procedural.png",
+      "assertedChecks": {
+        "startFromTactics": true,
+        "moduleScriptsLoadedBeforeEngine": true,
+        "twentyTwoPlayers": true,
+        "expectedRenderMode": true,
+        "localPerceptionRecords": true,
+        "liveTeamTasksAndHistory": true,
+        "validTeamPhases": true,
+        "headScanningAndDrawnPose": true,
+        "poseQueryLeavesPhysicalStateUnchanged": true,
+        "pauseFlag": true,
+        "pausedAdvanceLeavesTimeUnchanged": true,
+        "resumeAdvancesTime": true,
+        "noScriptErrors": true
+      }
+    },
+    {
+      "mode": "2d",
+      "state": {
+        "time": 15.10000000000033,
+        "players": 22,
+        "score": [
+          0,
+          0
+        ],
+        "passes": [
+          6,
+          0
+        ],
+        "clock": "00:15",
+        "teamPhases": [
+          {
+            "phase": "possession",
+            "since": 4.949999999999988,
+            "epoch": 1,
+            "attackEpoch": 0
+          },
+          {
+            "phase": "defence",
+            "since": 4.949999999999988,
+            "epoch": 1,
+            "attackEpoch": 0
+          }
+        ],
+        "webgl": false,
+        "playerQuality": "2D YEDEK",
+        "stats": {
+          "perceptionActorSamples": 19800,
+          "storedRivalSamples": 108737,
+          "scanningActorSamples": 2329,
+          "drawnScanSamples": 4843,
+          "taskSamples": 12195,
+          "maxTaskActors": 20,
+          "maxPerceptionActors": 22,
+          "maxStoredRivals": 169,
+          "maxObservedHeadYaw": 1.55,
+          "maxDrawnHeadYaw": 0.7714608053221982,
+          "taskHistoryRecords": 15,
+          "poseQueriesLeavePhysicalStateUnchanged": true,
+          "drawnHeadMatchesBodyPlusYaw": true,
+          "phaseSamples": {
+            "0:possession": 610,
+            "1:defence": 610
+          },
+          "firstScan": {
+            "time": 4.949999999999988,
+            "id": 1,
+            "bodyFace": 3.141592653589793,
+            "observedHeadYaw": -1.55,
+            "drawnHeadYaw": -0.2267749515409686,
+            "drawnHeadFace": 2.9148177020488246
+          }
+        }
+      },
+      "moduleState": {
+        "perception": true,
+        "intent": true,
+        "engine": true,
+        "rig": true,
+        "scripts": [
+          "/ui-shell.js",
+          "/humanoid-rig.js",
+          "/assets/player/player-model-data.js",
+          "/player-renderer.js",
+          "/scene3d.js",
+          "/tactics.js",
+          "/player-perception.js",
+          "/team-intent.js",
+          "/football-sim.js",
+          "/club-data.js",
+          "/transfer-client.js",
+          "/match3d.js"
+        ]
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face4.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ],
+      "screenshot": "work/stage9/match-2d.png",
+      "assertedChecks": {
+        "startFromTactics": true,
+        "moduleScriptsLoadedBeforeEngine": true,
+        "twentyTwoPlayers": true,
+        "expectedRenderMode": true,
+        "localPerceptionRecords": true,
+        "liveTeamTasksAndHistory": true,
+        "validTeamPhases": true,
+        "headScanningAndDrawnPose": true,
+        "poseQueryLeavesPhysicalStateUnchanged": true,
+        "pauseFlag": true,
+        "pausedAdvanceLeavesTimeUnchanged": true,
+        "resumeAdvancesTime": true,
+        "noScriptErrors": true
+      }
+    }
+  ]
+}

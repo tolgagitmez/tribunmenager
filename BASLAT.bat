@@ -4,7 +4,7 @@ cd /d "%~dp0"
 where py >nul 2>nul
 if %errorlevel% equ 0 (
   start "" http://localhost:8000
-  py -3 server.py
+  py -3 start.py %*
 ) else (
   where python >nul 2>nul
   if %errorlevel% neq 0 (
@@ -13,6 +13,6 @@ if %errorlevel% equ 0 (
     exit /b 1
   )
   start "" http://localhost:8000
-  python server.py
+  python start.py %*
 )
 pause

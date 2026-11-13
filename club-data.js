@@ -1,9 +1,28 @@
 'use strict';
 (function(root){
-const createRoster=()=>[
- ['Mert Yıldız','GK',92,96,88,1,10],['Emre Kaya','DEF',85,93,83,2,9],['Baran Çelik','DEF',90,90,91,4,7],['Diego Rojas','DEF',88,87,84,5,8],['Can Aydın','DEF',84,96,80,3,6],['João Mendes','MID',91,91,91,6,4],['Umut Kara','MID',86,88,85,10,5],['Arda Akın','MID',88,94,90,8,3],['Lucas Costa','ATT',89,89,87,11,2],['Emir Demir','ATT',96,93,97,9,0],['Efe Yılmaz','ATT',92,88,92,7,1],
- ['Ozan Arslan','GK',78,95,85,12,10],['Martin Moreno','DEF',82,95,81,14,8],['Eray Emre','DEF',79,90,82,15,6],['Rafael Santos','MID',81,89,84,16,5],['Deniz Çetin','MID',80,94,80,17,3],['Ade Okafor','ATT',83,87,87,18,2],['Barış Aslan','ATT',77,95,82,19,1]
-].map((r,i)=>({id:i,name:r[0],pos:r[1],rating:r[2],fitness:r[3],form:r[4],number:r[5],face:r[6],xp:0,passing:60+(i*9)%37,shooting:55+(i*13)%42,tackling:50+(i*11)%42,dribbling:Math.min(97,(r[1]==='ATT'?82:r[1]==='MID'?76:r[1]==='DEF'?60:40)+(i*7)%15),pace:Math.min(97,(r[1]==='ATT'?82:r[1]==='MID'?76:r[1]==='DEF'?72:52)+(i*5)%14),agility:Math.min(97,(r[1]==='ATT'?83:r[1]==='MID'?78:65)+(i*3)%14),heading:Math.min(97,(r[1]==='ATT'?82:r[1]==='DEF'?83:r[1]==='MID'?66:50)+(i*5)%13),crossing:Math.min(97,(r[1]==='ATT'?78:r[1]==='MID'?72:r[1]==='DEF'?67:40)+(i*9)%16)}));
+const Model=root.TribunPlayerModel||(typeof require==='function'?require('./player-model.js'):null);
+// Fictional seed players have authored profiles; array order only assigns roster IDs.
+const seed=[
+ ['Mert Yıldız','GK',92,96,88,1,10,'goalkeeper','GK','right'],
+ ['Emre Kaya','DEF',85,93,83,2,9,'fullback','RB','right'],
+ ['Baran Çelik','DEF',90,90,91,4,7,'stopper','CB','right'],
+ ['Diego Rojas','DEF',88,87,84,5,8,'stopper','CB','left'],
+ ['Can Aydın','DEF',84,96,80,3,6,'fullback','LB','left'],
+ ['João Mendes','MID',91,91,91,6,4,'ballWinner','DM','right'],
+ ['Umut Kara','MID',86,88,85,10,5,'playmaker','AM','left'],
+ ['Arda Akın','MID',88,94,90,8,3,'playmaker','CM','both'],
+ ['Lucas Costa','ATT',89,89,87,11,2,'winger','LW','left'],
+ ['Emir Demir','ATT',96,93,97,9,0,'poacher','ST','right'],
+ ['Efe Yılmaz','ATT',92,88,92,7,1,'winger','RW','right'],
+ ['Ozan Arslan','GK',78,95,85,12,10,'goalkeeper','GK','left'],
+ ['Martin Moreno','DEF',82,95,81,14,8,'stopper','CB','right'],
+ ['Eray Emre','DEF',79,90,82,15,6,'fullback','LB','left'],
+ ['Rafael Santos','MID',81,89,84,16,5,'ballWinner','DM','right'],
+ ['Deniz Çetin','MID',80,94,80,17,3,'playmaker','CM','right'],
+ ['Ade Okafor','ATT',83,87,87,18,2,'targetForward','ST','right'],
+ ['Barış Aslan','ATT',77,95,82,19,1,'winger','RW','left']
+];
+const createRoster=()=>seed.map((r,i)=>({id:i,name:r[0],pos:r[1],rating:r[2],fitness:r[3],form:r[4],number:r[5],face:r[6],archetype:r[7],subposition:r[8],positions:[r[8]],preferredFoot:r[9],...Model.profiles[r[7]],weakFoot:r[9]==='both'?99:Model.profiles[r[7]].weakFoot,xp:0,dataKind:'demo'}));
 const FORM={
  '4-3-3':[['ATT',22,15],['ATT',50,13],['ATT',78,15],['MID',25,40],['MID',50,43],['MID',75,40],['DEF',16,70],['DEF',39,71],['DEF',61,71],['DEF',84,70],['GK',50,89]],
  '4-2-3-1':[['ATT',50,12],['MID',19,32],['MID',50,31],['MID',81,32],['MID',36,50],['MID',64,50],['DEF',16,72],['DEF',39,73],['DEF',61,73],['DEF',84,72],['GK',50,90]],
@@ -13,9 +32,13 @@ const FORM={
  '4-5-1':[['ATT',50,14],['MID',15,37],['MID',31,46],['MID',50,38],['MID',69,46],['MID',85,37],['DEF',16,73],['DEF',39,74],['DEF',61,74],['DEF',84,73],['GK',50,90]]
 };
 
-const fit=(p,slot)=>p.pos===slot?1:p.pos==='GK'||slot==='GK'?.45:((p.pos==='MID'&&slot==='ATT')||(p.pos==='ATT'&&slot==='MID'))?.87:((p.pos==='DEF'&&slot==='MID')||(p.pos==='MID'&&slot==='DEF'))?.82:.66;
+const fit=(p,slot)=>Model.fit(p,slot);
 const reorder=(ids,formation,players)=>{const pool=ids.slice(),answer=[];for(const slot of FORM[formation]){pool.sort((a,b)=>(fit(players[b],slot[0])*150+players[b].rating*.11)-(fit(players[a],slot[0])*150+players[a].rating*.11));answer.push(pool.shift());}return answer;};
-function loadRoster(saved){const base=createRoster();return (Array.isArray(saved?.players)&&saved.players.length>=11?saved.players:base).map((p,i)=>({...base[i],...p,id:i}));}
+function loadRoster(saved){
+ const rows=Array.isArray(saved?.players)&&saved.players.length>=11?saved.players:createRoster();
+ // Never fill an imported player's missing identity from the seed player at the same index.
+ return rows.map((p,i)=>({...p,id:i,fitness:Model.normalize(p).fitness,form:Model.normalize(p).form,xp:p.xp??0,face:p.face??0,number:p.number??i+1}));
+}
 function repairStarters(ids,players,formation){
  const slots=FORM[formation]||FORM['4-3-3'],owned=players.filter(p=>p&&p.owned!==false),used=new Set(),answer=[];
  const old=Array.isArray(ids)?ids:[];

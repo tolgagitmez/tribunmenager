@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2026-11-13T07:46:02.411481+00:00",
+  "command": "npm run test:stage11",
+  "sources": {
+    "player-model.js": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02",
+    "player-model-profiles.json": "d97a900209e5c3b837539042f5435c8fb7f063492f2d16deed1caaabc7a45da6",
+    "player-model-profiles.js": "a06068f2a706e58b9e71110da31da72f9968b3abcf2f548cba265ef78be40aa8",
+    "club-data.js": "73c9d01c12262497f0d266203b4f7143750732ef1bde8c289d80841bf2efcfca",
+    "football-sim.js": "d863b20523361d5c910d4b8835e0ffe1ea5aab4909ec8f550d51393748944b07",
+    "economy.py": "e6efed6ca6d2eca55eebdfbb0eed0e12cb7f3b6cea80fdac4b851d3d40845902",
+    "server.py": "a5b41b9f0d17186a992df5638ba51fa763b9d223771d382f2fc6cfc9acd7a75f",
+    "match-config.js": "25bf78185f07a304995c255a3f905f8307441eeb491436641693f91aefacc7f2",
+    "transfer-client.js": "403615be8ca1b51e4c4246ab23c5b9a5b3fc7827b46d8afc9f3f645326e81b44",
+    "manager.js": "45ba023034d542bda979a4a5da6d039250fcafcbb224b9a72197111df149788c",
+    "tactics-page.js": "5c00bb1a60521258658949b86ce6cebdab7e213720083c7b51d52cbe7b2b8b67",
+    "match3d.js": "745645bf61b4061d7da0d929ca4f1426d09c6e4662670421d78c3695842cb39e",
+    "index.html": "abfd4df772e865a95789cd1ba43afb40211c47d492ea9e923a114bc95f9b9058",
+    "tactics.html": "408443b59ff724efa47814bc333c478630b58d2ae9990fd65d1daf2af66c7f4c",
+    "match.html": "00e18aa2c8f6db06ba4b05280c3d733174af91beb786c2098cd6841c0e444d40",
+    "package.json": "d5ec5cf7071370c21131cc27b5b0f09467ffc54d40dcee225bcd5ae7f758ac7a",
+    "package-lock.json": "d22dcb6bca9c4f51b8992efd2a777925bbb36fec74a8e167fb75cb397130453b",
+    "tests/attack-analysis-ui.test.cjs": "ec044ad43f3ec4a3114f41e57a5b3d4211f067dae5ba5485c7573e48d5beaf68",
+    "tests/attack-diagnostics-integration.test.cjs": "53a8333097d5dda2c232e0f479a294b20a203f76477544835d83b6c4fc108746",
+    "tests/attack-diagnostics.test.cjs": "5342e1cb283137fbdcfa37f10cf1adc9f36dd717ee1547cfa24a152cf0570556",
+    "tests/attacking-coverage.test.cjs": "224e512dc514269b86dfe1d4426e78ebbc1530412cda6e17bbd1f251ea4a6c9b",
+    "tests/first-control.test.cjs": "52eeabfbc87538dd6a0aaa76abb181bec497ef7908d055f2d0b8649bb89d5eb8",
+    "tests/fixture-roster-api.py": "09b031f531df8395e1e6c7deb6b6e74297938e360ce1a5e710579bcc24b7feea",
+    "tests/fixture-roster.test.cjs": "f47ee12729548f6d7ccf233595b3b122087d41f10b9823512412b1a32fad9bdc",
+    "tests/match-startup.test.cjs": "fd8f994543f02bb63f9b7a33d3d12b38bcad16190eeefbffc77fd2ff260a1119",
+    "tests/pass-arrival.test.cjs": "6165c5fe7c4facdad5c98670c1436bce3b99f88528abff0ab89391d607249dea",
+    "tests/pass-preparation.test.cjs": "59c8ce60e5987c3c823358e51564a28ba6591e7defd451f68568f931694fcdb5",
+    "tests/player-identity-integration.test.cjs": "9d55af046f4031c101a6906c949d2da2e8ec0b57391df27885ee3ab53abfa40f",
+    "tests/player-model.test.cjs": "70d569135b5375a78a0f070cc098922b48d6505de2bff997c7adafdac399c45a",
+    "tests/player-perception.test.cjs": "14696705e0733c0662510fe432a82f46a3664e45602c52f6d33eeeaec96966ee",
+    "tests/post-receive-hold.test.cjs": "9bb1f42dc86c0e66dae46930801a1abad15d81e40331dc677b44bd49972ddeb6",
+    "tests/receiver-interception.test.cjs": "50f1060f06b77e17d63eb1c7786e0ece1056a07f44edc0d7cf48f07ef1f3e6c5",
+    "tests/reception-facing.test.cjs": "c638ab55b748072e67d46e4a2ebc4093b6ee797f2f94ce9956fdf7a00fb41951",
+    "tests/scan-presentation.test.cjs": "241435787f0b73c9a0f41d5ed992f24c1489953bda8911678b587da53da833a2",
+    "tests/support-continuity.test.cjs": "c265f86263a43fd26d48c34dbc5c29aea6701e8981d457f3e3f794da9f4736a2",
+    "tests/team-continuity-integration.test.cjs": "e7f7312551ee050757960fbc55cba0c97b36105bd8b493a8766be9b51308d44f",
+    "tests/team-intent.test.cjs": "44dea37519081321264198daf03749ec276a1c4d802dab7512e0c7bbec6d1ae3",
+    "tests/team-plan-arbitration.test.cjs": "6af8c65a238dd9a79b5a4536f9c05ba99bfb9269ce708cf726b34c5a165a8b14",
+    "tests/test_player_model.py": "b85522963e44516eeddbf7dcd13de57d0b29365359a3ec58e339d874ac032fa5",
+    "tests/touch-feasibility.test.cjs": "98b56018d23c68448d67936d30505a345903d73e33f6543aff97b4b630af4d26"
+  },
+  "logSHA256": "b53c2ef77480c6e4992745e82011ec2f48db5b0c3eb605ddff56da252eed5aed",
+  "javascript": {
+    "tests": 343,
+    "pass": 343,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "python": {
+    "suites": [
+      {
+        "name": "player-model",
+        "passed": 12
+      },
+      {
+        "name": "fixture-roster-api",
+        "passed": 6
+      }
+    ],
+    "passed": 18,
+    "failed": 0
+  },
+  "total": 361,
+  "passed": 361,
+  "failed": 0,
+  "skipped": 0,
+  "cancelled": 0,
+  "verified": true
+}

@@ -1,0 +1,93 @@
+{
+  "sources": {
+    "football-sim.js": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd",
+    "match-rules.js": "8bbf5af5ac74be2a0e64154297f083686e1bbfae455da538657a1be8d0295876",
+    "referee-laws.js": "e5e5d3694f9da9f65054f07030a0beb06149d33c16abf25b8a51616ffe31ab87",
+    "pitch-laws.js": "55b35441c614dc3b15dbaa1b0e9722082e77fa01ebba398d0c50e9a2d9ef06fa",
+    "player-model.js": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02",
+    "player-model-profiles.json": "d97a900209e5c3b837539042f5435c8fb7f063492f2d16deed1caaabc7a45da6",
+    "player-perception.js": "d0879e2e845a34bd8f08fd117e3100ac651ee79f28371e153a7aed3c48bc08b8",
+    "team-intent.js": "cce8be16d8dd88ef758051e0cf6761326ad21cb55b1733397c5fa3815aac0030",
+    "attack-diagnostics.js": "9176b438e591ad7fb411ab1b89cde25d6a4cf602288485798be3c031901c9ebb",
+    "club-data.js": "73c9d01c12262497f0d266203b4f7143750732ef1bde8c289d80841bf2efcfca",
+    "tools/profile-match-laws.cjs": "3915d4d73f7f3c49516b2b317d6b8112f950368b9d5f498b9ecc0a501d5c1836"
+  },
+  "method": "One natural five-minute nominal scenario, seed21, with default competition rules. Observed/plain/observed replay must terminate and produce identical complete serializable state. This is lifecycle/replay coverage; event frequencies are not a balance estimate.",
+  "naturalScenarios": 1,
+  "executions": 3,
+  "nominalSeconds": 300,
+  "summary": {
+    "elapsedSeconds": 322.0000000000017,
+    "periodLengths": [
+      164,
+      150
+    ],
+    "addedAnnounced": [
+      14,
+      0
+    ],
+    "halftimeSeconds": 7.999999999999977,
+    "score": [
+      1,
+      0
+    ],
+    "shots": [
+      1,
+      0
+    ],
+    "fouls": [
+      0,
+      2
+    ],
+    "redCards": [
+      0,
+      0
+    ],
+    "passes": [
+      76,
+      48
+    ],
+    "completed": [
+      71,
+      44
+    ],
+    "frameHits": 0,
+    "offsides": 0,
+    "penaltyDecisions": 1,
+    "advantageDecisions": 0,
+    "finishReason": "full-time",
+    "finalSeed": 1823193623,
+    "steps": 19320
+  },
+  "clock": {
+    "start": 0,
+    "end": 322.0000000000017,
+    "observedSeconds": 322.0000000000017,
+    "inPlaySeconds": 266.7833333333267,
+    "deadBallSeconds": 55.21666666667495,
+    "restartSeconds": 45.60000000000201,
+    "goalPauseSeconds": 1.6166666666665748,
+    "halftimeSeconds": 8.000000000006366,
+    "controlledSeconds": [
+      81.05000000001725,
+      68.44999999998373
+    ],
+    "flightSeconds": [
+      60.86666666668255,
+      34.78333333330946
+    ],
+    "looseSeconds": 21.633333333333766,
+    "unobservedSeconds": 0
+  },
+  "verification": {
+    "fullTime": true,
+    "twoPeriods": true,
+    "finite": true,
+    "observerEqual": true,
+    "replayEqual": true,
+    "reportReadOnly": true,
+    "clockPartitions": true,
+    "sourcesStable": true
+  },
+  "verified": true
+}

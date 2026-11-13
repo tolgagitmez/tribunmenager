@@ -1,3 +1,83 @@
+# Kurulum ve başlatma
+
+**[Oyunu kurmak ve çalıştırmak için adım adım KURULUM.md rehberini aç.](KURULUM.md)** Python 3.10+ yeterlidir: Windows’ta `BASLAT.bat`, macOS/Linux’ta `sh BASLAT.sh`. Varsayılan yerel maç modu eksik ekonomi kataloğuna ihtiyaç duymaz.
+
+## On ikinci aşama: maç kuralları ve yaşam döngüsü — v1.31.0
+
+**Son doğrulama: 435/435 test geçti** (413 JS + 22 Python), hata/atlanan yok. Gerçek Chromium WebGL ve 2D yollarında 16’şar kontrol geçti. Bir normal 300 saniyelik nominal senaryo, gözlemcili/gözlemcisiz/tekrar olarak üç kez aynı tam durumu üretti; 164 + 150 saniyelik devreler ve 8 saniyelik ara ile 322 saniyede tamamlandı. Bu senaryoda bir penaltı kararı ve bir gol gözlendi; tek örnekten denge veya özellik sıklığı sonucu çıkarılmıyor.
+
+Penaltı, avantaj/geri dönüş, doğrudan kırmızı, gerçek devre arası, saha değişimi ve telafi edilen ek süre artık maç akışındadır. Çizgilerde bütün top sınanır; direk/üst direk süpürülmüş çarpışması gol kararından önce çözülür. Kafa pası ofsaytı ve seçilmiş aktif etkileme durumları izlenir. Oyuncu değişikliği müsabaka oyuncu/pencere sınırlarına bağlıdır; kaleci değişebilir ve canlı oyunda anlık değişiklik yapılamaz.
+
+[Kural sözleşmesi, kontrollü sınırlar ve kalan işler](docs/MATCH_RULES.md) · [Kurulum](KURULUM.md). `npm run test:stage12` tüm önceki kontrolleri ve yeni kural/başlatıcı testlerini çalıştırır. Gerçek tarayıcı doğrulaması belgelenen `start.py` başlatıcısını kullanır. Tam sunucu, ayrıca ekonomi kuralları ve oyuncu kataloğu gerektirir; varsayılan yerel maç modu bu dosyalar olmadan açılır.
+
+Önceki aşamaların ölçümleri aşağıda tarihsel kayıttır; kaynak hash'leri yayımlandıkları sürüme aittir. Hücum ve oyuncu kalite dengesi kalibrasyonu açık kalır.
+
+---
+
+## On birinci aşama: ortak oyuncu modeli ve fikstür kadrosu
+
+**v1.30.0**, kadro ekranındaki maç gücünü, iki takımın maç oyuncularını ve oyuncu değişikliklerini aynı `player-model.js` hesabına bağlar. Form ve mevki uyumu teknik uygulamayı; kondisyon hız, ivme ve çevikliği; güç ve denge erişilebilir ikili mücadeleyi etkiler. Aynı genel puandaki hızlı bitirici, güçlü stoper ve oyun kurucu farklı koşu, pas ve mücadele profilleri taşır. Başlangıç kadrosu kurmaca, açıkça tanımlanmış profiller kullanır; yeni futbol özellikleri oyuncu sırasından veya kimlik numarasından üretilmez.
+
+Normal kadro/taktik ekranından başlatılan yerel maç, bağlı günlük lig fikstürünün **kayıtlı rakip kadrosunu**, ilk 11'ini, dizilişini ve taktiğini alır. İki kadronun başlangıç görüntüsü maç sayfasına taşınır; girişte yeniden eşitleme seçimi değiştirmez. Bilgisayar takımlarının sunucuda kayıtlı oyuncu kadrosu henüz yoktur: bu durumda maç açıkça **deneme kadrosu** kullandığını söyler. Yerel maç günlük ligin ayrı sonuç hesabını değiştirmez.
+
+```sh
+npm ci
+npm run test:stage11
+```
+
+**361/361 test geçti:** 343 JavaScript, 12 Python oyuncu modeli ve 6 gerçek HTTP API testi; hata veya atlanan test yok. Gerçek Chromium'da WebGL/prosedürel ve zorunlu 2D yollarında 16'şar kontrol geçti. Kontrollü 21 hava/kaleci/temas durumu ayrıca doğrulandı.
+
+Sekiz 300 saniyelik doğal karşılaştırmada top kaybı 138 → 108, fiziksel şut 6 → 3 oldu. Bu ölçüm genel maç kalitesi artışını kanıtlamaz; hücum dengesi kalibrasyonu sürer. Eski motor rakip kadroyu kullanmadığından karşılaştırma yalnız tek bir özelliğin etkisini ayırmaz.
+
+Ortak veri alanları, kalite formülü, eski kayıt davranışı ve sonraki adımlar [oyuncu modeli sözleşmesinde](docs/PLAYER_MODEL.md); deneyler [DOGRULAMA.md](DOGRULAMA.md) içindedir. Gerçek ayak/profil verisi bulunmadığında eksik bilgi varsayım olarak izlenir; başka bir futbolcunun verisiyle doldurulmaz. İnceleme [taslak PR #1](https://github.com/tolgagitmez/tribunmenager/pull/1) üzerinde sürer; önceki maç dengesi kalibrasyonu açık kalır. Aşağıdaki aşamalar tarihsel kayıttır.
+
+---
+
+## Onuncu aşama: hücum zincirinin nerede bittiğini görme
+
+İnceleme dalı **`codex/team-continuity-perception`** ve [taslak PR #1](https://github.com/tolgagitmez/tribunmenager/pull/1) üzerinde geliştirilir. Bu aşama hücumu ölçer; önceki görev/algı sürümünün maç dengesi kabulünü veya `main` geçişini otomatik sağlamaz.
+
+Maç ekranındaki **Hücum analizi**, top kazanımı → baskıdan çıkış → hat kırma → son bölge → ceza sahası → gerçek şut çıkışını, hücumun bittiği aşama ve olayla birlikte gösterir. Topun oyunda kaldığı süre, duran top/ara süresi ve 10 dakika top oyunda başına şut birlikte okunur. **Analizi JSON olarak indir**, hücum izlerini ve destek/bekleme/koşu kayıtlarını dışarı verir.
+
+Planlanan hedef veya şut hazırlığı gerçekleşmiş ilerleme sayılmaz. İleride başlayan hücumlar, baskısız başlangıçlar ve ölçüm sonunda süren hücumlar ayrı tutulur. Destek mesafesi veya bekleme kaydı olası açıklamadır; tek başına kötü tercih ya da gereksiz bekleme kanıtı değildir.
+
+```sh
+npm ci
+npm run test:stage10
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+Yerel sunucuda `tactics.html` üzerinden maçı başlat; **Hücum analizi** bağlantısını kullan. **309 test geçti; 0 hata, 0 atlanan.** Gerçek Chromium'da WebGL/prosedürel ve 2D panel, süre paydaları, JSON indirme, duraklat/devam ve yeniden başlatma kontrolleri geçti. Ayrıca 21 kontrollü hava oyunu/kaleci durumu ayrı sınandı; bunlar doğal başarı oranı sayılmaz. Kanıtlar ve ölçüm sınırları [DOGRULAMA.md](DOGRULAMA.md), yöntem [ARCHITECTURE.md](ARCHITECTURE.md) içindedir.
+
+`football-sim.js`, dokuzuncu aşamanın `b29a8f9b…` kaynağıyla byte düzeyinde aynıdır. Ölçüm ek AI veya RNG sorgusu çalıştırmaz. Kayıt dönüşümü gerekmez; transfer ve günlük lig motoru değişmedi. Özgün data/assets eksikleri ve önceki denge kalibrasyonu işleri sürer. Aşağıdaki aşamalar tarihsel kayıttır.
+
+
+Aynı sekiz kısa maçta iki motorda da dört şut çıktı; iki takım toplamında 10 dakika top oyunda başına yaklaşık **1,185 / 1,218 şut** oldu. Güncel inceleme motorunun baskılı ve uygun hatlı onaylı kazanımlarında sıralı iz **100 → 70 → 29 → 3 → 1 → 1** olur. Hat kırma sonrası son bölgeye sırayla geçemeden biten 21 bölümün 15'i top kaybı, altısı kazanılmış fauldür; ayrıca dört ilk-kayıt sıra uyumsuzluğu ve bir sansürlü kayıt ayrıdır. Ayrıntılar [okunabilir özet](docs/validation/attack-chain-summary.json), [tam JSON.gz izleri](docs/validation/attack-chain-matrix.json.gz) ve DOGRULAMA içindedir. Bu ölçüm hangi pozisyonların inceleneceğini gösterir; tek başına kötü kararın nedenini kanıtlamaz.
+
+---
+
+## Dokuzuncu aşama: görev devamlılığı ve oyuncu algısı
+
+İnceleme dalı: **`codex/team-continuity-perception`**. Ortak görev/algı uygulaması ve regresyon kontrolleri tamamlandı; maç dengesi `main` için henüz kabul edilmedi. Aşağıdaki komutlar bu inceleme sürümü içindir.
+
+Destek, verkaç, bindirme, pres ve markaj ortak görev kurallarıyla sürer. Oyuncu koşusunun amacını, bağlantı kurduğu oyuncuyu ve sürelerini korur; olağan bir yeni öneri önceki görevi anında kesmez. Top kaybı, görünür tehlike, acil temas ve takımın ortak görev devri beklemeyi aşabilir. Güvenli desteğe varışta, kesin görev ömrünü aşmayan **0,45 saniyelik** kısa bir kullanım penceresi açılır. Pasın hedef oyuncusu hazırlık sırasında ayrılır; sahiplik için gerçek top temasını bekler.
+
+Takım planı **topa sahip olma, savunma, top kazanımı ve top kaybı** evrelerini ayrı izler. Aynı takımın yeni bir pası alması diğer oyuncuların görev dönemini sıfırlamaz. Saha oyuncuları rakipleri kendi görüş ve kısa gözlem belleğinden okur; görülmeyen bir rakibin yeni konumu karar sorgusuna sızmaz. Kısa baş taramaları yeni bilgi sağlayabilir. Baş ve boyun çizimi taramayı gösterirken gövde yönü, ayaklar ve temas noktaları korunur.
+
+```sh
+npm ci
+npm run test:stage9
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+**245 test geçti; hata veya atlanan test yok.** Önceki 154 kontrolün yanında algı, görev yaşamı, motor entegrasyonu, takım görevi devri ve baş çizimi sınanır. BallPhysics ile 16 canlı fizik/kural yöntemi önceki yayımlanmış motorla aynı kaynağı kullanır. Gerçek Chromium'da WebGL/prosedürel ve 2D yolları, 22 oyuncu, algı/görev kayıtları, baş taraması ve duraklat/devam et kontrolleri geçti. Deneyler ve sınırları [DOGRULAMA.md](DOGRULAMA.md), uygulama düzeni [ARCHITECTURE.md](ARCHITECTURE.md) içindedir.
+
+Yerel sunucuda `tactics.html` üzerinden maçı başlat. Yeni alanlar geçici maç durumundadır; kayıt dönüşümü gerekmez. Eksik özgün data/assets nedeniyle yedek çizim yolları kullanılır; transfer ve günlük lig API'si statik sunucuya eklenmedi. Takım koordinatörünün ortak görüntüsü hâlâ anlık iletişim varsayar; görüş engelleri, ses ve ayrıntılı dikkat modeli açık kalır. Önceki aşamalar aşağıda tarihsel kayıttır.
+
+Dört 300 saniyelik sentetik karşılaştırmada kısa topsuz görev değişimi 585/3529'dan 389/3332'ye düştü. Buna karşılık top kaybı 27'den 59'a çıktı, şut 2'den 1'e indi; büyük taşıma dönüşü ve kullanılmayan destek oranları iyileşmedi. Ortak görev/algı temeli hazırdır; hazır bağlantı kullanımı ve maç dengesi sonraki kalibrasyon önceliğidir.
+
+---
+
 ## Sekizinci aşama: gövde, momentum ve ayakla ortak top kontrolü
 
 İlk kontrol, top sürme, top koruma ve açık oyundaki pas/vuruş hazırlığı artık aynı fiziksel uygulanabilirlik hesabını kullanır. Yakındaki bir topa erişmek tek başına keskin yön değişimi için yeterli değildir: oyuncunun mevcut hızı, gövdesi, kullanabileceği ayak ve bir sonraki temasa yetişmesi birlikte sınanır. İstenen dokunuş yetişmiyorsa gelen hızın bir kısmı korunur veya dokunuş ertelenir; top normal fizik altında ilerler. Alım ya da top koruma rakip müdahalesini engellemez.

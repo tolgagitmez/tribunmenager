@@ -21,7 +21,7 @@ function solveKnee(hip,foot,upper=.47,lower=.47,forward=[1,0,0]){
 // Contact point is shared by the rig and ball simulation. Boot tip is at +.695m.
 function kickContact(p){return world(p,.88,(p.kickFoot===0?-1:1)*.18,BALL_RADIUS);}
 function kickAnkle(p){return world(p,.44,(p.kickFoot===0?-1:1)*.18,GROUND);}
-function getState(p){let st=rigs.get(p);if(!st){st={phase:0,prevX:p.x,prevZ:p.z,lastFace:p.face||0,prevSpeed:0,turn:0,lean:0,activity:0,actionWeight:0,lastAction:'idle',feet:[0,1].map(i=>({pos:world(p,.03,(i?1:-1)*.19,GROUND),stance:true,face:p.face||0,start:null,adjust:0})),pose:null};rigs.set(p,st);}return st;}
+function getState(p){let st=rigs.get(p);if(!st){st={phase:0,prevX:p.x,prevZ:p.z,lastFace:p.face||0,prevSpeed:0,turn:0,lean:0,activity:0,actionWeight:0,scanYaw:0,lastAction:'idle',feet:[0,1].map(i=>({pos:world(p,.03,(i?1:-1)*.19,GROUND),stance:true,face:p.face||0,start:null,adjust:0})),pose:null};rigs.set(p,st);}return st;}
 function getDive(p){
  const t=p.actionElapsed||0,contact=Math.max(.10,p.diveContactTime||.34),duration=p.actionDuration||.95;
  const extension=smooth(t/contact),recover=smooth((t-contact-.12)/Math.max(.15,duration-contact-.12));
@@ -69,6 +69,11 @@ function pose(p,dt=1/60){
  const stride=mix(1.2,3.0,smooth(speed/6))*(1-defensive*.22),duty=clamp(mix(.61,.34,smooth(speed/6))+defensive*.06,.34,.7);
  st.phase+=(travel/stride)+(speed<.3?Math.abs(yaw)*.12:0);
  const act=p.action||'idle',special=['pass','shoot','tackle','dive','catch','catch-ready','celebrate','protest','receive','throw','header'].includes(act)&&p.actionClock>0;
+ // Gaze affects the drawn head only. It never turns the physical body or
+ // changes contact anchors. Keep draw queries read-only by easing on update.
+ const hasScan=Number.isFinite(p.perception?.headYaw),scanTarget=hasScan?clamp(p.perception.headYaw,-.8,.8):0;
+ st.scanYaw=mix(st.scanYaw,scanTarget,1-Math.exp(-dt*(scanTarget?20:14)));
+ if(Math.abs(st.scanYaw)<1e-6)st.scanYaw=0;
  st.actionWeight=mix(st.actionWeight,special?1:0,1-Math.exp(-dt*(special?24:12)));
  const action=st.actionWeight,kicking=(act==='pass'||act==='shoot')&&p.actionClock>0;
  const timed=kicking&&p.contactTime>0;
@@ -143,6 +148,7 @@ function pose(p,dt=1/60){
   arms.push({shoulder,elbow,wrist});
  }
  let result={pelvis,neck,head,torsoBase,torsoUpper,legs,arms,activity:st.activity,sprint,kick,tackle,diving,celebrating,protest,face:p.face,action:act,weight:action,turn:st.turn};
+ if(hasScan||st.scanYaw){result.headYaw=st.scanYaw;result.headFace=(p.face||0)+st.scanYaw;}
  if(diving>.001){
   const d=getDive(p);
   for(const key of ['pelvis','neck','head','torsoBase','torsoUpper'])result[key]=d.transform(result[key]);

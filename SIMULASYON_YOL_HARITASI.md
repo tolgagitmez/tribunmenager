@@ -1,4 +1,62 @@
+## Aşama 12 — temel kurallar, maç yaşamı ve kurulabilir sürüm
+
+Tamamlanan model akışları: olay konumundan penaltı/serbest vuruş; avantaj ve ilk faul yerine dönüş; ertelenen disiplin/doğrudan kırmızı; gerçek mola ve iki takımın saha değişimi; ilan edilen minimum ve yeni gecikmeyle uzayan ek süre; bütün topun çizgi geçişi ve kale çerçevesi; kafa teması ofsaytı ve seçilmiş aktif etkileme; müsabakaya bağlı oyuncu/değişiklik pencereleri. [Kural sözleşmesi](docs/MATCH_RULES.md) ve [kurulum rehberi](KURULUM.md) eklendi.
+
+Sıradaki kapsam: tam penaltı ihlal/yeniden vuruş matrisi ve kaleci ayak çizgisi ölçümü; ofsaytta en ileri geçerli vücut parçası; elle oynama; sakatlık/VAR; uzatma/seri penaltı ve turnuva formatları. Mevcut yaklaşım ihlalli penaltı çıkışını engeller, sonradan bütün ihlal kombinasyonlarını yargılamaz. Aktif etkileme ve bariz gol şansı geometrik sezgilerdir.
+
+Hücum üretimi, profil kalibrasyonu ve kayıtlı olmayan bilgisayar kadroları önceki önceliklerini korur. Tek maçın son düdüğe ulaşması futbol dengesinin çözüldüğü anlamına gelmez. Normal kurulum artık veri dosyası eksikliğinde yerel maçı açar; tam lig/transfer kurulumu gerçek ekonomi ve katalog dosyalarını gerektirir. Doğrulamalar aşama 12 raporlarıyla, eski matrise ait sonuçlar kendi sürümleriyle değerlendirilir.
+
+---
+
+# On birinci aşama uygulama durumu — oyuncu kimliği ve ortak kadro
+
+Ortak oyuncu modeli, genel mevki/form/kondisyon kalite hesabı, iki takımın aynı şemadan kurulması ve oyuncu değişikliği tamamlandı. Kurmaca başlangıç kadrosu belirgin profillere sahiptir; katalogdan verilen ayak, rol ve özellikler transferde korunur. Eksik bilgi oyuncu sırasından türetilmez. Eşit genel puanlı hızlı forvet, güçlü stoper ve oyun kurucunun sahadaki farkı gerçek hareket, pas ve mücadele durumlarıyla sınanır.
+
+Normal başlatma akışı bağlı fikstür rakibinin kayıtlı kadrosunu taşır ve iki kadrolu başlangıcı sabitler. Kayıtlı oyuncusu bulunmayan bilgisayar kulübünde deneme kadrosu açıkça gösterilir. Yerel simülasyon ile günlük Poisson sonuç hesabı bu aşamada birleştirilmedi. İnceleme taslak PR #1 üzerinde sürer; ortak veri sözleşmesinin tamamlanması önceki maç dengesi sorunlarının çözüldüğünü göstermez.
+
+Sekiz 300 saniyelik son doğal kontrolde top kaybı 138 → 108 ve iptal edilen hazırlık 6 → 4 olurken fiziksel şut 6 → 3 oldu; top oyunda süre başına şut da 1,845 → 0,953 geriledi. Eski motor aynı girdide rakip kadroyu kullanmadığı için bu geniş sözleşme karşılaştırması tek özellik etkisini ayırmaz. Ortak modelin davranış ve kayıt kabulü tamamdır; hücum dengesi kabulü açık kalır.
+
+Sonraki işler şu sırayla yürütülmeli:
+
+1. **Veri kapsamı:** sağlayıcıdan gerçek ayak, özel mevki ve fizik/teknik özelliklerini tarih/kaynak bilgisiyle doldur; varsayılan profil kullanan alanların oranını raporla. Gerçek gözlem ile kurmaca profil ayrımı korunmalı.
+2. **Bilgisayar kadroları:** resmî bilgisayar kulüplerine kalıcı, doğrulanmış ilk 11/yedek ve oyuncu kayıtları ekle. Kadrosu olmayan kulüp için deneme oyuncularını gerçek kadro diye sunma.
+3. **Ayrıntılı rol uyumu:** şu an kalite cezası GK/DEF/MID/ATT düzeyindedir. Saklanan özel/ikincil mevkilerden kanat tarafı, bek/stoper, DM/CM/AM ve rol alışkanlığı üret; UI, yerel motor ve lig hesabını birlikte güncelle.
+4. **Maç dengesi:** profil etkilerini farklı güçte iki kadro, altı diziliş ve uzun yorgunluk örneklerinde hücum zinciri ölçümleriyle kalibre et. Hız/güç bonusları gerçek erişim ve momentum sınırlarını aşmamalı; gol/şut kotası kullanılmamalı.
+5. **Tam fikstür deneyimi:** başlangıç görüntüsü, motor sürümü ve seed ile yeniden oynatılabilir kayıt kur; yerel sonucu resmî lige uygulama ayrı ürün/kayıt tutarlılığı çalışması olarak ele alınmalı.
+
+Sözleşme [docs/PLAYER_MODEL.md](docs/PLAYER_MODEL.md), kabul kapsamı [DOGRULAMA.md](DOGRULAMA.md) içinde açıklanır. Önceki aşamalar aşağıda tarihsel kayıttır.
+
+---
+
 # Gerçek futbol deneyimi: durum analizi ve geliştirme yol haritası
+
+## Onuncu aşama uygulama durumu
+
+Hücum zinciri için pasif ölçüm, canlı **Hücum analizi** paneli ve JSON dışa aktarma eklendi. Gerçek kazanım/kontrol, baskıdan çıkış, operasyonel hat kırma, son bölge/ceza sahası varışı ve fiziksel şut ayrılır. Her hücumun son aşaması ve gerçek bitiş olayı; destek, bekleme, pas hazırlığı ve koşu kanıtlarından ayrı kaydedilir. Süre paydası topun oyunda kaldığı zamandır. Planlanan hedefler ve bitmemiş hücumlar tamamlanmış başarı/başarısızlık sayılmaz.
+
+**309 test** ve son kaynakta WebGL/prosedürel–2D tarayıcı kontrolleri geçti. 21 kontrollü hava oyunu/kaleci durumu doğal örneklemden ayrı doğrulandı. Motor, yayımlanmış dokuzuncu aşamanın `b29a8f9b…` kaynağıyla byte düzeyinde aynı kalır; bu katman kararları veya fizik dengesini değiştirmez. `codex/team-continuity-perception` inceleme dalının `main` öncesi kalibrasyon gereği sürer.
+
+Kalibrasyon, tek toplam şut sayısına katsayı uygulamak yerine ölçülen zinciri hedeflemeli: kontrolü onaylayamadan kaybedilen kazanımlar; baskı altında bekleme ve destek mesafesi; hat kırma sonrası pas bitişleri; hücum koşusu görevleri ile gerçek yeni ceza sahası girişi arasındaki fark; uygulanamayan hazırlıklar. Bekleme veya yakın destek kaydı tek başına yanlış tercih kanıtı değildir; bu durumlar aynı pozisyondaki fiziksel hazırlık ve pas sonuçlarıyla incelenmeli.
+
+Hava oyunu ve kalecide yol kapsamı sağlandı; doğal frekans ve kalite kabulü açık kalır. Farklı seed/taktik/güç dağılımları ve uzun maçlarda yorgunluk, kaleci görünürlük/tepki/el fırsat paydaları, seken toplar ve tekrar şutları ayrıca ölçülmeli. Önceki aşama durumları aşağıda tarihsel dayanak olarak korunur.
+
+Son sekizli ölçümde her motor 2400 sn gözlendi; top oyunda 2026,03 / 1969,70 sn ve gerçek şut 4 / 4 oldu. Güncel motorun baskılı/uygun hatlı onaylı kazanım kohortu **100 → 70 → 29 → 3 → 1 → 1** ilerledi. Hat kırmadan sonraki 29 örnekte üç sıralı son bölge kaydı; sonraki kayıt olmadan biten 21 bölümde 15 top kaybı ve altı kazanılan faul; ayrıca dört ilk-kayıt sıra uyumsuzluğu ve bir sansürlü kayıt vardır. Bu ayrım, bütün geçmeyenleri başarısız saymadan bağlantı incelemesini önceliklendirir.
+
+İlk çalışma paketi, erken kontrol kayıpları ve bu hat kırma sonrası pozisyonlarda gerçek pas yolu/algılanan baskı/hazırlık ilişkisini incelemelidir. Yakın destek görevi güvenli pas değildir; ham koşucu sayaçları da yeni ceza sahası girişi saymaz. Yeni giriş olayını önceden orada bulunmadan ayırmak, ardından doğal hava/kaleci fırsatlarını çeşitlendirmek gerekir. [Sonuç özeti](docs/validation/attack-chain-summary.json) ve [tam iz arşivi](docs/validation/attack-chain-matrix.json.gz) yeniden incelenebilir.
+
+## Dokuzuncu aşama uygulama durumu
+
+Bu aşama **`codex/team-continuity-perception` inceleme dalı** olarak hazırlanmıştır. Ortak görev/algı işlevi ve regresyonlar tamamdır; doğal maç dengesi kabulü beklediğinden `main` için varsayılan sürüm olarak sunulmaz.
+
+Karar ve takım görevi devamlılığı için ortak yaşam kuralları, dört takım evresi ve oyuncu başına gözlem belleği uygulandı. Destek, verkaç, bindirme, pres ve markaj; amaç/ortak, asgari devam, yeni aday doğrulaması ve kesin görev ömrüyle sürer. Aynı takım alımı görev dönemini sıfırlamaz. Güvenli hazır desteğe kısa kullanım penceresi tanınır; tehlike, gerçek temas ve ortak görev devri önceliklidir. Pas ve koşu tabloları son uygulanacak görevle uzlaştırılır.
+
+Kişisel rakip okuması görüş, baş taraması ve kısa belleği kullanır; kör taraftaki yeni konum değişimi doğrudan okunmaz. Markajcı kendi gözlemine göre seçilir. Takım koordinatörünün ortak görüntüsü hâlâ anlık iletişim varsayar. Görüş engelleri, ses, dikkat bütçesi ve iletişim gecikmesi açık geliştirme alanlarıdır. Baş taraması çizilirken gövde ve ayak temasları korunur.
+
+**245 test**, BallPhysics/16 canlı yöntem kaynak koruması ve WebGL-prosedürel/2D tarayıcı kontrolleri geçti. Kanıt, karşılaştırma yöntemi ve sınırlar DOGRULAMA başındadır. Görev değişimlerinin azalması tek başına hazır bağlantıların daha çok kullanıldığı veya daha iyi hücum oluştuğu anlamına gelmez.
+
+Dört 300 saniyelik son karşılaştırmada kısa topsuz görev değişimi 585/3529 (%16,58) → 389/3332 (%11,67) oldu. Büyük taşıma dönüşü sayısı 100 → 44 azalırken oranı %26,81 → %49,44 arttı; seçilmeden yeniden planlanan destek oranı %81,95 → %82,39 oldu. Top kaybı 27 → 59, tamamlanan pas 397/418 → 346/374, şut 2 → 1 ve yarıda kalan vuruş 1 → 3 oldu. Bu sonuçlar genel futbol/hücum kalitesi kabulü değildir.
+
+`main` öncesindeki öncelik **hazır bağlantının gerçek pas ve pozisyona dönüşmesini, kör baskının fark edilmesini ve fiziksel hazırlık iptallerini birlikte kalibre etmektir**. Bağlılık süresini tek başına artırmak yerine yeni boşluğun kaçırıldığı ve topun kaybedildiği durumlar ayrıştırılmalı. Ardından süreler farklı taktikler ve zayıf/güçlü profillerde, daha uzun maçlarda yorgunlukla birlikte ölçülmeli. Kör baskının geç fark edilmesi hem fiziksel olarak etkili hem izleyici açısından okunabilir olmalı. Aşağıdaki eski aşama durumları ve genel plan tarihsel dayanak olarak korunur.
 
 ## Sekizinci aşama uygulama durumu
 

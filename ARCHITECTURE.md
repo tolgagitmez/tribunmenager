@@ -1,3 +1,102 @@
+## Aşama 12: ortak hakem, saha ve müsabaka yaşamı
+
+`referee-laws.js` olay konumundan faul/penaltı/kart kararını üretir. `Match.adjudicateFoul` karar kaydını, avantaj durumunu, ertelenen disiplini ve gerçek yeniden başlatmayı yönetir. Penaltı normal hazırlık/ayak/kaleci temas zincirini kullanır. `pitch-laws.js` bütün-top çizgi geçişi ve süpürülmüş kale çerçevesinin ortak geometri kaynağıdır; çizim aynı ölçüleri okur.
+
+`match-rules.js`, iki nominal devre, mola, minimum ek süre ve değişiklik pencerelerini yönetir. `match.time` kronolojik kalır; kullanıcı `clockState()` görür. Mola sırasında fizik/AI çalışmaz. İkinci devrede bütün taktik, kaleci, gol ve ofsayt yönleri `Match.direction(team)` üzerinden tersine döner. Hücum gözlemcisi mola süresini ayrı ölü-top alt bölmesine koyar ve eski devrenin hücumunu sansürler. Sınırdaki bir adım gözlem sınıflandırma belirsizliği rapor sözleşmesinde korunur.
+
+`start.py` yalnız standart kütüphane kullanan yerel/tam mod başlatıcısıdır. Yerel mod statik oyunu sunar ve kapalı API'lere açıklayıcı 503 yanıtı verir; özel dosya yollarını sunmaz. Tam mod eksik veri için açılmadan önce anlaşılır hata verir. Başlatma betikleri ve [KURULUM.md](KURULUM.md) aynı girişi kullanır. [Kural sözleşmesi](docs/MATCH_RULES.md) uygulanan sezgileri ve eksik IFAB kapsamını açıklar.
+
+---
+
+# On birinci aşama — ortak oyuncu ve maç başlangıç sözleşmesi
+
+`player-model.js`, tarayıcı/CommonJS üzerinde ham kadro kaydını etkin maç değerlerine çevirir. `club-data.js` mevki uyumunu ve `manager.js` maç gücünü bu modülden alır. `Match.reset` iki takımın kayıtlarını aynı `forSlot` yolundan geçirir; `substitute` aynı slot hesabını yeniden kullanır. Ham kadro nesnelerine maç yorgunluğu veya etkin puan yazılmaz. Genel kalite göstergesi eski kadro formülünü korur; alt özelliklerin davranışa etkisi ayrı ve açıktır.
+
+`player-model-profiles.json` sekiz kurmaca varsayılan profilin ortak kaynağıdır. Python antrenmanı bu JSON'u okur; tarayıcıdaki `player-model-profiles.js` kopyasının JSON ile birebir eşliği test edilir. Sunucunun `player_match_quality` hesabı JS kalite sözleşmesine karşı sınanır. Katalog doğrulaması verilen ayak, rol ve sayısal özellikleri korur; eksik teknik/fiziksel gözlemleri genel puandan türetip kaynak verisi gibi saklamaz. Maç normalleştirmesi eksikleri `inferredAttributes` ve ayak kaynağıyla gösterir.
+
+`match-config.js`, kadro, taktik ve doğrudan maç girişinin ortak hazırlık sınırıdır. Kendi transfer oturumu varsa önce güncel kadro alınır; aynı profil/sürümde kullanıcının seçtiği ilk 11 korunur, yeni kabul edilmiş sürüm geç kalan eski yanıta yenilmez. Ardından `GET /api/league/local-match`, Bearer lig kimliğiyle fikstür ve futbol alanlarıyla sınırlı rakip görüntüsü verir. Sunucu tek okuma işlemi içinde takımın diziliş/taktiğini ve bağlı transfer kadrosunu okur; cüzdan, teklifler, keşif ve erişim anahtarları bu izdüşüme girmez. Yanıt resmî sonucu hesaplamaz veya kaydetmez.
+
+Hazırlanmış iki kadro `sessionStorage` üzerinden `match.html` sayfasına taşınır; depolama yoksa hash yedeği kullanılır. Maç sayfası aynı lig/transfer oturumu bağlamındaki tamamlanmış başlangıcı tekrar eşitlemez. Lig kimliği veya transfer profili değişirse eski başlangıç yeniden hazırlanır; yapılandırmaya yalnız opak bağlam kimliği girer, erişim anahtarı URL'ye taşınmaz. Kullanıcı her zaman motorun takım 0'ıdır; fikstürde deplasmandaysa `fixture.isHome` etiketleri gerçek ev/deplasman bilgisini korur. Kayıtlı rakip yoksa deneme kaynağı ve açıklaması görünürdür. Bu, bütün bilgisayar kulüpleri için gerçek oyuncu verisi sağlandığı anlamına gelmez.
+
+Ayrıntılı formül, özellik grupları ve açık kapsam [docs/PLAYER_MODEL.md](docs/PLAYER_MODEL.md) içindedir. Önceki aşamaların kaynak ve ölçümleri aşağıda tarihsel olarak korunur.
+
+---
+
+# Onuncu aşama — pasif hücum tanılaması
+
+`attack-diagnostics.js`, CommonJS/tarayıcı modülü olarak gerçek maç çağrılarını gözler. `attach(match)` asıl yöntemleri aynı `this`, argümanlar, dönüş değeri ve hata davranışıyla iletir. Kalıtılan yöntemlerin gözlem kancaları `non-enumerable` olur; hazırlık önizlemelerinin `Object.assign` kopyalarına taşınmaz. Önceden bir own-method override varsa descriptor özellikleri korunur; başka bir `this` ile çalışan kopya yalnız asıl yöntemi çağırır ve olayı kaydetmez. `detach()` önceki own-property descriptor'larını ve kalıtım görünürlüğünü birebir geri yükler. Gözlemci ek karar, plan, pas seçeneği, kaleci tahmini veya RNG sorgusu çalıştırmaz.
+
+Uygulama normal 60 Hz adımını gözlemcinin `step` yolu üzerinden yalnız bir kez yürütür. Süre sınıfı karenin başındaki durumdan, süre miktarı gerçek maç saati farkından alınır. Açık oyundaki vuruş hazırlığı ve kaleci elde topu bekletmesi oyunda; yerleştirilmiş duran top hazırlığı ve gol arası oyunda değildir. Olay sınırında sınıflandırma belirsizliği en fazla verilen bir adımdır. Kontrollü top, uçuş ve boştaki top süreleri oyunda kalma süresini böler. Uzun, örneklenmemiş manuel aralıklar ayrı kaydedilir.
+
+Hücum bölümleri gerçek kazanım, duran top çıkışı, ölçüm başladığında sürmekte olan sahiplik veya aynı takımın şut dönüşü kontrolü kökenlerini taşır. Başlangıç anındaki bir alım teması ile yerleşmiş kontrol ayrı kayıtlarıdır: normal kontrol onayı en az 0,15 sn süreyle top merkezinin 1,45 m içinde ve 0,65 m altında olmasıyla veya gerçek çıkışla oluşur. Gerçek kafa teması ayrı fiziksel temas kanıtıdır. Fiziksel şut bölümü bitirir; şutun gol/kurtarış/blok/dışarı sonucu sonraki olaylarda ayrı çözülür.
+
+| Aşama | Kaydedilen gözlem |
+| --- | --- |
+| Top kazanımı | Gerçek karşı takım kazanım teması; kontrol onayı ayrıca tutulur |
+| Baskıdan çıkış | Başlangıçta 4 m'den yakında saha rakibi bulunması gerekir; kontrollü top ve en yakın rakibe en az 5 m mesafe 0,50 sn sürer |
+| Hat kırma | Gerçek başlangıç/çıkışta önde ve 12 m yanal bantta en az iki rakip kimliği dondurulur; kontrol en az 2 m ilerler ve her iki rakibin hem eski hem güncel derinliğini en az 1 m geçer |
+| Son bölge | Takım yönüne göre fiziksel top x konumu en az 52/3 m; olağan örneklemede 0,15 sn kontrollü varış |
+| Ceza sahası | Takım yönünde x en az 35,5 m ve mutlak z en fazla 20,16 m; aynı gerçek kontrol/temas kuralı |
+| Şut | Gerçek ayak çıkışı veya gerçek kafa şutuyla şut sayısının artması; hazırlık sayılmaz |
+
+Hat kırma, ölçülebilir geometrik bir yaklaşımdır; sertifikalı formasyon/hat tanıma değildir. Bölge başında başlayan bir hücumun giriş kaydı `at-start` olarak ayrılır. `stageCounts` bütün gözlenen kayıtları, `eligibleReached/stageEligibility` başlangıçta zaten ileride olanları dışlayan ölçüm penceresi ilerlemesini verir. Bunlar otomatik sıralı huni sayılmaz; doğal profil onaylı kazanım kökenlerini baskı/hat uygunluğuna göre ayırarak sıralı yolları ayrıca çıkarır.
+
+Son aşama sıralamada ulaşılan en ileri aşama olur; aynı karede daha erken bir aşamanın sonradan doğrulanması bunu geriye düşürmez. Gerçek bitiş nedeni ile gözlemsel açıklama ayrı saklanır. Rakip kontrolü, pasın rakibe geçmesi, dışarı, ofsayt, mücadele/kontrol toparlama sonrası kayıp, duran top, gol ve şut çıkışı olay kayıtlarıdır. Destek hedefine yakınlık (3 m), bekleme süresi/kararı, hareketsiz kontrol, atanmış hücum koşusu görevi/ceza sahasında görülme ve hazırlık iptali ek kanıttır. Destek yakınlığı açık ve uygulanabilir pas garantisi değildir.
+
+Rapor sorgusu aktif hücumu bitirmez. Ölçüm sonunda süren kayıt `pending`, maç/pencere sınırında gözlenemeyen devam `censored` olarak ayrılır; taktik başarısızlık tablosuna eklenmez. Paydası sıfır oran `null`, ekranda `—` olur. Ayrıntılı bölüm/şut sınırı ve bölüm içi gözlem kesilmesi raporda açıklanır; toplamlar korunur. `summary()` canlı ekrana toplamlar ve son kayıtları, `report()` JSON dışa aktarmaya ayrıntıları verir.
+
+`attack-analysis-ui.js` rapor okur; oyuncu/AI durumuna yazmaz. `match3d.js` gözlemci yaşamını maç başlatma/yeniden başlatma ile yönetir. Her yeni maç eski kancaları kaldırıp yeni sayaçlarla başlar. Fiziksel motor, kayıt şeması ve günlük lig sonucu hesabı bu tanılama için değiştirilmez.
+
+Tam doğal izler standart JSON'un deterministik gzip arşivi olarak, okunabilir özet ayrı JSON olarak yayımlanır. Arşiv ve açılmış içerik için SHA-256, kaynaklar ve gözlemci/plain/tekrar doğrulamaları özette korunur; sıkıştırma ayrıntı atmaz. Rapora yazılan üretim saati deneyin ölçüm paydası değildir. Doğal örneklem ile seçilmiş kontrollü kapsam, sayaç veya kalite oranında birleştirilmez.
+
+Kaynak sınırı: `football-sim.js` SHA-256 değeri `b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3` olarak aynı kalır. Gözlemci `259e977f…`, arayüz `5aaa31a8…` ayrı kaynaklardır; tam özetler test ve tarayıcı raporlarında bulunur.
+
+
+`boxRunnerCommands/boxRunnerArrivals` ham adları korunur: ilk alan box-run/cutback-support/channel-run/penetration görevlerini, ikinci alan bu görevlinin ceza sahasında en az bir kez görülmesini sayar. Görev hedefi kutu dışında olabilir ve oyuncu zaten ceza sahasında bulunabilir; yeni giriş veya kutuya koşu başarı oranı çıkarılmaz.
+
+Son doğal deneyin [okunabilir özeti](docs/validation/attack-chain-summary.json), 8 × 300 sn × iki motorda gözlemci/plain/tekrar ve descriptor kontrollerini doğrular. [Tam JSON.gz](docs/validation/attack-chain-matrix.json.gz) bütün bölüm ve şut izlerini korur. İki motorda dört şut, farklı oyunda kalma süreleriyle 10 dakika başına yaklaşık 1,185/1,218 toplam şuttur. Bu, motor davranışı değişikliği veya denge kabulü değildir; aşama/olay tanımlarıyla mevcut davranışı açıklar.
+
+---
+
+# Dokuzuncu aşama — görev yaşamı, dört evre ve oyuncu algısı
+
+Destek, verkaç/bindirme, taşıma, pres ve markaj tek bir hedefi tekrar seçmekten öte bir görev yaşamına bağlandı. `team-intent.js` görev süresini ve geçişi, `player-perception.js` rakibin hangi gözlemden bilindiğini yönetir. İki modül CommonJS ve tarayıcı UMD olarak yüklenir; `match.html` bunları `football-sim.js` öncesinde açar. Yeni durum yalnız maç belleğindedir.
+
+## Takım evresi ve ortak görev dönemi
+
+`teamPhases[team]`, `phase`, `since`, `epoch` ve `attackEpoch` taşır. `win`/`possession` hücum; `loss`/`defence` savunma ailesidir. Gerçek karşı takım kazanımı hücum dönemini değiştirir ve eski görevleri gain/loss gerekçeleriyle bırakır. Aynı takım alımı bu dönemi değiştirmez. Geçiş süresi bitince uyumlu görev yeni evrede sürer; başlangıç ve kesin bitiş saatleri yenilenmez. Yeniden başlatma geçiş saatlerini, eski planları, görevleri ve gözlem belleğini temizler.
+
+`resolve`, `reserved` ve `clear` ortak görev protokolüdür. `p.task`; amaç/alt durum, evre/dönem, ortak ve odak kimlikleri, hedef, tempo, öncelik, başlangıç, asgari devam, kesin bitiş ve ilerleme bilgisini taşır. Son **24 geçiş gerekçesi** `taskHistory` içinde kalır. Yeni plan aynı görevin kesin bitişini sürekli ileri atmaz.
+
+| Görev | Asgari devam | Kesin ömür | Olağan yeni adayın doğrulanması |
+| --- | ---: | ---: | ---: |
+| Destek | 0,50 sn | 1,80 sn | 0,32 sn |
+| Koşu / bindirme | 0,70 sn | 3,20 sn | 0,36 sn |
+| Pres | 0,45 sn | 1,40 sn | 0,32 sn |
+| Markaj | 0,60 sn | 2,10 sn | 0,36 sn |
+| Kademe | 0,50 sn | 1,80 sn | 0,32 sn |
+| Taşıma | 0,45 sn | 1,20 sn | 0,28 sn |
+
+Hareketli markaj/pres hedefi aynı kimlikle takip edilir; bağlılık eski bir rakip konumuna koşmayı zorlamaz. Aynı görevin temposu ve önceliği güncel öneriden gelir. Görünür yol tıkanması, ortak/odak kaybı, oyuncu değişimi, evre ailesi değişimi, görev sonu, varış ve ilerleyememe ayrı bırakma gerekçeleridir. Acil kontrol/alıcı koşusu/blok ve ortak takım devri olağan beklemeyi aşabilir. Destek hedefine **0,85 m** yaklaşmak varış sayılır; kesin ömrü aşmadan **0,45 sn** kullanım penceresi başlatır. Güvenlik ve acil görevler bu pencereyi de kesebilir.
+
+Plan kurucuları bağlı oyuncuyu aday seçmeden önce rezerve eder. Aktif verkaç/geri destek niyeti ceza sahası dağılımıyla ezilmez. Pas hedefi hem hazırlık hem gerçek uçuş sırasında ayrılır; iptal sonrası alıcı görevi bırakılır. Son görev seçildiğinde destek, koşucu, bağlantı, bindirme ve ceza sahası tabloları uygulanacak hedefle uzlaştırılır. Pas değerlendirmesi oyuncunun koşmadığı yeni bir aday noktayı açık bağlantı gibi kullanmaz. Markaj ve pres devrinde eski görev sahibi asgari süreyi bekleyerek ikinci markajcı/presçi olarak kalmaz.
+
+## Görüş ve kısa gözlem belleği
+
+Gözlem yalnız canlı `step` içinde ilerler. `rivals(p,time)` yeni tarama veya canlı rakip okuması yapmadan değer kopyaları döndürür; rakibin hedefini veya gelecekteki kararını taşımaz. Görüş niteliğine bağlı gövde görüşü/menzil, **1,65 m** yakın temas duyumu, uygun aksiyonlar arasında deterministik **160 ms** baş taraması ve en fazla **1,60 sn** bellek vardır. Görülmeyen rakibin hareket kestirimi, son hızdan **0,40 sn** sönüm ufkuyla çıkar; güven azalır, belirsizlik artar ve süre sonunda kayıt silinir. Kör taraftaki yeni yön değişimi bu kestirimi güncellemez. Belirsizlik pas yolu/alıma güveni de sınırlar.
+
+Takım koordinatörü saha oyuncularının gözlemlerinin birleşimini kullanır; takım iletişimi anlık varsayılır. Bireysel markaj ancak o oyuncunun gözlemlediği adaylar arasından seçilir. Top taşıyanın baskı ve tempo okuması da kişiseldir. Pres biriminin alıcı seçimi ve önceki alıcıyı koruma hesabı aynı gözlenen kökene dayanır: kademe/presçinin belleğindeki top sahibi, kayıt yoksa topun ortak konumu. Derindeki markaj devri, topun BallPhysics ile 0,70 sn sonraki konumuna uzanan koridorda koşucunun bulunmasını okur; pasçının özel hedef oyuncu kimliğini okumaz. Şut bloku görünür şutçunun gövde yönünü, uçuş savunması görünen topun fiziksel izini okur; rakibin özel nişan/pas hedefi kullanılmaz.
+
+Hazırlık önizlemeleri karar verenin bildiği rakip kopyalarını ilerletir; görünmeyen canlı rakip sonradan eklenmez. Önizlemede baş taraması, yeni takım planı veya RNG çalışmaz. Görev ve tarihçe kopyaları canlı duruma geri yazılmaz. Doğrudan elle kurulan ve henüz `step` çalıştırılmamış kontrol durumları açıkça verilen dünya durumunu kullanır; normal canlı maç adımı algıyı etkinleştirir.
+
+## Baş çizimi ve kalan kapsam
+
+Rig, algının baş taramasını yalnız çizim için yumuşatarak en fazla **±0,80 rad** baş dönüşüne çevirir; prosedürel yüz ve GPU baş/boyun kemikleri bunu kullanır. Algıdaki **±1,55 rad** tarama ile görsel baş açısı farklı oyun yaklaşımlarıdır. `p.face`, gövde, ayaklar ve temas noktaları etkilenmez. Önbelleklenmiş pozun çizim sorgusu taramayı ilerletmez.
+
+Görüş engellenmesi, sesle fark etme, ayrıntılı dikkat bütçesi ve gecikmeli/sınırlı takım iletişimi henüz yoktur. Topun konumu ve sahiplik/oyun bilgisi ortak maç durumundan gelir; kendi takımının pozisyon ve komutları bilinir. Bu aşama bu bilgileri ayrı bir top/arkadaş algısına dönüştürmez. Fiziksel temas/müdahale, ofsayt hakemi, şut/ilk kontrolün gerçek temas baskısı, duran top yerleşimi ve mevcut kaleci yolları dünya gerçeğini kullanır. Görülmeyen rakip fiziksel müdahaleye devam eder; algı eksikliği koruma sağlamaz. BallPhysics ile 16 canlı fizik/kural yöntemi yayımlanmış sekizinci aşamayla kaynak düzeyinde aynı kalır; değişen görev/algı ve hazırlık önizlemeleri bu eşitlik iddiasına dahil değildir. Ekonomi, kayıt şeması ve ayrı günlük lig motoru birleştirilmedi.
+
+---
+
 # Sekizinci aşama — ortak yerden ayak teması ve sonraki kontrole erişim
 
 Önceki ilk kontrol kapısı topun mevcut ayak bölgesini, yedinci aşama ise alım sonrasındaki dar bir ters bekleme kararını sınırlandırıyordu. Topa bugün erişilmesi, oyuncu mevcut yönde koşarken seçilen her yeni top hızına yetişebileceği anlamına gelmiyordu. `touchContact`, `touchRecovery` ve `touchPlan` artık hazırlıklı yerden ilk kontrol, normal top sürme/top koruma ve açık oyun vuruş hazırlığında ortak kullanılır. Yönün uygulanabilirliği, mevcut hız ve gövdeyle bir sonraki gerçek temas bölgesine ulaşma denemesinden çıkarılır.

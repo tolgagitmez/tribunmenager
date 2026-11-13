@@ -6,8 +6,12 @@ const source=zlib.gunzipSync(fs.readFileSync(path.join(__dirname,'../docs/valida
 assert.equal(crypto.createHash('sha256').update(source).digest('hex'),'108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6');
 const oldModule=new Module(path.join(__dirname,'../post-receive-hold-stage6.js'),module);oldModule.filename=path.join(__dirname,'../post-receive-hold-stage6.js');oldModule.paths=module.paths;oldModule._compile(source.toString(),oldModule.filename);
 const OldMatch=oldModule.exports.Match,dt=1/60;
+// Isolate control/momentum from roster tuning. 75 is the neutral runtime
+// acceleration, turn and endurance profile; fitness=100 makes fatigue use the
+// same stamina fraction in the archived and current movement integrators.
+const physicalProfile={skill:82,passing:82,shooting:82,tackling:82,dribbling:82,pace:82,heading:82,crossing:82,vision:82,composure:82,agility:75,acceleration:75,endurance:75,strength:75,balance:75,fitness:100,stamina:92,energy:1,preferredFoot:1,footPreference:'right',weakFoot:70,goalkeeping:82,reactions:82,handling:82};
 function fixture(side=1){
- const m=new Match({seed:21});m.restart=null;m.kick=null;m.time=10;m.planClock=100;m.players.forEach(q=>q.active=false);
+ const m=new Match({seed:21});m.restart=null;m.kick=null;m.time=10;m.planClock=100;m.players.forEach(q=>Object.assign(q,physicalProfile,{active:false}));
  const p=m.players[3],d=m.players[14],target={x:5*side,z:0};
  Object.assign(p,{active:true,x:0,z:0,vx:3*side,vz:0,speed:3,face:side>0?0:Math.PI,touchClock:0,receiveClock:0,duelRecovery:0,action:'idle',actionClock:0,receiveMode:'protect',carryTime:.5,decision:0,carryTarget:target,carryIntent:{until:11,point:{...target}},energy:1,stamina:92});
  Object.assign(d,{active:true,x:-2*side,z:.2*side,vx:4*side,vz:0,speed:4,face:side>0?0:Math.PI,tackleClock:0,duelRecovery:0,touchClock:0,action:'idle',actionClock:0});
@@ -80,7 +84,8 @@ test('the retained point is a value copy and cannot mutate the current carrying 
  assert.notEqual(result.point,p.carryTarget);result.point.x+=10;assert.deepEqual(p.carryTarget,point);assert.deepEqual(p.carryIntent.point,point);
 });
 for(const side of [1,-1])test(`the ordinary owner step applies the retained intention through unchanged movement and ball physics (${side})`,()=>{
- const {m,p,choice}=fixture(side),expected=clone(m,OldMatch),old=clone(m,OldMatch),before={x:p.x,z:p.z},retained=m.postReceiveHold(p,choice);
+ const {m,p,choice}=fixture(side);const Perception=require('../player-perception'),face=p.face;p.face+=Math.PI;Perception.update(m.players,m.time,0,{scanAllowed:false});p.face=face;
+ const expected=clone(m,OldMatch),old=clone(m,OldMatch),before={x:p.x,z:p.z},retained=m.postReceiveHold(p,choice);
  assert.equal(retained.holdContinuation,true);
  m.choose=()=>choice;expected.choose=()=>retained;old.choose=()=>choice;
  m.step(dt);expected.step(dt);old.step(dt);
@@ -88,7 +93,8 @@ for(const side of [1,-1])test(`the ordinary owner step applies the retained inte
  assert(distance(p,before)<.15);assert.equal(m.owner,p);assert.equal(m.kick,null);
  assert(m.ball.vx*side>0);assert(old.ball.vx*side<0,'the unreviewed hold redirects the same physical ball backwards');
  delete m.telemetry.holdContinuations;for(const v of [m,expected,old])delete v.choose;
- assert.deepEqual(structuredClone(m),structuredClone(expected),'continuing the old run must use the exact stage6 physical path');
+ const physical=value=>{const state=structuredClone(value);delete state.matchClock;delete state.teamPhases;delete state._perceptionActive;delete state.telemetry.teamPhaseChanges;for(const actor of state.players){delete actor.perception;delete actor.task;delete actor.taskHistory;}return state;};
+ assert.deepEqual(physical(m),physical(expected),'the observed-pressure continuation must use the exact stage6 physical path');
 });
 test('the pure hold review leaves released ball flight entirely under BallPhysics',()=>{
  const {m,p,choice}=fixture(),predicted=BallPhysics.predict(m.ball,.2),position={x:p.x,z:p.z};

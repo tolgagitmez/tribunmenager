@@ -6,10 +6,14 @@ const source=zlib.gunzipSync(fs.readFileSync(path.join(__dirname,'../docs/valida
 assert.equal(crypto.createHash('sha256').update(source).digest('hex'),'7038778922feb9f8f24389003b5ddf92fb8c0790280af84ae9818a04198acf60');
 const oldModule=new Module(path.join(__dirname,'../reception-facing-stage5.js'),module);oldModule.filename=path.join(__dirname,'../reception-facing-stage5.js');oldModule.paths=module.paths;oldModule._compile(source.toString(),oldModule.filename);
 const OldMatch=oldModule.exports.Match,dt=1/60,angle=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
+// Isolate control/momentum from roster tuning. 75 is the neutral runtime
+// acceleration, turn and endurance profile; fitness=100 makes fatigue use the
+// same stamina fraction in the archived and current movement integrators.
+const physicalProfile={skill:82,passing:82,shooting:82,tackling:82,dribbling:82,pace:82,heading:82,crossing:82,vision:82,composure:82,agility:75,acceleration:75,endurance:75,strength:75,balance:75,fitness:100,stamina:92,energy:1,preferredFoot:1,footPreference:'right',weakFoot:70,goalkeeping:82,reactions:82,handling:82};
 function fixture({side=1,start=-5.5,speed=9,face=0,mode='protect'}={}){
- const m=new Match({seed:21});m.restart=null;m.kick=null;m.owner=null;m.time=10;m.players.forEach(p=>p.active=false);
+ const m=new Match({seed:21});m.restart=null;m.kick=null;m.owner=null;m.time=10;m.players.forEach(p=>Object.assign(p,physicalProfile,{active:false}));
  const q=m.players[1],from=m.players[3];
- Object.assign(q,{active:true,x:0,z:0,vx:0,vz:0,speed:0,face:face+(side<0?Math.PI:0),skill:82,passing:82,vision:82,dribbling:82,agility:82,energy:1,stamina:92,touchClock:0,receiveClock:0,duelRecovery:0,holdClock:0,feintReaction:0,action:'idle',actionClock:0});
+ Object.assign(q,{active:true,x:0,z:0,vx:0,vz:0,speed:0,face:face+(side<0?Math.PI:0),skill:82,passing:82,vision:82,dribbling:82,agility:75,energy:1,stamina:92,touchClock:0,receiveClock:0,duelRecovery:0,holdClock:0,feintReaction:0,action:'idle',actionClock:0});
  Object.assign(from,{active:true,x:-12*side,z:8*side,vx:0,vz:0,speed:0});
  m.ball={x:start*side,y:BallPhysics.radius,z:0,vx:speed*side,vy:0,vz:0};
  m.flight={id:7,kind:'pass',from,target:q,age:0,point:{x:0,z:0},offsidePlayers:[]};m.lastTouch=from;m.lastTeam=q.team;
