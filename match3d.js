@@ -16,9 +16,15 @@ function init(){
  if(!attackView)attackView=window.TribunAttackAnalysisUI.mount($('attackAnalysis'),{summary:()=>attackObserver.summary(),report:()=>attackObserver.report()});paused=false;speed=1;accumulator=0;lastMetric=-1;shownFinish=false;overlayTime=0;
  $('eventList').innerHTML='';$('finishScreen').hidden=true;$('subPanel').hidden=true;$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');
  label('playButton','Duraklat','pause');label('speedButton','1× Hız');label('camButton','Kamera: '+(scene.camera==='close'?'Yakın':scene.camera==='tactical'?'Taktik':'TV'),'target');label('rigButton','İskelet: '+(scene.debugRig?'Açık':'Kapalı'),'studio');label('soundButton','Tribün sesi: '+(crowd.enabled?'Açık':'Kapalı'),'sound');label('restartButton','Baştan oynat','refresh');$('momentum').dataset.left=50;$('momentum').style.setProperty('--homeWidth','50%');
- if($('sessionTitle'))$('sessionTitle').textContent=game.duration===5400?'90 DAKİKA · DENEYSEL MAÇ':`${game.duration/60} DAKİKALIK ${game.duration===300?'DENEME':'KISA MAÇ'}`;
+ if($('sessionTitle'))$('sessionTitle').textContent=(game.duration===5400?'90 DAKİKA · DENEYSEL MAÇ':`${game.duration/60} DAKİKALIK ${game.duration===300?'DENEME':'KISA MAÇ'}`)+(cfg.opponentSource==='demo'?' · DENEME KADROSU':cfg.opponentSource==='linked-roster'?' · FİKSTÜR KADROSU':'');
  const t=game.t[0];$('homeFormation').textContent=`${cfg.formation||'4-3-3'} · ${window.TribunTactics.labels.playstyle[t.playstyle]}`;
  $('tacticHome').textContent=t.mentality==='attacking'?'Hücum':t.mentality==='defensive'?'Savunma':'Dengeli';$('tacticHomeText').textContent=window.TribunTactics.describe(t).attack;
+ const own=document.querySelector('.scoreboard .club:not(.away)'),away=document.querySelector('.scoreboard .club.away');
+ if(own){own.querySelector('strong').textContent=cfg.homeName||'Moreirense SK';own.querySelector('small').textContent=cfg.fixture?.isHome===false?'DEPLASMAN · SENİN TAKIMIN':'EV SAHİBİ · SENİN TAKIMIN';}
+ if(away){away.querySelector('strong').textContent=cfg.awayName||'Rakip';away.querySelector('small').textContent=cfg.fixture?.isHome===false?'EV SAHİBİ · RAKİP':'DEPLASMAN · RAKİP';away.querySelector('span').textContent=`${cfg.awayFormation||'4-2-3-1'} · ${window.TribunTactics.labels.playstyle[game.t[1].playstyle]}`;}
+ const legend=document.querySelectorAll('.legend span');if(legend[0])legend[0].textContent='● '+(cfg.homeName||'Takımın');if(legend[1])legend[1].textContent=(cfg.awayName||'Rakip')+' ●';
+ const awayEffect=document.querySelectorAll('.effects>div')[1];if(awayEffect){awayEffect.querySelector('b').textContent=game.t[1].mentality==='attacking'?'Hücum':game.t[1].mentality==='defensive'?'Savunma':'Dengeli';awayEffect.querySelector('p').textContent=window.TribunTactics.describe(game.t[1]).attack;}
+ const note=document.querySelector('.bottom-note');if(note)note.textContent=cfg.rosterNotice||'Seçilen kadrolarla yerel maç; günlük lig sonucu değişmez.';
  for(const p of game.players)Rig.update(p,0);consume();metrics();renderSubs();
 }
 function event(e){
@@ -81,10 +87,10 @@ window.addEventListener('DOMContentLoaded',()=>{
  $('subButton').onclick=()=>{renderSubs();$('subPanel').hidden=!$('subPanel').hidden;};$('closeSubs').onclick=()=>{$('subPanel').hidden=true;};
  $('saveSubs').onclick=()=>{const result=game.substitute(Number($('subOut').value),Number($('subIn').value));if(result.ok){$('subPanel').hidden=true;consume();renderSubs();}else alert(result.error);};
  function start(){init();let last=performance.now();function frame(now){const dt=Math.min(.25,(now-last)/1000);last=now;tick(dt);const b=game.ball;scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},dt);requestAnimationFrame(frame);}requestAnimationFrame(frame);}
- if(window.TribunTransfers?.hasSession()){
+ if(!window.TribunMatchConfig.prepared(cfg)){
   const controls=[...document.querySelectorAll('.match-controls button,#subButton,#saveSubs,#againButton,#restartButton,#playButton,#speedButton')];controls.forEach(b=>b.disabled=true);
   $('sessionTitle').textContent='GÜNCEL KADRO ALINIYOR…';
-  window.TribunTransfers.sync().then(data=>{const current=window.TribunTransfers.cached();cfg.players=data.players;cfg.starters=window.TribunClubData.repairStarters(current.starters,data.players,cfg.formation);cfg.special=current.special||cfg.special;controls.forEach(b=>b.disabled=false);start();}).catch(()=>{$('sessionTitle').textContent='TRANSFER BAĞLANTISI KURULAMADI · SAYFAYI YENİLE';});
+  window.TribunMatchConfig.prepare(cfg).then(value=>{Object.assign(cfg,value);controls.forEach(b=>b.disabled=false);if(!scene.gl)$('rigButton').disabled=true;start();}).catch(()=>{$('sessionTitle').textContent='KADRO BAĞLANTISI KURULAMADI · SAYFAYI YENİLE';});
  }else start();
 });
 window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};

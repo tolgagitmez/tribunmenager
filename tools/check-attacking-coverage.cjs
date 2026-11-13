@@ -5,6 +5,7 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict');
 const {Match,BallPhysics,segment}=require('../football-sim'),Rig=require('../humanoid-rig');
 const root=path.resolve(__dirname,'..'),dt=1/60,hash=b=>crypto.createHash('sha256').update(b).digest('hex');
+const centredStrikeRandom=()=>.5;
 const scenarios=[
  {id:'cross-header-right',kind:'header',side:1,expected:'headed-shot'},
  {id:'cross-header-left',kind:'header',side:-1,expected:'headed-shot'},
@@ -36,7 +37,7 @@ function base(rig=false){
  for(const p of m.players)p.active=false;
  return m;
 }
-const player=p=>({id:p.id,team:p.team,role:p.role,x:p.x,z:p.z,vx:p.vx,vz:p.vz,face:p.face,skill:p.skill,passing:p.passing,shooting:p.shooting,heading:p.heading,touchClock:p.touchClock,tackleClock:p.tackleClock,receiveClock:p.receiveClock,duelRecovery:p.duelRecovery,action:p.action,actionClock:p.actionClock});
+const player=p=>({id:p.id,team:p.team,role:p.role,x:p.x,z:p.z,vx:p.vx,vz:p.vz,face:p.face,skill:p.skill,handling:p.handling,reactions:p.reactions,passing:p.passing,shooting:p.shooting,heading:p.heading,touchClock:p.touchClock,tackleClock:p.tackleClock,receiveClock:p.receiveClock,duelRecovery:p.duelRecovery,action:p.action,actionClock:p.actionClock});
 function frame(m){return {time:m.time,seed:m.seed,ball:{...m.ball},ownerId:m.owner?.id??null,flight:m.flight?{id:m.flight.id,kind:m.flight.kind,fromId:m.flight.from.id,targetId:m.flight.target?.id??null,age:m.flight.age,offsidePlayers:[...(m.flight.offsidePlayers||[])]}:null,restart:m.restart?{kind:m.restart.kind,team:m.restart.team}:null,activePlayers:m.players.filter(p=>p.active&&!p.referee).map(player)};}
 function fingerprint(m){
  const seen=new Map();
@@ -66,6 +67,9 @@ function fixture(s){
   if(s.kind==='cutback-loose')power=30;
  }
  if(s.kind==='shot-block'){
+  // This contact-path fixture uses a centred strike; general match scatter
+  // remains exercised by natural samples and the separate profile comparisons.
+  m.random=centredStrikeRandom;
   Object.assign(p,{x:36*side,z:0});q.active=false;activate(m.players[other*11+3],43*side,0,{role:'DEF'});kind='shot';point={x:52*side,z:0};target=null;
  }
  if(['offside','onside'].includes(s.kind)){
@@ -74,6 +78,8 @@ function fixture(s){
  }
  if(s.kind.startsWith('keeper')){
   q.active=false;const g=activate(m.players[other*11+10],49*side,0,{role:'GK',skill:s.kind==='keeper-skill-low'?60:s.kind==='keeper-skill-high'?94:82,face:side>0?Math.PI:0});
+  // Since stage11 handling/reactions are independent of overall quality.
+  g.handling=g.reactions=g.skill;
   Object.assign(p,{x:35*side,z:8*side});
   if(s.kind==='keeper-backpass'){p.active=false;target=activate(m.players[other*11+3],35*side,8*side);}
   else target=p;
@@ -139,8 +145,8 @@ function buildCoverageReport(){
   rows.push({...first.result,deterministicReplay:true});outcomes[first.result.outcome]=(outcomes[first.result.outcome]||0)+1;
   for(const [name,count]of Object.entries(first.result.opportunities))opportunities[name]=(opportunities[name]||0)+count;
  }
- const files=['football-sim.js','humanoid-rig.js',path.relative(root,__filename),'tests/attacking-coverage.test.cjs'];
- return {sources:Object.fromEntries(files.map(file=>[file,hash(fs.readFileSync(path.join(root,file)))])),sample:'controlled-coverage',naturalSample:false,method:'Specified deterministic starting geometry with unmodified Match methods and unmodified RNG. Field delivery cases execute the real kick windup/release, then fixed-body BallPhysics/ballStep at 60Hz; keeper cases begin with a specified incoming flight and execute ordinary Match.step visibility/reaction/hands/custody. No method mocks, forced random values, player relocation during flight or direct event/counter writes. Two complete own Match states, including RNG, are deeply compared per fixture; immutable motion module is separately source-hashed.',definitions:{opportunity:'Counts are explicit fixture inputs or geometric contact windows, not representative natural frequencies. Distinct cross/body pairs in the real descending 1.60–2.15m contact window are counted once, separately from released crosses and actual headers. Ground contact approaches are geometry plus existing clocks; they do not imply feasible possession.',keeper:'Geometric threat uses the real initial ball trajectory to the goal plane. Opponent-shot and own-backpass fixtures are separate. Save events distinguish custody from parry; specified incoming flights are not counted as executed shots. The fast-catch trial uses the real rig two-hand model; other keeper trials use the existing fallback single hand.',limits:'Selected positive and negative fixtures establish path coverage only. Counts and denominators must not be converted to natural conversion/save rates or evidence that aerial/keeper quality is balanced. Fixed-body free-flight tests do not verify tactical runs, whole matches, fatigue or animation quality.'},fixtureCount:rows.length,opportunities,outcomes,runs:rows,verified:true};
+ const files=['football-sim.js','player-model.js','player-model-profiles.json','humanoid-rig.js',path.relative(root,__filename),'tests/attacking-coverage.test.cjs'];
+ return {sources:Object.fromEntries(files.map(file=>[file,hash(fs.readFileSync(path.join(root,file)))])),sample:'controlled-coverage',naturalSample:false,method:'Specified deterministic starting geometry. All cases use the ordinary seeded RNG except shot-blocked-by-body, which fixes the random draw to 0.5 for a centred contact-path strike. Keeper handling/reactions are explicitly set alongside their selected overall values since stage11. Field delivery cases execute the real kick windup/release, then fixed-body BallPhysics/ballStep at 60Hz; keeper cases begin with a specified incoming flight and execute ordinary Match.step visibility/reaction/hands/custody. The centred-strike RNG override is the only method override; no player relocation during flight or direct event/counter writes occurs. Two complete own Match states, including RNG, are deeply compared per fixture; immutable motion module is separately source-hashed.',definitions:{opportunity:'Counts are explicit fixture inputs or geometric contact windows, not representative natural frequencies. Distinct cross/body pairs in the real descending 1.60–2.15m contact window are counted once, separately from released crosses and actual headers. Ground contact approaches are geometry plus existing clocks; they do not imply feasible possession.',keeper:'Geometric threat uses the real initial ball trajectory to the goal plane. Opponent-shot and own-backpass fixtures are separate. Save events distinguish custody from parry; specified incoming flights are not counted as executed shots. The fast-catch trial uses the real rig two-hand model; other keeper trials use the existing fallback single hand.',limits:'Selected positive and negative fixtures establish path coverage only. Counts and denominators must not be converted to natural conversion/save rates or evidence that aerial/keeper quality is balanced. Fixed-body free-flight tests do not verify tactical runs, whole matches, fatigue or animation quality.'},fixtureCount:rows.length,opportunities,outcomes,runs:rows,verified:true};
 }
-if(require.main===module){const report=buildCoverageReport();fs.mkdirSync(path.join(root,'docs/validation'),{recursive:true});fs.writeFileSync(path.join(root,'docs/validation/attacking-coverage.json'),JSON.stringify(report,null,2)+'\n');process.stdout.write(JSON.stringify({verified:true,fixtures:report.fixtureCount,opportunities:report.opportunities,outcomes:report.outcomes})+'\n');}
+if(require.main===module){const report=buildCoverageReport();fs.mkdirSync(path.join(root,'docs/validation'),{recursive:true});fs.writeFileSync(path.join(root,'docs/validation/player-identity-coverage.json'),JSON.stringify(report,null,2)+'\n');process.stdout.write(JSON.stringify({verified:true,fixtures:report.fixtureCount,opportunities:report.opportunities,outcomes:report.outcomes})+'\n');}
 module.exports={scenarios,runScenario,buildCoverageReport};

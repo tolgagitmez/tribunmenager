@@ -1,8 +1,11 @@
 {
   "name": "tribun-manager-3d",
-  "version": "1.29.0",
+  "version": "1.30.0",
   "private": true,
   "scripts": {
+    "test:stage11": "npm run test:stage10 && npm run test:player-model && npm run test:fixture-roster",
+    "test:player-model": "node --test tests/player-model.test.cjs tests/player-identity-integration.test.cjs && python3 -m unittest discover -s tests -p \"test_player_model.py\" -v",
+    "test:fixture-roster": "node --test tests/fixture-roster.test.cjs && python3 tests/fixture-roster-api.py",
     "test:stage10": "npm run test:stage9 && npm run test:attack-diagnostics && npm run test:attacking-coverage",
     "test:attack-diagnostics": "node --test tests/attack-diagnostics.test.cjs tests/attack-diagnostics-integration.test.cjs tests/attack-analysis-ui.test.cjs",
     "test:attacking-coverage": "node tests/attacking-coverage.test.cjs",

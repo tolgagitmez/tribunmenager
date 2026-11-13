@@ -1,3 +1,23 @@
+# On birinci aşama uygulama durumu — oyuncu kimliği ve ortak kadro
+
+Ortak oyuncu modeli, genel mevki/form/kondisyon kalite hesabı, iki takımın aynı şemadan kurulması ve oyuncu değişikliği tamamlandı. Kurmaca başlangıç kadrosu belirgin profillere sahiptir; katalogdan verilen ayak, rol ve özellikler transferde korunur. Eksik bilgi oyuncu sırasından türetilmez. Eşit genel puanlı hızlı forvet, güçlü stoper ve oyun kurucunun sahadaki farkı gerçek hareket, pas ve mücadele durumlarıyla sınanır.
+
+Normal başlatma akışı bağlı fikstür rakibinin kayıtlı kadrosunu taşır ve iki kadrolu başlangıcı sabitler. Kayıtlı oyuncusu bulunmayan bilgisayar kulübünde deneme kadrosu açıkça gösterilir. Yerel simülasyon ile günlük Poisson sonuç hesabı bu aşamada birleştirilmedi. İnceleme taslak PR #1 üzerinde sürer; ortak veri sözleşmesinin tamamlanması önceki maç dengesi sorunlarının çözüldüğünü göstermez.
+
+Sekiz 300 saniyelik son doğal kontrolde top kaybı 138 → 108 ve iptal edilen hazırlık 6 → 4 olurken fiziksel şut 6 → 3 oldu; top oyunda süre başına şut da 1,845 → 0,953 geriledi. Eski motor aynı girdide rakip kadroyu kullanmadığı için bu geniş sözleşme karşılaştırması tek özellik etkisini ayırmaz. Ortak modelin davranış ve kayıt kabulü tamamdır; hücum dengesi kabulü açık kalır.
+
+Sonraki işler şu sırayla yürütülmeli:
+
+1. **Veri kapsamı:** sağlayıcıdan gerçek ayak, özel mevki ve fizik/teknik özelliklerini tarih/kaynak bilgisiyle doldur; varsayılan profil kullanan alanların oranını raporla. Gerçek gözlem ile kurmaca profil ayrımı korunmalı.
+2. **Bilgisayar kadroları:** resmî bilgisayar kulüplerine kalıcı, doğrulanmış ilk 11/yedek ve oyuncu kayıtları ekle. Kadrosu olmayan kulüp için deneme oyuncularını gerçek kadro diye sunma.
+3. **Ayrıntılı rol uyumu:** şu an kalite cezası GK/DEF/MID/ATT düzeyindedir. Saklanan özel/ikincil mevkilerden kanat tarafı, bek/stoper, DM/CM/AM ve rol alışkanlığı üret; UI, yerel motor ve lig hesabını birlikte güncelle.
+4. **Maç dengesi:** profil etkilerini farklı güçte iki kadro, altı diziliş ve uzun yorgunluk örneklerinde hücum zinciri ölçümleriyle kalibre et. Hız/güç bonusları gerçek erişim ve momentum sınırlarını aşmamalı; gol/şut kotası kullanılmamalı.
+5. **Tam fikstür deneyimi:** başlangıç görüntüsü, motor sürümü ve seed ile yeniden oynatılabilir kayıt kur; yerel sonucu resmî lige uygulama ayrı ürün/kayıt tutarlılığı çalışması olarak ele alınmalı.
+
+Sözleşme [docs/PLAYER_MODEL.md](docs/PLAYER_MODEL.md), kabul kapsamı [DOGRULAMA.md](DOGRULAMA.md) içinde açıklanır. Önceki aşamalar aşağıda tarihsel kayıttır.
+
+---
+
 # Gerçek futbol deneyimi: durum analizi ve geliştirme yol haritası
 
 ## Onuncu aşama uygulama durumu

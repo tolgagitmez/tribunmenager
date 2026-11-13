@@ -6,8 +6,12 @@ const source=zlib.gunzipSync(fs.readFileSync(path.join(__dirname,'../docs/valida
 assert.equal(crypto.createHash('sha256').update(source).digest('hex'),'108d47253d775de6638460d5fa90dd6bbe2ab2e1e066b581e17591350c4917b6');
 const oldModule=new Module(path.join(__dirname,'../post-receive-hold-stage6.js'),module);oldModule.filename=path.join(__dirname,'../post-receive-hold-stage6.js');oldModule.paths=module.paths;oldModule._compile(source.toString(),oldModule.filename);
 const OldMatch=oldModule.exports.Match,dt=1/60;
+// Isolate control/momentum from roster tuning. 75 is the neutral runtime
+// acceleration, turn and endurance profile; fitness=100 makes fatigue use the
+// same stamina fraction in the archived and current movement integrators.
+const physicalProfile={skill:82,passing:82,shooting:82,tackling:82,dribbling:82,pace:82,heading:82,crossing:82,vision:82,composure:82,agility:75,acceleration:75,endurance:75,strength:75,balance:75,fitness:100,stamina:92,energy:1,preferredFoot:1,footPreference:'right',weakFoot:70,goalkeeping:82,reactions:82,handling:82};
 function fixture(side=1){
- const m=new Match({seed:21});m.restart=null;m.kick=null;m.time=10;m.planClock=100;m.players.forEach(q=>q.active=false);
+ const m=new Match({seed:21});m.restart=null;m.kick=null;m.time=10;m.planClock=100;m.players.forEach(q=>Object.assign(q,physicalProfile,{active:false}));
  const p=m.players[3],d=m.players[14],target={x:5*side,z:0};
  Object.assign(p,{active:true,x:0,z:0,vx:3*side,vz:0,speed:3,face:side>0?0:Math.PI,touchClock:0,receiveClock:0,duelRecovery:0,action:'idle',actionClock:0,receiveMode:'protect',carryTime:.5,decision:0,carryTarget:target,carryIntent:{until:11,point:{...target}},energy:1,stamina:92});
  Object.assign(d,{active:true,x:-2*side,z:.2*side,vx:4*side,vz:0,speed:4,face:side>0?0:Math.PI,tackleClock:0,duelRecovery:0,touchClock:0,action:'idle',actionClock:0});

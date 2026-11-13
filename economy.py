@@ -24,6 +24,11 @@ from datetime import datetime, timezone
 ROOT = Path(__file__).resolve().parent
 POSITIONS = {"GK": {"GK"}, "DEF": {"CB", "LB", "RB", "LWB", "RWB"},
              "MID": {"DM", "CM", "AM", "LM", "RM"}, "ATT": {"ST", "LW", "RW", "CF"}}
+PLAYER_ATTRIBUTES = ("passing", "shooting", "tackling", "dribbling", "pace", "agility", "heading", "crossing",
+                     "weakFoot", "strength", "balance", "acceleration", "endurance", "vision", "composure",
+                     "goalkeeping", "reactions", "handling")
+PLAYER_FEET = ("left", "right", "both", "unknown")
+PLAYER_ARCHETYPES = ("goalkeeper", "stopper", "fullback", "playmaker", "ballWinner", "winger", "poacher", "targetForward")
 BOT_CLUBS = ("Altınşehir SK", "Kuzey 1907", "Fırtına FK", "Anadolu Yıldızları", "Estrela Amadora", "Güneyspor")
 
 
@@ -78,6 +83,46 @@ def eligible_to_sell(state, player, rules):
         raise EconomyError("Bu mevkide korunması gereken asgari oyuncu sayısına ulaştın.")
 
 
+def player_match_quality(player, slot):
+    """The roster/match display contract; rounded per player before team mean.
+
+    The browser applies this formula in player-model.js. Cross-runtime parity
+    tests cover it explicitly; Python's ties-to-even round would disagree with
+    JavaScript Math.round at the half boundaries.
+    """
+    a, b = player["pos"], slot
+    fit = (1 if a == b else .45 if "GK" in (a, b) else .87 if {a, b} == {"MID", "ATT"}
+           else .82 if {a, b} == {"DEF", "MID"} else .66)
+    return math.floor(player["rating"] * fit * (.83+.17*player["fitness"]/100) *
+                      (.91+.09*player["form"]/100) + .5)
+
+
+def player_attribute_value(player, key):
+    """Read a raw attribute or the same labelled profile default as the browser.
+
+    The shared JSON is game tuning, not provider data. Looking up a training
+    starting value does not fill every absent attribute on a stored player.
+    """
+    if key not in PLAYER_ATTRIBUTES:
+        raise EconomyError("Oyuncu özelliği geçersiz.")
+    if key == "weakFoot" and player.get("preferredFoot") == "both":
+        return 99
+    value = player.get(key)
+    if type(value) in (int, float) and math.isfinite(value):
+        return max(1, min(99, value))
+    profiles = json.loads((ROOT / "player-model-profiles.json").read_text())
+    archetype = player.get("archetype")
+    if archetype not in PLAYER_ARCHETYPES:
+        pos, sub = player.get("pos"), player.get("subposition")
+        if pos not in POSITIONS:
+            pos = next((group for group, positions in POSITIONS.items() if sub in positions), "MID")
+        archetype = ("goalkeeper" if pos == "GK" else
+                     ("fullback" if sub in ("LB", "RB", "LWB", "RWB") else "stopper") if pos == "DEF" else
+                     ("winger" if sub in ("LW", "RW") else "poacher") if pos == "ATT" else
+                     "ballWinner" if sub == "DM" else "playmaker")
+    return profiles[archetype][key]
+
+
 def repair_starters(state):
     # Retain numeric array IDs for the existing match/tactics APIs. Sold records
     # remain as tombstones; new signings append and never inherit a sold ID.
@@ -126,8 +171,29 @@ def validate_catalog_player(raw):
         raise EconomyError("Uyruk iki harfli kod olmalı.")
     for key, low, high in (("age", 16, 50), ("rating", 1, 99), ("value", 100000, 2000000000)):
         p[key] = integer(raw.get(key), low, high, key)
-    for key in ("passing", "shooting", "tackling", "dribbling", "pace", "agility", "heading", "crossing"):
-        p[key] = integer(raw.get(key, p["rating"]), 1, 99, key)
+    for key in PLAYER_ATTRIBUTES:
+        if key in raw:
+            p[key] = integer(raw[key], 1, 99, key)
+    # Unknown foot and absent attributes are data gaps, not measurements derived
+    # from an array ID or the overall rating. The shared match model supplies
+    # explicitly labelled simulation defaults when those values are needed.
+    foot = raw.get("preferredFoot", "unknown")
+    if foot not in PLAYER_FEET:
+        raise EconomyError("Tercih edilen ayak left/right/both/unknown olmalı.")
+    p["preferredFoot"] = foot
+    if "positions" in raw:
+        positions = raw["positions"]
+        allowed = set().union(*POSITIONS.values())
+        if (not isinstance(positions, list) or not positions or len(positions) > len(allowed) or
+                any(not isinstance(pos, str) or pos not in allowed for pos in positions) or
+                len(set(positions)) != len(positions) or p["subposition"] not in positions):
+            raise EconomyError("Uyumlu mevkiler benzersiz ve asıl özel mevkiyi içeren bir dizi olmalı.")
+        p["positions"] = positions[:]
+    if "archetype" in raw:
+        archetype = text(raw["archetype"], 40, "Oyuncu profili")
+        if archetype not in PLAYER_ARCHETYPES:
+            raise EconomyError("Oyuncu profili tanımlı futbol rollerinden biri olmalı.")
+        p["archetype"] = archetype
     rf = raw.get("realForm")
     p["realForm"] = None
     if rf is not None:
@@ -250,7 +316,8 @@ class TransferService:
                     continue
                 for key in ("rating", "fitness", "form", "passing", "shooting", "tackling", "dribbling", "pace", "agility", "heading", "crossing"):
                     v = old.get(key)
-                    if type(v) is int and 1 <= v <= (100 if key in ("fitness", "form") else 99):
+                    low, high = (0, 100) if key in ("fitness", "form") else (1, 99)
+                    if type(v) is int and low <= v <= high:
                         p[key] = v
                 p["xp"] = old.get("xp", 0) if type(old.get("xp", 0)) is int and 0 <= old.get("xp", 0) < 6 else 0
             ids = legacy.get("starters")
@@ -345,9 +412,7 @@ class TransferService:
         quality = 0
         for id_, role in zip(s["starters"], roles):
             p = s["players"][id_]
-            a, b = p["pos"], role
-            fit = 1 if a == b else .45 if "GK" in (a, b) else .87 if {a, b} == {"MID", "ATT"} else .82 if {a, b} == {"DEF", "MID"} else .66
-            quality += math.floor(p["rating"] * fit * (.83+.17*p["fitness"]/100) * (.91+.09*p["form"]/100) + .5)
+            quality += player_match_quality(p, role)
         c.execute("UPDATE teams SET quality=? WHERE league=? AND slot=?", (quality/11, link["league"], link["slot"]))
 
     def _advance(self, c, s, now):
@@ -613,7 +678,7 @@ class TransferService:
             if focus == "fitness":
                 p[focus] = min(100, p[focus] + 5)
             else:
-                p[focus] = min(99, p[focus] + 3)
+                p[focus] = min(99, player_attribute_value(p, focus) + 3)
                 p["xp"] += 3
                 if p["xp"] >= 6:
                     p["rating"] = min(99, p["rating"] + 1)

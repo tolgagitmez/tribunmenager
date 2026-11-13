@@ -1,3 +1,22 @@
+## On birinci aşama: ortak oyuncu modeli ve fikstür kadrosu
+
+**v1.30.0**, kadro ekranındaki maç gücünü, iki takımın maç oyuncularını ve oyuncu değişikliklerini aynı `player-model.js` hesabına bağlar. Form ve mevki uyumu teknik uygulamayı; kondisyon hız, ivme ve çevikliği; güç ve denge erişilebilir ikili mücadeleyi etkiler. Aynı genel puandaki hızlı bitirici, güçlü stoper ve oyun kurucu farklı koşu, pas ve mücadele profilleri taşır. Başlangıç kadrosu kurmaca, açıkça tanımlanmış profiller kullanır; yeni futbol özellikleri oyuncu sırasından veya kimlik numarasından üretilmez.
+
+Normal kadro/taktik ekranından başlatılan yerel maç, bağlı günlük lig fikstürünün **kayıtlı rakip kadrosunu**, ilk 11'ini, dizilişini ve taktiğini alır. İki kadronun başlangıç görüntüsü maç sayfasına taşınır; girişte yeniden eşitleme seçimi değiştirmez. Bilgisayar takımlarının sunucuda kayıtlı oyuncu kadrosu henüz yoktur: bu durumda maç açıkça **deneme kadrosu** kullandığını söyler. Yerel maç günlük ligin ayrı sonuç hesabını değiştirmez.
+
+```sh
+npm ci
+npm run test:stage11
+```
+
+**361/361 test geçti:** 343 JavaScript, 12 Python oyuncu modeli ve 6 gerçek HTTP API testi; hata veya atlanan test yok. Gerçek Chromium'da WebGL/prosedürel ve zorunlu 2D yollarında 16'şar kontrol geçti. Kontrollü 21 hava/kaleci/temas durumu ayrıca doğrulandı.
+
+Sekiz 300 saniyelik doğal karşılaştırmada top kaybı 138 → 108, fiziksel şut 6 → 3 oldu. Bu ölçüm genel maç kalitesi artışını kanıtlamaz; hücum dengesi kalibrasyonu sürer. Eski motor rakip kadroyu kullanmadığından karşılaştırma yalnız tek bir özelliğin etkisini ayırmaz.
+
+Ortak veri alanları, kalite formülü, eski kayıt davranışı ve sonraki adımlar [oyuncu modeli sözleşmesinde](docs/PLAYER_MODEL.md); deneyler [DOGRULAMA.md](DOGRULAMA.md) içindedir. Gerçek ayak/profil verisi bulunmadığında eksik bilgi varsayım olarak izlenir; başka bir futbolcunun verisiyle doldurulmaz. İnceleme [taslak PR #1](https://github.com/tolgagitmez/tribunmenager/pull/1) üzerinde sürer; önceki maç dengesi kalibrasyonu açık kalır. Aşağıdaki aşamalar tarihsel kayıttır.
+
+---
+
 ## Onuncu aşama: hücum zincirinin nerede bittiğini görme
 
 İnceleme dalı **`codex/team-continuity-perception`** ve [taslak PR #1](https://github.com/tolgagitmez/tribunmenager/pull/1) üzerinde geliştirilir. Bu aşama hücumu ölçer; önceki görev/algı sürümünün maç dengesi kabulünü veya `main` geçişini otomatik sağlamaz.

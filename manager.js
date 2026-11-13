@@ -43,7 +43,7 @@ function notify(text) {
 function portrait(p) { return `assets/face${Math.abs(Number(p.face)||0)%11}.png`; }
 function playersInBench() { return P.filter(p=>p.owned!==false&&!state.starters.includes(p.id)); }
 function roleFit(p,slot) { return window.TribunClubData.fit(p,slot); }
-function quality(p,slot) { return Math.round(p.rating*roleFit(p,slot)*(.83+.17*p.fitness/100)*(.91+.09*p.form/100)); }
+function quality(p,slot) { return window.TribunPlayerModel.quality(p,slot); }
 function strength() { return state.starters.reduce((s,id,i)=>s+quality(P[id],FORM[state.formation][i][0]),0)/11; }
 function chemistry() { return Math.round(100*state.starters.reduce((s,id,i)=>s+roleFit(P[id],FORM[state.formation][i][0]),0)/11); }
 function readiness() { return Math.round(.55*state.starters.reduce((s,id)=>s+P[id].fitness,0)/11+.45*chemistry()); }
@@ -51,7 +51,8 @@ function riskName() { return +state.tactics.aggression>=78?'YÜKSEK':+state.tact
 function card(p,slot) {
   // Rotate only the roster board. Simulation coordinates remain unchanged.
   const left = 100-(8+slot[2]*.84), top = 8+slot[1]*.84;
-  const description = `${p.name}, ${posName(p.pos)}, güç ${quality(p,slot[0])}, kondisyon %${p.fitness}`;
+  const model=window.TribunPlayerModel, profile=model.normalize(p);
+  const description = `${p.name}, ${posName(p.pos)}, ${model.labels[profile.archetype]}, ayak: ${model.footLabel(p)}, temel güç ${p.rating}, maç gücü ${quality(p,slot[0])}, mevki uyumu %${Math.round(roleFit(p,slot[0])*100)}, form %${p.form}, kondisyon %${p.fitness}`;
   return `<button type="button" class="player ${picked===p.id?'select':''}" data-id="${p.id}" aria-pressed="${picked===p.id}" aria-label="${escapeHtml(description)}" style="--field-left:${left}%;--field-top:${top}%;--mobile-left:${5+slot[1]*.90}%;--mobile-top:${8+slot[2]*.84}%" title="${escapeHtml(description)}"><img src="${portrait(p)}" alt=""><span class="cardtext"><span class="cardtop"><b>${quality(p,slot[0])}</b><span>${posShort(slot[0])}</span></span><strong>${p.number} ${escapeHtml(p.name.split(' ').at(-1))}</strong><span class="minibar" aria-hidden="true"><i style="--pct:${p.fitness}%;--bar:#94cf8c"></i><i style="--pct:${p.form}%;--bar:#f4c77d"></i></span></span></button>`;
 }
 function renderPitch() {
@@ -66,7 +67,7 @@ function renderPitch() {
 function renderBench() {
   const all = playersInBench().filter(p=>benchFilter==='all'||p.pos===benchFilter);
   $('benchCount').textContent = playersInBench().length+' oyuncu';
-  $('benchList').innerHTML = all.length?all.map(p=>`<button type="button" class="bench-item ${picked===p.id?'active':''}" data-id="${p.id}" aria-pressed="${picked===p.id}" aria-label="${escapeHtml(p.name)}, ${posName(p.pos)}, güç ${p.rating}, kondisyon %${p.fitness}"><span class="rating">${p.rating}</span><img src="${portrait(p)}" alt=""><span class="bench-copy"><b>${p.number} ${escapeHtml(p.name)}</b><small>${posName(p.pos)}</small></span><span class="fitness">${p.fitness}%<i style="--fitness:${p.fitness}%" aria-hidden="true"></i></span></button>`).join(''):'<p class="bench-empty">Bu mevkide yedek oyuncu yok.</p>';
+  $('benchList').innerHTML = all.length?all.map(p=>`<button type="button" class="bench-item ${picked===p.id?'active':''}" data-id="${p.id}" aria-pressed="${picked===p.id}" aria-label="${escapeHtml(p.name)}, ${posName(p.pos)}, güç ${p.rating}, kondisyon %${p.fitness}"><span class="rating">${p.rating}</span><img src="${portrait(p)}" alt=""><span class="bench-copy"><b>${p.number} ${escapeHtml(p.name)}</b><small>${posName(p.pos)} · ${window.TribunPlayerModel.footLabel(p)} · ${window.TribunPlayerModel.labels[window.TribunPlayerModel.normalize(p).archetype]}</small></span><span class="fitness">${p.fitness}%<i style="--fitness:${p.fitness}%" aria-hidden="true"></i></span></button>`).join(''):'<p class="bench-empty">Bu mevkide yedek oyuncu yok.</p>';
   document.querySelectorAll('.bench-item').forEach(b=>b.onclick=()=>selectPlayer(+b.dataset.id));
 }
 function reconcileSpecialRoles() {
@@ -114,11 +115,11 @@ function renderAnalysis() {
   if(state.tactics.playstyle==='wing'&&state.formation==='3-5-2')items.push('3-5-2 ile kanat oyunu, kenar oyuncularının kondisyonuna daha çok ihtiyaç duyar.');
   if(!items.length)items.push('Takım dengeli görünüyor. Sonucu rakibin oyun planı, oyuncu kalitesi ve maçın gelişimi birlikte belirler.');
   $('insights').innerHTML='<ul>'+items.slice(0,3).map(x=>`<li>${x}</li>`).join('')+'</ul>';
-  $('analysisText').textContent=`${state.formation} dizilişi. İlk 11’in kondisyonu ve mevki uyumu birlikte değerlendiriliyor. Oyuncu değişiklikleri bu değerleri anında günceller.`;
+  $('analysisText').textContent=`${state.formation} dizilişi. Maç gücü; temel puan, mevki uyumu, form ve kondisyonla hesaplanır. Aynı hesap maçta ve oyuncu değişikliklerinde uygulanır. Hız ve ivmeyi kondisyon; teknik becerileri form ve mevki; mücadeleyi güç ve denge etkiler.`;
   const plan=window.TribunTactics.describe(state.tactics);
   $('analysisPlan').textContent=`${$('playstyle').selectedOptions[0].textContent} · Pres ${p}/100 · Tempo ${t}/100 · Sertlik ${a}/100. ${plan.attack}`;
-  const attributes=[['passing','Pas'],['shooting','Bitiricilik'],['tackling','Müdahale'],['dribbling','Dripling'],['pace','Hız'],['heading','Kafa vuruşu'],['crossing','Orta'],['fitness','Kondisyon']];
-  $('attributeBars').innerHTML=attributes.map(([key,label])=>{const value=Math.round(state.starters.reduce((sum,id)=>sum+Number(P[id][key]||0),0)/11);return `<div class="attribute-row"><div><span>${label}</span><b>${value}</b></div><div class="attribute-track" role="meter" aria-label="İlk 11 ${label.toLocaleLowerCase('tr-TR')} ortalaması" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${value}"><i style="--value:${value}%"></i></div></div>`;}).join('');
+  const attributes=[['passing','Pas'],['shooting','Bitiricilik'],['tackling','Müdahale'],['dribbling','Dripling'],['pace','Hız'],['heading','Kafa vuruşu'],['crossing','Orta'],['vision','Oyun görüşü'],['strength','Güç'],['endurance','Dayanıklılık'],['fitness','Kondisyon']];
+  $('attributeBars').innerHTML=attributes.map(([key,label])=>{const value=Math.round(state.starters.reduce((sum,id,i)=>sum+Number(window.TribunPlayerModel.forSlot(P[id],FORM[state.formation][i][0])[key]||0),0)/11);return `<div class="attribute-row"><div><span>${label}</span><b>${value}</b></div><div class="attribute-track" role="meter" aria-label="İlk 11 ${label.toLocaleLowerCase('tr-TR')} ortalaması" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${value}"><i style="--value:${value}%"></i></div></div>`;}).join('');
   $('tacticsExplainer').textContent=a>=75?'Agresif mücadele: müdahale ve pres girişimleri daha sert, kart olasılığı daha yüksek.':a<=35?'Dikkatli mücadele: kart riski düşük; rakibi baskı altında tutmak daha zor olabilir.':'Dengeli mücadele: fiziksel mücadele ile disiplin riski arasında orta yol.';
 }
 const trainingAreas={
@@ -137,7 +138,7 @@ function resetTrainingDay() {
 }
 function renderTrainingPreview() {
   const player=P[+$('trainPlayer').value]||P[0],focus=$('trainFocus').value;
-  const current=player[focus],next=Math.min(focus==='fitness'?100:99,current+(focus==='fitness'?5:3));
+  const current=window.TribunPlayerModel.normalize(player)[focus],next=Math.min(focus==='fitness'?100:99,current+(focus==='fitness'?5:3));
   $('trainingFocusCopy').textContent=trainingAreas[focus][1]+` Bu çalışmada ${Math.max(0,next-current)} puan gelişim${focus==='fitness'?'.':'; kondisyon en fazla 2 puan azalır.'}`;
   $('trainingPlayerPreview').innerHTML=`<div class="training-player-top"><img src="${portrait(player)}" alt="${escapeHtml(player.name)}"><div><small>${player.number} / ${posName(player.pos)}</small><h3>${escapeHtml(player.name)}</h3><p>Genel güç ${player.rating} · Kondisyon %${player.fitness}</p></div></div><div class="training-gain"><span>${trainingAreas[focus][0]}<br><small>${state.trainingUsed>=2?'Sonraki çalışma için öngörü':'Çalışma sonrası öngörü'}</small></span><div><span>${current}</span>${icon('arrow')}<b>${next}</b></div></div>`;
 }
@@ -162,7 +163,7 @@ async function train() {
   if(state.trainingUsed>=2)return notify('Günlük antrenman hakkın bitti.');
   const p=P[+$('trainPlayer').value],focus=$('trainFocus').value;
   if(focus==='fitness')p.fitness=Math.min(100,p.fitness+5);
-  else {p[focus]=Math.min(99,p[focus]+3);p.xp+=3;if(p.xp>=6){p.rating=Math.min(99,p.rating+1);p.xp-=6;}p.fitness=Math.max(50,p.fitness-2);}
+  else {p[focus]=Math.min(99,window.TribunPlayerModel.normalize(p)[focus]+3);p.xp+=3;if(p.xp>=6){p.rating=Math.min(99,p.rating+1);p.xp-=6;}p.fitness=Math.max(50,p.fitness-2);}
   state.trainingUsed++;store();renderTraining();renderAll();notify(p.name+' · Antrenman tamamlandı.');
 }
 function renderAll(){renderPitch();renderBench();renderSpecial();renderAnalysis();}
@@ -183,10 +184,10 @@ function openForm() {
   document.querySelectorAll('[data-form]').forEach(b=>{const active=b.dataset.form===state.formation;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));});
 }
 function openTactics() {store();location.href='tactics.html#'+encodeURIComponent(JSON.stringify({...state,players:P}));}
-function openMatch() {
-  store();const cfg={formation:state.formation,starters:state.starters,players:P,tactics:state.tactics,matchMinutes:state.matchMinutes||5,special:state.special,quality:strength(),readiness:readiness(),transferProfileId:state.transferProfileId,transferRevision:state.transferRevision};
-  try{sessionStorage.setItem('tribun-match-config',JSON.stringify(cfg));}catch{}
-  location.href='match.html#'+encodeURIComponent(JSON.stringify(cfg));
+async function openMatch() {
+  store();const input={formation:state.formation,starters:state.starters,players:P,tactics:state.tactics,matchMinutes:state.matchMinutes||5,special:state.special,quality:strength(),readiness:readiness(),transferProfileId:state.transferProfileId,transferRevision:state.transferRevision};
+  try{const cfg=await window.TribunMatchConfig.prepare(input);window.TribunMatchConfig.launch(cfg);}
+  catch(e){notify(e.message||'Maç kadrosu alınamadı.');}
 }
 function tick() {
   const s=Math.max(0,Math.floor((state.gameDay-Date.now())/1000));

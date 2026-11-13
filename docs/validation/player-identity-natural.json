@@ -1,0 +1,1733 @@
+{
+  "generatedAt": "2026-11-13T07:42:21.906Z",
+  "version": 1,
+  "seconds": 300,
+  "scenarioCount": 8,
+  "runtime": {
+    "node": "v24.22.1",
+    "v8": "13.6.233.17-node.58",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "sources": {
+    "football-sim.js": "d863b20523361d5c910d4b8835e0ffe1ea5aab4909ec8f550d51393748944b07",
+    "player-model.js": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02",
+    "player-model-profiles.json": "d97a900209e5c3b837539042f5435c8fb7f063492f2d16deed1caaabc7a45da6",
+    "club-data.js": "73c9d01c12262497f0d266203b4f7143750732ef1bde8c289d80841bf2efcfca",
+    "tactics.js": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea",
+    "player-perception.js": "d0879e2e845a34bd8f08fd117e3100ac651ee79f28371e153a7aed3c48bc08b8",
+    "team-intent.js": "cce8be16d8dd88ef758051e0cf6761326ad21cb55b1733397c5fa3815aac0030",
+    "attack-diagnostics.js": "259e977fe017dd5e38f04ce0abbce765db0a689c58ec17d1709cb6b56c3db237",
+    "tools/profile-player-identity.cjs": "9b460da5e84a47ed7f14a06ba5420cf96afce8d952be088ddae367abc6baa600"
+  },
+  "baseline": {
+    "path": "docs/validation/baselines/stage9-football-sim.js.gz",
+    "decompressedSHA256": "b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3",
+    "publicationCommit": "0777710e9635a2fbb1e51f399705d6b37556ec2d"
+  },
+  "definitions": {
+    "method": "Each engine/scenario runs observed, plain and observed replay with identical raw configuration and seed. The passive attach observer forwards actual calls; no extra decision, pass, movement forecast or keeper query is requested. Complete detached state is compared, not only scores. Report reads are idempotent and leave live values unchanged.",
+    "inputs": "Both versions receive the current authored fictional seed roster for team0 and the same explicit demo roster for team1. The old engine ignores awayPlayers and generates its own synthetic team1; its old own-team interpretation also ignores form/position effects. Therefore this comparison measures the overall player-contract change, not an isolated attribute effect, and is not a replay of the earlier stage10 input matrix.",
+    "clocks": "Fixed 1/60 second game steps. Rates use actual observed in-play exposure, not nominal match minutes or wall-clock runtime. Shots/pass releases/completions and gains agree with native engine counters.",
+    "profiles": "Raw home profile includes real records only when supplied externally; these scenarios intentionally use authored fictional/demonstration data. Equal overall profile behavior is checked independently by player-identity-integration tests.",
+    "limits": "Eight short deterministic configurations are descriptive regression coverage. They do not certify real football balance, general skill calibration or season outcomes. Differences do not establish that new behavior is better. Zero observed events do not establish broken features."
+  },
+  "runs": [
+    {
+      "scenario": {
+        "id": "balanced21",
+        "seed": 21
+      },
+      "configSHA256": "0ec9ff8f0384aa6815d29b32e95f21b437fcd63fc9b16e0799d5fcc9f0ba78bd",
+      "baseline": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          60,
+          34
+        ],
+        "completedPasses": [
+          60,
+          32
+        ],
+        "turnovers": 14,
+        "abortedKicks": 1,
+        "maxPlayerStep": 0.1300832441680765,
+        "finalSeed": 1221538140,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 262.6333333333206,
+          "deadBallSeconds": 37.36666666667937,
+          "restartSeconds": 37.36666666667937,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            85.21666666661298,
+            62.900000000025294
+          ],
+          "flightSeconds": [
+            56.86666666666396,
+            26.50000000001272
+          ],
+          "looseSeconds": 31.150000000005676,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 17,
+        "teamEpisodes": [
+          9,
+          8
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 107,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 0,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 0,
+        "stateSHA256": "842c901cc272dc34ed39e614a19f2fd01ed6e9a05aeb595964b02fad0ad75c4f",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      },
+      "current": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          80,
+          21
+        ],
+        "completedPasses": [
+          78,
+          20
+        ],
+        "turnovers": 6,
+        "abortedKicks": 0,
+        "maxPlayerStep": 0.12053525916503625,
+        "finalSeed": 3770280611,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 230.0499999999898,
+          "deadBallSeconds": 69.95000000001018,
+          "restartSeconds": 69.95000000001018,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            90.11666666663498,
+            31.600000000002865
+          ],
+          "flightSeconds": [
+            69.18333333335082,
+            20.73333333333241
+          ],
+          "looseSeconds": 18.416666666668736,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 11,
+        "teamEpisodes": [
+          6,
+          5
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 1,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 124,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 0,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 0,
+        "stateSHA256": "bf1f851e87cb09ce39c5fcfd5c7feb231e9e9673a46b5324cf5c9c6051d5d3d6",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "press42",
+        "seed": 42,
+        "away": "press"
+      },
+      "configSHA256": "eb71d82a5b4b99b60207ab1058e67a95e610bd39c2b16b66ae9dadeca19be505",
+      "baseline": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          1
+        ],
+        "passes": [
+          67,
+          28
+        ],
+        "completedPasses": [
+          64,
+          27
+        ],
+        "turnovers": 6,
+        "abortedKicks": 0,
+        "maxPlayerStep": 0.12724800968088115,
+        "finalSeed": 1644455228,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 201.900000000044,
+          "deadBallSeconds": 98.099999999956,
+          "restartSeconds": 98.099999999956,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            65.48333333335268,
+            38.63333333334432
+          ],
+          "flightSeconds": [
+            57.6833333333463,
+            23.600000000005082
+          ],
+          "looseSeconds": 16.499999999995623,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 12,
+        "teamEpisodes": [
+          7,
+          5
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 103,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 1,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 1
+          },
+          "shots": {
+            "physical": 1,
+            "prepared": 1,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 1,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 2.97176820207959,
+        "stateSHA256": "98a5f04b43d63b0758c83a3d8e4f868414b3b7988ba22f8f559f2c617fa2b637",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      },
+      "current": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          1
+        ],
+        "passes": [
+          78,
+          30
+        ],
+        "completedPasses": [
+          74,
+          24
+        ],
+        "turnovers": 17,
+        "abortedKicks": 1,
+        "maxPlayerStep": 0.1317151357114939,
+        "finalSeed": 4286828710,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 254.11666666673287,
+          "deadBallSeconds": 45.88333333326713,
+          "restartSeconds": 45.88333333326713,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            83.40000000001953,
+            42.26666666667782
+          ],
+          "flightSeconds": [
+            65.48333333335012,
+            21.25000000000594
+          ],
+          "looseSeconds": 41.71666666667944,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 20,
+        "teamEpisodes": [
+          10,
+          10
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 1,
+            "descendingWindows": 1,
+            "reachableWindows": 1,
+            "contacts": 1,
+            "headedShots": 1,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 3,
+            "flaggedFlightsAtRelease": 1,
+            "contactChecks": 151,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 0,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 1,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 1,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 2.3611202203706054,
+        "stateSHA256": "d72ebb75f6559060d23673cb631f0e20898e5a6798a492dfaddfdb960324a467",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "narrow21",
+        "seed": 21,
+        "change": {
+          "width": "narrow"
+        }
+      },
+      "configSHA256": "69b45ca143610120e6bffc10e31d2cfd9ab3d458b21e4ef5e409e5056b7573e2",
+      "baseline": {
+        "time": 300,
+        "done": true,
+        "score": [
+          1,
+          0
+        ],
+        "shots": [
+          2,
+          0
+        ],
+        "passes": [
+          82,
+          21
+        ],
+        "completedPasses": [
+          81,
+          18
+        ],
+        "turnovers": 8,
+        "abortedKicks": 0,
+        "maxPlayerStep": 0.11985654067170987,
+        "finalSeed": 1493913223,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 217.85000000000034,
+          "deadBallSeconds": 82.14999999999966,
+          "restartSeconds": 80.53333333333309,
+          "goalPauseSeconds": 1.6166666666665748,
+          "controlledSeconds": [
+            86.61666666663578,
+            28.08333333334527
+          ],
+          "flightSeconds": [
+            75.9500000000138,
+            17.450000000006
+          ],
+          "looseSeconds": 9.749999999999488,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 14,
+        "teamEpisodes": [
+          7,
+          7
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 120,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 2,
+            "preparations": 1,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 1
+          },
+          "shots": {
+            "physical": 2,
+            "prepared": 2,
+            "goalEvents": 1,
+            "goals": 1,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 1,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 5.508377323846675,
+        "stateSHA256": "ace9166e7b6d675dbc8587ce3822c9a0d1f4f049d39f3cf8ba5f3840d8784a99",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      },
+      "current": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          1,
+          0
+        ],
+        "passes": [
+          71,
+          13
+        ],
+        "completedPasses": [
+          67,
+          11
+        ],
+        "turnovers": 13,
+        "abortedKicks": 1,
+        "maxPlayerStep": 0.12054299606734764,
+        "finalSeed": 671979313,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 221.38333333331548,
+          "deadBallSeconds": 78.61666666668451,
+          "restartSeconds": 78.61666666668451,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            79.91666666668414,
+            26.533333333333474
+          ],
+          "flightSeconds": [
+            71.16666666668105,
+            14.0166666666682
+          ],
+          "looseSeconds": 29.74999999994862,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 19,
+        "teamEpisodes": [
+          10,
+          9
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 1,
+            "descendingWindows": 1,
+            "reachableWindows": 1,
+            "contacts": 1,
+            "headedShots": 0,
+            "headedPasses": 1,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 125,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 2,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 2
+          },
+          "shots": {
+            "physical": 1,
+            "prepared": 1,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 1,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 2.7102311224876083,
+        "stateSHA256": "0c7f721556ec21f65f93f94cfbfa5308e75b875779d0e37bf9d98966afa23a85",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "wide21",
+        "seed": 21,
+        "change": {
+          "width": "wide"
+        }
+      },
+      "configSHA256": "5131469d274c5df14b8b5bc0824ff4c7d52062c69e9c93c5b90da2a4e65bd8b9",
+      "baseline": {
+        "time": 300,
+        "done": true,
+        "score": [
+          1,
+          0
+        ],
+        "shots": [
+          1,
+          0
+        ],
+        "passes": [
+          43,
+          45
+        ],
+        "completedPasses": [
+          37,
+          41
+        ],
+        "turnovers": 18,
+        "abortedKicks": 0,
+        "maxPlayerStep": 0.11910438284373732,
+        "finalSeed": 4189789562,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 234.299999999976,
+          "deadBallSeconds": 65.70000000002398,
+          "restartSeconds": 64.08333333335742,
+          "goalPauseSeconds": 1.6166666666665748,
+          "controlledSeconds": [
+            59.266666666672805,
+            64.39999999995386
+          ],
+          "flightSeconds": [
+            41.23333333333397,
+            38.31666666667432
+          ],
+          "looseSeconds": 31.08333333334106,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 23,
+        "teamEpisodes": [
+          11,
+          12
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 2,
+            "descendingWindows": 1,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 1,
+            "flaggedFlightsAtRelease": 1,
+            "contactChecks": 163,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 1,
+            "preparations": 1,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 1,
+            "prepared": 1,
+            "goalEvents": 1,
+            "goals": 1,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 2.5608194622281752,
+        "stateSHA256": "85852c5edfaec87072a606e98cfd44fa8c5a5fc125da46b8d998d92c20ffd04d",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      },
+      "current": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          44,
+          40
+        ],
+        "completedPasses": [
+          41,
+          36
+        ],
+        "turnovers": 18,
+        "abortedKicks": 0,
+        "maxPlayerStep": 0.13172888698041613,
+        "finalSeed": 838224786,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 231.16666666667007,
+          "deadBallSeconds": 68.83333333332995,
+          "restartSeconds": 68.83333333332995,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            60.866666666673865,
+            66.90000000002284
+          ],
+          "flightSeconds": [
+            43.74999999995201,
+            38.98333333334665
+          ],
+          "looseSeconds": 20.666666666674686,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 23,
+        "teamEpisodes": [
+          12,
+          11
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 3,
+            "descendingWindows": 2,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 105,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 1,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 1
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 1,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 0,
+        "stateSHA256": "8e1e77606cf6f7978ec8d3887b535db8becbf7d247f086124f2a1ef2afe2cab5",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "short42",
+        "seed": 42,
+        "away": "press",
+        "change": {
+          "passing": "short"
+        }
+      },
+      "configSHA256": "e705dc991bf6c7f1a9e2676d47f7eac9ecb232a2c1bf8ac8a86270fe40ae2de9",
+      "baseline": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          1
+        ],
+        "shots": [
+          0,
+          2
+        ],
+        "passes": [
+          64,
+          44
+        ],
+        "completedPasses": [
+          59,
+          40
+        ],
+        "turnovers": 18,
+        "abortedKicks": 0,
+        "maxPlayerStep": 0.1300055945946877,
+        "finalSeed": 1804233497,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 227.85000000001688,
+          "deadBallSeconds": 72.14999999998315,
+          "restartSeconds": 70.53333333331658,
+          "goalPauseSeconds": 1.6166666666665748,
+          "controlledSeconds": [
+            70.94999999996128,
+            57.66666666669244
+          ],
+          "flightSeconds": [
+            46.93333333334388,
+            35.016666666682156
+          ],
+          "looseSeconds": 17.283333333337087,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 23,
+        "teamEpisodes": [
+          12,
+          11
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 134,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 2,
+            "preparations": 1,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 1
+          },
+          "shots": {
+            "physical": 2,
+            "prepared": 2,
+            "goalEvents": 1,
+            "goals": 0,
+            "nonShotGoalEvents": 1,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 2,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 5.266622778143125,
+        "stateSHA256": "260d4f09632b14e6600b44bd9bd7374ef0250e3c2379dcaa213cb4b4f74fbad7",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      },
+      "current": {
+        "time": 300,
+        "done": true,
+        "score": [
+          1,
+          0
+        ],
+        "shots": [
+          1,
+          0
+        ],
+        "passes": [
+          106,
+          15
+        ],
+        "completedPasses": [
+          104,
+          12
+        ],
+        "turnovers": 11,
+        "abortedKicks": 0,
+        "maxPlayerStep": 0.12402765657279312,
+        "finalSeed": 2522264591,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 249.08333333331024,
+          "deadBallSeconds": 50.91666666668978,
+          "restartSeconds": 49.300000000021825,
+          "goalPauseSeconds": 1.6166666666679532,
+          "controlledSeconds": [
+            113.41666666662242,
+            19.950000000002646
+          ],
+          "flightSeconds": [
+            77.76666666667228,
+            9.333333333336455
+          ],
+          "looseSeconds": 28.61666666667641,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 15,
+        "teamEpisodes": [
+          9,
+          6
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 1,
+            "descendingWindows": 1,
+            "reachableWindows": 1,
+            "contacts": 1,
+            "headedShots": 0,
+            "headedPasses": 1,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 170,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 2,
+            "preparations": 1,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 1
+          },
+          "shots": {
+            "physical": 1,
+            "prepared": 1,
+            "goalEvents": 1,
+            "goals": 1,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 2.408832385413405,
+        "stateSHA256": "573c7e1769163a634bff75d2a77a4360fd95fc02fa1345ca55db7f9ad8e062e7",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "direct42",
+        "seed": 42,
+        "away": "press",
+        "change": {
+          "passing": "direct"
+        }
+      },
+      "configSHA256": "6c6c61e43b88476a38e359119fea72440d639dfe875095859563d1a44b0fe190",
+      "baseline": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          54,
+          40
+        ],
+        "completedPasses": [
+          48,
+          31
+        ],
+        "turnovers": 36,
+        "abortedKicks": 4,
+        "maxPlayerStep": 0.11923988747528712,
+        "finalSeed": 3388566417,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 263.56666666665524,
+          "deadBallSeconds": 36.43333333334475,
+          "restartSeconds": 36.43333333334475,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            75.90000000001255,
+            54.50000000000939
+          ],
+          "flightSeconds": [
+            52.033333333337424,
+            31.616666666676075
+          ],
+          "looseSeconds": 49.51666666661981,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 39,
+        "teamEpisodes": [
+          20,
+          19
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 155,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 1,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 1
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 0,
+        "stateSHA256": "093a5082ff4f8ec8a31974f77b4e3a6bcb853d6fbcad9893de1dbf3e9b82cdfd",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      },
+      "current": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          70,
+          23
+        ],
+        "completedPasses": [
+          69,
+          19
+        ],
+        "turnovers": 11,
+        "abortedKicks": 1,
+        "maxPlayerStep": 0.1279333219182837,
+        "finalSeed": 3895223469,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 231.16666666664258,
+          "deadBallSeconds": 68.83333333335742,
+          "restartSeconds": 68.83333333335742,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            80.55000000001738,
+            34.43333333333136
+          ],
+          "flightSeconds": [
+            71.46666666668428,
+            19.566666666606302
+          ],
+          "looseSeconds": 25.150000000003278,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 16,
+        "teamEpisodes": [
+          9,
+          7
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 132,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 0,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 0,
+        "stateSHA256": "2b7b2a5458d42cebbb1b7e15def9b7d0457f1ddd83fba67720f2c43ecfa97779",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "weak442-77",
+        "seed": 77,
+        "rating": 65,
+        "formation": "4-4-2",
+        "home": "possession",
+        "away": "press"
+      },
+      "configSHA256": "69288c8c20d65e0090071e19fc094ad478436a1878ace7f5f4bb41763f47f614",
+      "baseline": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          101,
+          27
+        ],
+        "completedPasses": [
+          96,
+          23
+        ],
+        "turnovers": 16,
+        "abortedKicks": 0,
+        "maxPlayerStep": 0.1282760084505346,
+        "finalSeed": 3506110297,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 279.4333333333342,
+          "deadBallSeconds": 20.566666666665775,
+          "restartSeconds": 20.566666666665775,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            127.38333333335369,
+            37.28333333334802
+          ],
+          "flightSeconds": [
+            72.81666666662301,
+            15.366666666674535
+          ],
+          "looseSeconds": 26.583333333334974,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 18,
+        "teamEpisodes": [
+          10,
+          8
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 214,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 1,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 0,
+        "stateSHA256": "128f73efe7cb7f4dde4a139eb34542b3204d68804fb118a5eda6ab093740a406",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      },
+      "current": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          67,
+          15
+        ],
+        "completedPasses": [
+          63,
+          11
+        ],
+        "turnovers": 12,
+        "abortedKicks": 0,
+        "maxPlayerStep": 0.12444532696079513,
+        "finalSeed": 1273739144,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 201.18333333329852,
+          "deadBallSeconds": 98.81666666670148,
+          "restartSeconds": 98.81666666670148,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            76.68333333333871,
+            27.816666666670784
+          ],
+          "flightSeconds": [
+            48.03333333328358,
+            11.849999999999312
+          ],
+          "looseSeconds": 36.80000000000613,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 19,
+        "teamEpisodes": [
+          11,
+          8
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 1,
+            "flaggedFlightsAtRelease": 1,
+            "contactChecks": 119,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 0,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 0,
+        "stateSHA256": "515e4f00eb4a7a003e0d8cba848429ce0f84b3402a86a0bbad87bc4218f43b86",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "strong352-21",
+        "seed": 21,
+        "rating": 91,
+        "formation": "3-5-2",
+        "home": "counter",
+        "away": "wide"
+      },
+      "configSHA256": "04bd10851ea4b4d37520956921dae671268351b44b513e77bfa9810c3038bfd1",
+      "baseline": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          25,
+          48
+        ],
+        "completedPasses": [
+          20,
+          45
+        ],
+        "turnovers": 22,
+        "abortedKicks": 1,
+        "maxPlayerStep": 0.1234173078099664,
+        "finalSeed": 2770339547,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 263.8333333333218,
+          "deadBallSeconds": 36.166666666678196,
+          "restartSeconds": 36.166666666678196,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            48.38333333333371,
+            99.916666666689
+          ],
+          "flightSeconds": [
+            19.73333333327681,
+            43.61666666667364
+          ],
+          "looseSeconds": 52.18333333334865,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 25,
+        "teamEpisodes": [
+          13,
+          12
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 242,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 0,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 0,
+        "stateSHA256": "539a53593b475fffc998dad34c3f7404ef853d693499cefeb9d3dd276f2b1c27",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      },
+      "current": {
+        "time": 300,
+        "done": true,
+        "score": [
+          0,
+          0
+        ],
+        "shots": [
+          0,
+          0
+        ],
+        "passes": [
+          30,
+          51
+        ],
+        "completedPasses": [
+          28,
+          48
+        ],
+        "turnovers": 20,
+        "abortedKicks": 1,
+        "maxPlayerStep": 0.12024405955558504,
+        "finalSeed": 1085030823,
+        "clock": {
+          "start": 0,
+          "end": 300,
+          "observedSeconds": 300,
+          "inPlaySeconds": 271.5833333333836,
+          "deadBallSeconds": 28.416666666616386,
+          "restartSeconds": 28.416666666616386,
+          "goalPauseSeconds": 0,
+          "controlledSeconds": [
+            54.85000000001431,
+            93.13333333334785
+          ],
+          "flightSeconds": [
+            29.300000000003877,
+            44.31666666667637
+          ],
+          "looseSeconds": 49.98333333334121,
+          "unobservedSeconds": 0
+        },
+        "attackEpisodes": 22,
+        "teamEpisodes": [
+          12,
+          10
+        ],
+        "coverage": {
+          "crosses": {
+            "releases": 0,
+            "descendingWindows": 0,
+            "reachableWindows": 0,
+            "contacts": 0,
+            "headedShots": 0,
+            "headedPasses": 0,
+            "defensiveClearances": 0
+          },
+          "cutbacks": {
+            "releases": 0,
+            "completed": 0,
+            "intercepted": 0
+          },
+          "offsides": {
+            "flaggedPlayersAtRelease": 0,
+            "flaggedFlightsAtRelease": 0,
+            "contactChecks": 135,
+            "flaggedContactChecks": 0,
+            "incidents": 0
+          },
+          "keepers": {
+            "processingOpportunities": 0,
+            "preparations": 0,
+            "catches": 0,
+            "parries": 0,
+            "screenedReads": 0
+          },
+          "shots": {
+            "physical": 0,
+            "prepared": 0,
+            "goalEvents": 0,
+            "goals": 0,
+            "nonShotGoalEvents": 0,
+            "unattributedGoalEvents": 0,
+            "blocked": 0,
+            "out": 0,
+            "opponentControl": 0,
+            "reboundControl": 0
+          }
+        },
+        "shotsPerTenInPlayMinutes": 0,
+        "stateSHA256": "8cdeb3a7e470d3da715cb33e7dc5c3d2447af83c685ac593748c6eebbf68d7b5",
+        "verification": {
+          "observerConsistent": true,
+          "deterministicReplay": true,
+          "finite": true,
+          "clockAndEventsConsistent": true,
+          "queryReadOnly": true
+        }
+      }
+    }
+  ],
+  "totals": {
+    "baseline": {
+      "observedSeconds": 2400,
+      "inPlaySeconds": 1951.366666666669,
+      "shots": 6,
+      "passes": 783,
+      "completedPasses": 722,
+      "turnovers": 138,
+      "abortedKicks": 6,
+      "attackEpisodes": 171,
+      "shotsPerTenInPlayMinutes": 1.8448608667429642,
+      "passCompletion": 0.9220945083014048
+    },
+    "current": {
+      "observedSeconds": 2400,
+      "inPlaySeconds": 1889.7333333333431,
+      "shots": 3,
+      "passes": 754,
+      "completedPasses": 705,
+      "turnovers": 108,
+      "abortedKicks": 4,
+      "attackEpisodes": 145,
+      "shotsPerTenInPlayMinutes": 0.9525153460805708,
+      "passCompletion": 0.9350132625994695
+    }
+  },
+  "verification": {
+    "observerConsistent": true,
+    "deterministicReplay": true,
+    "finite": true,
+    "clockAndEventsConsistent": true,
+    "queryReadOnly": true
+  }
+}

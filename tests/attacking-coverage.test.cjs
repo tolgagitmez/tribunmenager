@@ -31,7 +31,8 @@ test('all selected fixtures repeat complete Match state and keep controlled deno
 test('the keeper skill examples use the same incoming flight and ordinary two-hand model',()=>{
  const low=runScenario('keeper-skill60-matched-flight').result,high=runScenario('keeper-skill94-matched-flight').result;
  assert.equal(low.rng.before,high.rng.before);assert.deepEqual(low.start.ball,high.start.ball);assert.equal(low.motion,high.motion);
- const input=r=>r.start.activePlayers.map(p=>({...p,skill:p.role==='GK'?null:p.skill}));assert.deepEqual(input(low),input(high));
+ const input=r=>r.start.activePlayers.map(p=>({...p,skill:p.role==='GK'?null:p.skill,handling:p.role==='GK'?null:p.handling,reactions:p.role==='GK'?null:p.reactions}));assert.deepEqual(input(low),input(high));
  assert.equal(low.start.activePlayers.find(p=>p.role==='GK').skill,60);assert.equal(high.start.activePlayers.find(p=>p.role==='GK').skill,94);
+ assert.equal(low.start.activePlayers.find(p=>p.role==='GK').handling,60);assert.equal(high.start.activePlayers.find(p=>p.role==='GK').handling,94);
  assert.equal(low.outcome,'parry');assert.equal(high.outcome,'held-catch');
 });

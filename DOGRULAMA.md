@@ -1,3 +1,45 @@
+# On birinci aşama — oyuncu kimliği ve kadro sözleşmesi
+
+**361/361 test geçti:** 343 JavaScript + 12 Python oyuncu modeli + 6 gerçek HTTP API testi; hata, atlanan veya iptal edilen test yok. Test kaynağı ve günlük SHA kayıtları [player-identity-tests.json](docs/validation/player-identity-tests.json) içindedir. Gerçek Chromium'da WebGL/prosedürel ve zorunlu 2D yollarında 16'şar kontrol, son kaynak eşliğiyle geçti; [tarayıcı raporu](docs/validation/player-identity-browser.json) bunu saklar.
+
+Tekrar komutu: `npm run test:stage11`. Paket; önceki fizik, algı/görev ve hücum tanılama kontrollerini, ortak oyuncu modeli testlerini, gerçek maç davranışı karşılaştırmalarını, başlangıç akışını ve Python veri/API testlerini çalıştırır. Yeni kabul, farklı alanların var olmasına değil sahadaki etkisine dayanır: eşit genel puanda gerçek koşu mesafesi, aynı çıkış durumundan pas hatası, aynı erişim ve rastgele sayı altında mücadele, aynı uçuşta iki elli kaleci tutuşu karşılaştırılır.
+
+- `tests/player-model.test.cjs`: tarayıcı/JSON eşliği, bütün genel mevki çiftleri, form/kondisyonun ayrı etkileri, eksik veri ve ayak kaynağı, altı diziliş.
+- `tests/player-identity-integration.test.cjs`: iki kadro ve yedek aynı slot hesabı, ham girdilerin korunması, koşu/ivme/dönüş, yorgunluğun bir kez uygulanması, dayanıklılık, erişim kapısını aşamayan güç, iki ayak ve kaleci tutuşu.
+- `tests/test_player_model.py`: katalog → transfer → SQLite kimliği, alan sınırları, eksik/eski kayıt, antrenman başlangıcı ve JS/Python kalite/varsayılan profil eşliği.
+- `tests/fixture-roster.test.cjs` ve `tests/fixture-roster-api.py`: normal taktik → gerçek maç HTML akışı, fikstür rakibi, deplasman etiketi, başlangıç görüntüsünün korunması, geç gelen eski sürüm, profil/lig oturumu değişiminde eski başlangıcın yenilenmesi, eksik rakip ve gerçek HTTP yetkilendirme/futbol alanı izdüşümü.
+
+Eski fizik regresyonları, eski profil varsayımlarının yeni oyuncu modeline taşınmaması için gerekli durumlarda açık nötr fizik özellikleriyle kurulmuştur. Gövde/ayak erişimi ve kesin karşılaştırma koşulları korunur; sıkıştırılmış tarihsel motorlar değiştirilmez. Kontrollü blok örneği merkezlenmiş vuruşla temas yolunu sınar. Kaleci karşılaştırmaları artık genel puanın yanında bağımsız reaksiyon/tutuş değerlerini de açıkça sabitler. Güncel 21 seçilmiş durumun raporu [player-identity-coverage.json](docs/validation/player-identity-coverage.json) içindedir; eski `attacking-coverage.json` tarihsel kanıt olarak korunur. Bunlar doğal maç başarı oranı değildir.
+
+Ayrı kapsam araçları yeniden çalıştırılabilir:
+
+```sh
+node tools/check-attacking-coverage.cjs
+python3 tools/check-player-identity-browser.py
+node tools/profile-player-identity.cjs --seconds 300
+```
+
+Tarayıcı aracı Playwright ve Chromium gerektirir. Üretim kataloğu bulunmadığında API testleri geçici SQLite kaydıyla gerçek HTTP yolunu sınar; bu testin geçmesi eksik özgün katalog dosyalarının geri geldiği anlamına gelmez.
+
+Sekiz senaryo iki motorda 300'er saniye yürütüldü. Her motor/senaryo için gözlemcili, gözlemcisiz ve deterministik tekrar birlikte **48 çalıştırma** eder; bunlar 48 bağımsız doğal senaryo değildir. Bütün çiftlerde tam maç durumu, RNG, süre/olay tutarlılığı, sonlu sayılar ve rapor sorgularının salt okunur oluşu doğrulandı. [Doğal rapor](docs/validation/player-identity-natural.json) her senaryoyu, kaynak özetlerini ve karşılaştırma sınırlarını içerir.
+
+| İki takım toplamı, 8 × 300 sn | Önceki b29 motoru | Ortak oyuncu modeli |
+| --- | ---: | ---: |
+| Gözlenen süre (sn) | 2.400 | 2.400 |
+| Top oyunda (sn) | 1.951,367 | 1.889,733 |
+| Fiziksel şut | 6 | 3 |
+| 10 dakika top oyunda başına şut | 1,845 | 0,953 |
+| Tamamlanan / çıkan pas | 722 / 783 | 705 / 754 |
+| Top kaybı | 138 | 108 |
+| İptal edilen vuruş hazırlığı | 6 | 4 |
+| Gözlenen hücum bölümü | 171 | 145 |
+
+Top kaybı ve hazırlık iptali azalırken şut üretimi de azaldı. Bu, genel futbol kalitesinin veya hücum dengesinin iyileştiği kanıtı değildir; daha uzun ve çeşitli kadro/taktik örneklerinde hücum zinciri incelemesi sürmelidir.
+
+Tarayıcı ve doğal maç kabul kayıtları bu aşamanın kendi kaynak özetleriyle `docs/validation/player-identity-browser.json` ve `docs/validation/player-identity-natural.json` altında tutulur. Doğal karşılaştırmada iki sürüme aynı güncel ham kadro girdileri verilir; eski motor rakip kadroyu kullanmadığından bu, yalnız tek bir özelliğin nedensel deneyi değildir. `weak442-77` ve `strong352-21` senaryo adları sırasıyla genel puan 65 ile 4-4-2 ve genel puan 91 ile 3-5-2 girdileridir; atanmış alt özellikler korunur. Bu adlar bütün fizik/teknik özelliklerin birlikte zayıflatıldığı veya güçlendirildiği anlamına gelmez. Şut/top kaybı farkları genel futbol kalitesi kazanımı diye sunulmaz. Dokuzuncu aşamanın denge kabulü ve özgün veri/asset eksikleri açık kalır. Aşağıdaki sayılar önceki aşamalara aittir.
+
+---
+
 # Onuncu aşama — hücum aşamaları, süre paydaları ve kapsam
 
 Bu tanılama **`codex/team-continuity-perception` inceleme dalı** içindir. Motorun karar/fizik davranışı bu aşamada değiştirilmedi; dokuzuncu aşamanın denge kabulü açık kalır. Gözlenen motor `b29a8f9b49638ec6559bc58df6b9504400eaaaf3b44bd14439d4643c3bd394f3`, gözlemci `259e977fe017dd5e38f04ce0abbce765db0a689c58ec17d1709cb6b56c3db237` olur. Yayımlanmış sekizinci aşama `e16642b5…` aynı ölçüm tanımlarıyla ayrı karşılaştırma motorudur. Farklı kaynak ve konfigürasyonlardaki önceki şut toplamları bu deneyle tek örneklem gibi birleştirilmez.

@@ -11,9 +11,9 @@ function apply(view){
  const old=cached(),same=old.transferProfileId===view.profileId;
  if(same&&Number(old.transferRevision||0)>view.revision)return old;
  const players=view.players.map((p,i)=>({...p,id:i}));
- let starters=Array.isArray(old.starters)?old.starters: view.starters;
+ let starters=same&&Array.isArray(old.starters)?old.starters: view.starters;
  starters=root.TribunClubData.repairStarters(starters,players,old.formation||'4-3-3');
- const special={...old.special};for(const k of ['captain','penalty','free','corner'])if(!starters.includes(special[k]))special[k]=starters.find(id=>players[id].pos!=='GK')??starters[0];
+ const special={...(same?old.special:{})};for(const k of ['captain','penalty','free','corner'])if(!starters.includes(special[k]))special[k]=starters.find(id=>players[id].pos!=='GK')??starters[0];
  const data={...old,players,starters,special,trainingDate:view.trainingDate,trainingUsed:view.trainingUsed,transferProfileId:view.profileId,transferRevision:view.revision};
  try{localStorage.setItem(KEY,JSON.stringify(data));}catch{throw Error('Kadro kaydedilemedi. Tarayıcı depolama iznini kontrol et.');}
  root.dispatchEvent(new CustomEvent('tribun:roster',{detail:data}));return data;
@@ -40,6 +40,6 @@ async function connect(){
 async function sync(){if(!token)return null;const data=await request('/api/transfers/state');apply(data);return data;}
 async function command(action,payload={},id=requestId()){if(!token)throw Error('Önce transfer merkezine bağlan.');const data=await request('/api/transfers/command',{requestId:id,action,payload});apply(data);return data;}
 async function linkLeague(leagueToken){if(!token)return;const data=await sync(),starters=cached().starters;if(JSON.stringify(starters)!==JSON.stringify(data.starters))await command('lineup',{starters});return command('link-league',{leagueToken});}
-root.TribunTransfers={cached,current,apply,connect,sync,command,linkLeague,requestId,hasSession:()=>!!token,busy:()=>pending>0};
+root.TribunTransfers={cached,current,apply,connect,sync,command,linkLeague,requestId,hasSession:()=>!!token,sessionProfileId:()=>profileId,busy:()=>pending>0};
 root.addEventListener('storage',e=>{if(e.key===KEY)root.dispatchEvent(new CustomEvent('tribun:roster',{detail:cached()}));});
 })(window);

@@ -6,9 +6,11 @@
 const Tactics=root.TribunTactics||(typeof require==='function'?require('./tactics.js'):null);
 const Perception=root.TribunPerception||(typeof require==='function'?require('./player-perception.js'):null);
 const Intent=root.TribunIntent||(typeof require==='function'?require('./team-intent.js'):null);
+const PlayerModel=root.TribunPlayerModel||(typeof require==='function'?require('./player-model.js'):null);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),dist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const angle=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 const dot=(a,b)=>a.x*b.x+a.z*b.z,dir=t=>t===0?1:-1;
+const footSkill=(p,skill,foot)=>p.footPreference==='both'||foot===(p.preferredFoot??foot)?skill:skill*.65+Math.min(skill,p.weakFoot??skill)*.35;
 const nearest=(list,point)=>list.slice().sort((a,b)=>dist(a,point)-dist(b,point))[0];
 const segment=(p,a,b)=>{const dx=b.x-a.x,dz=b.z-a.z,n=dx*dx+dz*dz||1,u=clamp(((p.x-a.x)*dx+(p.z-a.z)*dz)/n,0,1);return {d:Math.hypot(p.x-a.x-dx*u,p.z-a.z-dz*u),u};};
 // One deterministic ball model for free flight AND every arrival prediction.
@@ -137,19 +139,25 @@ class Match{
   Object.assign(this.telemetry,{returnSupports:0,giveGoReturns:0,giveGoCompletions:0,alignedThroughBalls:0,closeControlTouches:0,strideTouches:0,shieldCarries:0,duelOutlets:0,feintResponses:0,beatenDefenders:0,firstTouchRechecks:0,markHandoffs:0,markSamples:0,screenedReads:0,fastCatches:0,decisions:{pass:0,carry:0,feint:0,shot:0,clearance:0}});
   this.t=[Tactics.normalize(this.cfg.tactics),Tactics.normalize({playstyle:'counter',onWin:'counter',tempo:64,...this.cfg.awayTactics})];
   this.lossUntil=[0,0];this.recoveryUntil=[0,0];this.pressAssignments=[null,null];this.recentPasses=[];this.tacticalPhase=['build','defend'];this.tacticalStats=[{passDistance:0,passCount:0,forwardPasses:0,wideReceives:0,pressSamples:0},{passDistance:0,passCount:0,forwardPasses:0,wideReceives:0,pressSamples:0}];
-  const ids=this.cfg.starters||[8,9,10,7,5,6,4,2,3,1,0];
   for(let team=0;team<2;team++){
-   const form=formations[team===0?this.cfg.formation:(this.cfg.awayFormation||'4-2-3-1')]||formations['4-3-3'];
+   const formation=team===0?(this.cfg.formation||'4-3-3'):(this.cfg.awayFormation||'4-2-3-1'),form=formations[formation]||formations['4-3-3'];
+   const supplied=team===0?this.cfg.players:this.cfg.awayPlayers,roster=Array.isArray(supplied)&&supplied.length?supplied:PlayerModel.demoTeam(team,formation);
+   const configured=team===0?this.cfg.starters:this.cfg.awayStarters,ids=Array.isArray(configured)?configured:roster.slice(0,11).map(p=>p.id),fallback=PlayerModel.demoTeam(team,formation);
+   const used=new Set();
    for(let i=0;i<11;i++){
-    const source=team===0?(this.cfg.players||[]).find(p=>p.id===ids[i]):null;
-    const f=form[i],skill=source?.rating??(team?77+Math.floor(this.random()*9):82),side=dir(team);
-    const p={id:team*11+i,index:i,team,role:f[0],name:source?.name||names[i],num:source?.number??i+1,rosterId:source?.id??ids[i],portraitId:source?.face??i,skill,passing:source?.passing??skill,shooting:source?.shooting??skill,tackling:source?.tackling??skill,fitness:source?.fitness??92,stamina:source?.fitness??92,active:true,yellow:0,x:f[1]*side,z:f[2]*side,homeX:f[1]*side,homeZ:f[2]*side,vx:0,vz:0,speed:0,face:team===0?0:Math.PI,anim:0,action:'idle',actionClock:0,actionElapsed:0,actionDuration:0,kickFoot:i%2,decision:.2+this.random()*.4,touchClock:0,tackleClock:.5+this.random(),receiveClock:0,personality:this.random(),dribbling:source?.dribbling??clamp(skill+(f[0]==='ATT'?6:f[0]==='DEF'?-10:0),45,98),pace:source?.pace??clamp(skill+(i%3-1)*6,50,97),heading:source?.heading??clamp(skill+(f[0]==='ATT'?5:f[0]==='DEF'?2:-9),45,98),crossing:source?.crossing??source?.passing??skill,agility:source?.agility??clamp(skill+(f[0]==='ATT'?5:0),45,97),duelRecovery:0,feintCooldown:0,skin:[[.73,.54,.38],[.56,.37,.25],[.34,.23,.18],[.83,.67,.54]][i%4],hair:[[.12,.09,.07],[.22,.17,.11],[.34,.25,.20]][i%3]};
-    Object.assign(p,{energy:1,preferredFoot:source?.preferredFoot==='left'?0:source?.preferredFoot==='right'?1:(source?.id??i)%2,weakFoot:source?.weakFoot??clamp(skill-12,45,90),vision:source?.vision??source?.passing??skill,composure:source?.composure??skill,kickMoving:false,reception:null,nextAction:null});
+    // A squad record is resolved identically for either side. Slot/ID never
+    // manufacture a preferred foot or a technical/physical skill.
+    const candidate=roster.find(p=>p.id===ids[i]&&p.owned!==false&&!used.has(p.id)),source=candidate||roster.find(p=>p.owned!==false&&!used.has(p.id))||fallback[i];
+    used.add(source.id);
+    const f=form[i],slot=PlayerModel.slotFor(formation,i),profile=PlayerModel.forSlot(source,slot),side=dir(team);
+    const p={...profile,id:team*11+i,index:i,team,role:f[0],position:slot.position,name:source.name||names[i],num:source.number??i+1,rosterId:source.id,portraitId:source.face??i,active:true,yellow:0,x:f[1]*side,z:f[2]*side,homeX:f[1]*side,homeZ:f[2]*side,vx:0,vz:0,speed:0,face:team===0?0:Math.PI,anim:0,action:'idle',actionClock:0,actionElapsed:0,actionDuration:0,kickFoot:profile.preferredFoot,decision:.2+this.random()*.4,touchClock:0,tackleClock:.5+this.random(),receiveClock:0,personality:this.random(),duelRecovery:0,feintCooldown:0,skin:[[.73,.54,.38],[.56,.37,.25],[.34,.23,.18],[.83,.67,.54]][i%4],hair:[[.12,.09,.07],[.22,.17,.11],[.34,.25,.20]][i%3]};
+    Object.assign(p,{energy:1,kickMoving:false,reception:null,nextAction:null});
     // A kick-off shape: sides remain in their own half, spread in their roles.
     p.x=side*(p.role==='GK'?-49:clamp(f[1]-.18*Math.max(0,f[1])-22,-42,-2));
     this.players.push(p);
    }
   }
+  this.startingRosterIds=this.players.filter(p=>p.team===0).map(p=>p.rosterId);
   this.players.push({id:22,index:0,team:2,role:'REF',referee:true,name:'Hakem',active:true,x:-4,z:-9,vx:0,vz:0,speed:0,face:0,anim:0,action:'idle',actionClock:0,stamina:100,skill:80,skin:[.75,.55,.39]});
   const starter=this.field(0).find(p=>p.role==='MID');starter.x=-.7;starter.z=0;
   this.ball={x:0,y:.11,z:0,vx:0,vy:0,vz:0};
@@ -353,7 +361,7 @@ class Match{
  touchContact(p,b=this.ball,foot=null){
   const dx=b.x-p.x,dz=b.z-p.z,gap=Math.hypot(dx,dz),forward=dx*Math.cos(p.face)+dz*Math.sin(p.face),lateral=-dx*Math.sin(p.face)+dz*Math.cos(p.face);
   foot=foot===0||foot===1?foot:Math.abs(lateral)>.12?(lateral>0?1:0):(p.preferredFoot??p.kickFoot??0);
-  const preferred=p.preferredFoot??foot,technique=foot===preferred?(p.dribbling??p.skill):(p.dribbling??p.skill)*.65+(p.weakFoot??p.skill)*.35;
+  const technique=footSkill(p,p.dribbling??p.skill,foot);
   const footClock=p.dribbleFoot===foot?Math.max(0,p.footTouch||0):0;
   return {ready:p.active!==false&&!(p.duelRecovery>0)&&gap<=1.20&&forward>=-.18&&Math.abs(lateral)<=1.0&&Math.abs(lateral-(foot?1:-1)*.18)<=1.0,gap,forward,lateral,turn:Math.abs(angle(Math.atan2(dz,dx),p.face)),foot,technique,footClock};
  }
@@ -431,7 +439,7 @@ class Match{
   if(gap>1.20||forward<-.18||Math.abs(lateral)>1.0)return false;
   const target=p.carryTarget||{x:p.x+dir(p.team)*6,z:p.z},a=Math.atan2(target.z-p.z,target.x-p.x),rivals=this.rivals(p),pressure=Math.min(20,...rivals.map(q=>dist(q,p))),shield=p.shieldUntil>this.time;
   const ahead={x:p.x+Math.cos(a)*3,z:p.z+Math.sin(a)*3},room=Math.min(10,...rivals.map(q=>dist({x:q.x+q.vx*.4,z:q.z+q.vz*.4},ahead)));
-  const foot=Math.abs(lateral)>.12?(lateral>0?1:0):(p.preferredFoot??p.kickFoot),technique=foot===(p.preferredFoot??foot)?(p.dribbling??p.skill):(p.dribbling??p.skill)*.65+(p.weakFoot??p.skill)*.35;
+  const foot=Math.abs(lateral)>.12?(lateral>0?1:0):(p.preferredFoot??p.kickFoot),technique=footSkill(p,p.dribbling??p.skill,foot);
   const stride=!shield&&pressure>5&&room>3&&p.speed>3.2,close=shield||pressure<2.8,desired=shield?.48:close?.56:stride?1.10+(100-technique)*.002:.82+(100-technique)*.0015;
   const along=dx*Math.cos(a)+dz*Math.sin(a),speed=clamp(p.speed+(desired-along)*3.4,close?.35:.65,stride?7.3:close?Math.max(4.5,p.speed+.65):6.5),turn=Math.abs(angle(a,p.face));
   // Low technique/weak-foot sharp turns retain more of the incoming roll.
@@ -623,7 +631,7 @@ class Match{
  aimShot(p,point,origin=p){
   const preferred=point?.z??this.shotWindow(p).point.z,pressure=Math.min(20,...this.rivals(p).map(q=>dist(p,q)));
   const distance=this.shotWindow(p).distance,turn=Math.abs(angle(Math.atan2(preferred-origin.z,52*dir(p.team)-origin.x),p.face));
-  const technique=p.kickFoot===(p.preferredFoot??p.kickFoot)?p.shooting:p.shooting*.65+(p.weakFoot??p.shooting)*.35;
+  const technique=footSkill(p,p.shooting,p.kickFoot);
   const stress=Math.max(0,3-pressure)*(1.15-(p.composure??p.skill)*.005);
   const error=(this.random()-.5)*(1.4+distance*.14+(100-technique)*.12+stress+turn*.65+Math.max(0,.65-(p.energy??1))*2);
   const toPlane=Math.max(1,52-origin.x*dir(p.team)),beyond=(54-origin.x*dir(p.team))/toPlane;
@@ -854,7 +862,7 @@ class Match{
   const d=dist(this.ball,k.point)||1,shotPressure=Math.min(10,...this.field(1-p.team).map(q=>dist(q,p)));
   const power=k.powerOverride||(k.kind==='shot'?(21+p.shooting*.085)*(1-Math.max(0,3-shotPressure)*.025):k.kind==='cross'?clamp(d/1.35,15,25):k.kind==='clearance'?29:this.passSpeed(k.kind,d,this.t[p.team]));
   const technique=k.kind==='cross'?(p.crossing??p.passing):p.passing;
-  const execution=p.kickFoot===(p.preferredFoot??p.kickFoot)?technique:technique*.65+(p.weakFoot??technique)*.35;
+  const execution=footSkill(p,technique,p.kickFoot);
   const accuracy=['pass','through','cutback','cross','long-pass'].includes(k.kind)?(this.random()-.5)*(100-execution)/100*(.5+d*.02+(k.moving?.22:0))*(k.kind==='cross'?2.4:1):0;
   const aimed={x:k.point.x-(k.point.z-this.ball.z)/d*accuracy,z:k.point.z+(k.point.x-this.ball.x)/d*accuracy};
   const length=dist(this.ball,aimed)||1;
@@ -992,7 +1000,7 @@ class Match{
   for(const [actor,opponent] of [[p,carrier],[carrier,p]]){const old=actor.duelMemory,repeat=old&&old.opponentId===opponent.id&&this.time-old.at<6&&dist(actor,old.origin)<5;actor.duelMemory={opponentId:opponent.id,count:repeat?old.count+1:1,at:this.time,origin:repeat?old.origin:{x:actor.x,z:actor.z}};}
   const aggression=+this.t[p.team].aggression/100,fromBehind=Math.cos(carrier.face-Math.atan2(p.z-carrier.z,p.x-carrier.x))<-.45;
   const closing=(p.vx-carrier.vx)*toBall.x+(p.vz-carrier.vz)*toBall.z;
-  const clean=clamp(.62+(p.tackling-(carrier.dribbling??carrier.skill))*.004-aggression*.10-(fromBehind?.18:0)-(shield?.22:0)+Math.max(0,ballGap-.55)*.20-Math.max(0,closing-4)*.012,.16,.94);
+  const clean=clamp(.62+(p.tackling-(carrier.dribbling??carrier.skill))*.004-aggression*.10-(fromBehind?.18:0)-(shield?.22:0)+clamp(((p.strength??75)-(carrier.strength??75))*.0015+((p.balance??75)-(carrier.balance??75))*.0007,-.12,.12)+Math.max(0,ballGap-.55)*.20-Math.max(0,closing-4)*.012,.16,.94);
   this.action(p,'tackle',.32);this.telemetry.duels++;
   if(this.random()<clean){
    const away=Math.atan2(p.z-carrier.z,p.x-carrier.x),sign=p.personality>.5?1:-1,a=away+sign*.55;
@@ -1679,8 +1687,9 @@ class Match{
  effort(p,target,dt){
   if(p.referee)return;
   const hard=p.speed>4.2||['press','counterpress','penetration','overlap','track-run'].includes(target.state)&&p.speed>3;
-  p.energy=clamp((p.energy??1)+dt*(hard?-.023:p.speed<2?.030:.006),.25,1);
-  p.stamina=Math.max(45,p.stamina-dt*(.0006+Math.max(0,p.speed-1)*.00085+(hard?.0011:0)));
+  const endurance=clamp(1+((p.endurance??75)-75)*.006,.70,1.15);
+  p.energy=clamp((p.energy??1)+dt*(hard?-.023/endurance:p.speed<2?.030*endurance:.006*endurance),.25,1);
+  p.stamina=Math.max(Math.min(45,(p.fitness??100)*.45),p.stamina-dt*(.0006+Math.max(0,p.speed-1)*.00085+(hard?.0011:0))/endurance);
  }
  move(p,target,dt){
   if(!p.active||!target)return;
@@ -1700,7 +1709,8 @@ class Match{
   }
   if(!kickRecovery&&(p.action==='shoot'||p.action==='pass')&&p.actionClock>.05&&!p.kickMoving){p.vx=p.vz=p.speed=0;return;}
   const dx=target.x-p.x,dz=target.z-p.z,d=Math.hypot(dx,dz),heading=Math.atan2(dz,dx);
-  const turn=Math.abs(angle(heading,p.face)),top=(p.role==='GK'?4.4:5.7+((p.pace??p.skill)-75)*.040)*(.78+.22*p.stamina/100)*(.83+.17*(p.energy??1))*target.pace*(p.duelRecovery>0?.20:1)*(p.feintReaction>0?.82:1);
+  const fatigue=p.model?(p.fitness>0?clamp(p.stamina/p.fitness,0,1):1):p.stamina/100;
+  const turn=Math.abs(angle(heading,p.face)),top=(p.role==='GK'?4.4+((p.pace??75)-75)*.025:5.7+((p.pace??p.skill)-75)*.040)*(.78+.22*fatigue)*(.83+.17*(p.energy??1))*target.pace*(p.duelRecovery>0?.20:1)*(p.feintReaction>0?.82:1);
   const wanted=d>(target.state==='restart'?.025:.16)?Math.min(top,d*2,Math.sqrt(16*d))*(1-.45*turn/Math.PI):0;
   let vx=d?dx/d*wanted:0,vz=d?dz/d*wanted:0;
   if(!['restart','goal','wall'].includes(target.state))for(const q of this.players){if(q===p||!q.active||q.referee||q.team!==p.team)continue;const ax=(p.x+p.vx*.28)-(q.x+q.vx*.28),az=(p.z+p.vz*.28)-(q.z+q.vz*.28),gap=Math.hypot(ax,az);if(gap>.05&&gap<1.5){const push=(1.5-gap)*1.9;vx+=ax/gap*push;vz+=az/gap*push;}}
@@ -1715,7 +1725,7 @@ class Match{
    }
   }
   const magnitude=Math.hypot(vx,vz);if(magnitude>top){vx*=top/magnitude;vz*=top/magnitude;}
-  const acc=(wanted<p.speed?11:7.8)*dt,dvx=vx-p.vx,dvz=vz-p.vz,delta=Math.hypot(dvx,dvz)||1;
+  const acc=(wanted<p.speed?11:7.8*clamp(.70+(p.acceleration??75)*.004,.70,1.10))*dt,dvx=vx-p.vx,dvz=vz-p.vz,delta=Math.hypot(dvx,dvz)||1;
   p.vx+=dvx*Math.min(1,acc/delta);p.vz+=dvz*Math.min(1,acc/delta);p.x+=p.vx*dt;p.z+=p.vz*dt;p.speed=Math.hypot(p.vx,p.vz);
   // Decelerate into the field, without repositioning a player to the ball.
   p.x=clamp(p.x,-53.5,53.5);p.z=clamp(p.z,-35,35);
@@ -1723,7 +1733,8 @@ class Match{
   if((p.role==='GK'&&target.state!=='keeper-recovery')||target.state==='delay'||p===this.owner&&p.receiveClock>0||target.state==='press'&&dist(p,this.ball)<4.5&&p.speed<3.2||['mark','cover','screen','recovery-screen','build-support','support','wall','fk-mark','fk-attack','fk-cover'].includes(target.state)&&p.speed<2.8)facing=Math.atan2(this.ball.z-p.z,this.ball.x-p.x);
   if(target.state==='receive-run'&&p.reception)facing=Match.prototype.receptionFacing.call(this,p,facing);
   if(target.state==='shield'&&Number.isFinite(p.shieldFace))facing=p.shieldFace;
-  if(!kickRecovery)p.face+=clamp(angle(facing,p.face),-dt*4.5,dt*4.5);p.anim+=p.speed*dt*2.3;p.brainRole=target.state;
+  const turnRate=4.5*clamp(.70+(p.agility??75)*.004,.70,1.10);
+  if(!kickRecovery)p.face+=clamp(angle(facing,p.face),-dt*turnRate,dt*turnRate);p.anim+=p.speed*dt*2.3;p.brainRole=target.state;
   if(p.actionClock<=0){p.action=p.speed>3.2?'run':p.speed>.4?'jog':'idle';p.kickMoving=false;}
  }
  aerial(previous){
@@ -1808,8 +1819,8 @@ class Match{
   const read=gk.keeperRead,visible=this.keeperVisibility(gk);
   if(!visible&&!read.screened){read.screened=true;this.telemetry.screenedReads++;}
   if(visible&&read.visibleAt===null)read.visibleAt=this.time;
-  const crossing=this.ballCrossing(gk.x,2.5),arrival=crossing?.t??-1,reaction=clamp(.23-(gk.skill-60)*.003,.12,.23);
-  const reacted=read.visibleAt!==null&&this.time-read.visibleAt>=reaction,catchCapacity=17+gk.skill*.13;
+  const crossing=this.ballCrossing(gk.x,2.5),arrival=crossing?.t??-1,reaction=clamp(.23-((gk.reactions??gk.skill)-60)*.003,.12,.23);
+  const reacted=read.visibleAt!==null&&this.time-read.visibleAt>=reaction,catchCapacity=17+(gk.handling??gk.skill)*.13;
   const lateral=arrival>0?Math.abs(crossing.z-gk.z):0,diveWindow=clamp(.20+lateral*.11,.28,.56);
   // Raising both hands for a central catch can begin before the narrower
   // dive commitment window. Judge catch preparation at the arrival speed.
@@ -1975,13 +1986,13 @@ class Match{
   if(this.time>=this.duration){this.done=true;this.phase='finished';this.emit('end','Maç sona erdi',`${this.score[0]}–${this.score[1]} · Mücadele tamamlandı.`);}
  }
  advance(seconds){const n=Math.round(seconds*60);for(let i=0;i<n&&!this.done;i++)this.step();}
- bench(){const ids=this.cfg.starters||[8,9,10,7,5,6,4,2,3,1,0];return (this.cfg.players||[]).filter(p=>p.owned!==false&&!ids.includes(p.id)&&!this.usedBench.has(p.id)&&p.pos!=='GK');}
+ bench(){const ids=this.startingRosterIds||this.cfg.starters||[];return (this.cfg.players||[]).filter(p=>p.owned!==false&&!ids.includes(p.id)&&!this.usedBench.has(p.id)&&p.pos!=='GK');}
  substitute(index,id){
   const p=this.players.find(p=>p.team===0&&p.index===index&&p.active&&p.role!=='GK'),b=this.bench().find(p=>p.id===id);
   if(!p||!b||this.subCount>=3||this.done)return {ok:false,error:'Uygun bir saha oyuncusu ve kullanılmamış yedek seç.'};
   if(this.owner===p||this.kick?.p===p||this.flight?.target===p)return {ok:false,error:'Oyuncunun top aksiyonu sürüyor; pozisyon bitince tekrar dene.'};
-  const old=p.name;Object.assign(p,{rosterId:b.id,name:b.name,num:b.number,skill:b.rating,passing:b.passing??b.rating,shooting:b.shooting??b.rating,tackling:b.tackling??b.rating,dribbling:b.dribbling??b.rating,pace:b.pace??b.rating,heading:b.heading??b.rating,crossing:b.crossing??b.passing??b.rating,agility:b.agility??b.rating,portraitId:b.face,fitness:b.fitness??95,stamina:b.fitness??95,yellow:0});
-  Object.assign(p,{energy:1,preferredFoot:b.preferredFoot==='left'?0:b.preferredFoot==='right'?1:b.id%2,weakFoot:b.weakFoot??clamp(b.rating-12,45,90),vision:b.vision??b.passing??b.rating,composure:b.composure??b.rating,reception:null,nextAction:null,runIntent:null,supportIntent:null,offerIntent:null,connectionIntent:null,carryIntent:null,keeperRead:null,shieldUntil:0,shieldReadyAt:0,duelMemory:null,dribbleDuel:null});
+  const old=p.name,profile=PlayerModel.forSlot(b,PlayerModel.slotFor(this.cfg.formation||'4-3-3',p.index));
+  Object.assign(p,profile,{id:p.id,index:p.index,team:p.team,role:p.role,position:p.position,rosterId:b.id,name:b.name,num:b.number,portraitId:b.face,yellow:0,energy:1,kickFoot:profile.preferredFoot,reception:null,nextAction:null,runIntent:null,supportIntent:null,offerIntent:null,connectionIntent:null,carryIntent:null,keeperRead:null,shieldUntil:0,shieldReadyAt:0,duelMemory:null,dribbleDuel:null});
   Intent.clear(p,'substitution',this.taskContext(p));Perception.clear(p,this.time);
   this.usedBench.add(b.id);this.subCount++;this.emit('sub','Oyuncu değişikliği',`${old} çıktı, ${b.name} oyuna girdi.`,p);return {ok:true};
  }

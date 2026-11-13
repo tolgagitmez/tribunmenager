@@ -1,0 +1,1906 @@
+{
+  "generatedAt": "2026-11-13T07:44:29.397284+00:00",
+  "sources": {
+    "player-model-profiles.json": "d97a900209e5c3b837539042f5435c8fb7f063492f2d16deed1caaabc7a45da6",
+    "player-model-profiles.js": "a06068f2a706e58b9e71110da31da72f9968b3abcf2f548cba265ef78be40aa8",
+    "player-model.js": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02",
+    "club-data.js": "73c9d01c12262497f0d266203b4f7143750732ef1bde8c289d80841bf2efcfca",
+    "football-sim.js": "d863b20523361d5c910d4b8835e0ffe1ea5aab4909ec8f550d51393748944b07",
+    "transfer-client.js": "403615be8ca1b51e4c4246ab23c5b9a5b3fc7827b46d8afc9f3f645326e81b44",
+    "match-config.js": "25bf78185f07a304995c255a3f905f8307441eeb491436641693f91aefacc7f2",
+    "manager.js": "45ba023034d542bda979a4a5da6d039250fcafcbb224b9a72197111df149788c",
+    "tactics-page.js": "5c00bb1a60521258658949b86ce6cebdab7e213720083c7b51d52cbe7b2b8b67",
+    "match3d.js": "745645bf61b4061d7da0d929ca4f1426d09c6e4662670421d78c3695842cb39e",
+    "index.html": "abfd4df772e865a95789cd1ba43afb40211c47d492ea9e923a114bc95f9b9058",
+    "tactics.html": "408443b59ff724efa47814bc333c478630b58d2ae9990fd65d1daf2af66c7f4c",
+    "match.html": "00e18aa2c8f6db06ba4b05280c3d733174af91beb786c2098cd6841c0e444d40",
+    "style.css": "e363ebe1ff277d9fba0839ffc92d7ede6b1339b222c2cf934a186299a4d78971",
+    "match3d.css": "65d7578af07258fb400e74fe382d7a68c1d6648e5fa6ba5796096e9ceaeec91f",
+    "tools/check-player-identity-browser.py": "ee1f2f699ffa4955d4af05744865eecec73ad3150b7bbbd2965e7073975c772b"
+  },
+  "method": "Actual Chromium with SwiftShader procedural WebGL and forced canvas2D. Authored browser API fixture for league/local-match; production endpoint storage and authorization are tested separately. Actual manager cards and manager→match navigation, both rosters and substitutions, actual tactics→demo navigation, paused state, mobile390 layout. No natural match-balance inference.",
+  "runs": [
+    {
+      "mode": "webgl-procedural",
+      "cards": {
+        "cards": [
+          {
+            "id": 8,
+            "slot": "ATT",
+            "shown": 72,
+            "expected": 72,
+            "title": "Tarayıcı Oyuncusu 8, Hücum, Süratli kanat, ayak: Sol, temel güç 80, maç gücü 72, mevki uyumu %100, form %55, kondisyon %65",
+            "factors": {
+              "position": 1,
+              "form": 0.9595,
+              "condition": 0.9405
+            },
+            "foot": "Sol"
+          },
+          {
+            "id": 2,
+            "slot": "ATT",
+            "shown": 50,
+            "expected": 50,
+            "title": "Tarayıcı Oyuncusu 2, Savunma, Güçlü stoper, ayak: Sağ, temel güç 80, maç gücü 50, mevki uyumu %66, form %72, kondisyon %84",
+            "factors": {
+              "position": 0.66,
+              "form": 0.9748,
+              "condition": 0.9728
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 10,
+            "slot": "ATT",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 10, Hücum, Süratli kanat, ayak: Sağ, temel güç 80, maç gücü 78, mevki uyumu %100, form %92, kondisyon %88",
+            "factors": {
+              "position": 1,
+              "form": 0.9928,
+              "condition": 0.9796
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 7,
+            "slot": "MID",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 7, Orta saha, Oyun kurucu, ayak: İki ayak, temel güç 80, maç gücü 78, mevki uyumu %100, form %90, kondisyon %94",
+            "factors": {
+              "position": 1,
+              "form": 0.991,
+              "condition": 0.9898
+            },
+            "foot": "İki ayak"
+          },
+          {
+            "id": 5,
+            "slot": "MID",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 5, Orta saha, Top kazanan, ayak: Sağ, temel güç 80, maç gücü 78, mevki uyumu %100, form %91, kondisyon %91",
+            "factors": {
+              "position": 1,
+              "form": 0.9919,
+              "condition": 0.9846999999999999
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 6,
+            "slot": "MID",
+            "shown": 77,
+            "expected": 77,
+            "title": "Tarayıcı Oyuncusu 6, Orta saha, Oyun kurucu, ayak: Sol, temel güç 80, maç gücü 77, mevki uyumu %100, form %85, kondisyon %88",
+            "factors": {
+              "position": 1,
+              "form": 0.9865,
+              "condition": 0.9796
+            },
+            "foot": "Sol"
+          },
+          {
+            "id": 4,
+            "slot": "DEF",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 4, Savunma, Hücumcu bek, ayak: Sol, temel güç 80, maç gücü 78, mevki uyumu %100, form %80, kondisyon %96",
+            "factors": {
+              "position": 1,
+              "form": 0.982,
+              "condition": 0.9932
+            },
+            "foot": "Sol"
+          },
+          {
+            "id": 9,
+            "slot": "DEF",
+            "shown": 52,
+            "expected": 52,
+            "title": "Tarayıcı Oyuncusu 9, Hücum, Hızlı bitirici, ayak: Sağ, temel güç 80, maç gücü 52, mevki uyumu %66, form %97, kondisyon %93",
+            "factors": {
+              "position": 0.66,
+              "form": 0.9973000000000001,
+              "condition": 0.9881
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 3,
+            "slot": "DEF",
+            "shown": 77,
+            "expected": 77,
+            "title": "Tarayıcı Oyuncusu 3, Savunma, Güçlü stoper, ayak: Sol, temel güç 80, maç gücü 77, mevki uyumu %100, form %84, kondisyon %87",
+            "factors": {
+              "position": 1,
+              "form": 0.9856,
+              "condition": 0.9779
+            },
+            "foot": "Sol"
+          },
+          {
+            "id": 1,
+            "slot": "DEF",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 1, Savunma, Hücumcu bek, ayak: Sağ, temel güç 80, maç gücü 78, mevki uyumu %100, form %83, kondisyon %93",
+            "factors": {
+              "position": 1,
+              "form": 0.9847,
+              "condition": 0.9881
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 0,
+            "slot": "GK",
+            "shown": 79,
+            "expected": 79,
+            "title": "Tarayıcı Oyuncusu 0, Kaleci, Kaleci, ayak: Sağ, temel güç 80, maç gücü 79, mevki uyumu %100, form %88, kondisyon %96",
+            "factors": {
+              "position": 1,
+              "form": 0.9892000000000001,
+              "condition": 0.9932
+            },
+            "foot": "Sağ"
+          }
+        ],
+        "displayAverage": 72,
+        "expectedAverage": 72,
+        "checks": {
+          "elevenCards": true,
+          "allCardsUseSharedQuality": true,
+          "descriptionsExplainProfileAndFoot": true,
+          "idAndNumberDoNotChangeFootballIdentity": true,
+          "lowFormReducesTechnique": true,
+          "lowConditionReducesPace": true,
+          "offRoleReducesTechnique": true,
+          "intrinsicStrengthDoesNotChangeWithRole": true,
+          "actualOffRoleCardsPresent": true
+        }
+      },
+      "linkedMatch": {
+        "rows": [
+          {
+            "team": 0,
+            "id": 8,
+            "name": "Tarayıcı Oyuncusu 8",
+            "skill": 72,
+            "expected": 72,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "LW"
+              },
+              "baseRating": 80,
+              "effectiveRating": 72,
+              "factors": {
+                "position": 1,
+                "form": 0.9595,
+                "condition": 0.9405
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 2,
+            "name": "Tarayıcı Oyuncusu 2",
+            "skill": 50,
+            "expected": 50,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "ST"
+              },
+              "baseRating": 80,
+              "effectiveRating": 50,
+              "factors": {
+                "position": 0.66,
+                "form": 0.9748,
+                "condition": 0.9728
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 10,
+            "name": "Tarayıcı Oyuncusu 10",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "RW"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9928,
+                "condition": 0.9796
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 7,
+            "name": "Tarayıcı Oyuncusu 7",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "CM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.991,
+                "condition": 0.9898
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 5,
+            "name": "Tarayıcı Oyuncusu 5",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "DM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9919,
+                "condition": 0.9846999999999999
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 6,
+            "name": "Tarayıcı Oyuncusu 6",
+            "skill": 77,
+            "expected": 77,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "CM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 77,
+              "factors": {
+                "position": 1,
+                "form": 0.9865,
+                "condition": 0.9796
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 4,
+            "name": "Tarayıcı Oyuncusu 4",
+            "skill": 78,
+            "expected": 78,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "LB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.982,
+                "condition": 0.9932
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 9,
+            "name": "Tarayıcı Oyuncusu 9",
+            "skill": 52,
+            "expected": 52,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "CB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 52,
+              "factors": {
+                "position": 0.66,
+                "form": 0.9973000000000001,
+                "condition": 0.9881
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 3,
+            "name": "Tarayıcı Oyuncusu 3",
+            "skill": 77,
+            "expected": 77,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "CB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 77,
+              "factors": {
+                "position": 1,
+                "form": 0.9856,
+                "condition": 0.9779
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 1,
+            "name": "Tarayıcı Oyuncusu 1",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "RB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9847,
+                "condition": 0.9881
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 0,
+            "name": "Tarayıcı Oyuncusu 0",
+            "skill": 79,
+            "expected": 79,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "GK",
+                "position": "GK"
+              },
+              "baseRating": 80,
+              "effectiveRating": 79,
+              "factors": {
+                "position": 1,
+                "form": 0.9892000000000001,
+                "condition": 0.9932
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 109,
+            "name": "Kayıtlı Rakip 9",
+            "skill": 79,
+            "expected": 79,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "ST"
+              },
+              "baseRating": 80,
+              "effectiveRating": 79,
+              "factors": {
+                "position": 1,
+                "form": 0.9973000000000001,
+                "condition": 0.9881
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 116,
+            "name": "Kayıtlı Rakip 16",
+            "skill": 77,
+            "expected": 77,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "ST"
+              },
+              "baseRating": 80,
+              "effectiveRating": 77,
+              "factors": {
+                "position": 1,
+                "form": 0.9883000000000001,
+                "condition": 0.9779
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 108,
+            "name": "Kayıtlı Rakip 8",
+            "skill": 67,
+            "expected": 67,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "LM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 67,
+              "factors": {
+                "position": 0.87,
+                "form": 0.9883000000000001,
+                "condition": 0.9813
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 107,
+            "name": "Kayıtlı Rakip 7",
+            "skill": 78,
+            "expected": 78,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "CM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.991,
+                "condition": 0.9898
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 105,
+            "name": "Kayıtlı Rakip 5",
+            "skill": 78,
+            "expected": 78,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "CM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9919,
+                "condition": 0.9846999999999999
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 110,
+            "name": "Kayıtlı Rakip 10",
+            "skill": 68,
+            "expected": 68,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "RM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 68,
+              "factors": {
+                "position": 0.87,
+                "form": 0.9928,
+                "condition": 0.9796
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 104,
+            "name": "Kayıtlı Rakip 4",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "LB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.982,
+                "condition": 0.9932
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 102,
+            "name": "Kayıtlı Rakip 2",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "CB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9919,
+                "condition": 0.983
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 103,
+            "name": "Kayıtlı Rakip 3",
+            "skill": 77,
+            "expected": 77,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "CB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 77,
+              "factors": {
+                "position": 1,
+                "form": 0.9856,
+                "condition": 0.9779
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 101,
+            "name": "Kayıtlı Rakip 1",
+            "skill": 78,
+            "expected": 78,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "RB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9847,
+                "condition": 0.9881
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 100,
+            "name": "Kayıtlı Rakip 0",
+            "skill": 79,
+            "expected": 79,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "GK",
+                "position": "GK"
+              },
+              "baseRating": 80,
+              "effectiveRating": 79,
+              "factors": {
+                "position": 1,
+                "form": 0.9892000000000001,
+                "condition": 0.9932
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          }
+        ],
+        "time": 1.2166666666666672,
+        "paused": true,
+        "ownCount": 11,
+        "awayCount": 11,
+        "ownIds": [
+          8,
+          2,
+          10,
+          7,
+          5,
+          6,
+          4,
+          9,
+          3,
+          1,
+          0
+        ],
+        "awayIds": [
+          109,
+          116,
+          108,
+          107,
+          105,
+          110,
+          104,
+          102,
+          103,
+          101,
+          100
+        ],
+        "opponentSource": "linked-roster",
+        "fixture": {
+          "league": "BROWSER",
+          "round": 2,
+          "home": 1,
+          "away": 0,
+          "kickoff": 1800000300,
+          "isHome": false,
+          "state": "scheduled",
+          "snapshotAt": 1800000000
+        },
+        "ui": {
+          "own": "TMDEPLASMAN · SENİN TAKIMINTarayıcı SK4-3-3 · Pas bağlantıları",
+          "away": "EV SAHİBİ · RAKİPKayıtlı Rakip SK4-4-2 · Dikine oyunEA",
+          "notice": "Fikstür rakibinin kayıtlı kadrosuyla yerel maç; günlük lig sonucu değişmez.",
+          "title": "5 DAKİKALIK DENEME · FİKSTÜR KADROSU"
+        },
+        "scripts": [
+          "/ui-shell.js",
+          "/humanoid-rig.js",
+          "/assets/player/player-model-data.js",
+          "/player-renderer.js",
+          "/scene3d.js",
+          "/tactics.js",
+          "/player-model-profiles.js",
+          "/player-model.js",
+          "/player-perception.js",
+          "/team-intent.js",
+          "/football-sim.js",
+          "/attack-diagnostics.js",
+          "/attack-analysis-ui.js",
+          "/club-data.js",
+          "/transfer-client.js",
+          "/match-config.js",
+          "/match3d.js"
+        ],
+        "webgl": true,
+        "checks": {
+          "allProfilesMatchCommonContract": true,
+          "modulesBeforeEngine": true,
+          "bothRostersMaterialized": true
+        }
+      },
+      "substitution": {
+        "result": {
+          "ok": true
+        },
+        "id": 16,
+        "expectedId": 16,
+        "skill": 51,
+        "expectedSkill": 51,
+        "foot": 1,
+        "expectedFoot": 1,
+        "attrsAgree": true,
+        "benchContainsUsed": false,
+        "fit": 0.66
+      },
+      "paused": {
+        "sameIdentity": true,
+        "sameTime": true,
+        "paused": true
+      },
+      "demoMatch": {
+        "opponentSource": "demo",
+        "ui": {
+          "own": "TMEV SAHİBİ · SENİN TAKIMINMoreirense SK4-3-3 · Pas bağlantıları",
+          "away": "DEPLASMAN · RAKİPDeneme Rakibi4-2-3-1 · Hızlı geçişEA",
+          "notice": "Deneme rakibiyle yerel maç.",
+          "title": "5 DAKİKALIK DENEME · DENEME KADROSU"
+        },
+        "checks": {
+          "allProfilesMatchCommonContract": true,
+          "modulesBeforeEngine": true,
+          "bothRostersMaterialized": true
+        }
+      },
+      "changedLeagueDirectEntry": {
+        "fixture": {
+          "league": "BROWSER-NEXT",
+          "round": 3,
+          "home": 0,
+          "away": 1,
+          "kickoff": 1800000300,
+          "isHome": true,
+          "state": "scheduled",
+          "snapshotAt": 1800000000
+        },
+        "ui": {
+          "own": "TMEV SAHİBİ · SENİN TAKIMINYeni Lig Takımı4-3-3 · Pas bağlantıları",
+          "away": "DEPLASMAN · RAKİPYeni Lig Rakibi4-4-2 · Dikine oyunEA",
+          "notice": "Fikstür rakibinin kayıtlı kadrosuyla yerel maç; günlük lig sonucu değişmez.",
+          "title": "5 DAKİKALIK DENEME · FİKSTÜR KADROSU"
+        },
+        "replacedOpponentNames": true
+      },
+      "endpointFixtureRequests": [
+        {
+          "url": "http://127.0.0.1:35307/api/league/local-match",
+          "authorization": "Bearer browser-fixture-token"
+        },
+        {
+          "url": "http://127.0.0.1:35307/api/league/local-match",
+          "authorization": "Bearer browser-fixture-token-next"
+        }
+      ],
+      "squadMobile": {
+        "viewport": 390,
+        "width": 390
+      },
+      "matchMobile": {
+        "viewport": 390,
+        "width": 390
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face0.png",
+        "/assets/face1.png",
+        "/assets/face10.png",
+        "/assets/face2.png",
+        "/assets/face3.png",
+        "/assets/face4.png",
+        "/assets/face5.png",
+        "/assets/face6.png",
+        "/assets/face7.png",
+        "/assets/face8.png",
+        "/assets/face9.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/favicon.svg",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ],
+      "assertedChecks": {
+        "sharedQualityOnEveryCard": true,
+        "averageMatchesCards": true,
+        "identityDoesNotDependOnIds": true,
+        "formConditionAndGenericRoleHaveEffects": true,
+        "normalManagerLaunchFetchesOfficialFixtureOnce": true,
+        "authenticatedFixtureRequest": true,
+        "bothStartingRostersAndFootPreferencesPreserved": true,
+        "bothTeamsUseEffectiveProfiles": true,
+        "awayVenueAndFormationLabels": true,
+        "normalTacticsLaunchDisclosesDemo": true,
+        "directEntryAfterLeagueSwitchReplacesPreparedOpponent": true,
+        "substitutionUsesSameContractAndCannotReturnUsedBench": true,
+        "pausedIdentityAndClockStable": true,
+        "expectedRenderer": true,
+        "mobileSquadAndMatchHaveNoHorizontalOverflow": true,
+        "noScriptErrors": true
+      }
+    },
+    {
+      "mode": "2d",
+      "cards": {
+        "cards": [
+          {
+            "id": 8,
+            "slot": "ATT",
+            "shown": 72,
+            "expected": 72,
+            "title": "Tarayıcı Oyuncusu 8, Hücum, Süratli kanat, ayak: Sol, temel güç 80, maç gücü 72, mevki uyumu %100, form %55, kondisyon %65",
+            "factors": {
+              "position": 1,
+              "form": 0.9595,
+              "condition": 0.9405
+            },
+            "foot": "Sol"
+          },
+          {
+            "id": 2,
+            "slot": "ATT",
+            "shown": 50,
+            "expected": 50,
+            "title": "Tarayıcı Oyuncusu 2, Savunma, Güçlü stoper, ayak: Sağ, temel güç 80, maç gücü 50, mevki uyumu %66, form %72, kondisyon %84",
+            "factors": {
+              "position": 0.66,
+              "form": 0.9748,
+              "condition": 0.9728
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 10,
+            "slot": "ATT",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 10, Hücum, Süratli kanat, ayak: Sağ, temel güç 80, maç gücü 78, mevki uyumu %100, form %92, kondisyon %88",
+            "factors": {
+              "position": 1,
+              "form": 0.9928,
+              "condition": 0.9796
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 7,
+            "slot": "MID",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 7, Orta saha, Oyun kurucu, ayak: İki ayak, temel güç 80, maç gücü 78, mevki uyumu %100, form %90, kondisyon %94",
+            "factors": {
+              "position": 1,
+              "form": 0.991,
+              "condition": 0.9898
+            },
+            "foot": "İki ayak"
+          },
+          {
+            "id": 5,
+            "slot": "MID",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 5, Orta saha, Top kazanan, ayak: Sağ, temel güç 80, maç gücü 78, mevki uyumu %100, form %91, kondisyon %91",
+            "factors": {
+              "position": 1,
+              "form": 0.9919,
+              "condition": 0.9846999999999999
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 6,
+            "slot": "MID",
+            "shown": 77,
+            "expected": 77,
+            "title": "Tarayıcı Oyuncusu 6, Orta saha, Oyun kurucu, ayak: Sol, temel güç 80, maç gücü 77, mevki uyumu %100, form %85, kondisyon %88",
+            "factors": {
+              "position": 1,
+              "form": 0.9865,
+              "condition": 0.9796
+            },
+            "foot": "Sol"
+          },
+          {
+            "id": 4,
+            "slot": "DEF",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 4, Savunma, Hücumcu bek, ayak: Sol, temel güç 80, maç gücü 78, mevki uyumu %100, form %80, kondisyon %96",
+            "factors": {
+              "position": 1,
+              "form": 0.982,
+              "condition": 0.9932
+            },
+            "foot": "Sol"
+          },
+          {
+            "id": 9,
+            "slot": "DEF",
+            "shown": 52,
+            "expected": 52,
+            "title": "Tarayıcı Oyuncusu 9, Hücum, Hızlı bitirici, ayak: Sağ, temel güç 80, maç gücü 52, mevki uyumu %66, form %97, kondisyon %93",
+            "factors": {
+              "position": 0.66,
+              "form": 0.9973000000000001,
+              "condition": 0.9881
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 3,
+            "slot": "DEF",
+            "shown": 77,
+            "expected": 77,
+            "title": "Tarayıcı Oyuncusu 3, Savunma, Güçlü stoper, ayak: Sol, temel güç 80, maç gücü 77, mevki uyumu %100, form %84, kondisyon %87",
+            "factors": {
+              "position": 1,
+              "form": 0.9856,
+              "condition": 0.9779
+            },
+            "foot": "Sol"
+          },
+          {
+            "id": 1,
+            "slot": "DEF",
+            "shown": 78,
+            "expected": 78,
+            "title": "Tarayıcı Oyuncusu 1, Savunma, Hücumcu bek, ayak: Sağ, temel güç 80, maç gücü 78, mevki uyumu %100, form %83, kondisyon %93",
+            "factors": {
+              "position": 1,
+              "form": 0.9847,
+              "condition": 0.9881
+            },
+            "foot": "Sağ"
+          },
+          {
+            "id": 0,
+            "slot": "GK",
+            "shown": 79,
+            "expected": 79,
+            "title": "Tarayıcı Oyuncusu 0, Kaleci, Kaleci, ayak: Sağ, temel güç 80, maç gücü 79, mevki uyumu %100, form %88, kondisyon %96",
+            "factors": {
+              "position": 1,
+              "form": 0.9892000000000001,
+              "condition": 0.9932
+            },
+            "foot": "Sağ"
+          }
+        ],
+        "displayAverage": 72,
+        "expectedAverage": 72,
+        "checks": {
+          "elevenCards": true,
+          "allCardsUseSharedQuality": true,
+          "descriptionsExplainProfileAndFoot": true,
+          "idAndNumberDoNotChangeFootballIdentity": true,
+          "lowFormReducesTechnique": true,
+          "lowConditionReducesPace": true,
+          "offRoleReducesTechnique": true,
+          "intrinsicStrengthDoesNotChangeWithRole": true,
+          "actualOffRoleCardsPresent": true
+        }
+      },
+      "linkedMatch": {
+        "rows": [
+          {
+            "team": 0,
+            "id": 8,
+            "name": "Tarayıcı Oyuncusu 8",
+            "skill": 72,
+            "expected": 72,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "LW"
+              },
+              "baseRating": 80,
+              "effectiveRating": 72,
+              "factors": {
+                "position": 1,
+                "form": 0.9595,
+                "condition": 0.9405
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 2,
+            "name": "Tarayıcı Oyuncusu 2",
+            "skill": 50,
+            "expected": 50,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "ST"
+              },
+              "baseRating": 80,
+              "effectiveRating": 50,
+              "factors": {
+                "position": 0.66,
+                "form": 0.9748,
+                "condition": 0.9728
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 10,
+            "name": "Tarayıcı Oyuncusu 10",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "RW"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9928,
+                "condition": 0.9796
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 7,
+            "name": "Tarayıcı Oyuncusu 7",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "CM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.991,
+                "condition": 0.9898
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 5,
+            "name": "Tarayıcı Oyuncusu 5",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "DM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9919,
+                "condition": 0.9846999999999999
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 6,
+            "name": "Tarayıcı Oyuncusu 6",
+            "skill": 77,
+            "expected": 77,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "CM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 77,
+              "factors": {
+                "position": 1,
+                "form": 0.9865,
+                "condition": 0.9796
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 4,
+            "name": "Tarayıcı Oyuncusu 4",
+            "skill": 78,
+            "expected": 78,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "LB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.982,
+                "condition": 0.9932
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 9,
+            "name": "Tarayıcı Oyuncusu 9",
+            "skill": 52,
+            "expected": 52,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "CB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 52,
+              "factors": {
+                "position": 0.66,
+                "form": 0.9973000000000001,
+                "condition": 0.9881
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 3,
+            "name": "Tarayıcı Oyuncusu 3",
+            "skill": 77,
+            "expected": 77,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "CB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 77,
+              "factors": {
+                "position": 1,
+                "form": 0.9856,
+                "condition": 0.9779
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 1,
+            "name": "Tarayıcı Oyuncusu 1",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "RB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9847,
+                "condition": 0.9881
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 0,
+            "id": 0,
+            "name": "Tarayıcı Oyuncusu 0",
+            "skill": 79,
+            "expected": 79,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "GK",
+                "position": "GK"
+              },
+              "baseRating": 80,
+              "effectiveRating": 79,
+              "factors": {
+                "position": 1,
+                "form": 0.9892000000000001,
+                "condition": 0.9932
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 109,
+            "name": "Kayıtlı Rakip 9",
+            "skill": 79,
+            "expected": 79,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "ST"
+              },
+              "baseRating": 80,
+              "effectiveRating": 79,
+              "factors": {
+                "position": 1,
+                "form": 0.9973000000000001,
+                "condition": 0.9881
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 116,
+            "name": "Kayıtlı Rakip 16",
+            "skill": 77,
+            "expected": 77,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "ATT",
+                "position": "ST"
+              },
+              "baseRating": 80,
+              "effectiveRating": 77,
+              "factors": {
+                "position": 1,
+                "form": 0.9883000000000001,
+                "condition": 0.9779
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 108,
+            "name": "Kayıtlı Rakip 8",
+            "skill": 67,
+            "expected": 67,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "LM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 67,
+              "factors": {
+                "position": 0.87,
+                "form": 0.9883000000000001,
+                "condition": 0.9813
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 107,
+            "name": "Kayıtlı Rakip 7",
+            "skill": 78,
+            "expected": 78,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "CM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.991,
+                "condition": 0.9898
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 105,
+            "name": "Kayıtlı Rakip 5",
+            "skill": 78,
+            "expected": 78,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "CM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9919,
+                "condition": 0.9846999999999999
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 110,
+            "name": "Kayıtlı Rakip 10",
+            "skill": 68,
+            "expected": 68,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "MID",
+                "position": "RM"
+              },
+              "baseRating": 80,
+              "effectiveRating": 68,
+              "factors": {
+                "position": 0.87,
+                "form": 0.9928,
+                "condition": 0.9796
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 104,
+            "name": "Kayıtlı Rakip 4",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "LB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.982,
+                "condition": 0.9932
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 102,
+            "name": "Kayıtlı Rakip 2",
+            "skill": 78,
+            "expected": 78,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "CB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9919,
+                "condition": 0.983
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 103,
+            "name": "Kayıtlı Rakip 3",
+            "skill": 77,
+            "expected": 77,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "CB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 77,
+              "factors": {
+                "position": 1,
+                "form": 0.9856,
+                "condition": 0.9779
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 101,
+            "name": "Kayıtlı Rakip 1",
+            "skill": 78,
+            "expected": 78,
+            "foot": 0,
+            "expectedFoot": 0,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "DEF",
+                "position": "RB"
+              },
+              "baseRating": 80,
+              "effectiveRating": 78,
+              "factors": {
+                "position": 1,
+                "form": 0.9847,
+                "condition": 0.9881
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          },
+          {
+            "team": 1,
+            "id": 100,
+            "name": "Kayıtlı Rakip 0",
+            "skill": 79,
+            "expected": 79,
+            "foot": 1,
+            "expectedFoot": 1,
+            "model": {
+              "version": 1,
+              "slot": {
+                "role": "GK",
+                "position": "GK"
+              },
+              "baseRating": 80,
+              "effectiveRating": 79,
+              "factors": {
+                "position": 1,
+                "form": 0.9892000000000001,
+                "condition": 0.9932
+              },
+              "inferredAttributes": [],
+              "preferredFootSource": "provided",
+              "archetypeSource": "provided"
+            },
+            "attrsAgree": true
+          }
+        ],
+        "time": 1.0000000000000013,
+        "paused": true,
+        "ownCount": 11,
+        "awayCount": 11,
+        "ownIds": [
+          8,
+          2,
+          10,
+          7,
+          5,
+          6,
+          4,
+          9,
+          3,
+          1,
+          0
+        ],
+        "awayIds": [
+          109,
+          116,
+          108,
+          107,
+          105,
+          110,
+          104,
+          102,
+          103,
+          101,
+          100
+        ],
+        "opponentSource": "linked-roster",
+        "fixture": {
+          "league": "BROWSER",
+          "round": 2,
+          "home": 1,
+          "away": 0,
+          "kickoff": 1800000300,
+          "isHome": false,
+          "state": "scheduled",
+          "snapshotAt": 1800000000
+        },
+        "ui": {
+          "own": "TMDEPLASMAN · SENİN TAKIMINTarayıcı SK4-3-3 · Pas bağlantıları",
+          "away": "EV SAHİBİ · RAKİPKayıtlı Rakip SK4-4-2 · Dikine oyunEA",
+          "notice": "Fikstür rakibinin kayıtlı kadrosuyla yerel maç; günlük lig sonucu değişmez.",
+          "title": "5 DAKİKALIK DENEME · FİKSTÜR KADROSU"
+        },
+        "scripts": [
+          "/ui-shell.js",
+          "/humanoid-rig.js",
+          "/assets/player/player-model-data.js",
+          "/player-renderer.js",
+          "/scene3d.js",
+          "/tactics.js",
+          "/player-model-profiles.js",
+          "/player-model.js",
+          "/player-perception.js",
+          "/team-intent.js",
+          "/football-sim.js",
+          "/attack-diagnostics.js",
+          "/attack-analysis-ui.js",
+          "/club-data.js",
+          "/transfer-client.js",
+          "/match-config.js",
+          "/match3d.js"
+        ],
+        "webgl": false,
+        "checks": {
+          "allProfilesMatchCommonContract": true,
+          "modulesBeforeEngine": true,
+          "bothRostersMaterialized": true
+        }
+      },
+      "substitution": {
+        "result": {
+          "ok": true
+        },
+        "id": 16,
+        "expectedId": 16,
+        "skill": 51,
+        "expectedSkill": 51,
+        "foot": 1,
+        "expectedFoot": 1,
+        "attrsAgree": true,
+        "benchContainsUsed": false,
+        "fit": 0.66
+      },
+      "paused": {
+        "sameIdentity": true,
+        "sameTime": true,
+        "paused": true
+      },
+      "demoMatch": {
+        "opponentSource": "demo",
+        "ui": {
+          "own": "TMEV SAHİBİ · SENİN TAKIMINMoreirense SK4-3-3 · Pas bağlantıları",
+          "away": "DEPLASMAN · RAKİPDeneme Rakibi4-2-3-1 · Hızlı geçişEA",
+          "notice": "Deneme rakibiyle yerel maç.",
+          "title": "5 DAKİKALIK DENEME · DENEME KADROSU"
+        },
+        "checks": {
+          "allProfilesMatchCommonContract": true,
+          "modulesBeforeEngine": true,
+          "bothRostersMaterialized": true
+        }
+      },
+      "changedLeagueDirectEntry": {
+        "fixture": {
+          "league": "BROWSER-NEXT",
+          "round": 3,
+          "home": 0,
+          "away": 1,
+          "kickoff": 1800000300,
+          "isHome": true,
+          "state": "scheduled",
+          "snapshotAt": 1800000000
+        },
+        "ui": {
+          "own": "TMEV SAHİBİ · SENİN TAKIMINYeni Lig Takımı4-3-3 · Pas bağlantıları",
+          "away": "DEPLASMAN · RAKİPYeni Lig Rakibi4-4-2 · Dikine oyunEA",
+          "notice": "Fikstür rakibinin kayıtlı kadrosuyla yerel maç; günlük lig sonucu değişmez.",
+          "title": "5 DAKİKALIK DENEME · FİKSTÜR KADROSU"
+        },
+        "replacedOpponentNames": true
+      },
+      "endpointFixtureRequests": [
+        {
+          "url": "http://127.0.0.1:35307/api/league/local-match",
+          "authorization": "Bearer browser-fixture-token"
+        },
+        {
+          "url": "http://127.0.0.1:35307/api/league/local-match",
+          "authorization": "Bearer browser-fixture-token-next"
+        }
+      ],
+      "squadMobile": {
+        "viewport": 390,
+        "width": 390
+      },
+      "matchMobile": {
+        "viewport": 390,
+        "width": 390
+      },
+      "scriptErrors": [],
+      "missingResources": [
+        "/assets/face0.png",
+        "/assets/face1.png",
+        "/assets/face10.png",
+        "/assets/face2.png",
+        "/assets/face3.png",
+        "/assets/face4.png",
+        "/assets/face5.png",
+        "/assets/face6.png",
+        "/assets/face7.png",
+        "/assets/face8.png",
+        "/assets/face9.png",
+        "/assets/player/player-model-data.js",
+        "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+        "/assets/ui/fonts/manrope-variable.ttf",
+        "/assets/ui/stadium-night.png",
+        "/assets/ui/stadium-silhouette.svg"
+      ],
+      "assertedChecks": {
+        "sharedQualityOnEveryCard": true,
+        "averageMatchesCards": true,
+        "identityDoesNotDependOnIds": true,
+        "formConditionAndGenericRoleHaveEffects": true,
+        "normalManagerLaunchFetchesOfficialFixtureOnce": true,
+        "authenticatedFixtureRequest": true,
+        "bothStartingRostersAndFootPreferencesPreserved": true,
+        "bothTeamsUseEffectiveProfiles": true,
+        "awayVenueAndFormationLabels": true,
+        "normalTacticsLaunchDisclosesDemo": true,
+        "directEntryAfterLeagueSwitchReplacesPreparedOpponent": true,
+        "substitutionUsesSameContractAndCannotReturnUsedBench": true,
+        "pausedIdentityAndClockStable": true,
+        "expectedRenderer": true,
+        "mobileSquadAndMatchHaveNoHorizontalOverflow": true,
+        "noScriptErrors": true
+      }
+    }
+  ],
+  "verified": true
+}

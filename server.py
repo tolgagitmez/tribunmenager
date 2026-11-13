@@ -174,6 +174,59 @@ def status(token, now=None):
             'teams':[{'slot':t['slot'],'name':t['name'],'manager':t['manager'],'claimed':bool(t['token'])} for t in teams],
             'recent':[{**f,'home_name':TEAMS[f['home']],'away_name':TEAMS[f['away']]} for f in fix if f['home_score'] is not None][-12:]}
 
+# This projection is deliberately separate from the transfer-account view. A
+# local opponent needs football data, never the other manager's wallet, offers,
+# scouting results, account identifiers or authentication material.
+FOOTBALL_FIELDS = ('id','uid','name','number','face','pos','subposition','positions','archetype',
+    'rating','fitness','form','preferredFoot','weakFoot','passing','shooting',
+    'tackling','dribbling','pace','agility','heading','crossing','strength','vision',
+    'composure','acceleration','balance','endurance','anticipation','decisions',
+    'workRate','goalkeeping','reactions','handling','keeperHandling','reflexes','dataKind',
+    'providerId','updatedAt')
+
+def football_team_snapshot(c, team):
+    result={'slot':team['slot'],'name':team['name'],'formation':team['formation'],
+            'tactics':json.loads(team['tactics']),'source':'missing-roster',
+            'players':[],'starters':[],'revision':None}
+    exists=c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='transfer_league_links'").fetchone()
+    if not exists:return result
+    row=c.execute('''SELECT p.state FROM transfer_league_links l
+        JOIN transfer_profiles p ON p.id=l.profile WHERE l.league=? AND l.slot=?''',
+        (team['league'],team['slot'])).fetchone()
+    if not row:return result
+    state=json.loads(row['state'])
+    players=[{key:p[key] for key in FOOTBALL_FIELDS if key in p}
+             for p in state.get('players',[]) if isinstance(p,dict) and p.get('owned',True)]
+    ids={p.get('id') for p in players if type(p.get('id')) is int}
+    starters=state.get('starters',[])
+    if not isinstance(starters,list) or len(starters)!=11 or any(type(i) is not int or i not in ids for i in starters) or len(set(starters))!=11:
+        result['source']='invalid-roster'
+        return result
+    result.update(source='linked-roster',players=players,starters=starters[:],revision=state.get('revision'))
+    return result
+
+def local_match(token, now=None):
+    """Read a single football-only fixture snapshot; local play never settles it."""
+    now=time.time() if now is None else now
+    with db() as c:
+        c.execute('BEGIN')
+        person=identified(c,token)
+        fixtures=c.execute('''SELECT * FROM fixtures WHERE league=? AND (home=? OR away=?)
+            ORDER BY round''',(person['league'],person['slot'],person['slot'])).fetchall()
+        # Prefer the active or next fixture. A completed season uses its last
+        # fixture as a labelled preview, rather than inventing another opponent.
+        fixture=next((f for f in fixtures if now<f['kickoff']+300 and f['home_score'] is None),None)
+        fixture=fixture or (fixtures[-1] if fixtures else None)
+        if fixture is None:raise ValueError('Kulübün için fikstür bulunamadı.')
+        enemy_slot=fixture['away'] if fixture['home']==person['slot'] else fixture['home']
+        enemy=c.execute('SELECT * FROM teams WHERE league=? AND slot=?',(person['league'],enemy_slot)).fetchone()
+        if enemy is None:raise ValueError('Fikstürün rakip kulübü bulunamadı.')
+        phase='completed' if fixture['home_score'] is not None else 'live' if fixture['kickoff']<=now<fixture['kickoff']+300 else 'scheduled'
+        return {'version':1,'snapshotAt':now,
+            'fixture':{key:fixture[key] for key in ('league','round','home','away','kickoff')} |
+                {'isHome':fixture['home']==person['slot'],'state':phase},
+            'ownTeam':football_team_snapshot(c,person),'opponent':football_team_snapshot(c,enemy)}
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs):super().__init__(*args,directory=str(ROOT),**kwargs)
     def json_response(self, data, code=200):
@@ -187,6 +240,9 @@ class Handler(SimpleHTTPRequestHandler):
         if p.path=='/api/health':return self.json_response({'ok':True,'mode':'development','daily_match_seconds':300})
         if p.path=='/api/league/status':
             try:return self.json_response(status(parse_qs(p.query).get('token',[''])[0]))
+            except ValueError as e:return self.json_response({'error':str(e)},403)
+        if p.path=='/api/league/local-match':
+            try:return self.json_response(local_match(self.transfer_token()))
             except ValueError as e:return self.json_response({'error':str(e)},403)
         if p.path.startswith('/api/'):return self.json_response({'error':'API yolu bulunamadı.'},404)
         # Development data and server code must never be downloadable as assets.

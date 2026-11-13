@@ -1,3 +1,17 @@
+# On birinci aşama — ortak oyuncu ve maç başlangıç sözleşmesi
+
+`player-model.js`, tarayıcı/CommonJS üzerinde ham kadro kaydını etkin maç değerlerine çevirir. `club-data.js` mevki uyumunu ve `manager.js` maç gücünü bu modülden alır. `Match.reset` iki takımın kayıtlarını aynı `forSlot` yolundan geçirir; `substitute` aynı slot hesabını yeniden kullanır. Ham kadro nesnelerine maç yorgunluğu veya etkin puan yazılmaz. Genel kalite göstergesi eski kadro formülünü korur; alt özelliklerin davranışa etkisi ayrı ve açıktır.
+
+`player-model-profiles.json` sekiz kurmaca varsayılan profilin ortak kaynağıdır. Python antrenmanı bu JSON'u okur; tarayıcıdaki `player-model-profiles.js` kopyasının JSON ile birebir eşliği test edilir. Sunucunun `player_match_quality` hesabı JS kalite sözleşmesine karşı sınanır. Katalog doğrulaması verilen ayak, rol ve sayısal özellikleri korur; eksik teknik/fiziksel gözlemleri genel puandan türetip kaynak verisi gibi saklamaz. Maç normalleştirmesi eksikleri `inferredAttributes` ve ayak kaynağıyla gösterir.
+
+`match-config.js`, kadro, taktik ve doğrudan maç girişinin ortak hazırlık sınırıdır. Kendi transfer oturumu varsa önce güncel kadro alınır; aynı profil/sürümde kullanıcının seçtiği ilk 11 korunur, yeni kabul edilmiş sürüm geç kalan eski yanıta yenilmez. Ardından `GET /api/league/local-match`, Bearer lig kimliğiyle fikstür ve futbol alanlarıyla sınırlı rakip görüntüsü verir. Sunucu tek okuma işlemi içinde takımın diziliş/taktiğini ve bağlı transfer kadrosunu okur; cüzdan, teklifler, keşif ve erişim anahtarları bu izdüşüme girmez. Yanıt resmî sonucu hesaplamaz veya kaydetmez.
+
+Hazırlanmış iki kadro `sessionStorage` üzerinden `match.html` sayfasına taşınır; depolama yoksa hash yedeği kullanılır. Maç sayfası aynı lig/transfer oturumu bağlamındaki tamamlanmış başlangıcı tekrar eşitlemez. Lig kimliği veya transfer profili değişirse eski başlangıç yeniden hazırlanır; yapılandırmaya yalnız opak bağlam kimliği girer, erişim anahtarı URL'ye taşınmaz. Kullanıcı her zaman motorun takım 0'ıdır; fikstürde deplasmandaysa `fixture.isHome` etiketleri gerçek ev/deplasman bilgisini korur. Kayıtlı rakip yoksa deneme kaynağı ve açıklaması görünürdür. Bu, bütün bilgisayar kulüpleri için gerçek oyuncu verisi sağlandığı anlamına gelmez.
+
+Ayrıntılı formül, özellik grupları ve açık kapsam [docs/PLAYER_MODEL.md](docs/PLAYER_MODEL.md) içindedir. Önceki aşamaların kaynak ve ölçümleri aşağıda tarihsel olarak korunur.
+
+---
+
 # Onuncu aşama — pasif hücum tanılaması
 
 `attack-diagnostics.js`, CommonJS/tarayıcı modülü olarak gerçek maç çağrılarını gözler. `attach(match)` asıl yöntemleri aynı `this`, argümanlar, dönüş değeri ve hata davranışıyla iletir. Kalıtılan yöntemlerin gözlem kancaları `non-enumerable` olur; hazırlık önizlemelerinin `Object.assign` kopyalarına taşınmaz. Önceden bir own-method override varsa descriptor özellikleri korunur; başka bir `this` ile çalışan kopya yalnız asıl yöntemi çağırır ve olayı kaydetmez. `detach()` önceki own-property descriptor'larını ve kalıtım görünürlüğünü birebir geri yükler. Gözlemci ek karar, plan, pas seçeneği, kaleci tahmini veya RNG sorgusu çalıştırmaz.
