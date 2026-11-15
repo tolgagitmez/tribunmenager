@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const Assets = require('../assets/player/player-model-data.js');
+const {bakeClip,CLIPS}=require('./character-animation-baker.cjs');
 
 const PARENT = Object.freeze({
  pelvis:null, spine:'pelvis',chest:'spine',neck:'chest',head:'neck',
@@ -32,7 +33,7 @@ function utf8(text){
  return new Uint8Array(bytes);
 }
 function bytesOf(typed){return new Uint8Array(typed.buffer,typed.byteOffset,typed.byteLength);}
-function buildGLB({lod=0,assets=Assets}={}){
+function buildGLB({lod=0,assets=Assets,animations=false,fps=30,clips=CLIPS}={}){
  if(!Number.isInteger(lod)||lod<0||lod>=assets.lods.length)throw Error('LOD 0, 1 or 2 required');
  if(assets.bones.length!==19)throw Error('Expected nineteen mapped bones');
  const raw=assets.lods[lod],vbytes=Buffer.from(raw.vertices,'base64'),ibytes=Buffer.from(raw.indices,'base64');
@@ -128,6 +129,24 @@ function buildGLB({lod=0,assets=Assets}={}){
  }
  const ibmAccessor=accessor(ibm,'MAT4',5126,null);
  gltf.skins.push({name:'Tribun Humanoid 19',joints:assets.bones.map((_,i)=>i+1),skeleton:1,inverseBindMatrices:ibmAccessor});
+ if(animations){
+  if(!Array.isArray(clips)||clips.length===0)throw Error('Animation clip list cannot be empty');
+  gltf.animations=[];
+  for(const clip of clips){
+   const baked=bakeClip({...clip,assets,parents:PARENT,fps});
+   const timeline=accessor(baked.times,'SCALAR',5126,null,{min:[0],max:[baked.duration]});
+   const animation={name:baked.name,samplers:[],channels:[],extras:{fps:baked.fps,duration:baked.duration}};
+   if(baked.contactTime!==null)animation.extras.contactTime=baked.contactTime;
+   for(let i=0;i<assets.bones.length;i++){
+    for(const path of ['translation','rotation']){
+     const output=accessor(baked.channels[i][path],path==='translation'?'VEC3':'VEC4',5126,null);
+     animation.samplers.push({input:timeline,output,interpolation:'LINEAR'});
+     animation.channels.push({sampler:animation.samplers.length-1,target:{node:i+1,path}});
+    }
+   }
+   gltf.animations.push(animation);
+  }
+ }
  const bin=new Uint8Array(align4(binaryLength));
  for(const {offset,bytes} of blobs)bin.set(bytes,offset);
  gltf.buffers[0].byteLength=bin.length;
@@ -139,12 +158,13 @@ function buildGLB({lod=0,assets=Assets}={}){
  glb.set(jsonBytes,20);glb.fill(32,20+jsonBytes.length,20+jsonPadded);
  const second=20+jsonPadded;dv.setUint32(second,binPadded,true);dv.setUint32(second+4,0x004e4942,true);
  glb.set(bin,second+8);
- return {glb,json:gltf,stats:{lod,vertices:raw.vertexCount,triangles:raw.indexCount/3,primitives:gltf.meshes[0].primitives.length,bytes:glb.length,bones:19}};
+ return {glb,json:gltf,stats:{lod,vertices:raw.vertexCount,triangles:raw.indexCount/3,primitives:gltf.meshes[0].primitives.length,bytes:glb.length,bones:19,clips:gltf.animations?.length||0}};
 }
 if(require.main===module){
  const args=process.argv.slice(2),get=(key,fallback)=>{const p=args.indexOf(key);return p<0?fallback:args[p+1];};
  const lod=Number(get('--lod','0')),output=path.resolve(get('--output','assets/player/tribun-base-footballer.glb'));
- const result=buildGLB({lod});fs.mkdirSync(path.dirname(output),{recursive:true});
+ const animations=args.includes('--animations'),fps=Number(get('--fps','30'));
+ const result=buildGLB({lod,animations,fps});fs.mkdirSync(path.dirname(output),{recursive:true});
  fs.writeFileSync(output,Buffer.from(result.glb));
  console.log(JSON.stringify({output,...result.stats},null,2));
 }
