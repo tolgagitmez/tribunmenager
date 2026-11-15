@@ -103,7 +103,7 @@ class PlayerRenderer{
   const uint32=assets.lods.some(a=>a.indexType==='I')?gl.getExtension('OES_element_index_uint'):true;
   this.lods=assets.lods.map(a=>{if(a.indexType==='I'&&!uint32)return null;const vertices=new Float32Array(decode(a.vertices)),indices=a.indexType==='H'?new Uint16Array(decode(a.indices)):new Uint32Array(decode(a.indices));const vertex=gl.createBuffer(),index=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vertex);gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,indices,gl.STATIC_DRAW);return {vertex,index,count:indices.length,type:a.indexType==='H'?gl.UNSIGNED_SHORT:gl.UNSIGNED_INT};});
  }
- draw(players,vp,eye,camera='tv'){
+ draw(players,vp,eye,camera='tv',dt=1/60,matchBridge=null){
   const gl=this.gl;gl.useProgram(this.program);
   gl.uniform3fv(this.loc['uJointRest[0]'],this.jointCenters);
   gl.uniform3fv(this.loc['uShoulderRest[0]'],this.shoulderCenters);
@@ -120,7 +120,9 @@ class PlayerRenderer{
    gl.uniform2fv(this.loc.uShoulderFlex,new Float32Array([lift(pose.arms[0]),lift(pose.arms[1])]));
    const hipLift=l=>clamp((l.knee[1]-l.hip[1]+.45)/.38,0,1);
    gl.uniform2fv(this.loc.uHipFlex,new Float32Array([hipLift(pose.legs[0]),hipLift(pose.legs[1])]));
-   gl.uniformMatrix4fv(this.loc['uBones[0]'],false,(v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose)));
+   const rawPalette=v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose);
+   const skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;
+   gl.uniformMatrix4fv(this.loc['uBones[0]'],false,skinPalette);
    gl.bindBuffer(gl.ARRAY_BUFFER,lod.vertex);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lod.index);for(const a of this.attributes){if(a.location<0)continue;gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,80,a.off*4);}gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);for(const a of this.attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);
   }
  }
