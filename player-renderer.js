@@ -7,13 +7,14 @@ const decode=s=>{const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.leng
 const VS=`precision highp float;
 attribute vec3 aPosition;attribute vec3 aNormal;attribute vec2 aUV;attribute vec4 aJoints;attribute vec4 aWeights;attribute float aMaterial;attribute vec3 aColor;
 uniform mat4 uVP;uniform mat4 uBones[19];uniform vec3 uVariant;uniform float uGoalie;
-varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying float vMaterial;varying float vHand;
+varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying vec2 vUV;varying float vMaterial;varying float vHand;
 void main(){vec3 p=aPosition;float head=smoothstep(1.59,1.68,p.y);p.z*=mix(1.,uVariant.x,head);p.x+=head*max(0.,p.x-.035)*uVariant.y;
 vec4 hands=1.-step(vec4(.1),min(abs(aJoints-vec4(8.)),abs(aJoints-vec4(15.))));vHand=dot(aWeights,hands);if(aMaterial<.5){p.z+=sign(p.z)*.005*uGoalie*vHand;p.x+=.003*uGoalie*vHand;}
 mat4 skin=aWeights.x*uBones[int(aJoints.x)]+aWeights.y*uBones[int(aJoints.y)]+aWeights.z*uBones[int(aJoints.z)]+aWeights.w*uBones[int(aJoints.w)];
-vec4 w=skin*vec4(p,1.);vWorld=w.xyz;vNormal=normalize(mat3(skin)*aNormal);vBind=p;vMaterial=aMaterial;vColor=aColor;gl_Position=uVP*w;}`;
+vec4 w=skin*vec4(p,1.);vWorld=w.xyz;vNormal=normalize(mat3(skin)*aNormal);vBind=p;vUV=aUV;vMaterial=aMaterial;vColor=aColor;gl_Position=uVP*w;}`;
 const FS=`precision highp float;
-varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying float vMaterial;varying float vHand;
+varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying vec2 vUV;varying float vMaterial;varying float vHand;
+uniform sampler2D uSkinTexture;uniform sampler2D uFabricTexture;
 uniform vec3 uEye;uniform vec3 uSkin;uniform vec3 uShirt;uniform vec3 uShorts;uniform vec3 uHair;uniform vec3 uBoots;uniform vec3 uIris;uniform float uNumber;uniform float uBeard;uniform float uStudio;uniform float uGoalie;
 const float PI=3.14159265359;
 float hash(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}
@@ -26,14 +27,16 @@ vec3 lightPBR(vec3 N,vec3 V,vec3 L,vec3 radiance,vec3 base,float rough,float wra
 vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
 void main(){float id=floor(vMaterial+.5),rough=.72,wrap=0.,f0=.035;vec3 base=vec3(.5),N=normalize(vNormal),V=normalize(uEye-vWorld),p=vBind;
 if(id<.5){base=pow(uSkin,vec3(2.2))*vColor;rough=.60;wrap=.10;f0=.025;
+ base*=texture2D(uSkinTexture,vUV*4.).rgb;
  float beard=(1.-smoothstep(1.68,1.735,p.y))*smoothstep(1.625,1.65,p.y)*smoothstep(.10,.135,p.x);float stubble=hash(floor(p*1700.));base=mix(base,pow(uHair,vec3(2.2))*.8,beard*uBeard*(.14+.14*stubble));
  float pore=hash(floor(p*1400.))-.5;base*=1.+pore*.035;rough+=pore*.045;
 }else if(id<1.5){base=pow(uShirt,vec3(2.2));rough=.84;base*=.97+.025*sin(p.z*180.);
+ base*=texture2D(uFabricTexture,vUV*10.).rgb;
  if(p.x>.075&&p.y>1.15&&p.y<1.52){float piping=smoothstep(.155,.158,abs(p.z))*(1.-smoothstep(.163,.167,abs(p.z)));base=mix(base,vec3(.78),piping*.85);
  vec2 q=vec2((p.z+.085)/.021,(p.y-1.41)/.028);float crest=step(abs(q.x)+abs(q.y)*.6,.95);base=mix(base,vec3(.72,.58,.24),crest*.9);}
  if(p.x<-.065&&p.y>1.17&&p.y<1.45&&abs(p.z)<.115){float num=0.;vec2 q=vec2(-p.z/.085,(p.y-1.31)/.12);if(uNumber<9.5)num=digit(uNumber,q);else{q.x*=1.7;num=max(digit(floor(uNumber/10.),q+vec2(.47,0.)),digit(mod(uNumber,10.),q-vec2(.47,0.)));}base=mix(base,vec3(.85),num);}
  base*=1.+sin(p.y*1800.)*sin(p.z*1800.)*.018;
-}else if(id<2.5){base=pow(uShorts,vec3(2.2));rough=.86;float seam=smoothstep(.135,.139,abs(p.z))*(1.-smoothstep(.145,.148,abs(p.z)));base=mix(base,pow(uShirt,vec3(2.2)),seam*.7);
+}else if(id<2.5){base=pow(uShorts,vec3(2.2))*texture2D(uFabricTexture,vUV*10.).rgb;rough=.86;float seam=smoothstep(.135,.139,abs(p.z))*(1.-smoothstep(.145,.148,abs(p.z)));base=mix(base,pow(uShirt,vec3(2.2)),seam*.7);
 }else if(id<3.5){base=pow(uShirt,vec3(2.2))*.88;rough=.86;if(p.y>.390)base=vec3(.8);base*=.96+.04*sin(p.y*1900.);
 }else if(id<4.5){base=pow(uBoots,vec3(2.2));rough=.42;
 }else if(id<5.5){base=pow(uHair,vec3(2.2));rough=.85;f0=.018;float strand=.91+.09*sin(p.z*2100.+sin(p.x*115.)*2.);base*=strand;
@@ -64,17 +67,37 @@ function palette(p,assets,pose){
 }
 class PlayerRenderer{
  constructor(gl,assets=root.TribunPlayerAssets){
-  if(!assets)throw Error('Oyuncu modeli yüklenmedi');this.gl=gl;this.assets=assets;this.studio=false;
+  if(!assets)throw Error('Oyuncu modeli yüklenmedi');
+  this.validation=root.TribunPlayerAssetStatus?.validate(assets);if(this.validation&&!this.validation.ok){const error=Error(this.validation.errors.map(e=>e.code+' '+e.path+': '+e.message).join('; '));error.validation=this.validation;throw error;}
+  this.gl=gl;this.assets=assets;this.studio=false;
   const shader=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;};
   const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,VS));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));this.program=program;
-  this.loc={};for(const n of ['uVP','uBones[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie'])this.loc[n]=gl.getUniformLocation(program,n);
+  this.loc={};for(const n of ['uVP','uBones[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uSkinTexture','uFabricTexture'])this.loc[n]=gl.getUniformLocation(program,n);
   this.attributes=[['aPosition',3,0],['aNormal',3,3],['aUV',2,6],['aJoints',4,8],['aWeights',4,12],['aMaterial',1,16],['aColor',3,17]].map(([n,size,off])=>({location:gl.getAttribLocation(program,n),size,off}));
   const uint32=assets.lods.some(a=>a.indexType==='I')?gl.getExtension('OES_element_index_uint'):true;
   this.lods=assets.lods.map(a=>{if(a.indexType==='I'&&!uint32)return null;const vertices=new Float32Array(decode(a.vertices)),indices=a.indexType==='H'?new Uint16Array(decode(a.indices)):new Uint32Array(decode(a.indices));const vertex=gl.createBuffer(),index=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vertex);gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,indices,gl.STATIC_DRAW);return {vertex,index,count:indices.length,type:a.indexType==='H'?gl.UNSIGNED_SHORT:gl.UNSIGNED_INT};});
+  if(!this.lods.some(Boolean))throw Error('Bu tarayıcı modelin üçgen indis türünü desteklemiyor.');
+  this.textures={};this.textureState={state:'loading',loaded:[],error:null};
+  for(const name of ['skin','fabric'])if(typeof assets.textures?.[name]!=='string'||!assets.textures[name])throw Error('Doku dosyası kaydı eksik: '+name);
+  const jobs=['skin','fabric'].map((name,unit)=>{
+   const file=assets.textures?.[name];if(typeof file!=='string'||!file)throw Error('Doku dosyası kaydı eksik: '+name);
+   const texture=gl.createTexture();this.textures[name]=texture;gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([255,255,255,255]));gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+   return new Promise((resolve,reject)=>{const img=new root.Image();let settled=false;
+    const finish=error=>{if(settled)return;settled=true;root.clearTimeout(timer);if(error)reject(error);else resolve();};
+    const timer=root.setTimeout(()=>finish(Error('Doku yükleme zaman aşımı: '+file)),12000);
+    img.onload=()=>{try{if(!img.naturalWidth||!img.naturalHeight)throw Error('Doku görüntüsü boş: '+file);if(Math.max(img.naturalWidth,img.naturalHeight)>gl.getParameter(gl.MAX_TEXTURE_SIZE))throw Error('Doku boyutu grafik sınırını aşıyor: '+file);
+     gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+     const pot=n=>(n&(n-1))===0;if(pot(img.naturalWidth)&&pot(img.naturalHeight)){gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);}else{gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);}
+     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);this.textureState.loaded.push(file);finish();
+    }catch(error){finish(error);}};img.onerror=()=>finish(Error('Doku dosyası açılamadı: '+file));img.src=file;
+   });
+  });
+  this.ready=Promise.all(jobs).then(()=>{this.textureState.state='ready';return this;}).catch(error=>{this.textureState.state='error';this.textureState.error=error.message;throw error;});
  }
  draw(players,vp,eye,camera='tv'){
   const gl=this.gl;gl.useProgram(this.program);gl.uniformMatrix4fv(this.loc.uVP,false,new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
-  for(const p of players){if(!p.active)continue;const d=Math.hypot(p.x-eye[0],p.z-eye[2]),lod=this.lods[camera==='portrait'?0:camera==='close'&&d<22?1:2]||this.lods[1]||this.lods[2],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.textures.skin);gl.uniform1i(this.loc.uSkinTexture,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.textures.fabric);gl.uniform1i(this.loc.uFabricTexture,1);
+  for(const p of players){if(!p.active)continue;const d=Math.hypot(p.x-eye[0],p.z-eye[2]),lod=this.lods[camera==='portrait'?0:camera==='close'&&d<22?1:2]||this.lods[1]||this.lods[2]||this.lods[0],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
    const shirt=v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts=v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]);
    const set=(name,value)=>gl.uniform3fv(this.loc[name],value);set('uSkin',v.skin||p.skin||[.69,.48,.34]);set('uShirt',shirt);set('uShorts',shorts);set('uHair',v.hair||p.hair||[.10,.065,.043]);set('uBoots',v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3]);set('uIris',v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3]);set('uVariant',v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0]);
    gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));const pose=root.TribunHumanoidRig.getPose(p);gl.uniformMatrix4fv(this.loc['uBones[0]'],false,(v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose)));

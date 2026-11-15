@@ -1,0 +1,3 @@
+# Optional: offline player asset rebuild and its Python tests; not required to play.
+numpy==2.3.5
+Pillow==13.0.0

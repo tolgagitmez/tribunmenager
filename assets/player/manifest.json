@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "modelId": "tribun-makehuman-footballer-v1",
+  "version": 1,
+  "license": "CC0-1.0",
+  "sourceCommit": "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
+  "rigReferenceSHA256": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+  "runtime": "assets/player/player-model-data.js",
+  "standardModel": "assets/player/footballer.glb",
+  "textures": {
+    "skin": "assets/player/textures/skin-detail.png",
+    "fabric": "assets/player/textures/fabric-detail.png"
+  },
+  "bones": 19,
+  "lods": 1,
+  "vertices": 15544,
+  "triangles": 27350,
+  "statistics": {
+    "sourceVisibleVertices": 13380,
+    "sourceVisibleQuads": 13378,
+    "sourceScale": 0.11285258930661686,
+    "sourceGroundY": -8.1676,
+    "materials": {
+      "skin": 18178,
+      "shirt": 3642,
+      "shorts": 2190,
+      "socks": 1074,
+      "boots": 736,
+      "hair": 522,
+      "eye-white": 336,
+      "iris": 240,
+      "pupil": 240,
+      "brows": 192
+    }
+  },
+  "files": [
+    {
+      "path": "assets/player/CREDITS.md",
+      "bytes": 2243,
+      "sha256": "a843ea811ea3655d15b16fe3540425d93062d48c5da2fac4ce6bca21d35351bd"
+    },
+    {
+      "path": "assets/player/LICENSE-CC0.txt",
+      "bytes": 6962,
+      "sha256": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c"
+    },
+    {
+      "path": "assets/player/SOURCE-LICENSE.md",
+      "bytes": 3598,
+      "sha256": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1"
+    },
+    {
+      "path": "assets/player/footballer.glb",
+      "bytes": 1307328,
+      "sha256": "9a73a3afa376b189a2760729a881b2ee2de62916bc916063e035b4cad5546345"
+    },
+    {
+      "path": "assets/player/player-model-data.js",
+      "bytes": 1888529,
+      "sha256": "272f3c2e4ec8be6219377ddbbd1cf954dd89b3dcbfbb5879c5513908bd220fe2"
+    },
+    {
+      "path": "assets/player/skeleton.json",
+      "bytes": 18378,
+      "sha256": "8ce81c34eea49808c5544c71120494495d3cbd40d0391cf09f76e37d4890fa19"
+    },
+    {
+      "path": "assets/player/source/makehuman-base.obj.gz",
+      "bytes": 533926,
+      "sha256": "abe544ec8046b07ffe3a31bb0ee88203d773cb1febb8ce58e89c0efc6b1d783c"
+    },
+    {
+      "path": "assets/player/source/makehuman-default.mhskel.gz",
+      "bytes": 9546,
+      "sha256": "a09fb1d526aec0384b636fbf5faff36ad3decdb712ccf781d147f5139d01337a"
+    },
+    {
+      "path": "assets/player/source/makehuman-default_weights.mhw.gz",
+      "bytes": 238468,
+      "sha256": "6fcf3332b28d225ae75d5754bc3f7fa5e1d0a098dc389785baafa89323578a80"
+    },
+    {
+      "path": "assets/player/source/provenance.json",
+      "bytes": 2820,
+      "sha256": "c13b9b8c834e9397c91e18a6ea3fd2ed0e72dcbce4ce5f168f2ec54c683eaf22"
+    },
+    {
+      "path": "assets/player/textures/fabric-detail.png",
+      "bytes": 31554,
+      "sha256": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24"
+    },
+    {
+      "path": "assets/player/textures/skin-detail.png",
+      "bytes": 41870,
+      "sha256": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae"
+    }
+  ]
+}

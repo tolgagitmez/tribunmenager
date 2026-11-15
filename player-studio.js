@@ -2,8 +2,11 @@
 (()=>{
 const $=id=>document.getElementById(id),canvas=$('playerCanvas'),gl=canvas.getContext('webgl',{antialias:true,alpha:true});
 function error(text){$('errorMessage').hidden=false;$('errorMessage').textContent=text;}
-if(!gl){error('3D görünüm açılamadı. Tarayıcının grafik hızlandırmasını etkinleştirip sayfayı yeniden aç.');return;}
-let renderer;try{renderer=new window.TribunPlayerRenderer(gl);renderer.studio=true;}catch(e){error('Oyuncu modeli açılamadı. ZIP dosyasını tamamen çıkartıp player-studio.html dosyasını yeniden aç. '+e.message);return;}
+const Status=window.TribunPlayerAssetStatus,assets=window.TribunPlayerAssets;let assetStatus,assetReady=false;
+function showStatus(options){assetStatus=Status.inspect({assets,webgl:!!gl,...options});Status.mount(document.querySelector('[data-player-asset-diagnostics]'),assetStatus);}
+if(!gl){showStatus({});error(assetStatus.message);return;}
+let renderer;try{renderer=new window.TribunPlayerRenderer(gl);renderer.studio=true;showStatus({validation:renderer.validation,loading:true});}catch(e){showStatus({validation:e.validation,rendererError:e});error(assetStatus.message);return;}
+renderer.ready.then(()=>{assetReady=true;showStatus({renderer,validation:renderer.validation});}).catch(e=>{showStatus({rendererError:e,validation:renderer.validation});error(assetStatus.message);});
 const Rig=window.TribunHumanoidRig,Scenarios=window.TribunAnimationScenarios,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const skins=[[.82,.67,.56],[.69,.48,.34],[.51,.33,.24],[.31,.20,.15]],hairs=[[.065,.042,.027],[.26,.14,.075],[.49,.36,.19],[.53,.27,.12]],identities=[{name:'Atlas',skin:1,hair:0,number:9,variant:[1,0,0],beard:.15},{name:'Deniz',skin:0,hair:1,number:7,variant:[.94,-.05,0],beard:0},{name:'Milan',skin:2,hair:2,number:10,variant:[1.045,.03,0],beard:.75},{name:'Kofi',skin:3,hair:0,number:14,variant:[1.06,-.035,0],beard:.1}];
 let identity=0,skin=1,hair=0,kit='home',view='full',angle=.65,pitch=.10,zoom=1,rotating=false,mode='idle',paused=false,time=0,accumulator=0,state=Scenarios.create('run');
@@ -37,8 +40,8 @@ function frame(now){const dt=Math.min(.1,Math.max(0,(now-last)/1000));last=now;
  const p=state.p,face=view==='face',pose=Rig.getPose(p),target=face&&mode!=='idle'?[pose.head[0],pose.head[1]-.025,pose.head[2]]:[p.x,face?1.74:1.04,p.z];let frameScale=1;
  if(mode==='dive-left'&&!face){const pts=[pose.head,pose.pelvis,...pose.arms.flatMap(a=>[a.shoulder,a.elbow,a.wrist]),...pose.legs.flatMap(l=>[l.knee,l.ankle,l.toe])],lo=[0,1,2].map(i=>Math.min(...pts.map(p=>p[i]))),hi=[0,1,2].map(i=>Math.max(...pts.map(p=>p[i])));for(let i=0;i<3;i++)target[i]=(lo[i]+hi[i])/2;frameScale=1.25;}
  const radius=(face?1.18:4.9)*zoom*frameScale,theta=angle+(p.face||0),eye=[target[0]+Math.cos(theta)*radius,target[1]+(face?.045:.45)+radius*pitch*.5,target[2]+Math.sin(theta)*radius],vp=matmul(perspective((face?24:31)*Math.PI/180,w/h),look(eye,target));
- gl.useProgram(floorProgram);gl.uniformMatrix4fv(floorLoc.uVP,false,vp);gl.uniform2fv(floorLoc.uCenter,[p.x,p.z]);const feet=Rig.getPose(p).legs;gl.uniform2fv(floorLoc.uFootA,mode==='idle'?[p.x+.02,p.z-.2]:[feet[0].ankle[0],feet[0].ankle[2]]);gl.uniform2fv(floorLoc.uFootB,mode==='idle'?[p.x+.02,p.z+.2]:[feet[1].ankle[0],feet[1].ankle[2]]);gl.bindBuffer(gl.ARRAY_BUFFER,floorBuffer);gl.enableVertexAttribArray(pos);gl.vertexAttribPointer(pos,3,gl.FLOAT,false,12,0);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.drawArrays(gl.TRIANGLES,0,6);gl.disable(gl.BLEND);gl.disableVertexAttribArray(pos);renderer.draw([p],vp,eye,'portrait');requestAnimationFrame(frame);
+ gl.useProgram(floorProgram);gl.uniformMatrix4fv(floorLoc.uVP,false,vp);gl.uniform2fv(floorLoc.uCenter,[p.x,p.z]);const feet=Rig.getPose(p).legs;gl.uniform2fv(floorLoc.uFootA,mode==='idle'?[p.x+.02,p.z-.2]:[feet[0].ankle[0],feet[0].ankle[2]]);gl.uniform2fv(floorLoc.uFootB,mode==='idle'?[p.x+.02,p.z+.2]:[feet[1].ankle[0],feet[1].ankle[2]]);gl.bindBuffer(gl.ARRAY_BUFFER,floorBuffer);gl.enableVertexAttribArray(pos);gl.vertexAttribPointer(pos,3,gl.FLOAT,false,12,0);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.drawArrays(gl.TRIANGLES,0,6);gl.disable(gl.BLEND);gl.disableVertexAttribArray(pos);if(assetReady)renderer.draw([p],vp,eye,'portrait');requestAnimationFrame(frame);
 }
 // Export only read-only inspection and stage shaders for validation tools.
-window.TribunPlayerStudio={getState:()=>({identity,skin,hair,kit,view,mode,paused}),floorVS,floorFS};requestAnimationFrame(frame);
+window.TribunPlayerStudio={getState:()=>({identity,skin,hair,kit,view,mode,paused}),getAssetStatus:()=>assetStatus,floorVS,floorFS};requestAnimationFrame(frame);
 })();

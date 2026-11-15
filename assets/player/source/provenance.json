@@ -1,0 +1,52 @@
+{
+  "repository": "https://github.com/makehumancommunity/makehuman",
+  "commit": "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
+  "retrievedAt": "2026-11-13T16:04:15.572397+00:00",
+  "assetLicense": "CC0-1.0",
+  "programLogicLicense": "AGPL-3.0-or-later",
+  "scope": "Only graphical data and its license texts are used; no MakeHuman Python/GLSL/program logic was copied.",
+  "evidence": {
+    "baseMeshHeader": "This asset was explicitly released as CC0 in september 2020.",
+    "assetPolicy": "LICENSE.md section C includes the base mesh and proxies, targets/modifiers, textures, clothes, poses and expressions under CC0 1.0 Universal.",
+    "skeletonMetadata": "CC0",
+    "weightsMetadata": "CC0"
+  },
+  "files": [
+    {
+      "local": "work/stage13/source/makehuman-base.obj",
+      "repositoryPath": "makehuman/data/3dobjs/base.obj",
+      "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/3dobjs/base.obj",
+      "bytes": 1749303,
+      "sha256": "8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c"
+    },
+    {
+      "local": "work/stage13/source/makehuman-default.mhskel",
+      "repositoryPath": "makehuman/data/rigs/default.mhskel",
+      "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/rigs/default.mhskel",
+      "bytes": 117790,
+      "sha256": "99f179bce0aa850b45d4191a1d0d234c5851f881c057439470ded3bddf729a24"
+    },
+    {
+      "local": "work/stage13/source/makehuman-default_weights.mhw",
+      "repositoryPath": "makehuman/data/rigs/default_weights.mhw",
+      "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/rigs/default_weights.mhw",
+      "bytes": 897521,
+      "sha256": "0f3641d651ae3d00ad6b4ccee43142edb109d3bd909d27d9e4139ef1beed8625"
+    },
+    {
+      "local": "work/stage13/source/makehuman-LICENSE.md",
+      "repositoryPath": "LICENSE.md",
+      "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/LICENSE.md",
+      "bytes": 3598,
+      "sha256": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1"
+    },
+    {
+      "local": "work/stage13/source/makehuman-LICENSE.ASSETS.md",
+      "repositoryPath": "LICENSE.ASSETS.md",
+      "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/LICENSE.ASSETS.md",
+      "bytes": 6962,
+      "sha256": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c"
+    }
+  ],
+  "textureStatus": "No external skin texture downloaded; any runtime texture must be documented separately as original authored work or independently sourced."
+}

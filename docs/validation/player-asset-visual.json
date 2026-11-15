@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-15T09:40:55.694967+00:00",
+  "verified": true,
+  "verificationScope": "Actual anatomical model activation and direct visual inspection of the four source-bound preview images only.",
+  "inspection": {
+    "method": "Direct assistant visual inspection of each canonical PNG using the image viewer; this is separate from automated WebGL and framebuffer checks.",
+    "reviewers": [
+      "root assistant: anatomy-v3 full, face and run candidate accepted for model-activation step; identical runtime model SHA256 to final captures",
+      "asset_browser_verify assistant: all four canonical final PNGs directly inspected"
+    ],
+    "externalHumanSignoff": false,
+    "photorealismCertified": false,
+    "animationRealismCertified": false
+  },
+  "modelId": "tribun-makehuman-footballer-v1",
+  "browserEvidence": {
+    "path": "docs/validation/player-asset-browser.json",
+    "sha256": "4b165caed6c8d207a854215528ebe3a38d8750914cb6b07e2fdac652b1b46eb2",
+    "bytes": 71548,
+    "hashedSourcesUnchangedAtVisualReportCreation": true,
+    "hashedSourceCount": 45,
+    "normalPages": 2,
+    "failureCases": 10,
+    "sameActualModelResponseInBothPages": true,
+    "matchSkinnedDrawsPerCapturedFrame": 23,
+    "studioSkinnedDrawsPerCapturedFrame": 1,
+    "renderBackend": "Chromium headless WebGL through SwiftShader; no hardware performance claim."
+  },
+  "sourceArtifacts": [
+    {
+      "path": "assets/player/player-model-data.js",
+      "sha256": "272f3c2e4ec8be6219377ddbbd1cf954dd89b3dcbfbb5879c5513908bd220fe2",
+      "bytes": 1888529
+    },
+    {
+      "path": "assets/player/footballer.glb",
+      "sha256": "9a73a3afa376b189a2760729a881b2ee2de62916bc916063e035b4cad5546345",
+      "bytes": 1307328
+    },
+    {
+      "path": "assets/player/skeleton.json",
+      "sha256": "8ce81c34eea49808c5544c71120494495d3cbd40d0391cf09f76e37d4890fa19",
+      "bytes": 18378
+    },
+    {
+      "path": "assets/player/manifest.json",
+      "sha256": "103f6153ea1f467dae1bc75cc12a6110ae0441e0f55b076b52be2814e6f4f6da",
+      "bytes": 3044
+    },
+    {
+      "path": "assets/player/textures/skin-detail.png",
+      "sha256": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae",
+      "bytes": 41870
+    },
+    {
+      "path": "assets/player/textures/fabric-detail.png",
+      "sha256": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24",
+      "bytes": 31554
+    },
+    {
+      "path": "player-renderer.js",
+      "sha256": "84591863376a8fc653665fb45b7d9e552b9be5bbffd11fe5b13620e6c6db5db7",
+      "bytes": 15729
+    },
+    {
+      "path": "humanoid-rig.js",
+      "sha256": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+      "bytes": 13327
+    },
+    {
+      "path": "scene3d.js",
+      "sha256": "2b92020dd16104350ef49953588d4d31c4558460d7973e1a2358830903ed8a40",
+      "bytes": 22810
+    },
+    {
+      "path": "player-studio.js",
+      "sha256": "a0eb71684f075ca91ded10523977c646b9cc77caf8e4a53fc628f551aca93821",
+      "bytes": 9541
+    }
+  ],
+  "images": [
+    {
+      "path": "docs/previews/model-studio-full.png",
+      "sha256": "64a8cf0dedec17ed153aa227a7ce167e2cfff8f9848a2021e5d30369cf173836",
+      "bytes": 280036,
+      "rawCapturePath": "work/stage13/model-studio-full-final.png",
+      "directlyInspected": true,
+      "observation": "Full-body preview shows the anatomical head, torso, hands and legs in the kit. Earlier elongated hands, protruding chest profile and sawtooth clothing boundaries are repaired. The idle stance remains noticeably crouched."
+    },
+    {
+      "path": "docs/previews/model-studio-face.png",
+      "sha256": "dcfe1c0638d9e10d4613e1bde54a223e0e4a388e2f3fbaf79b8da75fced0da38",
+      "bytes": 304185,
+      "rawCapturePath": "work/stage13/model-studio-face-final.png",
+      "directlyInspected": true,
+      "observation": "Close face preview shows modeled ears, nose, lips and eyes plus a continuous neck and clean collar boundary. Hair remains a simplified cap with angular edges; eyes and facial materials remain stylized."
+    },
+    {
+      "path": "docs/previews/model-studio-run.png",
+      "sha256": "c365e92bdda23c1d04e55d2fbaf552017ff2d534312387943fdf3159864032c8",
+      "bytes": 263496,
+      "rawCapturePath": "work/stage13/model-studio-run-final.png",
+      "directlyInspected": true,
+      "observation": "Run-pose preview shows the same model with different skin and kit colors and a changed articulated leg pose. A still image does not establish natural running quality; relative joint deformation and pause behavior are separately tested by the browser report."
+    },
+    {
+      "path": "docs/previews/model-match-close.png",
+      "sha256": "bdc973a463634534feb40c170424b358d6bebd32128170f0469edd23afb8a650",
+      "bytes": 49226,
+      "rawCapturePath": "work/stage13/model-match-close-final.png",
+      "directlyInspected": true,
+      "observation": "The match Yakın camera shows the anatomical footballer silhouettes in active play. The frame still covers a broad field area, so it demonstrates match usage together with the browser draw evidence rather than close facial quality."
+    }
+  ],
+  "repairedDefects": [
+    "Earlier sawtooth material boundaries at collar, sleeves, shorts and socks now have clean clipped edges; this refers to clothing-edge artifacts, not dental geometry.",
+    "Earlier chest projections are replaced by a smoother athletic torso profile.",
+    "Earlier elongated hands are reduced to a plausible human scale.",
+    "The stretched neck/body transition is continuous in the final full and close-face views."
+  ],
+  "remainingWork": [
+    "Refine the simplified cap hair, angular hairline, eye appearance and facial shading before claiming lifelike close-ups.",
+    "Replace the deeply crouched procedural idle and refine run, turn and contact motion with grounded football animation; this review does not establish motion-capture quality.",
+    "Provide a genuinely close match camera for detailed on-field face and anatomy review; the current Yakın frame remains broad.",
+    "Direct screenshot inspection confirms a recognizable anatomical model is active. It does not certify photorealism, animation realism, cloth simulation, or real-device frame rates."
+  ]
+}

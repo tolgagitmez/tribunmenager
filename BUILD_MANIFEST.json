@@ -1,13 +1,13 @@
 {
-  "version": "1.31.0",
-  "simulationStage": 12,
+  "version": "1.32.0",
+  "simulationStage": 13,
   "simulationSHA256": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd",
+  "rigSHA256": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
   "diagnosticsSHA256": "9176b438e591ad7fb411ab1b89cde25d6a4cf602288485798be3c031901c9ebb",
   "playerModelSHA256": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02",
-  "matchRulesSHA256": "8bbf5af5ac74be2a0e64154297f083686e1bbfae455da538657a1be8d0295876",
-  "refereeLawsSHA256": "e5e5d3694f9da9f65054f07030a0beb06149d33c16abf25b8a51616ffe31ab87",
-  "pitchLawsSHA256": "55b35441c614dc3b15dbaa1b0e9722082e77fa01ebba398d0c50e9a2d9ef06fa",
-  "description": "Every distributed file except this manifest. Referee/penalty/advantage decisions, period lifecycle and added time, whole-ball/frame/offside laws, competition substitutions, and a documented local/full launcher. Stage12 proofs are separate from historical stage10/11 artifacts; football balance and remaining IFAB scope stay open. Dependencies, scratch files, Git metadata, caches and local databases are excluded.",
+  "playerAssetId": "tribun-makehuman-footballer-v1",
+  "playerAssetManifestSHA256": "103f6153ea1f467dae1bc75cc12a6110ae0441e0f55b076b52be2814e6f4f6da",
+  "description": "Every distributed file except this manifest. Licensed MakeHuman CC0 anatomy, nineteen-joint skin, textures, portable GLB, retained original source evidence and deterministic offline rebuild. Match and studio use the actual indexed GPU skin; diagnostic and fallback failures are verified. Existing simulation, player data model and procedural motion rig are unchanged. One LOD, simplified appearance and procedural animation remain current limits. Dependencies, scratch files, Git metadata, caches and local databases are excluded.",
   "files": [
     {
       "path": ".gitignore",
@@ -16,18 +16,18 @@
     },
     {
       "path": "ANIMASYON_YOL_HARITASI.md",
-      "bytes": 5724,
-      "sha256": "a8b9e64b02f7d51125f92e39c305b4688320dcf61ab6fe9319300927e95ff707"
+      "bytes": 7454,
+      "sha256": "cbf4a9421bba7e5eeee1b5d9be82b601c16909928fa1407cbf208d9ee54bc1c9"
     },
     {
       "path": "ARCHITECTURE.md",
-      "bytes": 58806,
-      "sha256": "9ff1e4a6326344a00c08867fe5052bdb0a77d23474ecdb185637a4234dc41549"
+      "bytes": 60848,
+      "sha256": "64c2dd5881ebf24e2520ad31517774af6afb38972a34053e083122de2221021f"
     },
     {
       "path": "ASSET_SOURCES.md",
-      "bytes": 8694,
-      "sha256": "03d6d30369fab5c426d6902c3ce15c3365f40f3263a15e8e1b9ece46480bd2b2"
+      "bytes": 10761,
+      "sha256": "e2cb722f5fed22542af09a4c035bd0f39388ed2c82fbb0c02c3c3cfaa102ed68"
     },
     {
       "path": "BASLAT.bat",
@@ -46,8 +46,8 @@
     },
     {
       "path": "DOGRULAMA.md",
-      "bytes": 125540,
-      "sha256": "11c21af103713ea093b2e4e88cc5c47fbd9b84e54bf7e770afd9f6c30c8c53ad"
+      "bytes": 129249,
+      "sha256": "d57fa8c74600ad186dbc4bacd75d4a41f19e6eab45a152dda76b6027470190e1"
     },
     {
       "path": "FIFA_REFERANSI.md",
@@ -56,13 +56,13 @@
     },
     {
       "path": "KURULUM.md",
-      "bytes": 4656,
-      "sha256": "04efac53ccfe9a4357301da140f89f06d26c901c6f4ee08fab4653e02ae216bb"
+      "bytes": 6848,
+      "sha256": "1c1e964b8859406871eca13f8950ae5506afbc41ef90e791e7df3c519f5c2047"
     },
     {
       "path": "README.md",
-      "bytes": 31575,
-      "sha256": "33429b58b6b17c1f9512c2f8dcb9bf411bd2bd0c377d9ae3e24631745de47c54"
+      "bytes": 34005,
+      "sha256": "27a8034d85927320e4ac0d28bfe9f19e5faaa502b3011a788220f97384d8587f"
     },
     {
       "path": "RELEASE_NOTES.md",
@@ -86,18 +86,83 @@
     },
     {
       "path": "animation-lab.html",
-      "bytes": 5963,
-      "sha256": "cddcf8a0eed2fbd7a0ebe64edb1b65f96aebb6940ee64279e9245d89a9767820"
+      "bytes": 6168,
+      "sha256": "3d5adc242f724e327f19960647a4fa4761d9e6cf431913d87474bdc9dbf22278"
     },
     {
       "path": "animation-lab.js",
-      "bytes": 3675,
-      "sha256": "349924160f9628e4638cfcffee471936cdcd39ae12c2ce4dadc3f41d6520e3c8"
+      "bytes": 3662,
+      "sha256": "efb4e8d9b4f5344b80db8dfcf1723f994784eb118daf9db6b5a79edb8631c8e4"
     },
     {
       "path": "animation-scenarios.js",
       "bytes": 2394,
       "sha256": "d9294c0205fd811f20364676d6636e11949fb84d1b42d36963677e74ebffc469"
+    },
+    {
+      "path": "assets/player/CREDITS.md",
+      "bytes": 2243,
+      "sha256": "a843ea811ea3655d15b16fe3540425d93062d48c5da2fac4ce6bca21d35351bd"
+    },
+    {
+      "path": "assets/player/LICENSE-CC0.txt",
+      "bytes": 6962,
+      "sha256": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c"
+    },
+    {
+      "path": "assets/player/SOURCE-LICENSE.md",
+      "bytes": 3598,
+      "sha256": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1"
+    },
+    {
+      "path": "assets/player/footballer.glb",
+      "bytes": 1307328,
+      "sha256": "9a73a3afa376b189a2760729a881b2ee2de62916bc916063e035b4cad5546345"
+    },
+    {
+      "path": "assets/player/manifest.json",
+      "bytes": 3044,
+      "sha256": "103f6153ea1f467dae1bc75cc12a6110ae0441e0f55b076b52be2814e6f4f6da"
+    },
+    {
+      "path": "assets/player/player-model-data.js",
+      "bytes": 1888529,
+      "sha256": "272f3c2e4ec8be6219377ddbbd1cf954dd89b3dcbfbb5879c5513908bd220fe2"
+    },
+    {
+      "path": "assets/player/skeleton.json",
+      "bytes": 18378,
+      "sha256": "8ce81c34eea49808c5544c71120494495d3cbd40d0391cf09f76e37d4890fa19"
+    },
+    {
+      "path": "assets/player/source/makehuman-base.obj.gz",
+      "bytes": 533926,
+      "sha256": "abe544ec8046b07ffe3a31bb0ee88203d773cb1febb8ce58e89c0efc6b1d783c"
+    },
+    {
+      "path": "assets/player/source/makehuman-default.mhskel.gz",
+      "bytes": 9546,
+      "sha256": "a09fb1d526aec0384b636fbf5faff36ad3decdb712ccf781d147f5139d01337a"
+    },
+    {
+      "path": "assets/player/source/makehuman-default_weights.mhw.gz",
+      "bytes": 238468,
+      "sha256": "6fcf3332b28d225ae75d5754bc3f7fa5e1d0a098dc389785baafa89323578a80"
+    },
+    {
+      "path": "assets/player/source/provenance.json",
+      "bytes": 2820,
+      "sha256": "c13b9b8c834e9397c91e18a6ea3fd2ed0e72dcbce4ce5f168f2ec54c683eaf22"
+    },
+    {
+      "path": "assets/player/textures/fabric-detail.png",
+      "bytes": 31554,
+      "sha256": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24"
+    },
+    {
+      "path": "assets/player/textures/skin-detail.png",
+      "bytes": 41870,
+      "sha256": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae"
     },
     {
       "path": "attack-analysis-ui.js",
@@ -120,9 +185,34 @@
       "sha256": "200da63ae527fdfe99332f534f22bd1798b502e33d9bc175ec00b724dcce9b75"
     },
     {
+      "path": "docs/PLAYER_ASSETS.md",
+      "bytes": 9190,
+      "sha256": "21203e3782546bd55821e2000f2f6be1639190a118174542b0b192262d9eeaa4"
+    },
+    {
       "path": "docs/PLAYER_MODEL.md",
       "bytes": 7677,
       "sha256": "1587b1bbc183156f35ca96bd72b0ca2a23ec528ddbdd51e05fdf5c3c6f5bb9db"
+    },
+    {
+      "path": "docs/previews/model-match-close.png",
+      "bytes": 49226,
+      "sha256": "bdc973a463634534feb40c170424b358d6bebd32128170f0469edd23afb8a650"
+    },
+    {
+      "path": "docs/previews/model-studio-face.png",
+      "bytes": 304185,
+      "sha256": "dcfe1c0638d9e10d4613e1bde54a223e0e4a388e2f3fbaf79b8da75fced0da38"
+    },
+    {
+      "path": "docs/previews/model-studio-full.png",
+      "bytes": 280036,
+      "sha256": "64a8cf0dedec17ed153aa227a7ce167e2cfff8f9848a2021e5d30369cf173836"
+    },
+    {
+      "path": "docs/previews/model-studio-run.png",
+      "bytes": 263496,
+      "sha256": "c365e92bdda23c1d04e55d2fbaf552017ff2d534312387943fdf3159864032c8"
     },
     {
       "path": "docs/validation/attack-chain-browser.json",
@@ -350,6 +440,31 @@
       "sha256": "14a10f8cd600c4936ce78cef215c1bb8b7cda2aa30490bb49322a67315167d3a"
     },
     {
+      "path": "docs/validation/player-asset-browser.json",
+      "bytes": 71548,
+      "sha256": "4b165caed6c8d207a854215528ebe3a38d8750914cb6b07e2fdac652b1b46eb2"
+    },
+    {
+      "path": "docs/validation/player-asset-lab.json",
+      "bytes": 3811,
+      "sha256": "da78ec9c56e7845526f0bb2e9f00754f7232986a42a9b35ddee61139c4ba83a6"
+    },
+    {
+      "path": "docs/validation/player-asset-tests.json",
+      "bytes": 13374,
+      "sha256": "dbf6963f127523f1bdca8675501177d44227ad5d58f3061b2b47d83632209af5"
+    },
+    {
+      "path": "docs/validation/player-asset-tests.log.gz",
+      "bytes": 16281,
+      "sha256": "28e6fb866517e60082907f2819d739168727241103e92d0218fabc45a5bc3c03"
+    },
+    {
+      "path": "docs/validation/player-asset-visual.json",
+      "bytes": 6256,
+      "sha256": "d1cb2d1b0e16871039b77c36094c0a8df144ead1af3db020907ab2ad57cf5186"
+    },
+    {
       "path": "docs/validation/player-identity-browser.json",
       "bytes": 58147,
       "sha256": "9297d961950302bd3848e8a6cdb15b913e374616dc5513caf3df9dea3637093e"
@@ -561,8 +676,8 @@
     },
     {
       "path": "match.html",
-      "bytes": 9206,
-      "sha256": "b2c8e74b79ccfdeb02e11060cbd2b13da2fa7747fb176becc3ace7c5d9f5fe0e"
+      "bytes": 9391,
+      "sha256": "5cc0f84a8e56dee0a8915cdfe2000c658a155ddfc7718cd96f73837a0002de09"
     },
     {
       "path": "match3d.css",
@@ -577,17 +692,22 @@
     {
       "path": "package-lock.json",
       "bytes": 18410,
-      "sha256": "b9b45554a4fecd788a28a8c2728efe15ed6c2571dfc3378107996f3c79b0a5bc"
+      "sha256": "6ddd85764ac3253f0b401f61602b18ed050769cb0ee097ebacc61119973a112c"
     },
     {
       "path": "package.json",
-      "bytes": 3824,
-      "sha256": "5448f1f985ff6bfd130890ebfe1bb759b00c04be8049e08e7bda4696b4c6fb5d"
+      "bytes": 4076,
+      "sha256": "22d05a0b5cfa5e8dfac380007bd3e9d7087a05f531fecce74afc76166ee07fa0"
     },
     {
       "path": "pitch-laws.js",
       "bytes": 4083,
       "sha256": "55b35441c614dc3b15dbaa1b0e9722082e77fa01ebba398d0c50e9a2d9ef06fa"
+    },
+    {
+      "path": "player-asset-status.js",
+      "bytes": 10414,
+      "sha256": "6cfe7ca44cb3100530c1cffbc5641b6e10a5d887862f2bf9a3f62ef674f175ec"
     },
     {
       "path": "player-model-profiles.js",
@@ -611,8 +731,8 @@
     },
     {
       "path": "player-renderer.js",
-      "bytes": 12496,
-      "sha256": "ef384d6ba0028ee7f038db75b7c87da9455de0118133b691b02953483f18613c"
+      "bytes": 15729,
+      "sha256": "84591863376a8fc653665fb45b7d9e552b9be5bbffd11fe5b13620e6c6db5db7"
     },
     {
       "path": "player-studio.css",
@@ -621,13 +741,13 @@
     },
     {
       "path": "player-studio.html",
-      "bytes": 7401,
-      "sha256": "83177eda69502d789fdf845ea71e771f3a2fcf4f90b004f09326a44e0ad2c839"
+      "bytes": 7586,
+      "sha256": "043e80dce6291f7da899ebf3d6596cf529b50a9028bcd0f9ddb091d2e39fb281"
     },
     {
       "path": "player-studio.js",
-      "bytes": 9074,
-      "sha256": "3bc0f29ca7de8ee392481983b3f437e104a3e6445b2f29bb109615c6c5bc5a1e"
+      "bytes": 9541,
+      "sha256": "a0eb71684f075ca91ded10523977c646b9cc77caf8e4a53fc628f551aca93821"
     },
     {
       "path": "referee-laws.js",
@@ -635,9 +755,14 @@
       "sha256": "e5e5d3694f9da9f65054f07030a0beb06149d33c16abf25b8a51616ffe31ab87"
     },
     {
+      "path": "requirements-player-assets.txt",
+      "bytes": 113,
+      "sha256": "dfe92f8821386c9d643ec5f207fe54cc7c0dff1d5511f390e8e1914da4001b48"
+    },
+    {
       "path": "scene3d.js",
-      "bytes": 22021,
-      "sha256": "c3e536c6cd650940da00cfa1a319f17c2c144c6ad4c937d8649ba65d196de506"
+      "bytes": 22810,
+      "sha256": "2b92020dd16104350ef49953588d4d31c4558460d7973e1a2358830903ed8a40"
     },
     {
       "path": "server.py",
@@ -760,6 +885,16 @@
       "sha256": "5dcf4423318be1c52893bc8b6c22c5af29b4b27b241afc9844dc260e81ee2d6a"
     },
     {
+      "path": "tests/player-asset-status.test.cjs",
+      "bytes": 9293,
+      "sha256": "79e050d7da5f39b56b08774e8334da55bd81917dcd43366631c4b9a948a983f9"
+    },
+    {
+      "path": "tests/player-assets.test.cjs",
+      "bytes": 8867,
+      "sha256": "fb4923e28b0fbecab1a7bb3b26dde2f48245b2a73df9021839309b29444f0274"
+    },
+    {
       "path": "tests/player-identity-integration.test.cjs",
       "bytes": 10183,
       "sha256": "9d55af046f4031c101a6906c949d2da2e8ec0b57391df27885ee3ab53abfa40f"
@@ -825,6 +960,11 @@
       "sha256": "b085ae6fc2eb6e138df5c8b7eb0c8b6bd1311754e1be2b7aa3bada9bbf395d78"
     },
     {
+      "path": "tests/test_player_assets.py",
+      "bytes": 4540,
+      "sha256": "ad60ba6904c13c8690644529102651da6d8e215ac8fca807484abb5f33f107de"
+    },
+    {
       "path": "tests/test_player_model.py",
       "bytes": 9779,
       "sha256": "b85522963e44516eeddbf7dcd13de57d0b29365359a3ec58e339d874ac032fa5"
@@ -833,6 +973,11 @@
       "path": "tests/touch-feasibility.test.cjs",
       "bytes": 25518,
       "sha256": "1ce491ea186c04caa0ab3a63999eb4580d653b1bda3b3e102dd4e39e31606817"
+    },
+    {
+      "path": "tools/build-player-assets.py",
+      "bytes": 29565,
+      "sha256": "3e97e0ab6d3ecbc61901066414baa1e06630cd4426410bc742bcb4629e127cb0"
     },
     {
       "path": "tools/check-attack-chain-browser.py",
@@ -858,6 +1003,21 @@
       "path": "tools/check-match-laws-browser.py",
       "bytes": 6672,
       "sha256": "a277eaaa3af8df1e155088863c9767c38a6977af8fa5c6b8277321660b84a043"
+    },
+    {
+      "path": "tools/check-player-asset-browser.py",
+      "bytes": 23455,
+      "sha256": "73bd754a2ad8497a340336a123d2ad04fb773a74b3d2a4308e0f86b14efe1fb8"
+    },
+    {
+      "path": "tools/check-player-asset-lab.py",
+      "bytes": 5293,
+      "sha256": "0e4fc7b76e5be5e6e9b8bda4d4919353f9888f7fd4451bf0ef927c44241532ea"
+    },
+    {
+      "path": "tools/check-player-asset-tests.py",
+      "bytes": 2946,
+      "sha256": "e878b3c7cd347b68b558bd4e93921b0e04853a42a65516ab16903426f9a90138"
     },
     {
       "path": "tools/check-player-identity-browser.py",
@@ -981,8 +1141,8 @@
     },
     {
       "path": "ui-shell.css",
-      "bytes": 15370,
-      "sha256": "98c128ebe0095fc34f79d263c0a844aa95e022e7d5323ca24bdaa75117a29659"
+      "bytes": 15957,
+      "sha256": "7ed5d37fb3aef031a1efc42dd32c1b721beb7d2a7678548b120b175aaf39deab"
     },
     {
       "path": "ui-shell.js",

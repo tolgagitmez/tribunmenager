@@ -1,3 +1,15 @@
+## Aşama 13: kaynaklı insan modeli ve ortak yükleme tanılaması
+
+`tools/build-player-assets.py`, sabit MakeHuman CC0 OBJ/iskelet/ağırlık verisini mevcut 19 kemikli `humanoid-rig.js` bağlama pozuna uyarlar. Beş resmî kaynak/lisans dosyasının hash, URL ve commit kaydı ile rig referans hash'i üretimden önce denetlenir. Sıkıştırılmış özgün kaynaklar pakette kalır; `--from-package` aynı çıktıları çevrimdışı yeniden üretir. Çıktı `player-model-data.js`, standart GLB, iskelet, iki yerel PNG ve dosya manifestidir. Runtime GLB ayrıştırmaz; özel model verisini kullanır.
+
+`player-asset-status.js`, salt okunur veri doğrulaması ve `loading/ready/missing/invalid/webgl-unavailable/renderer-error` durumlarını ortaklaştırır. Kemik adları/matrisleri, interleaved köşeler, indisler ve normalize ağırlıklar GPU'ya verilmeden sınanır. Paneldeki kaynak/lisans metinleri birer bildirimdir; bunların kanıtı üretici ve paket testlerinde ayrı denetlenir. Teknik ayrıntılar `textContent` ile yazılır.
+
+`player-renderer.js` modeli doğrular, shader'ı kurar ve iki dokuyu asenkron yükler. `ready` ancak her iki PNG GPU'ya yüklendiğinde çözülür. `scene3d.js` hazır çiziciyi bundan sonra kullanır; hata durumunda mevcut prosedürel WebGL veya 2D çizim sürer. `player-studio.js` aynı hazır olma ve hata sözleşmesini kullanır; ayrıntılı model çizilemezse görünür hata verir. Maç ve stüdyo aynı paket kimliğini taşır.
+
+Bu çizim katmanı fizik, kararlar, RNG veya maç oyuncusu verisine yazmaz. Mevcut prosedürel rig, ayak IK/basış ve temas hesapları korunur; kaynak model ağırlıkları 19 kemiğe indirgenir. Paket tek LOD içerir, GLB'de animasyon klibi yoktur. Genel amaçlı glTF oynatıcı, PBR/giysi simülasyonu ve gerçek cihaz performans kabulü bu aşamanın kapsamını aşar. Veri düzeni, kaynaklar ve hata davranışları [docs/PLAYER_ASSETS.md](docs/PLAYER_ASSETS.md) içindedir. Aşağıdaki sürüm ayrıntıları tarihsel olarak korunur.
+
+---
+
 ## Aşama 12: ortak hakem, saha ve müsabaka yaşamı
 
 `referee-laws.js` olay konumundan faul/penaltı/kart kararını üretir. `Match.adjudicateFoul` karar kaydını, avantaj durumunu, ertelenen disiplini ve gerçek yeniden başlatmayı yönetir. Penaltı normal hazırlık/ayak/kaleci temas zincirini kullanır. `pitch-laws.js` bütün-top çizgi geçişi ve süpürülmüş kale çerçevesinin ortak geometri kaynağıdır; çizim aynı ölçüleri okur.

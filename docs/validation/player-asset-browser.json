@@ -1,0 +1,2399 @@
+{
+  "scope": "complete-normal-and-fault-matrix",
+  "generatedAt": "2026-11-15T09:38:44.779449+00:00",
+  "sources": {
+    "start.py": "2ce2c84570ecc2be729e4c33c50b1cbaa9a9aa13810c63cdfda3405763d8ff88",
+    "player-renderer.js": "84591863376a8fc653665fb45b7d9e552b9be5bbffd11fe5b13620e6c6db5db7",
+    "player-asset-status.js": "6cfe7ca44cb3100530c1cffbc5641b6e10a5d887862f2bf9a3f62ef674f175ec",
+    "scene3d.js": "2b92020dd16104350ef49953588d4d31c4558460d7973e1a2358830903ed8a40",
+    "match3d.js": "fce569132d86aea6bc05af90bf5df9a773a8979960d5c34973fe7d94556df3b7",
+    "match.html": "5cc0f84a8e56dee0a8915cdfe2000c658a155ddfc7718cd96f73837a0002de09",
+    "player-studio.js": "a0eb71684f075ca91ded10523977c646b9cc77caf8e4a53fc628f551aca93821",
+    "player-studio.html": "043e80dce6291f7da899ebf3d6596cf529b50a9028bcd0f9ddb091d2e39fb281",
+    "animation-lab.js": "efb4e8d9b4f5344b80db8dfcf1723f994784eb118daf9db6b5a79edb8631c8e4",
+    "animation-lab.html": "3d5adc242f724e327f19960647a4fa4761d9e6cf431913d87474bdc9dbf22278",
+    "humanoid-rig.js": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+    "animation-scenarios.js": "d9294c0205fd811f20364676d6636e11949fb84d1b42d36963677e74ebffc469",
+    "player-studio.css": "0cc7c5ea785b88154205d761c37504e2ed148dd600aff084c8821e93a2910bf9",
+    "ui-shell.js": "132213f913ec9c22f66e313016823609c8f2d25d719436c464bad778ba04c4ae",
+    "ui-shell.css": "7ed5d37fb3aef031a1efc42dd32c1b721beb7d2a7678548b120b175aaf39deab",
+    "match3d.css": "97656e445cb8feaeaf0a3fbbcd96945b9d4ebd3f0b5fa511a0d9cb316064f921",
+    "football-sim.js": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd",
+    "match-rules.js": "8bbf5af5ac74be2a0e64154297f083686e1bbfae455da538657a1be8d0295876",
+    "referee-laws.js": "e5e5d3694f9da9f65054f07030a0beb06149d33c16abf25b8a51616ffe31ab87",
+    "pitch-laws.js": "55b35441c614dc3b15dbaa1b0e9722082e77fa01ebba398d0c50e9a2d9ef06fa",
+    "player-perception.js": "d0879e2e845a34bd8f08fd117e3100ac651ee79f28371e153a7aed3c48bc08b8",
+    "team-intent.js": "cce8be16d8dd88ef758051e0cf6761326ad21cb55b1733397c5fa3815aac0030",
+    "tactics.js": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea",
+    "club-data.js": "73c9d01c12262497f0d266203b4f7143750732ef1bde8c289d80841bf2efcfca",
+    "player-model.js": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02",
+    "player-model-profiles.js": "a06068f2a706e58b9e71110da31da72f9968b3abcf2f548cba265ef78be40aa8",
+    "player-model-profiles.json": "d97a900209e5c3b837539042f5435c8fb7f063492f2d16deed1caaabc7a45da6",
+    "attack-diagnostics.js": "9176b438e591ad7fb411ab1b89cde25d6a4cf602288485798be3c031901c9ebb",
+    "attack-analysis-ui.js": "5aaa31a880ad7a43030b2295dd59a6f6c181ee436d03cc695c8c8d1ad1a62f05",
+    "transfer-client.js": "403615be8ca1b51e4c4246ab23c5b9a5b3fc7827b46d8afc9f3f645326e81b44",
+    "match-config.js": "00039cebe0666754c96ec2573f9254c577a0a57354b79f689788232794b36a72",
+    "tools/check-player-asset-browser.py": "73bd754a2ad8497a340336a123d2ad04fb773a74b3d2a4308e0f86b14efe1fb8",
+    "assets/player/CREDITS.md": "a843ea811ea3655d15b16fe3540425d93062d48c5da2fac4ce6bca21d35351bd",
+    "assets/player/LICENSE-CC0.txt": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c",
+    "assets/player/SOURCE-LICENSE.md": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1",
+    "assets/player/footballer.glb": "9a73a3afa376b189a2760729a881b2ee2de62916bc916063e035b4cad5546345",
+    "assets/player/manifest.json": "103f6153ea1f467dae1bc75cc12a6110ae0441e0f55b076b52be2814e6f4f6da",
+    "assets/player/player-model-data.js": "272f3c2e4ec8be6219377ddbbd1cf954dd89b3dcbfbb5879c5513908bd220fe2",
+    "assets/player/skeleton.json": "8ce81c34eea49808c5544c71120494495d3cbd40d0391cf09f76e37d4890fa19",
+    "assets/player/source/makehuman-base.obj.gz": "abe544ec8046b07ffe3a31bb0ee88203d773cb1febb8ce58e89c0efc6b1d783c",
+    "assets/player/source/makehuman-default.mhskel.gz": "a09fb1d526aec0384b636fbf5faff36ad3decdb712ccf781d147f5139d01337a",
+    "assets/player/source/makehuman-default_weights.mhw.gz": "6fcf3332b28d225ae75d5754bc3f7fa5e1d0a098dc389785baafa89323578a80",
+    "assets/player/source/provenance.json": "c13b9b8c834e9397c91e18a6ea3fd2ed0e72dcbce4ce5f168f2ec54c683eaf22",
+    "assets/player/textures/fabric-detail.png": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24",
+    "assets/player/textures/skin-detail.png": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae"
+  },
+  "method": "Actual start.py local launcher and Chromium SwiftShader. Reads WebGL skin shader drawElements calls, uploaded bone palettes and framebuffer pixels inside requestAnimationFrame; only failure cases override asset responses, shader compile status, texture responses or WebGL creation. Relative-bone signatures remove the root basis. No engine or animation methods are mocked.",
+  "physicalEqualityScope": "Canonical complete serializable match snapshot after restart and 2 seconds, preserving Maps/Sets/references/numeric edge cases; excludes immutable motion module and opaque launch contextId only. Full canonical strings compare exactly before their SHA256 is recorded.",
+  "limits": "Confirms bundle identity, actual skinning, material/control response, pose deformation and handled loading failures. Screenshots require human visual inspection; these checks do not certify human likeness, animation quality or real-device FPS.",
+  "normal": [
+    {
+      "page": "match.html",
+      "status": {
+        "state": "ready",
+        "text": "İSKELETLİ OYUNCU MODELİPaketlenmiş iskeletli oyuncu modeli çizime hazır.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.",
+        "details": "İSKELETLİ OYUNCU MODELİPaketlenmiş iskeletli oyuncu modeli çizime hazır.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.",
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "summary": {
+            "boneCount": 19,
+            "lods": [
+              {
+                "index": 0,
+                "vertexCount": 15544,
+                "indexCount": 82050,
+                "triangleCount": 27350,
+                "indexType": "H",
+                "skinnedBoneCount": 19,
+                "bounds": {
+                  "min": [
+                    -0.1752556711435318,
+                    0,
+                    -0.6340524554252625
+                  ],
+                  "max": [
+                    0.33065056800842285,
+                    1.8799999952316284,
+                    0.6340524554252625
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "id": "tribun-makehuman-footballer-v1",
+              "version": "1",
+              "license": "CC0-1.0",
+              "source": "MakeHuman Community hm08 CC0 base mesh",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "loadedModelResponse": {
+        "path": "/assets/player/player-model-data.js",
+        "bytes": 1888529,
+        "sha256": "272f3c2e4ec8be6219377ddbbd1cf954dd89b3dcbfbb5879c5513908bd220fe2"
+      },
+      "frame": {
+        "skinDraws": 23,
+        "indexCount": 1887150,
+        "draws": [
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.73,
+              0.54,
+              0.38
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.12,
+              0.09,
+              0.07
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              0.94,
+              -0.06,
+              0
+            ],
+            "paletteHash": "a47bb1c5",
+            "jointShape": "93b5d547",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.56,
+              0.37,
+              0.25
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.22,
+              0.17,
+              0.11
+            ],
+            "uBoots": [
+              0.91,
+              0.42,
+              0.09
+            ],
+            "uIris": [
+              0.3,
+              0.18,
+              0.09
+            ],
+            "uVariant": [
+              0.975,
+              0,
+              0
+            ],
+            "paletteHash": "373cafed",
+            "jointShape": "f2d31c4",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.34,
+              0.23,
+              0.18
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.34,
+              0.25,
+              0.2
+            ],
+            "uBoots": [
+              0.07,
+              0.56,
+              0.45
+            ],
+            "uIris": [
+              0.13,
+              0.28,
+              0.36
+            ],
+            "uVariant": [
+              1.01,
+              0.06,
+              0
+            ],
+            "paletteHash": "c8061d0d",
+            "jointShape": "6907bb6a",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.83,
+              0.67,
+              0.54
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.12,
+              0.09,
+              0.07
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              1.045,
+              -0.06,
+              0
+            ],
+            "paletteHash": "11e20f3a",
+            "jointShape": "504ce501",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.73,
+              0.54,
+              0.38
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.22,
+              0.17,
+              0.11
+            ],
+            "uBoots": [
+              0.91,
+              0.42,
+              0.09
+            ],
+            "uIris": [
+              0.3,
+              0.18,
+              0.09
+            ],
+            "uVariant": [
+              0.94,
+              0,
+              0
+            ],
+            "paletteHash": "e25d15a9",
+            "jointShape": "db46e089",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.56,
+              0.37,
+              0.25
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.34,
+              0.25,
+              0.2
+            ],
+            "uBoots": [
+              0.07,
+              0.56,
+              0.45
+            ],
+            "uIris": [
+              0.13,
+              0.28,
+              0.36
+            ],
+            "uVariant": [
+              0.975,
+              0.06,
+              0
+            ],
+            "paletteHash": "d4250764",
+            "jointShape": "5b4ebbd6",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.34,
+              0.23,
+              0.18
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.12,
+              0.09,
+              0.07
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              1.01,
+              -0.06,
+              0
+            ],
+            "paletteHash": "30ac8de0",
+            "jointShape": "30d4b700",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.83,
+              0.67,
+              0.54
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.22,
+              0.17,
+              0.11
+            ],
+            "uBoots": [
+              0.91,
+              0.42,
+              0.09
+            ],
+            "uIris": [
+              0.3,
+              0.18,
+              0.09
+            ],
+            "uVariant": [
+              1.045,
+              0,
+              0
+            ],
+            "paletteHash": "6a265809",
+            "jointShape": "27fad137",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.73,
+              0.54,
+              0.38
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.34,
+              0.25,
+              0.2
+            ],
+            "uBoots": [
+              0.07,
+              0.56,
+              0.45
+            ],
+            "uIris": [
+              0.13,
+              0.28,
+              0.36
+            ],
+            "uVariant": [
+              0.94,
+              0.06,
+              0
+            ],
+            "paletteHash": "d0d31efe",
+            "jointShape": "f7a32d68",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.56,
+              0.37,
+              0.25
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.12,
+              0.09,
+              0.07
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              0.975,
+              -0.06,
+              0
+            ],
+            "paletteHash": "33edf268",
+            "jointShape": "fae88162",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.34,
+              0.23,
+              0.18
+            ],
+            "uShirt": [
+              0.42,
+              0.23,
+              0.67
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.22,
+              0.17,
+              0.11
+            ],
+            "uBoots": [
+              0.91,
+              0.42,
+              0.09
+            ],
+            "uIris": [
+              0.3,
+              0.18,
+              0.09
+            ],
+            "uVariant": [
+              1.01,
+              0,
+              0
+            ],
+            "paletteHash": "f176de52",
+            "jointShape": "d3db7ddc",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.73,
+              0.54,
+              0.38
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.12,
+              0.09,
+              0.07
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              0.94,
+              -0.06,
+              0
+            ],
+            "paletteHash": "bb1bb45a",
+            "jointShape": "44737b00",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.56,
+              0.37,
+              0.25
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.22,
+              0.17,
+              0.11
+            ],
+            "uBoots": [
+              0.91,
+              0.42,
+              0.09
+            ],
+            "uIris": [
+              0.3,
+              0.18,
+              0.09
+            ],
+            "uVariant": [
+              0.975,
+              0,
+              0
+            ],
+            "paletteHash": "74a819e3",
+            "jointShape": "2988449e",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.34,
+              0.23,
+              0.18
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.34,
+              0.25,
+              0.2
+            ],
+            "uBoots": [
+              0.07,
+              0.56,
+              0.45
+            ],
+            "uIris": [
+              0.13,
+              0.28,
+              0.36
+            ],
+            "uVariant": [
+              1.01,
+              0.06,
+              0
+            ],
+            "paletteHash": "f0c66c10",
+            "jointShape": "b795635",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.83,
+              0.67,
+              0.54
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.12,
+              0.09,
+              0.07
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              1.045,
+              -0.06,
+              0
+            ],
+            "paletteHash": "fe3b4ffb",
+            "jointShape": "80d579ea",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.73,
+              0.54,
+              0.38
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.22,
+              0.17,
+              0.11
+            ],
+            "uBoots": [
+              0.91,
+              0.42,
+              0.09
+            ],
+            "uIris": [
+              0.3,
+              0.18,
+              0.09
+            ],
+            "uVariant": [
+              0.94,
+              0,
+              0
+            ],
+            "paletteHash": "52c37894",
+            "jointShape": "8122b70c",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.56,
+              0.37,
+              0.25
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.34,
+              0.25,
+              0.2
+            ],
+            "uBoots": [
+              0.07,
+              0.56,
+              0.45
+            ],
+            "uIris": [
+              0.13,
+              0.28,
+              0.36
+            ],
+            "uVariant": [
+              0.975,
+              0.06,
+              0
+            ],
+            "paletteHash": "19d7e0f0",
+            "jointShape": "8a52e2e7",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.34,
+              0.23,
+              0.18
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.12,
+              0.09,
+              0.07
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              1.01,
+              -0.06,
+              0
+            ],
+            "paletteHash": "f7b60dbb",
+            "jointShape": "27fad137",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.83,
+              0.67,
+              0.54
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.22,
+              0.17,
+              0.11
+            ],
+            "uBoots": [
+              0.91,
+              0.42,
+              0.09
+            ],
+            "uIris": [
+              0.3,
+              0.18,
+              0.09
+            ],
+            "uVariant": [
+              1.045,
+              0,
+              0
+            ],
+            "paletteHash": "bdd9d304",
+            "jointShape": "f7a32d68",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.73,
+              0.54,
+              0.38
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.34,
+              0.25,
+              0.2
+            ],
+            "uBoots": [
+              0.07,
+              0.56,
+              0.45
+            ],
+            "uIris": [
+              0.13,
+              0.28,
+              0.36
+            ],
+            "uVariant": [
+              0.94,
+              0.06,
+              0
+            ],
+            "paletteHash": "df9edbec",
+            "jointShape": "fae88162",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.56,
+              0.37,
+              0.25
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.12,
+              0.09,
+              0.07
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              0.975,
+              -0.06,
+              0
+            ],
+            "paletteHash": "824233c8",
+            "jointShape": "30d4b700",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.34,
+              0.23,
+              0.18
+            ],
+            "uShirt": [
+              0.91,
+              0.59,
+              0.12
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.22,
+              0.17,
+              0.11
+            ],
+            "uBoots": [
+              0.91,
+              0.42,
+              0.09
+            ],
+            "uIris": [
+              0.3,
+              0.18,
+              0.09
+            ],
+            "uVariant": [
+              1.01,
+              0,
+              0
+            ],
+            "paletteHash": "123b7ac2",
+            "jointShape": "facfe387",
+            "matrixCount": 19
+          },
+          {
+            "uEye": [
+              12,
+              22.25,
+              30
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.75,
+              0.55,
+              0.39
+            ],
+            "uShirt": [
+              0.94,
+              0.76,
+              0.16
+            ],
+            "uShorts": [
+              0.1,
+              0.12,
+              0.14
+            ],
+            "uHair": [
+              0.1,
+              0.065,
+              0.043
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              0.94,
+              -0.06,
+              0
+            ],
+            "paletteHash": "4650f9a",
+            "jointShape": "98889bc0",
+            "matrixCount": 19
+          }
+        ],
+        "buffers": [
+          {
+            "canvasId": "stadiumCanvas",
+            "width": 871,
+            "height": 545,
+            "pixelHash": "cce7fbe1",
+            "nonzeroPixels": 474695,
+            "error": 0
+          }
+        ]
+      },
+      "physicalStateSHA256": "c2ba7d5cf33388a31007aea90884acff9ccc6485062d9871c0454f55ab82f75d",
+      "physicalStateBytes": 170633,
+      "textureUploads": [
+        {
+          "path": "/assets/player/textures/skin-detail.png",
+          "width": 256,
+          "height": 256
+        },
+        {
+          "path": "/assets/player/textures/fabric-detail.png",
+          "width": 256,
+          "height": 256
+        }
+      ],
+      "pausedRenderingPreservesTimeAndRNG": true,
+      "mobile390NoOverflowWithTechnicalDetails": true,
+      "screenshots": [
+        {
+          "path": "work/stage13/model-match-close-final.png",
+          "sha256": "bdc973a463634534feb40c170424b358d6bebd32128170f0469edd23afb8a650"
+        },
+        {
+          "path": "work/stage13/model-match-mobile-final.png",
+          "sha256": "efd8ff334de228585140fa2566e77e552ba483a3265e3ddfa40c2355a0acc676"
+        }
+      ],
+      "scriptErrors": []
+    },
+    {
+      "page": "player-studio.html",
+      "status": {
+        "state": "ready",
+        "text": "İSKELETLİ OYUNCU MODELİPaketlenmiş iskeletli oyuncu modeli çizime hazır.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.",
+        "details": "İSKELETLİ OYUNCU MODELİPaketlenmiş iskeletli oyuncu modeli çizime hazır.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.",
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "summary": {
+            "boneCount": 19,
+            "lods": [
+              {
+                "index": 0,
+                "vertexCount": 15544,
+                "indexCount": 82050,
+                "triangleCount": 27350,
+                "indexType": "H",
+                "skinnedBoneCount": 19,
+                "bounds": {
+                  "min": [
+                    -0.1752556711435318,
+                    0,
+                    -0.6340524554252625
+                  ],
+                  "max": [
+                    0.33065056800842285,
+                    1.8799999952316284,
+                    0.6340524554252625
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "id": "tribun-makehuman-footballer-v1",
+              "version": "1",
+              "license": "CC0-1.0",
+              "source": "MakeHuman Community hm08 CC0 base mesh",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": {
+          "identity": 0,
+          "skin": 1,
+          "hair": 0,
+          "kit": "home",
+          "view": "full",
+          "mode": "idle",
+          "paused": false
+        }
+      },
+      "loadedModelResponse": {
+        "path": "/assets/player/player-model-data.js",
+        "bytes": 1888529,
+        "sha256": "272f3c2e4ec8be6219377ddbbd1cf954dd89b3dcbfbb5879c5513908bd220fe2"
+      },
+      "frontFrame": {
+        "skinDraws": 1,
+        "indexCount": 82050,
+        "draws": [
+          {
+            "uEye": [
+              3.900810612890374,
+              1.735,
+              2.965413388106594
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.69,
+              0.48,
+              0.34
+            ],
+            "uShirt": [
+              0.075,
+              0.29,
+              0.68
+            ],
+            "uShorts": [
+              0.88,
+              0.9,
+              0.93
+            ],
+            "uHair": [
+              0.065,
+              0.042,
+              0.027
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              1,
+              0,
+              0
+            ],
+            "paletteHash": "758bc3c5",
+            "jointShape": "8f15beed",
+            "matrixCount": 19
+          }
+        ],
+        "buffers": [
+          {
+            "canvasId": "playerCanvas",
+            "width": 852,
+            "height": 790,
+            "pixelHash": "d6d8b8f5",
+            "nonzeroPixels": 301215,
+            "error": 0
+          }
+        ]
+      },
+      "awayFrame": {
+        "skinDraws": 1,
+        "indexCount": 82050,
+        "draws": [
+          {
+            "uEye": [
+              3.900810612890374,
+              1.735,
+              2.965413388106594
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.69,
+              0.48,
+              0.34
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.065,
+              0.042,
+              0.027
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              1,
+              0,
+              0
+            ],
+            "paletteHash": "758bc3c5",
+            "jointShape": "8f15beed",
+            "matrixCount": 19
+          }
+        ],
+        "buffers": [
+          {
+            "canvasId": "playerCanvas",
+            "width": 852,
+            "height": 790,
+            "pixelHash": "526b182f",
+            "nonzeroPixels": 301215,
+            "error": 0
+          }
+        ]
+      },
+      "identityFrame": {
+        "skinDraws": 1,
+        "indexCount": 82050,
+        "draws": [
+          {
+            "uEye": [
+              3.900810612890374,
+              1.735,
+              2.965413388106594
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.31,
+              0.2,
+              0.15
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.065,
+              0.042,
+              0.027
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              1.06,
+              -0.035,
+              0
+            ],
+            "paletteHash": "758bc3c5",
+            "jointShape": "8f15beed",
+            "matrixCount": 19
+          }
+        ],
+        "buffers": [
+          {
+            "canvasId": "playerCanvas",
+            "width": 852,
+            "height": 790,
+            "pixelHash": "e5c218b2",
+            "nonzeroPixels": 301291,
+            "error": 0
+          }
+        ]
+      },
+      "faceFrame": {
+        "skinDraws": 1,
+        "indexCount": 82050,
+        "draws": [
+          {
+            "uEye": [
+              0.9393788822878859,
+              1.8439999999999999,
+              0.7141199587685266
+            ],
+            "uSkinTexture": 0,
+            "uFabricTexture": 1,
+            "uSkin": [
+              0.31,
+              0.2,
+              0.15
+            ],
+            "uShirt": [
+              0.65,
+              0.075,
+              0.13
+            ],
+            "uShorts": [
+              0.09,
+              0.12,
+              0.16
+            ],
+            "uHair": [
+              0.065,
+              0.042,
+              0.027
+            ],
+            "uBoots": [
+              0.055,
+              0.065,
+              0.08
+            ],
+            "uIris": [
+              0.15,
+              0.25,
+              0.18
+            ],
+            "uVariant": [
+              1.06,
+              -0.035,
+              0
+            ],
+            "paletteHash": "758bc3c5",
+            "jointShape": "8f15beed",
+            "matrixCount": 19
+          }
+        ],
+        "buffers": [
+          {
+            "canvasId": "playerCanvas",
+            "width": 852,
+            "height": 790,
+            "pixelHash": "8b8502c6",
+            "nonzeroPixels": 215190,
+            "error": 0
+          }
+        ]
+      },
+      "movingFrames": [
+        {
+          "skinDraws": 1,
+          "indexCount": 82050,
+          "draws": [
+            {
+              "uEye": [
+                3.963619462140517,
+                1.735,
+                3.2407808916471
+              ],
+              "uSkinTexture": 0,
+              "uFabricTexture": 1,
+              "uSkin": [
+                0.31,
+                0.2,
+                0.15
+              ],
+              "uShirt": [
+                0.65,
+                0.075,
+                0.13
+              ],
+              "uShorts": [
+                0.09,
+                0.12,
+                0.16
+              ],
+              "uHair": [
+                0.065,
+                0.042,
+                0.027
+              ],
+              "uBoots": [
+                0.055,
+                0.065,
+                0.08
+              ],
+              "uIris": [
+                0.15,
+                0.25,
+                0.18
+              ],
+              "uVariant": [
+                1.06,
+                -0.035,
+                0
+              ],
+              "paletteHash": "ebd4c14a",
+              "jointShape": "7ace151f",
+              "matrixCount": 19
+            }
+          ],
+          "buffers": [
+            {
+              "canvasId": "playerCanvas",
+              "width": 852,
+              "height": 790,
+              "pixelHash": "64f7ac08",
+              "nonzeroPixels": 300390,
+              "error": 0
+            }
+          ]
+        },
+        {
+          "skinDraws": 1,
+          "indexCount": 82050,
+          "draws": [
+            {
+              "uEye": [
+                4.0038136170349325,
+                1.735,
+                4.506131816025132
+              ],
+              "uSkinTexture": 0,
+              "uFabricTexture": 1,
+              "uSkin": [
+                0.31,
+                0.2,
+                0.15
+              ],
+              "uShirt": [
+                0.65,
+                0.075,
+                0.13
+              ],
+              "uShorts": [
+                0.09,
+                0.12,
+                0.16
+              ],
+              "uHair": [
+                0.065,
+                0.042,
+                0.027
+              ],
+              "uBoots": [
+                0.055,
+                0.065,
+                0.08
+              ],
+              "uIris": [
+                0.15,
+                0.25,
+                0.18
+              ],
+              "uVariant": [
+                1.06,
+                -0.035,
+                0
+              ],
+              "paletteHash": "5f56beef",
+              "jointShape": "6fe040b1",
+              "matrixCount": 19
+            }
+          ],
+          "buffers": [
+            {
+              "canvasId": "playerCanvas",
+              "width": 852,
+              "height": 790,
+              "pixelHash": "3950d813",
+              "nonzeroPixels": 300997,
+              "error": 0
+            }
+          ]
+        }
+      ],
+      "pausedPaletteStable": true,
+      "sameModelAsMatch": true,
+      "mobile390NoOverflowWithTechnicalDetails": true,
+      "screenshots": [
+        {
+          "path": "work/stage13/model-studio-full-final.png",
+          "sha256": "64a8cf0dedec17ed153aa227a7ce167e2cfff8f9848a2021e5d30369cf173836"
+        },
+        {
+          "path": "work/stage13/model-studio-face-final.png",
+          "sha256": "dcfe1c0638d9e10d4613e1bde54a223e0e4a388e2f3fbaf79b8da75fced0da38"
+        },
+        {
+          "path": "work/stage13/model-studio-run-final.png",
+          "sha256": "c365e92bdda23c1d04e55d2fbaf552017ff2d534312387943fdf3159864032c8"
+        },
+        {
+          "path": "work/stage13/model-studio-mobile-final.png",
+          "sha256": "8c6a255e85f6bacab4e79b5dae7d16e86db34985f97b25cfba7dfd29f3274a8d"
+        }
+      ],
+      "scriptErrors": []
+    }
+  ],
+  "failures": [
+    {
+      "page": "match.html",
+      "fault": "missing",
+      "status": {
+        "state": "missing",
+        "text": "YEDEK OYUNCU MODELİOyuncu model dosyası yüklenemedi. Paketi tamamen çıkartıp yerel başlatıcıyla yeniden aç.Kaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Beklenen dosya: assets/player/player-model-data.jsYükleme: HTTP 404 · http://127.0.0.1:60843/assets/player/player-model-data.jsASSET_MISSING · assets/player/player-model-data.js: Oyuncu model verisi bulunamadı.",
+        "details": "YEDEK OYUNCU MODELİOyuncu model dosyası yüklenemedi. Paketi tamamen çıkartıp yerel başlatıcıyla yeniden aç.Kaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Beklenen dosya: assets/player/player-model-data.jsYükleme: HTTP 404 · http://127.0.0.1:60843/assets/player/player-model-data.jsASSET_MISSING · assets/player/player-model-data.js: Oyuncu model verisi bulunamadı.",
+        "validation": {
+          "ok": false,
+          "errors": [
+            {
+              "code": "ASSET_MISSING",
+              "path": "assets/player/player-model-data.js",
+              "message": "Oyuncu model verisi bulunamadı."
+            }
+          ],
+          "summary": {
+            "boneCount": 0,
+            "lods": [],
+            "metadata": {
+              "id": "",
+              "version": "",
+              "license": "",
+              "source": "",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": "c2ba7d5cf33388a31007aea90884acff9ccc6485062d9871c0454f55ab82f75d",
+      "matchesNormalPhysicalState": true,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/player/player-model-data.js",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-match-missing-final.png",
+        "sha256": "5a4252b07e85250530d009e02b4d3bec38974bcd1ffb00d537f0a5d0e0ae11ab"
+      }
+    },
+    {
+      "page": "player-studio.html",
+      "fault": "missing",
+      "status": {
+        "state": "missing",
+        "text": "YEDEK OYUNCU MODELİOyuncu model dosyası yüklenemedi. Paketi tamamen çıkartıp yerel başlatıcıyla yeniden aç.Kaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Beklenen dosya: assets/player/player-model-data.jsYükleme: HTTP 404 · http://127.0.0.1:60843/assets/player/player-model-data.jsÇizici: Oyuncu modeli yüklenmediASSET_MISSING · assets/player/player-model-data.js: Oyuncu model verisi bulunamadı.",
+        "details": "YEDEK OYUNCU MODELİOyuncu model dosyası yüklenemedi. Paketi tamamen çıkartıp yerel başlatıcıyla yeniden aç.Kaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Beklenen dosya: assets/player/player-model-data.jsYükleme: HTTP 404 · http://127.0.0.1:60843/assets/player/player-model-data.jsÇizici: Oyuncu modeli yüklenmediASSET_MISSING · assets/player/player-model-data.js: Oyuncu model verisi bulunamadı.",
+        "validation": {
+          "ok": false,
+          "errors": [
+            {
+              "code": "ASSET_MISSING",
+              "path": "assets/player/player-model-data.js",
+              "message": "Oyuncu model verisi bulunamadı."
+            }
+          ],
+          "summary": {
+            "boneCount": 0,
+            "lods": [],
+            "metadata": {
+              "id": "",
+              "version": "",
+              "license": "",
+              "source": "",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": null,
+      "matchesNormalPhysicalState": false,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/player/player-model-data.js",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-player-studio-missing-final.png",
+        "sha256": "c5af604d981588b5bce6b689f81f92b8670191d6f70fac4a171444d21faa2960"
+      }
+    },
+    {
+      "page": "match.html",
+      "fault": "invalid",
+      "status": {
+        "state": "invalid",
+        "text": "OYUNCU MODELİ GEÇERSİZOyuncu model verisi çiziciyle uyumlu değil. Teknik ayrıntılarda hatalı dosya veya veri alanı belirtiliyor.Model: qa-brokenKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: BONE_COUNT bones: Bu çizici için 19 deform kemiği gerekli.; LOD_MISSING lods: En az bir çizilebilir ayrıntı düzeyi gerekli.BONE_COUNT · bones: Bu çizici için 19 deform kemiği gerekli.LOD_MISSING · lods: En az bir çizilebilir ayrıntı düzeyi gerekli.PROVENANCE_UNDECLARED · Kaynak/lisans bildirimi model verisinde belirtilmemiş; paket kredi kaydı ayrıca doğrulanmalı.",
+        "details": "OYUNCU MODELİ GEÇERSİZOyuncu model verisi çiziciyle uyumlu değil. Teknik ayrıntılarda hatalı dosya veya veri alanı belirtiliyor.Model: qa-brokenKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: BONE_COUNT bones: Bu çizici için 19 deform kemiği gerekli.; LOD_MISSING lods: En az bir çizilebilir ayrıntı düzeyi gerekli.BONE_COUNT · bones: Bu çizici için 19 deform kemiği gerekli.LOD_MISSING · lods: En az bir çizilebilir ayrıntı düzeyi gerekli.PROVENANCE_UNDECLARED · Kaynak/lisans bildirimi model verisinde belirtilmemiş; paket kredi kaydı ayrıca doğrulanmalı.",
+        "validation": {
+          "ok": false,
+          "errors": [
+            {
+              "code": "BONE_COUNT",
+              "path": "bones",
+              "message": "Bu çizici için 19 deform kemiği gerekli."
+            },
+            {
+              "code": "LOD_MISSING",
+              "path": "lods",
+              "message": "En az bir çizilebilir ayrıntı düzeyi gerekli."
+            }
+          ],
+          "summary": {
+            "boneCount": 0,
+            "lods": [],
+            "metadata": {
+              "id": "qa-broken",
+              "version": "",
+              "license": "",
+              "source": "",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": "c2ba7d5cf33388a31007aea90884acff9ccc6485062d9871c0454f55ab82f75d",
+      "matchesNormalPhysicalState": true,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-match-invalid-final.png",
+        "sha256": "d12d591aadf75e230dc6cfe4c69359d9c4b70c9383d3baab302812e0dd3033f7"
+      }
+    },
+    {
+      "page": "player-studio.html",
+      "fault": "invalid",
+      "status": {
+        "state": "invalid",
+        "text": "OYUNCU MODELİ GEÇERSİZOyuncu model verisi çiziciyle uyumlu değil. Teknik ayrıntılarda hatalı dosya veya veri alanı belirtiliyor.Model: qa-brokenKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: BONE_COUNT bones: Bu çizici için 19 deform kemiği gerekli.; LOD_MISSING lods: En az bir çizilebilir ayrıntı düzeyi gerekli.BONE_COUNT · bones: Bu çizici için 19 deform kemiği gerekli.LOD_MISSING · lods: En az bir çizilebilir ayrıntı düzeyi gerekli.PROVENANCE_UNDECLARED · Kaynak/lisans bildirimi model verisinde belirtilmemiş; paket kredi kaydı ayrıca doğrulanmalı.",
+        "details": "OYUNCU MODELİ GEÇERSİZOyuncu model verisi çiziciyle uyumlu değil. Teknik ayrıntılarda hatalı dosya veya veri alanı belirtiliyor.Model: qa-brokenKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: BONE_COUNT bones: Bu çizici için 19 deform kemiği gerekli.; LOD_MISSING lods: En az bir çizilebilir ayrıntı düzeyi gerekli.BONE_COUNT · bones: Bu çizici için 19 deform kemiği gerekli.LOD_MISSING · lods: En az bir çizilebilir ayrıntı düzeyi gerekli.PROVENANCE_UNDECLARED · Kaynak/lisans bildirimi model verisinde belirtilmemiş; paket kredi kaydı ayrıca doğrulanmalı.",
+        "validation": {
+          "ok": false,
+          "errors": [
+            {
+              "code": "BONE_COUNT",
+              "path": "bones",
+              "message": "Bu çizici için 19 deform kemiği gerekli."
+            },
+            {
+              "code": "LOD_MISSING",
+              "path": "lods",
+              "message": "En az bir çizilebilir ayrıntı düzeyi gerekli."
+            }
+          ],
+          "summary": {
+            "boneCount": 0,
+            "lods": [],
+            "metadata": {
+              "id": "qa-broken",
+              "version": "",
+              "license": "",
+              "source": "",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": null,
+      "matchesNormalPhysicalState": false,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-player-studio-invalid-final.png",
+        "sha256": "9fa9fbc4f08a7afa01f4ef7d1c347fe356e58390e79dbe19a735721068b2b548"
+      }
+    },
+    {
+      "page": "match.html",
+      "fault": "renderer-error",
+      "status": {
+        "state": "renderer-error",
+        "text": "YEDEK OYUNCU MODELİOyuncu modeli veya dokuları hazırlanamadı. Teknik ayrıntılarda eksik dosya ya da grafik hatası belirtiliyor.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: QA forced skinning shader compilation failure",
+        "details": "YEDEK OYUNCU MODELİOyuncu modeli veya dokuları hazırlanamadı. Teknik ayrıntılarda eksik dosya ya da grafik hatası belirtiliyor.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: QA forced skinning shader compilation failure",
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "summary": {
+            "boneCount": 19,
+            "lods": [
+              {
+                "index": 0,
+                "vertexCount": 15544,
+                "indexCount": 82050,
+                "triangleCount": 27350,
+                "indexType": "H",
+                "skinnedBoneCount": 19,
+                "bounds": {
+                  "min": [
+                    -0.1752556711435318,
+                    0,
+                    -0.6340524554252625
+                  ],
+                  "max": [
+                    0.33065056800842285,
+                    1.8799999952316284,
+                    0.6340524554252625
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "id": "tribun-makehuman-footballer-v1",
+              "version": "1",
+              "license": "CC0-1.0",
+              "source": "MakeHuman Community hm08 CC0 base mesh",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": "c2ba7d5cf33388a31007aea90884acff9ccc6485062d9871c0454f55ab82f75d",
+      "matchesNormalPhysicalState": true,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-match-renderer-error-final.png",
+        "sha256": "3085b496799e2890d9a1773b6b122ac17d1fb77db0fc36bc1e7ee97419ec6260"
+      }
+    },
+    {
+      "page": "player-studio.html",
+      "fault": "renderer-error",
+      "status": {
+        "state": "renderer-error",
+        "text": "YEDEK OYUNCU MODELİOyuncu modeli veya dokuları hazırlanamadı. Teknik ayrıntılarda eksik dosya ya da grafik hatası belirtiliyor.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: QA forced skinning shader compilation failure",
+        "details": "YEDEK OYUNCU MODELİOyuncu modeli veya dokuları hazırlanamadı. Teknik ayrıntılarda eksik dosya ya da grafik hatası belirtiliyor.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: QA forced skinning shader compilation failure",
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "summary": {
+            "boneCount": 19,
+            "lods": [
+              {
+                "index": 0,
+                "vertexCount": 15544,
+                "indexCount": 82050,
+                "triangleCount": 27350,
+                "indexType": "H",
+                "skinnedBoneCount": 19,
+                "bounds": {
+                  "min": [
+                    -0.1752556711435318,
+                    0,
+                    -0.6340524554252625
+                  ],
+                  "max": [
+                    0.33065056800842285,
+                    1.8799999952316284,
+                    0.6340524554252625
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "id": "tribun-makehuman-footballer-v1",
+              "version": "1",
+              "license": "CC0-1.0",
+              "source": "MakeHuman Community hm08 CC0 base mesh",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": null,
+      "matchesNormalPhysicalState": false,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-player-studio-renderer-error-final.png",
+        "sha256": "77342adba002a0992d8ee3949ff03ab3c4e3b487c5d812d7d4eed39be476faa4"
+      }
+    },
+    {
+      "page": "match.html",
+      "fault": "texture-missing",
+      "status": {
+        "state": "renderer-error",
+        "text": "YEDEK OYUNCU MODELİOyuncu modeli veya dokuları hazırlanamadı. Teknik ayrıntılarda eksik dosya ya da grafik hatası belirtiliyor.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: Doku dosyası açılamadı: assets/player/textures/skin-detail.png",
+        "details": "YEDEK OYUNCU MODELİOyuncu modeli veya dokuları hazırlanamadı. Teknik ayrıntılarda eksik dosya ya da grafik hatası belirtiliyor.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: Doku dosyası açılamadı: assets/player/textures/skin-detail.png",
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "summary": {
+            "boneCount": 19,
+            "lods": [
+              {
+                "index": 0,
+                "vertexCount": 15544,
+                "indexCount": 82050,
+                "triangleCount": 27350,
+                "indexType": "H",
+                "skinnedBoneCount": 19,
+                "bounds": {
+                  "min": [
+                    -0.1752556711435318,
+                    0,
+                    -0.6340524554252625
+                  ],
+                  "max": [
+                    0.33065056800842285,
+                    1.8799999952316284,
+                    0.6340524554252625
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "id": "tribun-makehuman-footballer-v1",
+              "version": "1",
+              "license": "CC0-1.0",
+              "source": "MakeHuman Community hm08 CC0 base mesh",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": "c2ba7d5cf33388a31007aea90884acff9ccc6485062d9871c0454f55ab82f75d",
+      "matchesNormalPhysicalState": true,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/player/textures/skin-detail.png",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-match-texture-missing-final.png",
+        "sha256": "a6bcd36d35d16211a3a45bda0504f9d8cfe64f902cdfc8af6a27a8279d435e2e"
+      }
+    },
+    {
+      "page": "player-studio.html",
+      "fault": "texture-missing",
+      "status": {
+        "state": "renderer-error",
+        "text": "YEDEK OYUNCU MODELİOyuncu modeli veya dokuları hazırlanamadı. Teknik ayrıntılarda eksik dosya ya da grafik hatası belirtiliyor.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: Doku dosyası açılamadı: assets/player/textures/skin-detail.png",
+        "details": "YEDEK OYUNCU MODELİOyuncu modeli veya dokuları hazırlanamadı. Teknik ayrıntılarda eksik dosya ya da grafik hatası belirtiliyor.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.Çizici: Doku dosyası açılamadı: assets/player/textures/skin-detail.png",
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "summary": {
+            "boneCount": 19,
+            "lods": [
+              {
+                "index": 0,
+                "vertexCount": 15544,
+                "indexCount": 82050,
+                "triangleCount": 27350,
+                "indexType": "H",
+                "skinnedBoneCount": 19,
+                "bounds": {
+                  "min": [
+                    -0.1752556711435318,
+                    0,
+                    -0.6340524554252625
+                  ],
+                  "max": [
+                    0.33065056800842285,
+                    1.8799999952316284,
+                    0.6340524554252625
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "id": "tribun-makehuman-footballer-v1",
+              "version": "1",
+              "license": "CC0-1.0",
+              "source": "MakeHuman Community hm08 CC0 base mesh",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": {
+          "identity": 0,
+          "skin": 1,
+          "hair": 0,
+          "kit": "home",
+          "view": "full",
+          "mode": "idle",
+          "paused": false
+        }
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": null,
+      "matchesNormalPhysicalState": false,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        },
+        {
+          "path": "/assets/player/textures/skin-detail.png",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-player-studio-texture-missing-final.png",
+        "sha256": "3aefd0879232b7fdfe33f91968602e351c9ad1f9db7b43052c121a85b7cabe93"
+      }
+    },
+    {
+      "page": "match.html",
+      "fault": "webgl-unavailable",
+      "status": {
+        "state": "webgl-unavailable",
+        "text": "2D YEDEK GÖRÜNÜMWebGL kullanılamıyor. Ayrıntılı oyuncu modeli için tarayıcının grafik hızlandırmasını kontrol et.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.",
+        "details": "2D YEDEK GÖRÜNÜMWebGL kullanılamıyor. Ayrıntılı oyuncu modeli için tarayıcının grafik hızlandırmasını kontrol et.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.",
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "summary": {
+            "boneCount": 19,
+            "lods": [
+              {
+                "index": 0,
+                "vertexCount": 15544,
+                "indexCount": 82050,
+                "triangleCount": 27350,
+                "indexType": "H",
+                "skinnedBoneCount": 19,
+                "bounds": {
+                  "min": [
+                    -0.1752556711435318,
+                    0,
+                    -0.6340524554252625
+                  ],
+                  "max": [
+                    0.33065056800842285,
+                    1.8799999952316284,
+                    0.6340524554252625
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "id": "tribun-makehuman-footballer-v1",
+              "version": "1",
+              "license": "CC0-1.0",
+              "source": "MakeHuman Community hm08 CC0 base mesh",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": "c2ba7d5cf33388a31007aea90884acff9ccc6485062d9871c0454f55ab82f75d",
+      "matchesNormalPhysicalState": true,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-match-webgl-unavailable-final.png",
+        "sha256": "f00a4823453e97bc9abdbb14af2140b973a5e948b85b1148ed142fd602a367f2"
+      }
+    },
+    {
+      "page": "player-studio.html",
+      "fault": "webgl-unavailable",
+      "status": {
+        "state": "webgl-unavailable",
+        "text": "2D YEDEK GÖRÜNÜMWebGL kullanılamıyor. Ayrıntılı oyuncu modeli için tarayıcının grafik hızlandırmasını kontrol et.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.",
+        "details": "2D YEDEK GÖRÜNÜMWebGL kullanılamıyor. Ayrıntılı oyuncu modeli için tarayıcının grafik hızlandırmasını kontrol et.Model: tribun-makehuman-footballer-v1Sürüm: 1Lisans kaydı: CC0-1.0Kaynak: MakeHuman Community hm08 CC0 base meshKaynak belgeleri ve dosya özetleri: assets/player/CREDITS.md ve assets/player/manifest.json.",
+        "validation": {
+          "ok": true,
+          "errors": [],
+          "summary": {
+            "boneCount": 19,
+            "lods": [
+              {
+                "index": 0,
+                "vertexCount": 15544,
+                "indexCount": 82050,
+                "triangleCount": 27350,
+                "indexType": "H",
+                "skinnedBoneCount": 19,
+                "bounds": {
+                  "min": [
+                    -0.1752556711435318,
+                    0,
+                    -0.6340524554252625
+                  ],
+                  "max": [
+                    0.33065056800842285,
+                    1.8799999952316284,
+                    0.6340524554252625
+                  ]
+                }
+              }
+            ],
+            "metadata": {
+              "id": "tribun-makehuman-footballer-v1",
+              "version": "1",
+              "license": "CC0-1.0",
+              "source": "MakeHuman Community hm08 CC0 base mesh",
+              "files": [],
+              "declaredOnly": true
+            }
+          }
+        },
+        "studio": null
+      },
+      "noSkinnedDraws": true,
+      "physicalStateSHA256": null,
+      "matchesNormalPhysicalState": false,
+      "scriptErrors": [],
+      "resourceErrors": [
+        {
+          "path": "/assets/ui/fonts/manrope-variable.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/fonts/barlow-condensed-semibold.ttf",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-night.png",
+          "status": 404
+        },
+        {
+          "path": "/assets/ui/stadium-silhouette.svg",
+          "status": 404
+        }
+      ],
+      "diagnosticScreenshot": {
+        "path": "work/stage13/model-failure-player-studio-webgl-unavailable-final.png",
+        "sha256": "68e7e62e0147f35cc51b3229dd22960e1b91e59fd69cbebb06f7fc245b1d46cd"
+      }
+    }
+  ],
+  "verified": true
+}
