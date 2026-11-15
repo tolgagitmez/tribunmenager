@@ -36,7 +36,7 @@ function solveKnee(hip,foot,upper=.47,lower=.47,forward=[1,0,0]){
 // Contact point is shared by the rig and ball simulation. Boot tip is at +.695m.
 function kickContact(p){return world(p,.88,(p.kickFoot===0?-1:1)*.18,BALL_RADIUS);}
 function kickAnkle(p){return world(p,.44,(p.kickFoot===0?-1:1)*.18,GROUND);}
-function getState(p){let st=rigs.get(p);if(!st){st={phase:0,prevX:p.x,prevZ:p.z,lastFace:p.face||0,prevSpeed:0,turn:0,lean:0,activity:0,actionWeight:0,scanYaw:0,lastAction:'idle',feet:[0,1].map(i=>({pos:world(p,.03,(i?1:-1)*.19,GROUND),stance:true,face:p.face||0,start:null,adjust:0})),pose:null};rigs.set(p,st);}return st;}
+function getState(p){let st=rigs.get(p);if(!st){st={phase:0,prevX:p.x,prevZ:p.z,lastFace:p.face||0,prevSpeed:0,turn:0,lean:0,activity:0,actionWeight:0,kickVisual:0,wasKicking:false,lastKickFoot:1,scanYaw:0,lastAction:'idle',feet:[0,1].map(i=>({pos:world(p,.03,(i?1:-1)*.19,GROUND),stance:true,face:p.face||0,start:null,adjust:0})),pose:null};rigs.set(p,st);}return st;}
 function getDive(p){
  const t=p.actionElapsed||0,contact=Math.max(.10,p.diveContactTime||.34),duration=p.actionDuration||.95;
  const extension=smooth(t/contact),recover=smooth((t-contact-.12)/Math.max(.15,duration-contact-.12));
@@ -99,18 +99,31 @@ function pose(p,dt=1/60){
  const timed=kicking&&p.contactTime>0;
  const contact=timed?clamp((p.actionElapsed||0)/p.contactTime,0,1):smooth(1-clamp((p.actionClock||0)/.55,0,1));
  const after=timed?clamp(((p.actionElapsed||0)-p.contactTime)/Math.max(.05,(p.actionDuration||p.contactTime+FOLLOW)-p.contactTime),0,1):0;
- const kick= kicking?action*Math.sin(contact*Math.PI*.5)*(1-smooth(after)):0;
+ const kickDemand=kicking?action*Math.sin(contact*Math.PI*.5)*(1-smooth(after)):0;
+ // Keep the upper-body follow-through briefly after match action changes.
+ // This has no effect on ball contact timing or game simulation state.
+ st.kickVisual=mix(st.kickVisual,kickDemand,1-Math.exp(-dt*(kicking?32:16)));
+ const kick=st.kickVisual;
  const tackle=act==='tackle'?action:0,diving=act==='dive'?action:0,celebrating=act==='celebrate'?action:0,protest=act==='protest'?action:0;
  const bounce=st.activity*(.012+.025*sprint)*Math.sin(st.phase*4*Math.PI);
- const gather=gatherDrop(p),hipHeight=1.00+bounce-tackle*.16-gather;
+ const gather=gatherDrop(p),hipHeight=1.00+bounce-tackle*.16-gather-kick*.012;
  const feint=p.feintClock>0?Math.sin(p.feintClock/.35*Math.PI)*(p.feintSign??((p.personality??.6)>.5?1:-1))*.09:0;
- const pelvis=world(p,-.04,0,hipHeight),torsoBase=world(p,-.05,0,1.08+bounce-tackle*.18-gather);
+ const pelvis=world(p,-.04,0,hipHeight),torsoBase=world(p,-.05,0,1.08+bounce-tackle*.18-gather-kick*.006);
  const torsoUpper=world(p,.02+st.lean+kick*.08,st.turn*.1+feint,1.47+bounce-tackle*.24-gather);
  const neck=world(p,.025+st.lean+kick*.07,st.turn*.12+feint*.7,1.59+bounce-tackle*.24-gather);
  const head=world(p,.025+st.lean+kick*.10,st.turn*.15+feint*.5,1.77+bounce-tackle*.25-gather);
  const facing=[Math.cos(p.face||0),0,Math.sin(p.face||0)];
  const legs=[],arms=[];
- if(kicking&&!['pass','shoot'].includes(st.lastAction)){st.support=st.feet[p.kickFoot===0?1:0].pos.slice();st.movingSupport=false;}
+ if(kicking&&!st.wasKicking){st.support=st.feet[p.kickFoot===0?1:0].pos.slice();st.movingSupport=false;}
+ if(kicking)st.lastKickFoot=p.kickFoot===0?0:1;
+ // Ease the kicking foot back into running gait instead of teleporting its
+ // target from follow-through to an unrelated stride in one 60 Hz tick.
+ if(!kicking&&st.wasKicking){
+  const i=st.lastKickFoot,foot=st.feet[i];
+  foot.adjust=.0001;foot.start=foot.pos.slice();
+  foot.adjustTarget=world(p,.03,(i?1:-1)*.19,GROUND);
+  foot.kickRelease=true;foot.stance=false;foot.swingTime=0;
+ }
  for(let i=0;i<2;i++){
   const side=i?1:-1,f=st.feet[i],hip=world(p,-.04,side*.153,hipHeight);
   const arc=((st.phase+i*.5)%1+1)%1,locomoting=speed>.15||travel>.001;
@@ -122,9 +135,10 @@ function pose(p,dt=1/60){
    if(!st.feet[1-i].adjust){f.adjust=.0001;f.start=f.pos.slice();f.adjustTarget=(locomoting?touch:neutral).slice();f.stance=false;}
   }
   if(f.adjust){
+   if(f.kickRelease)f.adjustTarget=neutral.slice();
    f.adjust=Math.min(.22,f.adjust+dt);const u=smooth(f.adjust/.22);
    f.pos=blend(f.start,f.adjustTarget,u);f.pos[1]+=Math.sin(u*Math.PI)*.13;stance=false;
-   if(f.adjust>=.22){f.adjust=0;f.stance=true;f.face=p.face;stance=true;}
+   if(f.adjust>=.22){f.adjust=0;f.kickRelease=false;f.stance=true;f.face=p.face;stance=true;}
   }else if(stance){
    if(!f.stance){f.pos[1]=GROUND;f.face=p.face;}
    f.stance=true;f.start=null;
@@ -178,7 +192,7 @@ function pose(p,dt=1/60){
   result.diving=d.reach;
  }
  if(act==='header'&&p.actionClock>0){const u=clamp((p.actionElapsed||0)/Math.max(.1,p.actionDuration||.5),0,1),wave=Math.sin(Math.PI*u),jump=wave*(p.headerHeight?clamp((p.headerHeight-1.77)/.905,0,.33):.23);const bend=p.headerHeight?Math.min(0,p.headerHeight-1.77)*wave/.905:0;result.head[1]+=bend;result.neck[1]+=bend*.7;result.torsoUpper[1]+=bend*.45;for(const key of ['pelvis','neck','head','torsoBase','torsoUpper'])result[key][1]+=jump;for(const l of legs){for(const key of ['hip','knee','ankle','toe'])l[key][1]+=jump;l.stance=false;}for(const a of arms)for(const key of ['shoulder','elbow','wrist'])a[key][1]+=jump;}
- st.prevX=p.x;st.prevZ=p.z;st.lastFace=p.face||0;st.prevSpeed=speed;st.lastAction=act;st.pose=result;
+ st.prevX=p.x;st.prevZ=p.z;st.lastFace=p.face||0;st.prevSpeed=speed;st.lastAction=act;st.wasKicking=kicking;st.pose=result;
  return result;
 }
 function reset(p){rigs.delete(p);}

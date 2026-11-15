@@ -17,6 +17,8 @@ const CLIPS=Object.freeze([
  {name:'turn',duration:4.5},
  {name:'pass',duration:1.3,contactTime:.31},
  {name:'shoot',duration:1.3,contactTime:.38},
+ {name:'run-pass',duration:2.4,contactTime:1.06},
+ {name:'run-shoot',duration:2.4,contactTime:1.13},
  {name:'dive-left',duration:1.3,contactTime:.34},
  {name:'dive-right',duration:1.3,contactTime:.34}
 ]);

@@ -38,6 +38,9 @@ test('complete character draw pipeline uploads skin matrices for still and movin
   assert.equal(gl.calls.at(-1).count,Assets.lods[0].indexCount);
   assert.equal(gl.uniforms['uBones[0]'].length,19*16);
   assert.equal(gl.uniforms['uJointRest[0]'].length,4*3);
+  assert.equal(gl.uniforms['uHipRest[0]'].length,2*3);
+  assert.equal(gl.uniforms['uHipFlex'].length,2);
+  for(const x of gl.uniforms['uHipFlex'])assert(x>=0&&x<=1);
   assert.equal(gl.uniforms['uJointFlex'].length,4);
   for(const x of gl.uniforms['uJointFlex'])assert(x>=0&&x<=1);
  }

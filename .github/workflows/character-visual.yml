@@ -5,6 +5,7 @@ on:
     branches:
       - feature/character-glb-animation-v1
       - feature/character-footlock-glb-viewer-v1
+      - feature/character-kick-transition-sole-v1
   pull_request:
     paths:
       - 'assets/player/**'
