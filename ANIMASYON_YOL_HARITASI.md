@@ -58,3 +58,8 @@ Görünüm, rig ve çizim varlıkları v1.9 ile aynı tutuldu. Çalışma savunm
 ## v1.11 görev devamlılığı
 
 Görünüm ve rig korunarak pasın alıcıya etkisi, dripling güzergâhı, pas sonrası role uygun görev, markaj devri ve ilk görüşü kapalı kaleci okuması geliştirildi. Güncel konumlardan takım akışı diyagramı ile hareketli pasın yerel 3D temas örneği üretildi. Kesintisiz tarayıcı maçı/telefon performansı doğrulanmadı; yeni mocap veya animasyon klibi eklenmedi.
+
+
+## Aşama 2 — prosedürel karakter ve eklem deformasyonu (2026-11-15)
+
+Eksik WebGL karakter veri dosyası sıfırdan üretildi. 19 kemik / üç LOD / normalize skin weight, sabit IK kemik uzunluğu, sınırlı diz-dirsek, omuz-dirsek-diz dokusu için GPU düzeltmesi, ayrı yürüyüş-jog-sprint gözlem pozları, Node ve GitHub Actions kontrolleri eklendi. Bu aşama ticari GLB, Blender sculpt, gerçek corrective blendshape veya mocap teslimi değildir. Ayrıntılar: docs/CHARACTER_RIG_PHASE2.md.
