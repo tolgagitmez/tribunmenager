@@ -162,8 +162,8 @@ function buildGLB({lod=0,assets=Assets,animations=false,fps=30,clips=CLIPS}={}){
 }
 if(require.main===module){
  const args=process.argv.slice(2),get=(key,fallback)=>{const p=args.indexOf(key);return p<0?fallback:args[p+1];};
- const lod=Number(get('--lod','0')),output=path.resolve(get('--output','assets/player/tribun-base-footballer.glb'));
  const animations=args.includes('--animations'),fps=Number(get('--fps','30'));
+ const lod=Number(get('--lod','0')),output=path.resolve(get('--output',animations?'dist/tribun-base-footballer-animated.glb':'assets/player/tribun-base-footballer.glb'));
  const result=buildGLB({lod,animations,fps});fs.mkdirSync(path.dirname(output),{recursive:true});
  fs.writeFileSync(output,Buffer.from(result.glb));
  console.log(JSON.stringify({output,...result.stats},null,2));
