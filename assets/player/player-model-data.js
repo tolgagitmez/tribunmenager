@@ -178,7 +178,8 @@ function mesh(lod){
  return {vertices:encode(new Uint8Array(vertices.buffer)),indices:encode(new Uint8Array(indices.buffer)),indexType:'H',
   vertexCount:vertices.length/20,indexCount:indices.length};
 }
-const assets={version:'base-footballer-procedural-1',units:'metres',up:'Y',boneCount:bones.length,bones,
+const assets={version:'base-footballer-procedural-2',units:'metres',up:'Y',boneCount:bones.length,bones,
+ restBends:[rest.arms[0].bend,rest.arms[1].bend,rest.legs[0].bend,rest.legs[1].bend],
  lods:[mesh(0),mesh(1),mesh(2)]};
 root.TribunPlayerAssets=assets;
 if(typeof module!=='undefined'&&module.exports)module.exports=assets;
