@@ -26,7 +26,8 @@ async function main(){
    try{const state=window.TRIBUN_MATCH_TEST?.getState();
     return state?.players?.filter(p=>p.active&&!p.referee).length===22;}catch{return false;}
   },null,{timeout:45000});
-  // Let the real match presentation sample players while the match runs.
+  // Wait for the WebGL model draw, not just match data initialization.
+  // SwiftShader may need longer to compile shader programs in CI.
   await page.waitForTimeout(700);
   const before=await page.evaluate(()=>({
    clock:window.TRIBUN_MATCH_TEST.getState().time,
@@ -34,7 +35,8 @@ async function main(){
    stats:window.TRIBUN_MATCH_TEST.animationStats(),
    quality:document.querySelector('[data-player-quality]')?.textContent
   }));
-  assert(before.stats.players>=22,'match animation bridge did not see 22 player models');
+  console.log('Match benchmark startup: '+JSON.stringify(before));
+  assert(before.stats.players>=22,'match animation bridge did not see 22 player models: '+JSON.stringify(before));
   assert(before.quality?.includes('YENİ OYUNCU MODELİ'),'match should use skinned GPU footballers');
   await page.click('#playButton'); // Freeze game state for A/B 22-player rendering.
   const results=await page.evaluate(()=>{
