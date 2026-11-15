@@ -104,7 +104,7 @@ window.addEventListener('DOMContentLoaded',()=>{
  if($('resumeHalf'))$('resumeHalf').onclick=()=>{if(typeof game.resumeHalf==='function')game.resumeHalf();consume();metrics();renderSubs();};
  if($('halftimeSubs'))$('halftimeSubs').onclick=()=>{renderSubs();$('subPanel').hidden=false;};
  $('saveSubs').onclick=()=>{const result=game.substitute(Number($('subOut').value),Number($('subIn').value));if(result.ok){$('subPanel').hidden=true;consume();renderSubs();}else alert(result.error);};
- function start(){init();let last=performance.now();function frame(now){const dt=Math.min(.25,(now-last)/1000);last=now;tick(dt);const b=game.ball;scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},paused?0:dt);requestAnimationFrame(frame);}requestAnimationFrame(frame);}
+ function start(){init();let last=performance.now();function frame(now){const dt=Math.max(0,Math.min(.25,(now-last)/1000));last=now;tick(dt);const b=game.ball;scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},paused?0:dt);requestAnimationFrame(frame);}requestAnimationFrame(frame);}
  if(!window.TribunMatchConfig.prepared(cfg)){
   const controls=[...document.querySelectorAll('.match-controls button,#subButton,#saveSubs,#againButton,#restartButton,#playButton,#speedButton')];controls.forEach(b=>b.disabled=true);
   $('sessionTitle').textContent='GÜNCEL KADRO ALINIYOR…';
