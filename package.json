@@ -44,7 +44,9 @@
     "test:pass-review": "node tests/pass-review.test.cjs",
     "test:pass-release-read": "node tests/pass-release-read.test.cjs",
     "test:receiver-forecast": "node tests/receiver-forecast.test.cjs",
-    "test:character-rig": "node --test tests/character-rig-anatomy.test.cjs tests/base-character-asset.test.cjs tests/character-renderer-smoke.test.cjs"
+    "test:character-rig": "node --test tests/character-rig-anatomy.test.cjs tests/base-character-asset.test.cjs tests/character-renderer-smoke.test.cjs tests/character-glb-export.test.cjs",
+    "test:character-gltf": "node --test tests/character-glb-export.test.cjs",
+    "build:character-glb": "node tools/export-character-glb.cjs --lod 0 --output dist/tribun-base-footballer-lod0.glb"
   },
   "devDependencies": {
     "jsdom": "30.1.3"
