@@ -69,6 +69,7 @@ jobs:
         run: |
           npm run test:character-rig
           npm run test:match-animation
+          npm run test:match-fps
           npm ci --ignore-scripts
           node --test tests/player-asset-status.test.cjs tests/player-assets.test.cjs tests/match-startup.test.cjs
       - name: Build downloadable skinned GLB exports
