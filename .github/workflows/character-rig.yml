@@ -6,6 +6,7 @@ on:
       - feature/character-rig-anatomy-v1
       - feature/character-glb-export-v1
       - feature/character-glb-animation-v1
+      - feature/character-footlock-glb-viewer-v1
   pull_request:
     paths:
       - 'humanoid-rig.js'
