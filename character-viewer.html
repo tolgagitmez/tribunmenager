@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#071316">
+<title>GLB Animasyon Laboratuvarı · Tribün Manager</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#e9f2f1;background:#071316}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 65% 20%,#1b3641,#071316 63%);min-height:100vh}
+header{max-width:1260px;margin:auto;padding:25px 24px 10px;display:flex;justify-content:space-between;gap:20px;align-items:center}
+header a{color:#d9f976;text-decoration:none;font-size:.85rem}h1{font-size:clamp(1.55rem,3vw,2.6rem);letter-spacing:-.05em;margin:3px 0}
+.kicker{color:#a0b4b4;font-size:.7rem;letter-spacing:.21em;font-weight:700}
+main{max-width:1260px;padding:8px 24px 24px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:20px}
+.stage{position:relative;border:1px solid #284149;border-radius:20px;overflow:hidden;background:linear-gradient(#1a333b,#0c1c22)}
+#stage{height:min(74vh,770px);min-height:490px;outline:none}
+#stage canvas{display:block;width:100%;height:100%}
+.overlay{position:absolute;pointer-events:none;left:18px;top:18px;background:#071316b0;color:#daeaeb;padding:8px 12px;border-radius:8px;font-size:.8rem}
+aside{border:1px solid #284149;border-radius:20px;padding:20px;background:#0d2025;align-self:start}
+h2{font-size:1.05rem;margin:0 0 14px}
+label{display:block;margin:15px 0 7px;color:#aebfc1;font-size:.86rem}
+select,input,button{font:inherit;width:100%;color:#f4f8f8}
+select,button{background:#173239;border:1px solid #416068;border-radius:10px;padding:12px}
+select:focus,button:focus{outline:2px solid #d7f56e}button{cursor:pointer;background:#d9f976;color:#15211d;border:0;font-weight:700}
+button:hover{background:#ebffa1}
+input{accent-color:#d9f976}
+.muted{color:#92a9af;line-height:1.5;font-size:.81rem}
+.value{font-variant-numeric:tabular-nums;color:#d9f976}
+.status{padding:10px 12px;border-radius:10px;background:#102930;color:#d9f976;font-size:.85rem}
+@media(max-width:790px){main{grid-template-columns:1fr}#stage{height:58vh;min-height:350px}header{align-items:start}}
+</style>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+<header>
+<div><span class="kicker">TRİBÜN MANAGER / BAĞIMSIZ GLTF OYNATICI</span><h1>FUTBOLCU ANİMASYON LABORATUVARI</h1></div>
+<a href="player-studio.html">Oyuncu stüdyosuna dön</a>
+</header>
+<main>
+<section class="stage"><div id="stage" tabindex="0" aria-label="Üç boyutlu animasyonlu GLB futbolcu modeli"></div><div class="overlay" id="renderLabel">3D · GLB / glTF 2.0</div></section>
+<aside>
+<h2>Hareket denetimi</h2>
+<p class="status" id="status" role="status">Karakter yükleniyor…</p>
+<label for="clip">Animasyon klibi</label>
+<select id="clip" aria-label="Animasyon klibi"></select>
+<label for="scrub">Zaman — <span class="value" id="timeLabel">0.00 sn</span></label>
+<input id="scrub" type="range" min="0" max="1" step=".01" value="0" aria-label="Klip zamanı">
+<button id="playToggle" type="button">Duraklat</button>
+<p class="muted">Farenizle futbolcunun etrafında dönebilir, tekerlekle yakınlaşabilirsiniz. GLB dosyasının gerçek kemik animasyonları gösterilir; oyun içi WebGL poz çizicisi kullanılmaz.</p>
+<p class="muted" id="diagnostics">İskelet doğrulanıyor…</p>
+<a href="assets/player/tribun-base-footballer-animated.glb" download style="font-size:.83rem;color:#d9f976">Animasyonlu GLB modelini indir</a>
+</aside>
+</main>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const $=id=>document.getElementById(id),stage=$('stage'),status=$('status'),clipSelect=$('clip'),scrub=$('scrub');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x10262c);
+const camera=new THREE.PerspectiveCamera(37,1,.05,120);camera.position.set(3.9,2.4,3.8);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.5;
+stage.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.target.set(0,1,0);controls.minDistance=1.5;controls.maxDistance=14;
+scene.add(new THREE.HemisphereLight(0xe8f6ff,0x43615b,2.0));
+const key=new THREE.DirectionalLight(0xffffff,3);key.position.set(4,8,5);scene.add(key);
+const fill=new THREE.DirectionalLight(0x7cbcff,1);fill.position.set(-3,4,-6);scene.add(fill);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(180,180),new THREE.MeshStandardMaterial({color:0x35534e,roughness:1}));
+floor.rotation.x=-Math.PI/2;floor.position.y=.001;scene.add(floor);
+const grid=new THREE.GridHelper(180,90,0x73917d,0x45655d);grid.position.y=.003;grid.material.transparent=true;grid.material.opacity=.15;scene.add(grid);
+
+let mixer=null,model=null,action=null,clips=[],paused=false,last=performance.now(),duration=1;
+function fit(){const width=Math.max(2,stage.clientWidth),height=Math.max(2,stage.clientHeight);renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();}
+window.addEventListener('resize',fit);fit();
+function followRoot(){
+ const hip=model?.getObjectByName('pelvis');if(!hip)return;
+ const p=new THREE.Vector3();hip.getWorldPosition(p);p.y=1.0;
+ const delta=p.clone().sub(controls.target);camera.position.add(delta);controls.target.copy(p);
+}
+function render(){followRoot();controls.update();renderer.render(scene,camera);}
+function selectClip(name){
+ if(!mixer)return false;
+ const item=clips.find(c=>c.name===name);if(!item)return false;
+ if(action){action.stop();}
+ action=mixer.clipAction(item);action.reset();action.setLoop(THREE.LoopRepeat,Infinity);action.play();
+ duration=item.duration;scrub.max=String(duration);scrub.value='0';mixer.setTime(0);clipSelect.value=name;paused=false;
+ $('playToggle').textContent='Duraklat';$('timeLabel').textContent='0.00 sn';render();return true;
+}
+function sample(seconds){
+ if(!mixer)return false;
+ paused=true;$('playToggle').textContent='Oynat';
+ const t=Math.max(0,Math.min(duration-.0001,Number(seconds)||0));mixer.setTime(t);scrub.value=String(t);
+ $('timeLabel').textContent=t.toFixed(2)+' sn';render();return true;
+}
+clipSelect.addEventListener('change',()=>selectClip(clipSelect.value));
+scrub.addEventListener('input',()=>sample(scrub.value));
+$('playToggle').onclick=()=>{paused=!paused;$('playToggle').textContent=paused?'Oynat':'Duraklat';};
+function animate(now){
+ const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;
+ if(!paused&&mixer){mixer.update(dt);const t=action?.time??0;scrub.value=String(t);$('timeLabel').textContent=t.toFixed(2)+' sn';}
+ render();requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+const api={ready:false,selectClip,sample,stats:()=>({ready:api.ready,clips:clips.map(c=>c.name),duration,paused,hasBone:!!model?.getObjectByName('pelvis'),threeVersion:THREE.REVISION}),getFrame:()=>{
+ const l=model?.getObjectByName('foot.L'),r=model?.getObjectByName('foot.R'),out=[];
+ for(const bone of [l,r]){const p=new THREE.Vector3();if(bone)bone.getWorldPosition(p);out.push([p.x,p.y,p.z]);}return out;
+}};
+window.TribunGLBViewer=api;
+new GLTFLoader().load('assets/player/tribun-base-footballer-animated.glb',gltf=>{
+ model=gltf.scene;clips=gltf.animations;scene.add(model);mixer=new THREE.AnimationMixer(model);
+ if(!model.getObjectByName('pelvis')||clips.length<10)throw Error('GLB iskeletinde eksik kemik veya klip var');
+ clipSelect.replaceChildren();
+ for(const c of clips){const opt=document.createElement('option');opt.value=c.name;opt.textContent=c.name;clipSelect.appendChild(opt);}
+ api.ready=true;status.textContent=clips.length+' klip · 19 kemikli GLB yüklendi';
+ $('diagnostics').textContent='Bağımsız Three.js glTFLoader · '+clips.length+' klip · 19 kemik';
+ selectClip('walk');
+},undefined,error=>{console.error(error);status.textContent='GLB yüklenemedi: '+(error?.message||String(error));});
+</script>
+</body>
+</html>
