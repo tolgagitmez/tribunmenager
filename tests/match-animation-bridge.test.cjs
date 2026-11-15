@@ -17,11 +17,15 @@ function group(angle=0,x=0,z=0){
  for(let i=0;i<19;i++)out.set(one,i*16);
  return out;
 }
-function basisCheck(m){
+function basisCheck(m,licensedScale=false){
  for(let i=0;i<m.length;i+=16){
-  for(let c=0;c<3;c++)near(Math.hypot(m[i+c*4],m[i+c*4+1],m[i+c*4+2]),1,4e-5);
+  const sizes=[0,1,2].map(c=>Math.hypot(m[i+c*4],m[i+c*4+1],m[i+c*4+2]));
+  for(const n of sizes){
+   if(licensedScale)assert(n>=.45&&n<=1.75,'calibrated skeleton length is outside supported bounds: '+n);
+   else near(n,1,4e-5);
+  }
   for(let c=0;c<3;c++)for(let d=c+1;d<3;d++)
-   near(m[i+4*c]*m[i+4*d]+m[i+4*c+1]*m[i+4*d+1]+m[i+4*c+2]*m[i+4*d+2],0,4e-5);
+   near((m[i+4*c]*m[i+4*d]+m[i+4*c+1]*m[i+4*d+1]+m[i+4*c+2]*m[i+4*d+2])/(sizes[c]*sizes[d]),0,4e-5);
   assert(Number.isFinite(m[i+12])&&Number.isFinite(m[i+14]));
  }
 }
@@ -73,10 +77,20 @@ test('22 active real footballer palettes blend independently and keep rigid base
    const pose=Rig.update(p,1/60),raw=Renderer.palette(p,Assets,pose);
    const blended=bridge.sample(p,raw,1/60,pose.action);
    assert.equal(blended.length,19*16);
-   basisCheck(blended);
+   basisCheck(blended,true);
   }
  }
  assert.equal(bridge.stats().players,22);
  assert(bridge.stats().transitions>=5);
  assert(bridge.stats().blendedFrames>0);
+});
+
+test('licensed rig retains calibrated non-unit bind length without snapping on fade completion',()=>{
+ const a=group(0),b=group(Math.PI/3);
+ a[5]=.63;b[5]=1.48;
+ const mid=Bridge.mixRigid(a,b,new Float32Array(a.length),.5);
+ const end=Bridge.mixRigid(a,b,new Float32Array(a.length),1);
+ near(Math.hypot(mid[4],mid[5],mid[6]),1.055,2e-5);
+ near(Math.hypot(end[4],end[5],end[6]),1.48,2e-5);
+ basisCheck(mid,true);basisCheck(end,true);
 });
