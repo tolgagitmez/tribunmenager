@@ -19,7 +19,7 @@ async function main(){
  const browser=await chromium.launch({headless:true,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-gpu-sandbox']});
  const errors=[],report={};
  try{
-  const page=await browser.newPage({viewport:{width:1600,height:1024},deviceScaleFactor:1});
+  const page=await browser.newPage({viewport:{width:1600,height:1024},deviceScaleFactor:1.25});
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/match.html',{waitUntil:'load'});
   await page.waitForFunction(()=>{
@@ -52,23 +52,31 @@ async function main(){
   assert.equal(frozen.paused,true,'match must be paused for comparison');
   const results=await page.evaluate(()=>{
    const api=window.TRIBUN_MATCH_TEST;
-   const run=(enabled,count)=>{
-    api.setAnimationBlending(enabled);
-    const out=[];
+   function run(mode,enabled,count){
+    api.setGraphicsMode(mode);api.setAnimationBlending(enabled);
+    const out=[];let last=null;
     for(let i=0;i<count;i++){
      const p=api.renderProbe();
      if(!p.webgl||p.active!==22)throw Error('Expected true 22-player WebGL scene');
-     out.push(p.cpuGpuMs);
+     out.push(p.cpuGpuMs);last=api.performanceStats();
     }
-    return out;
-   };
-   run(true,3); // shader and WebGL warmup
-   const baseline=run(false,12),blended=run(true,12);
-   return {baseline,blended,state:api.getState().time,score:[...api.getState().score],
-    bridge:api.animationStats()};
+    return {samples:out,profile:last};
+   }
+   // Compare the real licensed mesh and the same 22 players in all modes.
+   const quality=run('quality',true,3);
+   const performance=run('performance',true,8);
+   const withoutBlending=run('balanced',false,8);
+   const balanced=run('balanced',true,8);
+   return {quality,performance,withoutBlending,balanced,
+     state:api.getState().time,score:[...api.getState().score],bridge:api.animationStats()};
   });
-  assert.equal(results.baseline.length,12);assert.equal(results.blended.length,12);
+  for(const name of ['quality','performance','withoutBlending','balanced'])assert(results[name].samples.length>=3);
   assert(results.bridge.players>=22);
+  assert(results.performance.profile.players.fast>=22,'fast broadcast shader must render all footballers');
+  assert(results.quality.profile.players.detailed>=22,'quality shader must preserve full original material');
+  const pixels=mode=>results[mode].profile.canvas.reduce((a,b)=>a*b,1);
+  assert(pixels('performance')<pixels('quality')*.55,'performance mode must reduce GPU fragment count');
+
   const screenshot=await page.screenshot({path:path.join(destination,'match-22-players.png'),animations:'disabled',timeout:90000});
   const png=PNG.sync.read(screenshot);
   const colors=new Set();for(let i=0;i<png.data.length;i+=4*29){
@@ -80,7 +88,12 @@ async function main(){
   assert.deepEqual(errors,[],'browser console JavaScript errors');
   report.browser='Chromium SwiftShader (software WebGL)',report.kind='synchronous render+gl.finish; not a mobile FPS measurement';
   report.activeFootballers=22;report.animatedPlayers=results.bridge.players;report.bridge=results.bridge;
-  report.withoutBlending=summary(results.baseline);report.withBlending=summary(results.blended);
+  report.withoutBlending=summary(results.withoutBlending.samples);report.withBlending=summary(results.balanced.samples);
+  report.graphics={
+   quality:{...summary(results.quality.samples),profile:results.quality.profile},
+   performance:{...summary(results.performance.samples),profile:results.performance.profile},
+   balanced:{...summary(results.balanced.samples),profile:results.balanced.profile}
+  };
   report.gameClockUnchanged=true;report.scoreUnchanged=true;report.pixelColors=colors.size;report.errors=errors;
   fs.writeFileSync(path.join(destination,'report.json'),JSON.stringify(report,null,2)+'\n');
   console.log('22-player real match render benchmark: '+JSON.stringify(report));

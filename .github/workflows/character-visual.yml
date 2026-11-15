@@ -10,6 +10,7 @@ on:
       - feature/match-animation-bridge-22players-v1
       - integration/character-pr3-9-licensed-compatible
       - main
+      - fix/match-performance-adaptive-quality-v1
   pull_request:
     paths:
       - 'assets/player/**'
