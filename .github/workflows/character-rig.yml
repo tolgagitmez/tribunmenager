@@ -1,0 +1,79 @@
+name: Character rig and glTF validation
+
+on:
+  push:
+    branches:
+      - feature/character-rig-anatomy-v1
+      - feature/character-glb-export-v1
+      - feature/character-glb-animation-v1
+      - feature/character-footlock-glb-viewer-v1
+      - feature/character-kick-transition-sole-v1
+      - feature/character-blend-loop-contact-v1
+      - feature/match-animation-bridge-22players-v1
+  pull_request:
+    paths:
+      - 'humanoid-rig.js'
+      - 'player-renderer.js'
+      - 'animation-scenarios.js'
+      - 'assets/player/**'
+      - 'tests/*character*'
+      - 'tests/*rig*'
+      - 'tools/export-character-glb.cjs'
+      - 'tools/character-animation-baker.cjs'
+      - 'tests/character-kick-transition.test.cjs'
+      - 'tests/character-blending-loop.test.cjs'
+      - 'tests/character-skinned-sole.test.cjs'
+      - 'character-blend-controller.js'
+      - 'match-animation-bridge.js'
+      - 'scene3d.js'
+      - 'match3d.js'
+      - 'match.html'
+      - 'tests/match-animation-bridge.test.cjs'
+      - 'package.json'
+      - '.github/workflows/character-rig.yml'
+
+jobs:
+  character-rig:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check humanoid-rig.js
+          node --check player-renderer.js
+          node --check assets/player/player-model-data.js
+          node --check tools/export-character-glb.cjs
+          node --check tools/character-animation-baker.cjs
+          node --check animation-scenarios.js
+          node --check character-blend-controller.js
+          node --check match-animation-bridge.js
+          node --check scene3d.js
+          node --check match3d.js
+          node --check tools/validate-character-glb.cjs
+      - name: Validate character rig, model and glTF
+        run: |
+          npm run test:character-rig
+          npm run test:match-animation
+      - name: Build downloadable skinned GLB exports
+        run: |
+          node tools/export-character-glb.cjs --lod 0 --output dist/tribun-base-footballer-lod0.glb
+          node tools/export-character-glb.cjs --lod 1 --output dist/tribun-base-footballer-lod1.glb
+          node tools/export-character-glb.cjs --lod 2 --output dist/tribun-base-footballer-lod2.glb
+          node tools/export-character-glb.cjs --animations --fps 30 --lod 0 --output dist/tribun-base-footballer-animated.glb
+      - name: Validate GLB with the official Khronos validator
+        run: |
+          npm install --no-save --no-package-lock --ignore-scripts gltf-validator@2.0.0-dev.3.10
+          node tools/validate-character-glb.cjs assets/player/tribun-base-footballer.glb dist/tribun-base-footballer-lod0.glb dist/tribun-base-footballer-lod1.glb dist/tribun-base-footballer-lod2.glb dist/tribun-base-footballer-animated.glb
+      - name: Upload GLB exports
+        uses: actions/upload-artifact@v4
+        with:
+          name: tribun-base-footballer-glb
+          path: |
+            dist/*.glb
+            dist/*.validation.json
+          if-no-files-found: error
+          retention-days: 30
