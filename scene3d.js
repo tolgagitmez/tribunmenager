@@ -33,7 +33,7 @@ segment(ax,ay,az,bx,by,bz,r,color){let a=[ax,ay,az],b=[bx,by,bz],dir=sub(b,a),L=
 }
 class Stadium3D{
 constructor(canvas){this.canvas=canvas;
-this.performance={mode:'balanced',scale:1,lowFrames:0,goodFrames:0,fps:60};
+this.performance={mode:'performance',scale:1,lowFrames:0,goodFrames:0,fps:60};
 this.gl=canvas.getContext('webgl',{antialias:true,alpha:false});if(!this.gl){this.ctx=canvas.getContext('2d');this.camera='tv';this.cameraSmoothing=[0,35,60];this.cameraTarget=[0,0,0];this.debugRig=false;this.matchAnimation=window.TribunMatchAnimationBridge?.create({duration:.28})||null;this.configurePlayerModel();return;}const gl=this.gl;const vs=`attribute vec3 p;attribute vec3 c;uniform mat4 vp;varying vec3 col;void main(){gl_Position=vp*vec4(p,1.);col=c;}`;
 const fs=`precision mediump float;varying vec3 col;void main(){gl_FragColor=vec4(col,1.);}`;
 let make=(type,src)=>{let sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh};let prog=gl.createProgram();gl.attachShader(prog,make(gl.VERTEX_SHADER,vs));gl.attachShader(prog,make(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);gl.useProgram(prog);this.program=prog;this.aPos=gl.getAttribLocation(prog,'p');this.aColor=gl.getAttribLocation(prog,'c');this.mvp=gl.getUniformLocation(prog,'vp');this.staticBuffer=gl.createBuffer();this.dynamicBuffer=gl.createBuffer();gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.clearColor(.025,.05,.095,1);this.camera='tv';this.cameraSmoothing=[0,35,60];this.cameraTarget=[0,0,0];this.debugRig=false;this.matchAnimation=window.TribunMatchAnimationBridge?.create({duration:.28})||null;this.configurePlayerModel();this.makeStatic();}
@@ -147,8 +147,8 @@ observeFrame(dt,paused=false){
  const p=this.performance,ms=dt*1000;
  p.fps=p.fps*.93+Math.min(120,1000/ms)*.07;
  if(p.mode!=='balanced')return;
- if(ms>27){p.lowFrames++;p.goodFrames=0;}else if(ms<19){p.goodFrames++;p.lowFrames=Math.max(0,p.lowFrames-2);}else{p.lowFrames=Math.max(0,p.lowFrames-1);p.goodFrames=0;}
- if(p.lowFrames>=10){p.scale=Math.max(.55,Math.round((p.scale-.12)*100)/100);p.lowFrames=0;}
+ if(ms>85){p.lowFrames+=5;p.goodFrames=0;}else if(ms>27){p.lowFrames++;p.goodFrames=0;}else if(ms<19){p.goodFrames++;p.lowFrames=Math.max(0,p.lowFrames-2);}else{p.lowFrames=Math.max(0,p.lowFrames-1);p.goodFrames=0;}
+ if(p.lowFrames>=10){p.scale=Math.max(.55,Math.round((p.scale-(ms>85?.22:.12))*100)/100);p.lowFrames=0;}
  if(p.goodFrames>=210){p.scale=Math.min(1,Math.round((p.scale+.06)*100)/100);p.goodFrames=0;}
 }
 resetAnimation(){this.matchAnimation?.reset();}
