@@ -63,13 +63,13 @@ function create({duration=.28,enabled=true}={}){
   if(!Number.isFinite(dt)||dt<0)throw Error('Frame delta invalid');
   const action=category(rawAction);
   let c=cached.get(player);
-  if(!c){c={action,display:new Float32Array(palette),from:null,fromX:0,fromZ:0,elapsed:duration};
+  if(!c){c={action,display:new Float32Array(palette),from:null,fromX:0,fromZ:0,x:Number(player.x)||0,z:Number(player.z)||0,elapsed:duration};
     cached.set(player,c);live++;return palette;}
   if(!enabled||!duration){
-   c.action=action;c.from=null;c.display.set(palette);c.elapsed=duration;return palette;
+   c.action=action;c.from=null;c.display.set(palette);c.elapsed=duration;c.x=Number(player.x)||0;c.z=Number(player.z)||0;return palette;
   }
   if(c.action!==action){
-   c.from=c.display.slice();c.fromX=Number(player.x)||0;c.fromZ=Number(player.z)||0;c.elapsed=0;c.action=action;changes++;
+   c.from=c.display.slice();c.fromX=c.x;c.fromZ=c.z;c.elapsed=0;c.action=action;changes++;
   }
   if(c.from){
    c.elapsed=Math.min(duration,c.elapsed+Math.min(dt,.25));
@@ -77,9 +77,10 @@ function create({duration=.28,enabled=true}={}){
    mixRigid(c.from,palette,c.display,t,(Number(player.x)||0)-c.fromX,(Number(player.z)||0)-c.fromZ);
    frameBlends++;
    if(c.elapsed>=duration){c.from=null;c.display.set(palette);}
+   c.x=Number(player.x)||0;c.z=Number(player.z)||0;
    return c.display;
   }
-  c.display.set(palette);
+  c.display.set(palette);c.x=Number(player.x)||0;c.z=Number(player.z)||0;
   return palette;
  }
  function reset(){cached=new WeakMap();live=0;changes=0;frameBlends=0;}
