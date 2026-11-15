@@ -92,3 +92,11 @@ test('face winding agrees with declared outward-facing vertex normals in every L
 test('exporter rejects unsupported LOD values',()=>{
  for(const lod of [-1,3,Infinity,NaN,1.5])assert.throws(()=>buildGLB({lod}));
 });
+
+test('committed LOD0 binary is byte-for-byte reproducible from source',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const actual=fs.readFileSync(path.resolve(__dirname,'../assets/player/tribun-base-footballer.glb'));
+ const generated=Buffer.from(buildGLB({lod:0}).glb);
+ assert.equal(Buffer.compare(actual,generated),0,'committed binary must match mesh generator exactly');
+});
