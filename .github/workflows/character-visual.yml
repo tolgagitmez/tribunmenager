@@ -6,6 +6,7 @@ on:
       - feature/character-glb-animation-v1
       - feature/character-footlock-glb-viewer-v1
       - feature/character-kick-transition-sole-v1
+      - feature/character-blend-loop-contact-v1
   pull_request:
     paths:
       - 'assets/player/**'
@@ -17,6 +18,7 @@ on:
       - 'tools/check-independent-glb-browser.cjs'
       - 'tools/serve-character-viewer.cjs'
       - 'character-viewer.html'
+      - 'character-blend-controller.js'
       - '.github/workflows/character-visual.yml'
 
 jobs:
