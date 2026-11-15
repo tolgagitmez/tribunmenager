@@ -69,7 +69,7 @@ async function main(){
   });
   assert.equal(results.baseline.length,12);assert.equal(results.blended.length,12);
   assert(results.bridge.players>=22);
-  const screenshot=await page.locator('#stadiumCanvas').screenshot({path:path.join(destination,'match-22-players.png')});
+  const screenshot=await page.screenshot({path:path.join(destination,'match-22-players.png'),animations:'disabled',timeout:90000});
   const png=PNG.sync.read(screenshot);
   const colors=new Set();for(let i=0;i<png.data.length;i+=4*29){
    colors.add(((png.data[i]>>3)<<10)|((png.data[i+1]>>3)<<5)|(png.data[i+2]>>3));
