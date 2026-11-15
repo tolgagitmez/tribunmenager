@@ -33,9 +33,9 @@ test('all normal animation scenarios retain constant visual arm and leg lengths'
    const legLengths=pose.legs.map(l=>[length(l.hip,l.knee),length(l.knee,l.ankle)]);
    for(const [upper,lower] of legLengths){close(upper,.50,1e-5);close(lower,.50,1e-5);}
    for(const a of pose.arms){
-    const expected=mode.startsWith('dive')&&pose.diving>.001?.36:.33;
+    const expected=mode.startsWith('dive')&&pose.action==='dive'&&pose.weight>.001?.36:.33;
     close(length(a.shoulder,a.elbow),expected,1e-5);
-    close(length(a.elbow,a.wrist),mode.startsWith('dive')&&pose.diving>.001?.36:.34,1e-5);
+    close(length(a.elbow,a.wrist),mode.startsWith('dive')&&pose.action==='dive'&&pose.weight>.001?.36:.34,1e-5);
    }
   }
  }
