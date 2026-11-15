@@ -7,7 +7,7 @@ function config(){if(window.MATCH_CFG)return window.MATCH_CFG;let explicit=null,
 
 function label(id,text,name){const el=$(id);if(window.TribunUI){el.innerHTML=(name?window.TribunUI.icon(name):'')+'<span>'+text+'</span>';el.setAttribute('aria-label',text);}else el.textContent=text;}
 const cfg=config(),scene=new Stadium3D($('stadiumCanvas'));
-let game,attackObserver,attackView,paused=false,speed=1,accumulator=0,lastMetric=-1,shownFinish=false,overlayTime=0;
+let game,attackObserver,attackView,paused=false,speed=1,accumulator=0,lastMetric=-1,lastMetricWall=0,simOverloadFrames=0,shownFinish=false,overlayTime=0;
 const portrait=p=>`assets/face${(p?.portraitId??4)%17}.png`;
 const clock=seconds=>{seconds=Math.max(0,Math.floor(seconds+1e-7));return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');};
 const matchClock=()=>typeof game.clockState==='function'?game.clockState():{period:game.time>=game.duration/2?2:1,phase:game.done?'finished':'playing',display:clock(game.time),nominalElapsed:game.time,remaining:Math.max(0,game.duration-game.time),addedSeconds:0,addedAnnounced:false,halftimeRemaining:0};
@@ -19,7 +19,7 @@ function substitutionState(){
 function init(){
  if(attackObserver)attackObserver.detach();
  game=new window.TribunFootball.Match(cfg,Rig);scene.resetAnimation();attackObserver=window.TribunAttackDiagnostics.attach(game);
- if(!attackView)attackView=window.TribunAttackAnalysisUI.mount($('attackAnalysis'),{summary:()=>attackObserver.summary(),report:()=>attackObserver.report()});paused=false;speed=1;accumulator=0;lastMetric=-1;shownFinish=false;overlayTime=0;
+ if(!attackView)attackView=window.TribunAttackAnalysisUI.mount($('attackAnalysis'),{summary:()=>attackObserver.summary(),report:()=>attackObserver.report()});paused=false;speed=1;accumulator=0;lastMetric=-1;lastMetricWall=0;simOverloadFrames=0;shownFinish=false;overlayTime=0;
  $('eventList').innerHTML='';$('finishScreen').hidden=true;$('subPanel').hidden=true;if($('halftimePanel'))$('halftimePanel').hidden=true;$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');
  label('playButton','Duraklat','pause');label('speedButton','1× Hız');label('camButton','Kamera: '+(scene.camera==='close'?'Yakın':scene.camera==='tactical'?'Taktik':'TV'),'target');label('rigButton','İskelet: '+(scene.debugRig?'Açık':'Kapalı'),'studio');label('soundButton','Tribün sesi: '+(crowd.enabled?'Açık':'Kapalı'),'sound');label('restartButton','Baştan oynat','refresh');$('momentum').dataset.left=50;$('momentum').style.setProperty('--homeWidth','50%');
  if($('sessionTitle'))$('sessionTitle').textContent=(game.duration===5400?'90 DAKİKA · DENEYSEL MAÇ':`${game.duration/60} DAKİKALIK ${game.duration===300?'DENEME':'KISA MAÇ'}`)+(cfg.opponentSource==='demo'?' · DENEME KADROSU':cfg.opponentSource==='linked-roster'?' · FİKSTÜR KADROSU':'');
@@ -74,8 +74,16 @@ function metrics(){
 }
 function tick(dt){
  if(paused||game.done)return;accumulator+=Math.min(.25,Math.max(0,dt))*speed;
- while(accumulator+1e-10>=1/60&&!game.done){accumulator-=1/60;attackObserver.step();for(const p of game.players){p.selected=p===game.owner;if(p.active)Rig.update(p,1/60);}if(overlayTime>0){overlayTime-=1/60;if(overlayTime<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}}}
- consume();const metric=Math.floor(game.time*5+1e-7);if(metric!==lastMetric||game.done){metrics();lastMetric=metric;}
+ // Never execute an unbounded backlog on the render thread. Under severe
+ // load the match slows gracefully instead of freezing the whole browser.
+ const budget=speed>=8?14:speed>=4?10:6;
+ let steps=0;
+ while(accumulator+1e-10>=1/60&&!game.done&&steps<budget){steps++;accumulator-=1/60;attackObserver.step();for(const p of game.players){p.selected=p===game.owner;if(p.active)Rig.update(p,1/60);}if(overlayTime>0){overlayTime-=1/60;if(overlayTime<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}}}
+ if(steps===budget&&accumulator>=1/60){accumulator=Math.min(accumulator,2/60);simOverloadFrames++;}
+ consume();const metric=Math.floor(game.time*5+1e-7),wall=performance.now();
+ if(game.done||(metric!==lastMetric&&(speed<4||wall-lastMetricWall>=120))){
+  metrics();lastMetric=metric;lastMetricWall=wall;
+ }
 }
 function renderSubs(){
  const oldOut=$('subOut').value,oldIn=$('subIn').value,state=substitutionState(),pool=typeof game.team==='function'?game.team(0):game.field(0);
@@ -98,20 +106,41 @@ window.addEventListener('DOMContentLoaded',()=>{
  $('playButton').onclick=()=>{paused=!paused;label('playButton',paused?'Devam et':'Duraklat',paused?'play':'pause');metrics();};$('restartButton').onclick=init;$('againButton').onclick=init;
  $('camButton').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':'tv';label('camButton',scene.camera==='tv'?'Kamera: TV':scene.camera==='close'?'Kamera: Yakın':'Kamera: Taktik','target');};
  $('rigButton').onclick=()=>{scene.debugRig=!scene.debugRig;label('rigButton',scene.debugRig?'İskelet: Açık':'İskelet: Kapalı','studio');};
+ $('qualityButton').onclick=()=>{
+  const modes=['balanced','performance','quality'],index=modes.indexOf(scene.performance.mode);
+  scene.setPerformanceMode(modes[(index+1)%modes.length]);updateQualityLabel();
+ };
  $('speedButton').onclick=()=>{const levels=[1,1.5,.75,4,8,16];speed=levels[(levels.indexOf(speed)+1)%levels.length];label('speedButton',speed+'× Hız');};
  if($('soundButton'))$('soundButton').onclick=()=>{label('soundButton',crowd.toggle()?'Tribün sesi: Açık':'Tribün sesi: Kapalı','sound');};
  $('subButton').onclick=()=>{renderSubs();$('subPanel').hidden=!$('subPanel').hidden;};$('closeSubs').onclick=()=>{$('subPanel').hidden=true;};
  if($('resumeHalf'))$('resumeHalf').onclick=()=>{if(typeof game.resumeHalf==='function')game.resumeHalf();consume();metrics();renderSubs();};
  if($('halftimeSubs'))$('halftimeSubs').onclick=()=>{renderSubs();$('subPanel').hidden=false;};
  $('saveSubs').onclick=()=>{const result=game.substitute(Number($('subOut').value),Number($('subIn').value));if(result.ok){$('subPanel').hidden=true;consume();renderSubs();}else alert(result.error);};
- function start(){init();let last=performance.now();function frame(now){const dt=Math.max(0,Math.min(.25,(now-last)/1000));last=now;tick(dt);const b=game.ball;scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},paused?0:dt);requestAnimationFrame(frame);}requestAnimationFrame(frame);}
+ let lastGraphicsLabel=0;
+ function updateQualityLabel(){const p=scene.performanceMode(),name={balanced:'Dengeli',performance:'Performans',quality:'Kalite'}[p.mode];
+  label('qualityButton','Grafik: '+name+' · '+Math.round(p.fps)+' FPS');
+ }
+ updateQualityLabel();
+ function start(){init();let last=performance.now(),lastPauseDraw=0;
+  function frame(now){
+   const dt=Math.max(0,Math.min(.25,(now-last)/1000));last=now;
+   scene.observeFrame(dt,paused);
+   tick(dt);
+   // A paused pitch does not need full-rate GPU submissions.
+   if(!paused||now-lastPauseDraw>=120){
+    const b=game.ball;scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},paused?0:dt);lastPauseDraw=now;
+   }
+   if(now-lastGraphicsLabel>=1000){updateQualityLabel();lastGraphicsLabel=now;}
+   requestAnimationFrame(frame);
+  }requestAnimationFrame(frame);
+ }
  if(!window.TribunMatchConfig.prepared(cfg)){
   const controls=[...document.querySelectorAll('.match-controls button,#subButton,#saveSubs,#againButton,#restartButton,#playButton,#speedButton')];controls.forEach(b=>b.disabled=true);
   $('sessionTitle').textContent='GÜNCEL KADRO ALINIYOR…';
   window.TribunMatchConfig.prepare(cfg).then(value=>{Object.assign(cfg,value);controls.forEach(b=>b.disabled=false);if(!scene.gl)$('rigButton').disabled=true;start();}).catch(()=>{$('sessionTitle').textContent='KADRO BAĞLANTISI KURULAMADI · SAYFAYI YENİLE';});
  }else start();
 });
-window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
+window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
  renderProbe:()=>{const b=game.ball,start=performance.now();scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);if(scene.gl)scene.gl.finish();return {cpuGpuMs:performance.now()-start,active:game.players.filter(p=>p.active&&!p.referee).length,bridge:scene.animationStats(),webgl:!!scene.gl};},
  advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();
