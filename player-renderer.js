@@ -78,6 +78,59 @@ function palette(p,assets,pose){
   for(let col=0;col<3;col++){let v=quatAlign(start,target,boneYaw(bone.matrix.slice(col*4,col*4+3)));if(col===1)v=mul(v,ratio);for(let j=0;j<3;j++)M[col*4+j]=v[j];}M[12]=a[0];M[13]=a[1];M[14]=a[2];M[15]=1;all.set(matmul(M,bone.inverseBind),i*16);
  });return all;
 }
+// Runtime mesh LOD for the licensed, single-LOD MakeHuman asset.
+// It never rewrites the verified source / manifest / original full-resolution GLB.
+// Cluster only vertices with identical skin joint sets and material/normal sides.
+function simplifyLOD(sourceVertices,sourceIndices,cell){
+ const stride=20,lookup=new Map(),counts=[],merged=[],remap=new Uint16Array(sourceVertices.length/stride);
+ const round=(x,step)=>Math.round(x/step);
+ for(let i=0;i<remap.length;i++){
+  const p=i*stride,v=sourceVertices;
+  const key=[
+   round(v[p],cell),round(v[p+1],cell),round(v[p+2],cell),
+   Math.round(v[p+16]),Math.sign(v[p+3]),Math.sign(v[p+4]),Math.sign(v[p+5]),
+   v[p+8],v[p+9],v[p+10],v[p+11]
+  ].join(',');
+  let item=lookup.get(key);
+  if(item===undefined){
+   item=counts.length;lookup.set(key,item);counts.push(0);
+   for(let k=0;k<stride;k++)merged.push(0);
+  }
+  remap[i]=item;counts[item]++;
+  for(let k=0;k<stride;k++){
+   // Joint indices and material IDs cannot be averaged as they are discrete.
+   if((k>=8&&k<12)||k===16){merged[item*stride+k]=v[p+k];}
+   else merged[item*stride+k]+=v[p+k];
+  }
+ }
+ const vertices=new Float32Array(merged.length);
+ for(let i=0;i<counts.length;i++){
+  const off=i*stride,n=counts[i],nv=vertices;
+  for(let j=0;j<stride;j++)nv[off+j]=((j>=8&&j<12)||j===16)?merged[off+j]:merged[off+j]/n;
+  const length=Math.hypot(nv[off+3],nv[off+4],nv[off+5])||1;
+  for(let j=3;j<=5;j++)nv[off+j]/=length;
+  const sum=nv[off+12]+nv[off+13]+nv[off+14]+nv[off+15];
+  if(sum>0)for(let j=12;j<=15;j++)nv[off+j]/=sum;
+ }
+ const indices=[],seen=new Set();
+ for(let i=0;i<sourceIndices.length;i+=3){
+  let a=remap[sourceIndices[i]],b=remap[sourceIndices[i+1]],c=remap[sourceIndices[i+2]];
+  if(a===b||a===c||b===c)continue;
+  const o=a*stride,p=b*stride,q=c*stride;
+  const ux=vertices[p]-vertices[o],uy=vertices[p+1]-vertices[o+1],uz=vertices[p+2]-vertices[o+2];
+  const vx=vertices[q]-vertices[o],vy=vertices[q+1]-vertices[o+1],vz=vertices[q+2]-vertices[o+2];
+  const nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;
+  if(nx*nx+ny*ny+nz*nz<1e-13)continue;
+  const key=[a,b,c].sort((x,y)=>x-y).join(':');
+  if(seen.has(key))continue;seen.add(key);
+  // Prevent inverted triangles caused by local vertex clustering.
+  if(nx*(vertices[o+3]+vertices[p+3]+vertices[q+3])+
+     ny*(vertices[o+4]+vertices[p+4]+vertices[q+4])+
+     nz*(vertices[o+5]+vertices[p+5]+vertices[q+5])<0){const t=b;b=c;c=t;}
+  indices.push(a,b,c);
+ }
+ return {vertices,indices:new Uint16Array(indices),indexType:'H',vertexCount:vertices.length/stride,indexCount:indices.length,cell};
+}
 class PlayerRenderer{
  constructor(gl,assets=root.TribunPlayerAssets){
   if(!assets)throw Error('Oyuncu modeli yüklenmedi');
@@ -88,7 +141,20 @@ class PlayerRenderer{
   this.loc={};for(const n of ['uVP','uBones[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uFast','uSkinTexture','uFabricTexture'])this.loc[n]=gl.getUniformLocation(program,n);
   this.attributes=[['aPosition',3,0],['aNormal',3,3],['aUV',2,6],['aJoints',4,8],['aWeights',4,12],['aMaterial',1,16],['aColor',3,17]].map(([n,size,off])=>({location:gl.getAttribLocation(program,n),size,off}));
   const uint32=assets.lods.some(a=>a.indexType==='I')?gl.getExtension('OES_element_index_uint'):true;
-  this.lods=assets.lods.map(a=>{if(a.indexType==='I'&&!uint32)return null;const vertices=new Float32Array(decode(a.vertices)),indices=a.indexType==='H'?new Uint16Array(decode(a.indices)):new Uint32Array(decode(a.indices));const vertex=gl.createBuffer(),index=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vertex);gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,indices,gl.STATIC_DRAW);return {vertex,index,count:indices.length,type:a.indexType==='H'?gl.UNSIGNED_SHORT:gl.UNSIGNED_INT};});
+  const original=assets.lods.map(a=>({vertices:new Float32Array(decode(a.vertices)),
+   indices:a.indexType==='H'?new Uint16Array(decode(a.indices)):new Uint32Array(decode(a.indices)),
+   indexType:a.indexType}));
+  // MakeHuman package intentionally keeps one checked, full-resolution LOD.
+  // Derive lower-detail mesh buffers *in memory*, without invalidating its SHA.
+  const levels=original.length===1&&original[0].indexType==='H'?
+   [original[0],simplifyLOD(original[0].vertices,original[0].indices,.075),
+    simplifyLOD(original[0].vertices,original[0].indices,.155)]:original;
+  this.lods=levels.map(a=>{if(a.indexType==='I'&&!uint32)return null;
+   const vertex=gl.createBuffer(),index=gl.createBuffer();
+   gl.bindBuffer(gl.ARRAY_BUFFER,vertex);gl.bufferData(gl.ARRAY_BUFFER,a.vertices,gl.STATIC_DRAW);
+   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,a.indices,gl.STATIC_DRAW);
+   return {vertex,index,count:a.indices.length,vertices:a.vertices.length/20,type:a.indexType==='H'?gl.UNSIGNED_SHORT:gl.UNSIGNED_INT};
+  });
   if(!this.lods.some(Boolean))throw Error('Bu tarayıcı modelin üçgen indis türünü desteklemiyor.');
   this.textures={};this.textureState={state:'loading',loaded:[],error:null};
   for(const name of ['skin','fabric'])if(typeof assets.textures?.[name]!=='string'||!assets.textures[name])throw Error('Doku dosyası kaydı eksik: '+name);
@@ -111,7 +177,7 @@ class PlayerRenderer{
   const gl=this.gl;gl.useProgram(this.program);gl.uniformMatrix4fv(this.loc.uVP,false,new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.textures.skin);gl.uniform1i(this.loc.uSkinTexture,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.textures.fabric);gl.uniform1i(this.loc.uFabricTexture,1);
   const renderStats={players:0,fast:0,detailed:0,triangles:0};
-  for(const p of players){if(!p.active)continue;const d=Math.hypot(p.x-eye[0],p.z-eye[2]),lod=this.lods[camera==='portrait'?0:camera==='close'&&d<22?1:2]||this.lods[1]||this.lods[2]||this.lods[0],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
+  for(const p of players){if(!p.active)continue;const d=Math.hypot(p.x-eye[0],p.z-eye[2]),lod=this.lods[this.visualQuality==='detailed'||this.studio||camera==='portrait'?0:camera==='close'&&d<22?1:2]||this.lods[1]||this.lods[2]||this.lods[0],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
    const detailed=this.visualQuality==='detailed'||(this.visualQuality==='auto'&&(this.studio||camera==='portrait'||(camera==='close'&&d<18)));
    gl.uniform1f(this.loc.uFast,detailed?0:1);
    renderStats.players++;renderStats[detailed?'detailed':'fast']++;renderStats.triangles+=lod.count/3;
@@ -126,5 +192,5 @@ class PlayerRenderer{
   this.lastRenderStats=renderStats;
  }
 }
-PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
+PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
 })(typeof window!=='undefined'?window:globalThis);
