@@ -32,6 +32,7 @@ jobs:
           node --check player-renderer.js
           node --check assets/player/player-model-data.js
           node --check tools/export-character-glb.cjs
+          node --check tools/validate-character-glb.cjs
       - name: Validate character rig, model and glTF
         run: npm run test:character-rig
       - name: Build downloadable skinned GLB exports
@@ -39,10 +40,16 @@ jobs:
           node tools/export-character-glb.cjs --lod 0 --output dist/tribun-base-footballer-lod0.glb
           node tools/export-character-glb.cjs --lod 1 --output dist/tribun-base-footballer-lod1.glb
           node tools/export-character-glb.cjs --lod 2 --output dist/tribun-base-footballer-lod2.glb
+      - name: Validate GLB with the official Khronos validator
+        run: |
+          npm install --no-save --no-package-lock --ignore-scripts gltf-validator@2.0.0-dev.3.10
+          node tools/validate-character-glb.cjs assets/player/tribun-base-footballer.glb dist/tribun-base-footballer-lod0.glb dist/tribun-base-footballer-lod1.glb dist/tribun-base-footballer-lod2.glb
       - name: Upload GLB exports
         uses: actions/upload-artifact@v4
         with:
           name: tribun-base-footballer-glb
-          path: dist/*.glb
+          path: |
+            dist/*.glb
+            dist/*.validation.json
           if-no-files-found: error
           retention-days: 30
