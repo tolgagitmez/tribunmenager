@@ -31,7 +31,7 @@ test('all normal animation scenarios retain constant visual arm and leg lengths'
    Scenarios.sample(state,i/60,Rig);
    const pose=Rig.update(state.p,1/60);
    const legLengths=pose.legs.map(l=>[length(l.hip,l.knee),length(l.knee,l.ankle)]);
-   for(const [upper,lower] of legLengths){close(upper,.47,1e-5);close(lower,.47,1e-5);}
+   for(const [upper,lower] of legLengths){close(upper,.50,1e-5);close(lower,.50,1e-5);}
    for(const a of pose.arms){
     const expected=mode.startsWith('dive')&&pose.diving>.001?.36:.33;
     close(length(a.shoulder,a.elbow),expected,1e-5);
@@ -53,4 +53,15 @@ test('GPU palette rotations never scale a limb',()=>{
    close(n,1,1e-5);
   }
  }
+});
+
+test('athletic rest proportions maintain a normal pelvis, wrist and foot contact',()=>{
+ const p=player(),pose=Rig.update(p,1/60);
+ close(pose.pelvis[1],1);
+ assert(pose.head[1]>1.70&&pose.head[1]<1.85);
+ for(const leg of pose.legs)assert(leg.knee[1]>.45&&leg.knee[1]<.7);
+ for(const arm of pose.arms)assert(arm.wrist[1]>.82&&arm.wrist[1]<1.03);
+ p.action='shoot';p.actionClock=.25;p.contactTime=.38;p.actionElapsed=.38;p.actionDuration=.65;
+ const kick=Rig.update(p,1/60),target=Rig.kickAnkle(p);
+ assert(length(kick.legs[1].ankle,target)<1e-6,'kick ankle must remain reachable');
 });
