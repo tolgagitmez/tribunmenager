@@ -15,6 +15,7 @@ on:
   pull_request:
     paths:
       - 'humanoid-rig.js'
+      - 'humanoid-rig-procedural.js'
       - 'player-renderer.js'
       - 'player-renderer-procedural.js'
       - 'assets/player/procedural-player-model-data.js'
@@ -48,6 +49,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check humanoid-rig.js
+          node --check humanoid-rig-procedural.js
           node --check player-renderer.js
           node --check player-renderer-procedural.js
           node --check assets/player/procedural-player-model-data.js

@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const Rig=require('../humanoid-rig');
+const Rig=require('../humanoid-rig-procedural');
 const Renderer=require('../player-renderer-procedural');
 const Assets=require('../assets/player/procedural-player-model-data.js');
 const nearly=(a,b,tol=1e-5)=>assert(Math.abs(a-b)<tol,Math.abs(a-b)+' exceeds '+tol);

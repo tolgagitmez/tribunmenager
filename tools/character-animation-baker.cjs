@@ -3,7 +3,7 @@
    World joint transform = GPU skin palette * T(rest joint head).
    Local joint transform = inverse(parent world) * joint world.
    This preserves the renderer's bind pose and avoids double-rotating children. */
-const Rig=require('../humanoid-rig.js');
+const Rig=require('../humanoid-rig-procedural.js');
 const Scenarios=require('../animation-scenarios.js');
 const Renderer=require('../player-renderer-procedural.js');
 const Assets=require('../assets/player/procedural-player-model-data.js');

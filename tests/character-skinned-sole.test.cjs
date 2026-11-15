@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const Rig=require('../humanoid-rig.js');
+const Rig=require('../humanoid-rig-procedural.js');
 const Scenarios=require('../animation-scenarios.js');
 const Renderer=require('../player-renderer-procedural.js');
 const Assets=require('../assets/player/procedural-player-model-data.js');

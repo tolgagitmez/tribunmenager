@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const Rig=require('../humanoid-rig.js');
+const Rig=require('../humanoid-rig-procedural.js');
 const Scenarios=require('../animation-scenarios.js');
 const length=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i]));
 function trajectory(mode,frames=600){

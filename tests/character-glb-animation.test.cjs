@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const {buildGLB,PARENT}=require('../tools/export-character-glb.cjs');
 const {bakeClip,CLIPS,multiply,translation}=require('../tools/character-animation-baker.cjs');
 const Assets=require('../assets/player/procedural-player-model-data.js');
-const Rig=require('../humanoid-rig.js');
+const Rig=require('../humanoid-rig-procedural.js');
 const Renderer=require('../player-renderer-procedural.js');
 const Scenarios=require('../animation-scenarios.js');
 function close(a,b,tol=2e-4){assert(Math.abs(a-b)<=tol,'expected '+a+' ~ '+b+' (diff '+(a-b)+')');}

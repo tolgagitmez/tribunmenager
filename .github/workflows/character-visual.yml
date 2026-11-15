@@ -19,6 +19,7 @@ on:
       - 'player-renderer-procedural.js'
       - 'player-studio.js'
       - 'humanoid-rig.js'
+      - 'humanoid-rig-procedural.js'
       - 'player-renderer.js'
       - 'tools/check-character-browser.cjs'
       - 'tools/check-independent-glb-browser.cjs'
