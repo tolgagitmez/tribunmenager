@@ -1,3 +1,21 @@
+## Aşama 13 — gerçek insan modelinin etkinliği, v1.32.0
+
+**469/469 test geçti: 442 JavaScript + 27 Python; hata, atlanan veya iptal edilen test yok.** Önceki 435 kontrol, ortak model durumu için 21, varlık/GLB/geometri için 8 ve kaynak doğrulama/çevrimdışı üretim için 5 yeni kontrol içerir. [Kaynağa bağlı test raporu](docs/validation/player-asset-tests.json) ve [tam sıkıştırılmış günlük](docs/validation/player-asset-tests.log.gz) yayımlanır. Tekrar: `npm run test:stage13`; kanıt üretmek için `python3 tools/check-player-asset-tests.py`.
+
+Paketlenmiş MakeHuman CC0 modeli 15.544 köşe, 27.350 üçgen ve 19 deform kemiği içerir. Resmî commit'e bağlı OBJ, iskelet, ağırlık ve iki lisans metni hash'leri denetlenir. Runtime ile standart GLB'nin geometri, normal, UV, eklem/ağırlık, renk ve iki gömülü PNG verisi eşleşir. Paket içinden ayrı geçici dizine, ağ bağlantısı olmadan üretilen 13 dosyanın tamamı bayt düzeyinde aynı çıktı verir. Değiştirilmiş kaynak, lisans, kaynak kaydı ve gözden geçirilmemiş rig reddedilir. [Kaynak ve yeniden üretim sözleşmesi](docs/PLAYER_ASSETS.md).
+
+[Gerçek Chromium raporu](docs/validation/player-asset-browser.json), belgelenmiş `start.py` başlatıcısıyla maç ve stüdyoyu açar. Her iki sayfanın indirdiği 1.888.529 baytlık model yanıtı, paket dosyasının SHA-256 değeriyle eşleşir. Maçta hakem dahil 23, stüdyoda 1 gerçek indisli GPU skinning çizimi; 19 kemik matrisi, kök hareketinden ayrılan eklem deformasyonu, iki 256 × 256 PNG'nin GPU'ya yüklenmesi ve doku örnekleyicileri doğrulanır. Forma/ten değişimi, duraklatma ve 390 piksel mobil görünüm kontrolleri geçer.
+
+Eksik model betiği, bozuk veri, zorlanmış shader hatası, WebGL yokluğu ve eksik PNG, iki sayfada ayrı ayrı denenir: **10 hata senaryosu**. Hata ayrıntıları görünürdür; başarısız model için iskeletli çizim yapılmaz. Beş maç hata koşulunda yeniden başlatma sonrası iki saniyelik tam serileştirilebilir fizik durumu normal koşulla birebir aynıdır. Karşılaştırmanın opak açılış bağlamı ve değişmez hareket modülü dışlaması raporda açıkça kayıtlıdır. Sayfa betik hatası görülmez. [Hareket atölyesi raporu](docs/validation/player-asset-lab.json) hazır, eksik model ve WebGL kapalı durumlarında durum etiketiyle gerçek çizimin uyuşmasını ayrıca sınar.
+
+[Doğrudan ekran görüntüsü incelemesi](docs/validation/player-asset-visual.json): [tam boy](docs/previews/model-studio-full.png), [yüz](docs/previews/model-studio-face.png), [koşu](docs/previews/model-studio-run.png), [maç](docs/previews/model-match-close.png). El oranları, gövde/boyun sürekliliği ve giysi sınırları önceki adaydan düzeltilmiştir. Maçın yakın kamera adı taşıyan kadrajı yine geniştir; yüz ayrıntısının kanıtı stüdyo yakın çekimidir.
+
+Bu kabul, lisansı izlenebilir insan modelinin gerçekten kullanılması ve hataların teşhisidir. Yüz/saç hâlâ sade, mevcut prosedürel duruş çömelmiş, bazı uç pozların giysi/eklem deformasyonu geliştirilmeye açıktır. Tek LOD vardır; mocap veya animasyon klibi eklenmedi. Chromium SwiftShader kontrolü gerçek telefon/GPU performansı veya fotoğraf gerçekçiliği kabulü değildir. Diğer eksik font/portre/stadyum dosyaları ayrı kalır.
+
+`football-sim.js` SHA-256 `315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd`, `humanoid-rig.js` `2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d` olarak korunur. Önceki aşamaların aşağıdaki raporları tarihsel kaynaklara aittir; yeni çizicinin kanıtı olarak yeniden etiketlenmez.
+
+---
+
 ## Aşama 12 — kural, yaşam döngüsü ve kurulum doğrulaması
 
 **Son doğrulama: 435/435 test geçti** (413 JS + 22 Python), hata/atlanan yok. Gerçek Chromium WebGL ve 2D yollarında 16’şar kontrol geçti. Bir normal 300 saniyelik nominal senaryo, gözlemcili/gözlemcisiz/tekrar olarak üç kez aynı tam durumu üretti; 164 + 150 saniyelik devreler ve 8 saniyelik ara ile 322 saniyede tamamlandı. Bu senaryoda bir penaltı kararı ve bir gol gözlendi; tek örnekten denge veya özellik sıklığı sonucu çıkarılmıyor.

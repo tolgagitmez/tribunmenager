@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2026-11-15T09:37:14.875648+00:00",
+  "sources": {
+    "start.py": "2ce2c84570ecc2be729e4c33c50b1cbaa9a9aa13810c63cdfda3405763d8ff88",
+    "animation-lab.html": "3d5adc242f724e327f19960647a4fa4761d9e6cf431913d87474bdc9dbf22278",
+    "animation-lab.js": "efb4e8d9b4f5344b80db8dfcf1723f994784eb118daf9db6b5a79edb8631c8e4",
+    "animation-scenarios.js": "d9294c0205fd811f20364676d6636e11949fb84d1b42d36963677e74ebffc469",
+    "scene3d.js": "2b92020dd16104350ef49953588d4d31c4558460d7973e1a2358830903ed8a40",
+    "humanoid-rig.js": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+    "pitch-laws.js": "55b35441c614dc3b15dbaa1b0e9722082e77fa01ebba398d0c50e9a2d9ef06fa",
+    "player-renderer.js": "84591863376a8fc653665fb45b7d9e552b9be5bbffd11fe5b13620e6c6db5db7",
+    "player-asset-status.js": "6cfe7ca44cb3100530c1cffbc5641b6e10a5d887862f2bf9a3f62ef674f175ec",
+    "ui-shell.js": "132213f913ec9c22f66e313016823609c8f2d25d719436c464bad778ba04c4ae",
+    "ui-shell.css": "7ed5d37fb3aef031a1efc42dd32c1b721beb7d2a7678548b120b175aaf39deab",
+    "animation-lab.css": "d7ba94bab4a38e8a4bee20fb434397dae0e77f9025cd0b778602ffc6c8caffb9",
+    "tools/check-player-asset-lab.py": "0e4fc7b76e5be5e6e9b8bda4d4919353f9888f7fd4451bf0ef927c44241532ea",
+    "assets/player/CREDITS.md": "a843ea811ea3655d15b16fe3540425d93062d48c5da2fac4ce6bca21d35351bd",
+    "assets/player/LICENSE-CC0.txt": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c",
+    "assets/player/SOURCE-LICENSE.md": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1",
+    "assets/player/footballer.glb": "9a73a3afa376b189a2760729a881b2ee2de62916bc916063e035b4cad5546345",
+    "assets/player/manifest.json": "103f6153ea1f467dae1bc75cc12a6110ae0441e0f55b076b52be2814e6f4f6da",
+    "assets/player/player-model-data.js": "272f3c2e4ec8be6219377ddbbd1cf954dd89b3dcbfbb5879c5513908bd220fe2",
+    "assets/player/skeleton.json": "8ce81c34eea49808c5544c71120494495d3cbd40d0391cf09f76e37d4890fa19",
+    "assets/player/source/makehuman-base.obj.gz": "abe544ec8046b07ffe3a31bb0ee88203d773cb1febb8ce58e89c0efc6b1d783c",
+    "assets/player/source/makehuman-default.mhskel.gz": "a09fb1d526aec0384b636fbf5faff36ad3decdb712ccf781d147f5139d01337a",
+    "assets/player/source/makehuman-default_weights.mhw.gz": "6fcf3332b28d225ae75d5754bc3f7fa5e1d0a098dc389785baafa89323578a80",
+    "assets/player/source/provenance.json": "c13b9b8c834e9397c91e18a6ea3fd2ed0e72dcbce4ce5f168f2ec54c683eaf22",
+    "assets/player/textures/fabric-detail.png": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24",
+    "assets/player/textures/skin-detail.png": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae"
+  },
+  "method": "Actual start.py local launcher and Chromium SwiftShader. Real workshop page; missing-model and disabled-WebGL cases override only the failing resource or context creation. The overlay must equal the shared diagnostic state, with real indexed GPU skin draws only in the ready case.",
+  "limits": "Small regression check for asynchronous workshop status, not an animation-quality or performance rating.",
+  "runs": [
+    {
+      "state": "ready",
+      "overlay": "İSKELETLİ OYUNCU MODELİ",
+      "diagnostic": "İSKELETLİ OYUNCU MODELİ",
+      "skinnedDraws": 1,
+      "skeletonDisabled": false,
+      "scriptErrors": []
+    },
+    {
+      "state": "missing",
+      "overlay": "YEDEK OYUNCU MODELİ",
+      "diagnostic": "YEDEK OYUNCU MODELİ",
+      "skinnedDraws": 0,
+      "skeletonDisabled": false,
+      "scriptErrors": []
+    },
+    {
+      "state": "webgl-unavailable",
+      "overlay": "2D YEDEK GÖRÜNÜM",
+      "diagnostic": "2D YEDEK GÖRÜNÜM",
+      "skinnedDraws": 0,
+      "skeletonDisabled": true,
+      "scriptErrors": []
+    }
+  ],
+  "verified": true
+}

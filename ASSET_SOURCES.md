@@ -1,4 +1,16 @@
-# Görsel kaynakları — v1.12 tasarımı, v1.17 maç karşılaştırması
+# Görsel kaynakları
+
+## Güncel oyuncu paketi — v1.32.0
+
+`assets/player/` bu sürümde kaynağı doğrulanmış **MakeHuman Community hm08** insan modelinden yeniden üretildi. Kaynak sürüm [`a8bc2d54ff0ac92e78ff71431b1023eda42bf482`](https://github.com/makehumancommunity/makehuman/tree/a8bc2d54ff0ac92e78ff71431b1023eda42bf482) olarak sabittir. Kaynak OBJ'nin başlığı, varsayılan iskelet ve deri ağırlıkları CC0 bildirir. Resmî lisans politikasındaki CC0 grafik varlıkları kullanıldı; AGPL program kodu alınmadı.
+
+Kaynak OBJ, iskelet ve ağırlık dosyalarının sıkıştırılmış özgün kopyaları `assets/player/source/` içindedir. Beş kaynak/lisans dosyasının resmî adresleri, boyutları ve SHA-256 değerleri [provenance.json](assets/player/source/provenance.json) kaydında; dağıtılan türev dosyaların özetleri [manifest.json](assets/player/manifest.json) içindedir. [CREDITS.md](assets/player/CREDITS.md), [resmî lisans politikası](assets/player/SOURCE-LICENSE.md) ve [CC0 metni](assets/player/LICENSE-CC0.txt) pakete dahildir.
+
+Forma yerleşimi, krampon, göz/kaş ekleri, iskelet uyarlaması ve `textures/skin-detail.png` ile `textures/fabric-detail.png` projeye ait CC0 türevlerdir. İki 256 × 256 doku matematiksel olarak üretilen nötr ayrıntı haritalarıdır; fotoğraf, yüz taraması veya gerçek futbolcu benzerliği kullanılmadı. Oyunda 19 kemikli özel model verisi ve GPU skinning çalışır. Aynı türev geometri, iskelet ve dokular standart `footballer.glb` içinde de dağıtılır. Bir LOD vardır; hareketler prosedüreldir.
+
+Eski Blender Studio paketi çalışma kopyasından veya mevcut arşivlerden geri getirilemedi. Aşağıdaki v1.12–v1.17 kayıtları tarihsel kaynak notlarıdır; oralarda sözü geçen Blender dosyaları, üç LOD, portreler, fontlar ve stadyum görsellerinin bu pakette mevcut olduğunu göstermez. Güncel oyuncu modelinin kaynağı yukarıdaki MakeHuman kaydıdır. Yeniden üretim ve kullanım akışı [docs/PLAYER_ASSETS.md](docs/PLAYER_ASSETS.md) içindedir.
+
+## Tarihsel kayıt — v1.12 tasarımı, v1.17 maç karşılaştırması
 
 ## Gece stadyumu
 

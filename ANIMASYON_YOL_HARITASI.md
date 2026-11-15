@@ -1,5 +1,21 @@
 # Ticari 3D animasyon üretim yolu
 
+## Güncel durum — v1.32.0
+
+İlk kabul adımı, kaynağı ve lisansı izlenebilen bir insan modelini gerçek maç ve oyuncu stüdyosunda çalıştırmaktır. MakeHuman Community CC0 temeli, 19 kemikli iskelet, iki yerel doku, standart GLB ve oyun çizicisinin özel verisi pakete eklendi. Gerçek tarayıcı aracı, dosyanın yanıt hash'ini ve iskeletli GPU çizimini doğrular; eksik model/doku, bozuk veri, shader hatası ve WebGL yokluğunu görünür tanılamayla sınar. Kaynak belgeleri ve tekrar üretim [oyuncu varlıkları sözleşmesindedir](docs/PLAYER_ASSETS.md).
+
+Mevcut prosedürel pozlar ve ayak IK/basış sistemi korunur. Bu aşama yeni hareket klibi, mocap, genel amaçlı glTF animasyon oynatıcı veya ayrıntılı parmak/yüz iskeleti getirmez. Paket bir LOD içerir. Aşağıdaki eski Blender ve üç LOD notları tarihsel sürümlere aittir; özgün paket geri getirilemedi.
+
+Sıradaki görsel adımlar:
+
+1. Yakın kamera için giysi silueti, yüz, saç, cilt ve ışığı geliştir; sabit pozlar ile koşu/vuruş sırasında deformasyonları birlikte incele.
+2. Kaynağı ve lisansı doğrulanmış koşu, fren, dönüş, pas, şut ve kaleci kliplerini mevcut temas/ayak IK sözleşmesine uyarla. Hareket geçişlerini hız ve yönle sür.
+3. Mevcut basış ve ayak-top temasını kliplerle birlikte doğrula; top çıkışı ile görünen vuruş aynı zaman ve noktada olmalı.
+4. Birden fazla LOD ve çizim bütçesi ekle; 22 oyunculu maçı gerçek masaüstü ve düşük güçlü cihazlarda ölç.
+5. Kamera, ışık, malzeme ve hareketleri kesintisiz maç görüntüsünde değerlendir; tek bir stüdyo karesini maçın görsel kalitesi kabulü sayma.
+
+## Uzun vadeli standart ve tarihsel notlar
+
 ## Üretime geçiş için varlık ve animasyon standardı
 
 - Oyun içindeki futbolcular için tek bir orijinal/uygun lisanslı 60–80 kemikli humanoid iskelet sistemi tasarlanmalı.

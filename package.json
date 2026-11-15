@@ -1,8 +1,10 @@
 {
   "name": "tribun-manager-3d",
-  "version": "1.31.0",
+  "version": "1.32.0",
   "private": true,
   "scripts": {
+    "test:stage13": "npm run test:stage12 && npm run test:player-assets",
+    "test:player-assets": "node --test tests/player-asset-status.test.cjs tests/player-assets.test.cjs && python3 -m unittest discover -s tests -p \"test_player_assets.py\" -v",
     "test:stage12": "npm run test:stage11 && npm run test:match-laws && python3 -m unittest discover -s tests -p \"test_launcher.py\" -v",
     "test:match-laws": "node --test tests/match-rules.test.cjs tests/referee-laws.test.cjs tests/pitch-laws.test.cjs tests/match-laws-integration.test.cjs",
     "test:stage11": "npm run test:stage10 && npm run test:player-model && npm run test:fixture-roster",

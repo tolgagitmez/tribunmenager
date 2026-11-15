@@ -2,9 +2,25 @@
 
 **[Oyunu kurmak ve çalıştırmak için adım adım KURULUM.md rehberini aç.](KURULUM.md)** Python 3.10+ yeterlidir: Windows’ta `BASLAT.bat`, macOS/Linux’ta `sh BASLAT.sh`. Varsayılan yerel maç modu eksik ekonomi kataloğuna ihtiyaç duymaz.
 
+## On üçüncü aşama: lisanslı insan modelini maçta doğrulama — v1.32.0
+
+Maç ve **[Oyuncu Stüdyosu](player-studio.html)** artık paketlenmiş MakeHuman Community insan modelini, 19 kemikli iskeleti ve iki yerel doku dosyasını kullanır. Kaynak OBJ, iskelet ve deri ağırlıkları; kaynak adresleri, lisans metinleri ve SHA-256 kayıtlarıyla pakettedir. Temel varlıklar ve projeye ait türev eklemeler **CC0-1.0** kapsamındadır. Oyunu açarken dış bir model sunucusuna bağlanılmaz.
+
+Maçtaki model durumunu gösteren açılır ayrıntı ve stüdyodaki aynı panel, yüklenmiş model kimliğini ve kaynak belgelerini gösterir. Eksik dosya, uyumsuz iskelet/veri, shader veya doku hatası ve WebGL yokluğu ayrı teşhis edilir. Maç uygun yedek çizimle sürer; stüdyo yüklenemeyen ayrıntılı model için görünür hata verir.
+
+Gerçek Chromium kontrolü, maç ve stüdyoda paketlenmiş dosyanın yanıt hash'ini, iskeletli GPU çizimini, kemik dönüşümünü ve iki dokunun gerçekten örneklenmesini sınar. Kontrollü yükleme hataları da aynı araçla denenir. Kanıtlar ve tekrar komutları [DOGRULAMA.md](DOGRULAMA.md), kaynak/lisans ve çevrimdışı yeniden üretim adımları [oyuncu varlıkları sözleşmesinde](docs/PLAYER_ASSETS.md) bulunur.
+
+**469/469 test geçti**; maç/stüdyo için 2 normal sayfa ve 10 yükleme hatası senaryosu doğrulandı. Hareket atölyesinin hazır/eksik model/WebGL kapalı etiketleri de sınandı. Gerçek tarayıcı görüntüleri: [tam boy](docs/previews/model-studio-full.png), [yakın yüz](docs/previews/model-studio-face.png), [koşu](docs/previews/model-studio-run.png), [maç](docs/previews/model-match-close.png).
+
+Bu paket tek ayrıntı düzeyine sahiptir. Standart GLB düzenleme ve aktarım için dağıtılır; oyun mevcut çizicisinin `player-model-data.js` verisini yükler. Hareketler mevcut prosedürel iskelet sisteminden gelir; animasyon klibi veya mocap eklenmedi. Fotoğraf gerçekçiliği ve gerçek cihaz performansı sonraki görsel aşamalarda değerlendirilecek.
+
+Aşağıdaki sürüm notları tarihsel kayıttır. Eski bölümlerde geçen eksik ayrıntılı model, Blender kaynağı ve üç LOD bilgileri güncel paketi tanımlamaz; eski özgün paket geri getirilemedi ve bu sürümde kaynağı doğrulanmış yeni paket üretildi. Özgün portre/font/stadyum dosyalarının eksikleri ayrıca sürer.
+
+---
+
 ## On ikinci aşama: maç kuralları ve yaşam döngüsü — v1.31.0
 
-**Son doğrulama: 435/435 test geçti** (413 JS + 22 Python), hata/atlanan yok. Gerçek Chromium WebGL ve 2D yollarında 16’şar kontrol geçti. Bir normal 300 saniyelik nominal senaryo, gözlemcili/gözlemcisiz/tekrar olarak üç kez aynı tam durumu üretti; 164 + 150 saniyelik devreler ve 8 saniyelik ara ile 322 saniyede tamamlandı. Bu senaryoda bir penaltı kararı ve bir gol gözlendi; tek örnekten denge veya özellik sıklığı sonucu çıkarılmıyor.
+**Bu aşamanın yayımlanan doğrulaması: 435/435 test geçti** (413 JS + 22 Python), hata/atlanan yok. Gerçek Chromium WebGL ve 2D yollarında 16’şar kontrol geçti. Bir normal 300 saniyelik nominal senaryo, gözlemcili/gözlemcisiz/tekrar olarak üç kez aynı tam durumu üretti; 164 + 150 saniyelik devreler ve 8 saniyelik ara ile 322 saniyede tamamlandı. Bu senaryoda bir penaltı kararı ve bir gol gözlendi; tek örnekten denge veya özellik sıklığı sonucu çıkarılmıyor.
 
 Penaltı, avantaj/geri dönüş, doğrudan kırmızı, gerçek devre arası, saha değişimi ve telafi edilen ek süre artık maç akışındadır. Çizgilerde bütün top sınanır; direk/üst direk süpürülmüş çarpışması gol kararından önce çözülür. Kafa pası ofsaytı ve seçilmiş aktif etkileme durumları izlenir. Oyuncu değişikliği müsabaka oyuncu/pencere sınırlarına bağlıdır; kaleci değişebilir ve canlı oyunda anlık değişiklik yapılamaz.
 

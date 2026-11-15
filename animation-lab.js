@@ -15,6 +15,6 @@ $('contact').onclick=()=>{paused=true;seek(state.mode==='shoot'?.38:state.mode==
 $('timeline').oninput=e=>{paused=true;seek(Number(e.target.value));};
 $('skeleton').onclick=()=>{scene.debugRig=!scene.debugRig;$('skeleton').textContent=scene.debugRig?'İskeleti gizle':'İskeleti göster';};
 $('camera').onclick=()=>{scene.camera=scene.camera==='portrait'?'close':'portrait';$('camera').textContent=scene.camera==='portrait'?'Kamera: Yakın':'Kamera: Saha';};
-$('renderMode').textContent=scene.gl?(scene.playerRenderer?'YENİ MODEL · WEBGL':'ÖNCEKİ MODEL · YEDEK GÖRÜNÜM'):'2D YEDEK · WEBGL KAPALI';if(!scene.gl){$('skeleton').disabled=true;$('clipNote').textContent='Tarayıcı WebGL açamadı. Eklem hareketlerini görmek için grafik hızlandırması açık bir tarayıcı kullan.';}
+$('renderMode').textContent=scene.playerAssetStatus?.label||(scene.gl?'OYUNCU ÇİZİCİSİ HAZIRLANIYOR':'2D YEDEK · WEBGL KAPALI');if(!scene.gl){$('skeleton').disabled=true;$('clipNote').textContent='Tarayıcı WebGL açamadı. Eklem hareketlerini görmek için grafik hızlandırması açık bir tarayıcı kullan.';}
 select('run');let last=performance.now();function frame(now){const dt=Math.min(.25,(now-last)/1000);last=now;if(!paused){accumulator+=dt*speed;while(accumulator>=1/60){accumulator-=1/60;time+=1/60;if(time>=8){select(state.mode);break;}update(1/60);}refresh();}scene.render([state.p],state.ball,[state.p.x,state.p.z],{},dt);requestAnimationFrame(frame);}requestAnimationFrame(frame);
 })();
