@@ -29,6 +29,10 @@ async function main(){
   // Wait for the WebGL model draw, not just match data initialization.
   // SwiftShader may need longer to compile shader programs in CI.
   await page.waitForTimeout(700);
+  // Exercise the *real* match renderer synchronously. On software GL a single
+  // scene frame can arrive well after its game object was initialized.
+  const initialProbe=await page.evaluate(()=>window.TRIBUN_MATCH_TEST.renderProbe());
+  console.log('Match initial forced WebGL render: '+JSON.stringify(initialProbe));
   const before=await page.evaluate(()=>({
    clock:window.TRIBUN_MATCH_TEST.getState().time,
    score:[...window.TRIBUN_MATCH_TEST.getState().score],
