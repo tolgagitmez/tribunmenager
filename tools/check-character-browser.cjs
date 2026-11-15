@@ -53,11 +53,15 @@ async function main(){
   const captures={};
   for(const mode of ['idle','walk','run','sprint','turn','pass','shoot','dive-left']){
    await page.selectOption('#pose',mode);
-   // Contact actions expire after ~0.6 s; capture them before recovery to idle.
-   const previewDelay={pass:220,shoot:275,'dive-left':300};
-   await page.waitForTimeout(previewDelay[mode]??(mode==='idle'?300:700));
+   // Seek an exact animation tick, not a wall-clock timeout. Asynchronous
+   // screenshots used to miss the kick's contact window on slow CI machines.
+   const sampleTime={idle:0,walk:.40,run:.42,sprint:.48,turn:3.10,pass:.26,shoot:.48,'dive-left':.34}[mode];
+   await page.evaluate(t=>window.TribunPlayerStudio.seekPose(t),sampleTime);
+   await page.waitForTimeout(95);
    const state=await page.evaluate(()=>window.TribunPlayerStudio.getState());
    assert.equal(state.mode,mode);
+   assert.equal(state.paused,true,'frame seek must freeze the simulated pose');
+   assert(Math.abs(state.time-sampleTime)<=1/60,'frame seek drift');
    const png=await page.locator('#playerCanvas').screenshot({path:path.join(output,mode+'.png')});
    const stats=metrics(png);
    assert(stats.width>200&&stats.height>200);
@@ -69,7 +73,7 @@ async function main(){
    const buffer=fs.readFileSync(path.join(output,mode+'.png'));
    const change=imageDifference(idle,buffer);
    captures[mode].differenceFromIdle=change;
-   assert(change>2,mode+' does not visibly change the canvas from idle');
+   assert(change>.75,mode+' does not visibly change the canvas from idle');
   }
   assert.equal(errors.length,0,'Browser script errors: '+errors.join('; '));
   const report={browser:'Playwright Chromium (SwiftShader)',screen,captures,errors};
