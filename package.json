@@ -53,7 +53,8 @@
     "viewer:character": "node tools/serve-character-viewer.cjs",
     "test:character-transition": "node --test tests/character-kick-transition.test.cjs",
     "test:character-blending": "node --test tests/character-blending-loop.test.cjs",
-    "test:character-contact": "node --test tests/character-skinned-sole.test.cjs"
+    "test:character-contact": "node --test tests/character-skinned-sole.test.cjs",
+    "test:match-animation": "node --test tests/match-animation-bridge.test.cjs"
   },
   "devDependencies": {
     "jsdom": "30.1.3"
