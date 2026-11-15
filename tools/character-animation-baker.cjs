@@ -141,6 +141,26 @@ function bakeGaitLoop({name,duration,assets,parents,fps}){
    const q=Array.from(channel.rotation.slice(j*4,j*4+4));
    channel.rotation.set(qNormalize(qMul(q,qSlerp([0,0,0,1],deltaQ,w))),j*4);
   }
+  // Hermite-like seam velocity correction in the last few keys. The
+  // penultimate key is exactly one negative first-frame delta before start,
+  // so both position AND the first derivative agree at the wrap.
+  const last=keys-1,tailStart=Math.max(1,last-8);
+  const firstDelta=Array.from(channel.translation.slice(3,6)).map((v,i)=>v-startT[i]);
+  const firstNextQ=Array.from(channel.rotation.slice(4,8));
+  const step=qNormalize(qMul([-startQ[0],-startQ[1],-startQ[2],startQ[3]],firstNextQ));
+  const backward=[-step[0],-step[1],-step[2],step[3]];
+  for(let j=tailStart;j<=last;j++){
+   const remaining=last-j;
+   const u=(j-tailStart)/Math.max(1,last-1-tailStart);
+   const w=j>=last-1?1:u*u*(3-2*u);
+   for(let i=0;i<3;i++){
+    const at=j*3+i,target=startT[i]-remaining*firstDelta[i];
+    channel.translation[at]=channel.translation[at]*(1-w)+target*w;
+   }
+   const q=Array.from(channel.rotation.slice(j*4,j*4+4));
+   const backwardRotation=qNormalize(qMul(startQ,qSlerp([0,0,0,1],backward,remaining)));
+   channel.rotation.set(qSlerp(q,backwardRotation,w),j*4);
+  }
   channel.translation.set(startT,(keys-1)*3);
   channel.rotation.set(startQ,(keys-1)*4);
  }
