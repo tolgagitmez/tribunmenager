@@ -43,7 +43,8 @@
     "test:pass-lane-read": "node tests/pass-lane-read.test.cjs",
     "test:pass-review": "node tests/pass-review.test.cjs",
     "test:pass-release-read": "node tests/pass-release-read.test.cjs",
-    "test:receiver-forecast": "node tests/receiver-forecast.test.cjs"
+    "test:receiver-forecast": "node tests/receiver-forecast.test.cjs",
+    "test:character-rig": "node --test tests/character-rig-anatomy.test.cjs"
   },
   "devDependencies": {
     "jsdom": "30.1.3"
