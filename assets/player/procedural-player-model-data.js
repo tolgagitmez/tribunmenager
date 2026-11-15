@@ -3,8 +3,8 @@
    This is a procedural, rigged game prototype. Not a scanned or sculpted human.
    Asset geometry is generated once at startup; match drawing is unchanged. */
 (function(root){
-const Rig=typeof module!=='undefined'&&module.exports?require('../../humanoid-rig.js'):root.TribunHumanoidRig;
-if(!Rig)throw Error('Load humanoid-rig.js before player-model-data.js');
+const Rig=typeof module!=='undefined'&&module.exports?require('../../humanoid-rig-procedural.js'):root.TribunHumanoidRig;
+if(!Rig)throw Error('Load humanoid-rig-procedural.js before procedural-player-model-data.js');
 const blend=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
 const sub=(a,b)=>a.map((v,i)=>v-b[i]);
 const sum=(a,b)=>a.map((v,i)=>v+b[i]);
