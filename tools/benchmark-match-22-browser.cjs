@@ -43,6 +43,11 @@ async function main(){
   assert(before.stats.players>=22,'match animation bridge did not see 22 player models: '+JSON.stringify(before));
   assert(before.quality?.includes('YENİ OYUNCU MODELİ'),'match should use skinned GPU footballers');
   await page.click('#playButton'); // Freeze game state for A/B 22-player rendering.
+  const frozen=await page.evaluate(()=>{
+   const state=window.TRIBUN_MATCH_TEST.getState();
+   return {clock:state.time,score:[...state.score],paused:state.paused};
+  });
+  assert.equal(frozen.paused,true,'match must be paused for comparison');
   const results=await page.evaluate(()=>{
    const api=window.TRIBUN_MATCH_TEST;
    const run=(enabled,count)=>{
@@ -68,8 +73,8 @@ async function main(){
    colors.add(((png.data[i]>>3)<<10)|((png.data[i+1]>>3)<<5)|(png.data[i+2]>>3));
   }
   assert(colors.size>30,'WebGL screenshot lacks visual detail');
-  assert.equal(results.state,before.clock,'repeated rendering must not advance match clock while paused');
-  assert.deepEqual(results.score,before.score,'rendering must not change the score');
+  assert.equal(results.state,frozen.clock,'repeated rendering must not advance match clock while paused');
+  assert.deepEqual(results.score,frozen.score,'rendering must not change the score');
   assert.deepEqual(errors,[],'browser console JavaScript errors');
   report.browser='Chromium SwiftShader (software WebGL)',report.kind='synchronous render+gl.finish; not a mobile FPS measurement';
   report.activeFootballers=22;report.animatedPlayers=results.bridge.players;report.bridge=results.bridge;
