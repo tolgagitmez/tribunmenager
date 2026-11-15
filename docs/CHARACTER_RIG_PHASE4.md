@@ -37,3 +37,9 @@ Oyuncu stüdyosundaki `tribun-base-footballer-animated.glb` bağlantısı, Blend
 ## Sonraki teknik aşama
 
 En değerli sonraki adım bağımsız bir glTF animasyon oynatıcısı, Blender'da deformasyon fotoğrafları ile omuz-kalça-diz karşılaştırması, foot-lock ve retargeting testleri, ardından oyun içi canlı prosedürel hareket ile GLB kliplerinin ortak animasyon arayüzünden sürülmesidir.
+
+## Gerçek Chromium/WebGL doğrulaması (15 Kasım 2026)
+
+Ubuntu 24.04 + Playwright Chromium + SwiftShader üzerinden `player-studio.html` gerçek WebGL canvas çizimi doğrulandı. Sekiz farklı poz için PNG üretildi: idle, walk, run, sprint, turn, pass, shoot ve dive-left. Konsolda işlenmemiş JS hata sayısı **0**, 3D görüntü etkin ve ölçülebilir renk çeşitliliği var. Sprint/şut/dalış pozları durağan pozdan görsel piksel farkı göstermek zorunda; test geçti.
+
+[Başarılı Chromium raporu ve 8 PNG dosyası](https://github.com/tolgagitmez/tribunmenager/actions/runs/43707013356/artifacts/14159155848) — GitHub Actions artifact, 30 gün saklama süresi. Bu bir `image quality benchmark` değildir; insan anatomisinin profesyonel seviyede olduğunu kanıtlamaz.
