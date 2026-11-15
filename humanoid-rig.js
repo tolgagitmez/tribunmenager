@@ -106,9 +106,9 @@ function pose(p,dt=1/60){
  const kick=st.kickVisual;
  const tackle=act==='tackle'?action:0,diving=act==='dive'?action:0,celebrating=act==='celebrate'?action:0,protest=act==='protest'?action:0;
  const bounce=st.activity*(.012+.025*sprint)*Math.sin(st.phase*4*Math.PI);
- const gather=gatherDrop(p),hipHeight=1.00+bounce-tackle*.16-gather;
+ const gather=gatherDrop(p),hipHeight=1.00+bounce-tackle*.16-gather-kick*.012;
  const feint=p.feintClock>0?Math.sin(p.feintClock/.35*Math.PI)*(p.feintSign??((p.personality??.6)>.5?1:-1))*.09:0;
- const pelvis=world(p,-.04,0,hipHeight),torsoBase=world(p,-.05,0,1.08+bounce-tackle*.18-gather);
+ const pelvis=world(p,-.04,0,hipHeight),torsoBase=world(p,-.05,0,1.08+bounce-tackle*.18-gather-kick*.006);
  const torsoUpper=world(p,.02+st.lean+kick*.08,st.turn*.1+feint,1.47+bounce-tackle*.24-gather);
  const neck=world(p,.025+st.lean+kick*.07,st.turn*.12+feint*.7,1.59+bounce-tackle*.24-gather);
  const head=world(p,.025+st.lean+kick*.10,st.turn*.15+feint*.5,1.77+bounce-tackle*.25-gather);
