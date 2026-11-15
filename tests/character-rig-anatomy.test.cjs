@@ -25,7 +25,7 @@ test('IK hinge can be mirrored without changing segment lengths',()=>{
 });
 test('all normal animation scenarios retain constant visual arm and leg lengths',()=>{
  const Scenarios=require('../animation-scenarios');
- for(const mode of ['run','turn','pass','shoot','dive-left','dive-right']){
+ for(const mode of ['walk','jog','run','sprint','turn','pass','shoot','dive-left','dive-right']){
   const state=Scenarios.create(mode);
   for(let i=0;i<120;i++){
    Scenarios.sample(state,i/60,Rig);
@@ -64,4 +64,19 @@ test('athletic rest proportions maintain a normal pelvis, wrist and foot contact
  p.action='shoot';p.actionClock=.25;p.contactTime=.38;p.actionElapsed=.38;p.actionDuration=.65;
  const kick=Rig.update(p,1/60),target=Rig.kickAnkle(p);
  assert(length(kick.legs[1].ankle,target)<1e-6,'kick ankle must remain reachable');
+});
+
+test('walk, jog and sprint remain distinct continuous movement patterns',()=>{
+ const Scenarios=require('../animation-scenarios');
+ const values=[];
+ for(const mode of ['walk','jog','sprint']){
+  const s=Scenarios.create(mode);
+  Scenarios.sample(s,1,Rig);
+  values.push(s.p.speed);
+  for(let i=1;i<=60;i++){
+   const t=i/60;Scenarios.sample(s,t,Rig);const pose=Rig.update(s.p,1/60);
+   assert(Number.isFinite(pose.legs[0].knee[0])&&Number.isFinite(pose.legs[1].knee[0]));
+  }
+ }
+ assert(values[0]<values[1]&&values[1]<values[2]);
 });
