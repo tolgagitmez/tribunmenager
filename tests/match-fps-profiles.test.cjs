@@ -19,7 +19,8 @@ function stadium(){
 }
 test('balanced graphics reduce physical GPU pixels after sustained low FPS without making match rules change',()=>{
  const {s,canvas}=stadium();
- s.resize();const original=canvas.width*canvas.height;
+ assert.equal(s.performance.mode,'performance','match should start in low-cost mode');
+ s.setPerformanceMode('balanced');s.resize();const original=canvas.width*canvas.height;
  for(let i=0;i<30;i++)s.observeFrame(.042,false);
  assert(s.performance.scale<=.76,'adaptive DPR should drop after sustained <25 FPS');
  s.resize();assert(canvas.width*canvas.height<original*.6,'adaptive resolution must save GPU pixels');
