@@ -18,7 +18,7 @@ function substitutionState(){
 }
 function init(){
  if(attackObserver)attackObserver.detach();
- game=new window.TribunFootball.Match(cfg,Rig);attackObserver=window.TribunAttackDiagnostics.attach(game);
+ game=new window.TribunFootball.Match(cfg,Rig);scene.resetAnimation();attackObserver=window.TribunAttackDiagnostics.attach(game);
  if(!attackView)attackView=window.TribunAttackAnalysisUI.mount($('attackAnalysis'),{summary:()=>attackObserver.summary(),report:()=>attackObserver.report()});paused=false;speed=1;accumulator=0;lastMetric=-1;shownFinish=false;overlayTime=0;
  $('eventList').innerHTML='';$('finishScreen').hidden=true;$('subPanel').hidden=true;if($('halftimePanel'))$('halftimePanel').hidden=true;$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');
  label('playButton','Duraklat','pause');label('speedButton','1× Hız');label('camButton','Kamera: '+(scene.camera==='close'?'Yakın':scene.camera==='tactical'?'Taktik':'TV'),'target');label('rigButton','İskelet: '+(scene.debugRig?'Açık':'Kapalı'),'studio');label('soundButton','Tribün sesi: '+(crowd.enabled?'Açık':'Kapalı'),'sound');label('restartButton','Baştan oynat','refresh');$('momentum').dataset.left=50;$('momentum').style.setProperty('--homeWidth','50%');
@@ -104,12 +104,14 @@ window.addEventListener('DOMContentLoaded',()=>{
  if($('resumeHalf'))$('resumeHalf').onclick=()=>{if(typeof game.resumeHalf==='function')game.resumeHalf();consume();metrics();renderSubs();};
  if($('halftimeSubs'))$('halftimeSubs').onclick=()=>{renderSubs();$('subPanel').hidden=false;};
  $('saveSubs').onclick=()=>{const result=game.substitute(Number($('subOut').value),Number($('subIn').value));if(result.ok){$('subPanel').hidden=true;consume();renderSubs();}else alert(result.error);};
- function start(){init();let last=performance.now();function frame(now){const dt=Math.min(.25,(now-last)/1000);last=now;tick(dt);const b=game.ball;scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},dt);requestAnimationFrame(frame);}requestAnimationFrame(frame);}
+ function start(){init();let last=performance.now();function frame(now){const dt=Math.max(0,Math.min(.25,(now-last)/1000));last=now;tick(dt);const b=game.ball;scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},paused?0:dt);requestAnimationFrame(frame);}requestAnimationFrame(frame);}
  if(!window.TribunMatchConfig.prepared(cfg)){
   const controls=[...document.querySelectorAll('.match-controls button,#subButton,#saveSubs,#againButton,#restartButton,#playButton,#speedButton')];controls.forEach(b=>b.disabled=true);
   $('sessionTitle').textContent='GÜNCEL KADRO ALINIYOR…';
   window.TribunMatchConfig.prepare(cfg).then(value=>{Object.assign(cfg,value);controls.forEach(b=>b.disabled=false);if(!scene.gl)$('rigButton').disabled=true;start();}).catch(()=>{$('sessionTitle').textContent='KADRO BAĞLANTISI KURULAMADI · SAYFAYI YENİLE';});
  }else start();
 });
-window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
+window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
+ renderProbe:()=>{const b=game.ball,start=performance.now();scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);if(scene.gl)scene.gl.finish();return {cpuGpuMs:performance.now()-start,active:game.players.filter(p=>p.active&&!p.referee).length,bridge:scene.animationStats(),webgl:!!scene.gl};},
+ advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();
