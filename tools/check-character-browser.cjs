@@ -53,7 +53,9 @@ async function main(){
   const captures={};
   for(const mode of ['idle','walk','run','sprint','turn','pass','shoot','dive-left']){
    await page.selectOption('#pose',mode);
-   await page.waitForTimeout(mode==='idle'?300:700);
+   // Contact actions expire after ~0.6 s; capture them before recovery to idle.
+   const previewDelay={pass:220,shoot:275,'dive-left':300};
+   await page.waitForTimeout(previewDelay[mode]??(mode==='idle'?300:700));
    const state=await page.evaluate(()=>window.TribunPlayerStudio.getState());
    assert.equal(state.mode,mode);
    const png=await page.locator('#playerCanvas').screenshot({path:path.join(output,mode+'.png')});
