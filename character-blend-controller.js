@@ -49,7 +49,12 @@ function create({mixer,clips,model=null,pelvis=null,fadeSeconds=.28}){
  }
  function seek(time){
   const selected=get(active);if(!selected)return false;
-  if(transition){transition.from.stop();transition.to.setEffectiveWeight(1);transition=null;}
+  if(transition){
+   // Finish pending world-root correction before removing the old action.
+   // Scrubbing must never discard only half of a transition's root alignment.
+   if(model?.position){model.position.x+=transition.offset[0]*(1-transition.ease);model.position.z+=transition.offset[2]*(1-transition.ease);}
+   transition.from.stop();transition.to.setEffectiveWeight(1);transition=null;
+  }
   // Deterministic scrubbing of the chosen clip, not mixed wall-clock state.
   mixer.setTime(clamp(Number(time)||0,0,all.get(active).duration-.0001));
   return true;
