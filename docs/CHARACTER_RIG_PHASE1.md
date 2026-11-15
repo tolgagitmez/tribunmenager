@@ -1,3 +1,5 @@
+> Güncelleme: [Aşama 2](CHARACTER_RIG_PHASE2.md) kapsamında eksik olan prosedürel WebGL karakter verisi artık eklendi; Blender/GLB kaynakları hâlâ yok.
+
 # Temel futbolcu — anatomi ve kemik kısıtları (ilk uygulama)
 
 Bu dal, mevcut 19 kemikli WebGL karakterinin **hareket/rig** katmanına odaklanır. Bir profesyonel Blender karakteri, yeni humanoid mesh, sculpt edilmiş corrective blendshape veya motion-capture klipleri **henüz üretilmedi**.
