@@ -111,3 +111,12 @@ test('animated GLB is deterministic and rejects invalid sample frequencies',()=>
  assert.throws(()=>buildGLB({animations:true,fps:29}),/FPS/);
  assert.throws(()=>buildGLB({animations:true,clips:[]}),/clip/i);
 });
+
+test('committed animated GLB is byte-for-byte reproducible from the 60 Hz source',()=>{
+ const fs=require('node:fs'),path=require('node:path');
+ const target=path.resolve(__dirname,'../assets/player/tribun-base-footballer-animated.glb');
+ const binary=fs.readFileSync(target);
+ const baked=Buffer.from(buildGLB({lod:0,animations:true,fps:30}).glb);
+ assert.equal(Buffer.compare(binary,baked),0);
+ assert(binary.byteLength>500000);
+});
