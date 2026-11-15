@@ -88,7 +88,7 @@ function create({duration=.28,enabled=true}={}){
    const t=ease(c.elapsed/duration);
    mixRigid(c.from,palette,c.display,t,(Number(player.x)||0)-c.fromX,(Number(player.z)||0)-c.fromZ);
    frameBlends++;
-   if(c.elapsed>=duration){c.from=null;c.display.set(palette);}
+   if(c.elapsed>=duration){c.from=null;c.display.set(palette);c.x=Number(player.x)||0;c.z=Number(player.z)||0;return palette;}
    c.x=Number(player.x)||0;c.z=Number(player.z)||0;
    return c.display;
   }
