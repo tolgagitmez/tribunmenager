@@ -89,7 +89,7 @@ test('all baked quaternions are normalized and sign-continuous',()=>{
  }
 });
 test('GLB hierarchy reconstructs the renderer bone palette at contact and moving keyframes',()=>{
- for(const name of ['run','sprint','turn','pass','shoot','dive-left','dive-right']){
+ for(const name of ['run','sprint','turn','pass','shoot','run-pass','run-shoot','dive-left','dive-right']){
   const config=CLIPS.find(c=>c.name===name),clip=bakeClip({...config,parents:PARENT,fps:30});
   const ticks=[0,18,Math.min(Math.round((config.contactTime||.8)*60),Math.round(config.duration*60)),Math.round(config.duration*60)]
    .map(v=>v+(v%2)).filter((v,i,a)=>v<=config.duration*60&&a.indexOf(v)===i);
