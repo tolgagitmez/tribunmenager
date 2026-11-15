@@ -10,7 +10,7 @@ const sub=(a,b)=>a.map((v,i)=>v-b[i]);
 const sum=(a,b)=>a.map((v,i)=>v+b[i]);
 const scale=(a,k)=>a.map(v=>v*k);
 const dot=(a,b)=>a.reduce((s,n,i)=>s+n*b[i],0);
-const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2]];
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const norm=a=>{const l=Math.hypot(...a)||1;return a.map(v=>v/l);};
 const rgba=[1,1,1];
 const rest=Rig.update({x:0,z:0,face:0,speed:0,action:'idle',actionClock:0,kickFoot:1},1/60);
