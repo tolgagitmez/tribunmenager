@@ -8,6 +8,7 @@ on:
       - feature/character-glb-animation-v1
       - feature/character-footlock-glb-viewer-v1
       - feature/character-kick-transition-sole-v1
+      - feature/character-blend-loop-contact-v1
   pull_request:
     paths:
       - 'humanoid-rig.js'
@@ -19,6 +20,9 @@ on:
       - 'tools/export-character-glb.cjs'
       - 'tools/character-animation-baker.cjs'
       - 'tests/character-kick-transition.test.cjs'
+      - 'tests/character-blending-loop.test.cjs'
+      - 'tests/character-skinned-sole.test.cjs'
+      - 'character-blend-controller.js'
       - 'package.json'
       - '.github/workflows/character-rig.yml'
 
@@ -39,6 +43,7 @@ jobs:
           node --check tools/export-character-glb.cjs
           node --check tools/character-animation-baker.cjs
           node --check animation-scenarios.js
+          node --check character-blend-controller.js
           node --check tools/validate-character-glb.cjs
       - name: Validate character rig, model and glTF
         run: npm run test:character-rig
