@@ -143,7 +143,7 @@ setPerformanceMode(mode){
 performanceMode(){return {mode:this.performance.mode,scale:this.performance.scale,fps:this.performance.fps,
  canvas:[this.canvas.width,this.canvas.height],players:this.playerRenderer?.lastRenderStats||null};}
 observeFrame(dt,paused=false){
- if(paused||!Number.isFinite(dt)||dt<=0||dt>.2)return;
+ if(paused||!Number.isFinite(dt)||dt<=0||dt>2||(typeof document!=='undefined'&&document.hidden))return;
  const p=this.performance,ms=dt*1000;
  p.fps=p.fps*.93+Math.min(120,1000/ms)*.07;
  if(p.mode!=='balanced')return;
