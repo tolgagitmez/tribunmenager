@@ -1,0 +1,32 @@
+name: Character rig validation
+
+on:
+  push:
+    branches:
+      - feature/character-rig-anatomy-v1
+  pull_request:
+    paths:
+      - 'humanoid-rig.js'
+      - 'player-renderer.js'
+      - 'assets/player/**'
+      - 'tests/*character*'
+      - 'tests/*rig*'
+      - 'package.json'
+      - '.github/workflows/character-rig.yml'
+
+jobs:
+  character-rig:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check humanoid-rig.js
+          node --check player-renderer.js
+          node --check assets/player/player-model-data.js
+      - name: Run character rig and model tests
+        run: npm run test:character-rig
