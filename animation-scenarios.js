@@ -8,8 +8,14 @@ function create(mode='run'){
 }
 function sample(s,t,rig){
  const p=s.p;let prevX=p.x,prevZ=p.z;s.time=t;p.x=p.z=0;p.face=0;p.actionClock=0;p.action='idle';p.actionElapsed=0;
- if(s.mode==='run'){
-  p.x=Math.sin(t*.7)*4;p.z=(1-Math.cos(t*.7))*4;p.face=t*.7;p.speed=2.8;p.vx=Math.cos(t*.7)*2.8;p.vz=Math.sin(t*.7)*2.8;p.action='run';
+ if(['walk','jog','run','sprint'].includes(s.mode)){
+  // Constant-speed circular locomotion preserves continuity when the
+  // inspection loop restarts. Distinct modes expose walk/jog/sprint stride.
+  const speed=s.mode==='walk'?1.25:s.mode==='sprint'?6.4:2.8;
+  const radius=s.mode==='sprint'?8:4,omega=speed/radius,yaw=t*omega;
+  p.x=Math.sin(yaw)*radius;p.z=(1-Math.cos(yaw))*radius;p.face=yaw;p.speed=speed;
+  p.vx=Math.cos(yaw)*speed;p.vz=Math.sin(yaw)*speed;
+  p.action=s.mode==='walk'?'walk':s.mode==='sprint'?'sprint':'run';
  }else if(s.mode==='turn'){
   const u=t%8;
   if(u<2){p.x=2*u;p.face=0;p.speed=2;}
