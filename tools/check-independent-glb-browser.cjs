@@ -28,10 +28,10 @@ async function main(){
   await page.goto('http://127.0.0.1:'+server.address().port+'/character-viewer.html',{waitUntil:'load'});
   await page.waitForFunction(()=>window.TribunGLBViewer?.ready,null,{timeout:45000});
   const stats=await page.evaluate(()=>window.TribunGLBViewer.stats());
-  assert.equal(stats.clips.length,10);assert(stats.hasBone,'pelvis joint missing');
+  assert.equal(stats.clips.length,12);assert(stats.hasBone,'pelvis joint missing');
   report.stats=stats;
   const captures={};
-  for(const [name,t] of [['idle',.15],['walk',.50],['sprint',.50],['shoot',.26],['dive-left',.27]]){
+  for(const [name,t] of [['idle',.15],['walk',.50],['sprint',.50],['shoot',.26],['dive-left',.27],['run-pass',1.05],['run-shoot',1.13]]){
    const sample=await page.evaluate(([clip,time])=>{
     const viewer=window.TribunGLBViewer;
     return {selected:viewer.selectClip(clip),sampled:viewer.sample(time),feet:viewer.getFrame()};
@@ -45,7 +45,7 @@ async function main(){
    captures[name]={bytes:shot.byteLength,feet:sample.feet};
   }
   const idle=fs.readFileSync(path.join(output,'idle.png'));
-  for(const name of ['walk','sprint','shoot','dive-left']){
+  for(const name of ['walk','sprint','shoot','dive-left','run-pass','run-shoot']){
    const data=fs.readFileSync(path.join(output,name+'.png'));
    const {difference,colors}=diff(idle,data);captures[name].differenceFromIdle=difference;
    assert(colors>25,'GLB viewer screenshot has no rendered scene');
