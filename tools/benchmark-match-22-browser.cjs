@@ -29,6 +29,8 @@ async function main(){
   // Wait for the WebGL model draw, not just match data initialization.
   // SwiftShader may need longer to compile shader programs in CI.
   await page.waitForTimeout(700);
+  // Main uses asynchronous licensed textures; wait for the real renderer to load.
+  await page.waitForFunction(()=>{window.TRIBUN_MATCH_TEST?.renderProbe?.();return window.TRIBUN_MATCH_TEST?.animationStats()?.players>=22;},null,{polling:250,timeout:45000});
   // Exercise the *real* match renderer synchronously. On software GL a single
   // scene frame can arrive well after its game object was initialized.
   const initialProbe=await page.evaluate(()=>window.TRIBUN_MATCH_TEST.renderProbe());
@@ -41,7 +43,7 @@ async function main(){
   }));
   console.log('Match benchmark startup: '+JSON.stringify(before));
   assert(before.stats.players>=22,'match animation bridge did not see 22 player models: '+JSON.stringify(before));
-  assert(before.quality?.includes('YENİ OYUNCU MODELİ'),'match should use skinned GPU footballers');
+  assert(before.quality&&!before.quality.includes('YEDEK'),'match should use the licensed GPU footballer renderer');
   await page.click('#playButton'); // Freeze game state for A/B 22-player rendering.
   const frozen=await page.evaluate(()=>{
    const state=window.TRIBUN_MATCH_TEST.getState();

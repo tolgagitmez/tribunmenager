@@ -8,10 +8,15 @@ on:
       - feature/character-kick-transition-sole-v1
       - feature/character-blend-loop-contact-v1
       - feature/match-animation-bridge-22players-v1
+      - integration/character-pr3-9-licensed-compatible
+      - main
   pull_request:
     paths:
       - 'assets/player/**'
       - 'player-studio.html'
+      - 'player-studio-procedural.html'
+      - 'player-studio-procedural.js'
+      - 'player-renderer-procedural.js'
       - 'player-studio.js'
       - 'humanoid-rig.js'
       - 'player-renderer.js'
