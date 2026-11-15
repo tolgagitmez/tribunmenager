@@ -5,6 +5,7 @@ on:
     branches:
       - feature/character-rig-anatomy-v1
       - feature/character-glb-export-v1
+      - feature/character-glb-animation-v1
   pull_request:
     paths:
       - 'humanoid-rig.js'
@@ -14,6 +15,7 @@ on:
       - 'tests/*character*'
       - 'tests/*rig*'
       - 'tools/export-character-glb.cjs'
+      - 'tools/character-animation-baker.cjs'
       - 'package.json'
       - '.github/workflows/character-rig.yml'
 
@@ -32,6 +34,7 @@ jobs:
           node --check player-renderer.js
           node --check assets/player/player-model-data.js
           node --check tools/export-character-glb.cjs
+          node --check tools/character-animation-baker.cjs
           node --check tools/validate-character-glb.cjs
       - name: Validate character rig, model and glTF
         run: npm run test:character-rig
@@ -40,10 +43,11 @@ jobs:
           node tools/export-character-glb.cjs --lod 0 --output dist/tribun-base-footballer-lod0.glb
           node tools/export-character-glb.cjs --lod 1 --output dist/tribun-base-footballer-lod1.glb
           node tools/export-character-glb.cjs --lod 2 --output dist/tribun-base-footballer-lod2.glb
+          node tools/export-character-glb.cjs --animations --fps 30 --lod 0 --output dist/tribun-base-footballer-animated.glb
       - name: Validate GLB with the official Khronos validator
         run: |
           npm install --no-save --no-package-lock --ignore-scripts gltf-validator@2.0.0-dev.3.10
-          node tools/validate-character-glb.cjs assets/player/tribun-base-footballer.glb dist/tribun-base-footballer-lod0.glb dist/tribun-base-footballer-lod1.glb dist/tribun-base-footballer-lod2.glb
+          node tools/validate-character-glb.cjs assets/player/tribun-base-footballer.glb dist/tribun-base-footballer-lod0.glb dist/tribun-base-footballer-lod1.glb dist/tribun-base-footballer-lod2.glb dist/tribun-base-footballer-animated.glb
       - name: Upload GLB exports
         uses: actions/upload-artifact@v4
         with:
