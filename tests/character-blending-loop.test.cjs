@@ -79,7 +79,8 @@ test('walk, run and sprint loop clips wrap at the same pose with matched end vel
      }
     }
    }
-   const t=ch.translation;nonFlat=Math.max(nonFlat,...Array.from(t,(v,i)=>Math.abs(v-t[i%3])));
+   const t=ch.translation,q=ch.rotation;
+   nonFlat=Math.max(nonFlat,...Array.from(t,(v,i)=>Math.abs(v-t[i%3])),...Array.from(q,(v,i)=>Math.abs(v-q[i%4])));
   }
   assert(maxSeamVelocityDiff<.05,definition.name+' discontinuous gait seam: '+maxSeamVelocityDiff);
   assert(nonFlat>.015,definition.name+' cannot be a frozen pose');
