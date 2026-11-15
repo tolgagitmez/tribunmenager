@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/character-glb-animation-v1
+      - feature/character-footlock-glb-viewer-v1
   pull_request:
     paths:
       - 'assets/player/**'
@@ -12,6 +13,9 @@ on:
       - 'humanoid-rig.js'
       - 'player-renderer.js'
       - 'tools/check-character-browser.cjs'
+      - 'tools/check-independent-glb-browser.cjs'
+      - 'tools/serve-character-viewer.cjs'
+      - 'character-viewer.html'
       - '.github/workflows/character-visual.yml'
 
 jobs:
@@ -25,15 +29,19 @@ jobs:
           node-version: '22'
       - name: Install isolated browser smoke dependencies
         run: |
-          npm install --no-save --no-package-lock --ignore-scripts playwright@1.58.0 pngjs@7.0.0
+          npm install --no-save --no-package-lock --ignore-scripts playwright@1.58.0 pngjs@7.0.0 three@0.181.2
           npx playwright install chromium --with-deps
       - name: Render actual 3D studio poses with SwiftShader
         run: node tools/check-character-browser.cjs
+      - name: Test independent GLB animation viewer
+        run: node tools/check-independent-glb-browser.cjs
       - name: Upload screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: character-webgl-smoke
-          path: dist/character-visual/
+          path: |
+            dist/character-visual/
+            dist/character-glb-viewer/
           if-no-files-found: warn
           retention-days: 30
