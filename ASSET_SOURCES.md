@@ -73,3 +73,8 @@ Yeni fotoğraf, dış video, yapay maç olayı veya yeni karakter modeli eklenme
 ## v1.18 transfer arayüzü
 
 `assets/ui/player-silhouette.svg` bu sürüm için kodla üretilen özgün, genel futbolcu silüetidir. Transfer ekranı önceki lisans kayıtlı örnek portreleri ve mevcut stadyum/font varlıklarını yeniden kullanır. Kullanıcının paylaştığı OSM ekran görüntüleri ürün paketine veya görsel varlık olarak alınmadı. Gerçek futbolcu fotoğrafı veya yeni dış kaynaklı varlık indirilmedi.
+
+
+## 2026-11-15: depoda bulunmayan oyuncu model verisinin tamamlanması
+
+assets/player/player-model-data.js bu değişiklikte yalnızca matematiksel yüzey döngüleri, geometrik şekiller ve yerel humanoid eklem pozları kullanılarak sıfırdan yazıldı; dışarıdan 3D model, portre veya görsel yüklenmedi. Önceki sürümlerde belgelenmiş Blender Studio CC0 kaynak varlığının dosyası depoda bulunmadığından yeni prosedürel varlık o modeli temsil etmez. Yakın plan insan anatomisi veya ticari prodüksiyon kalitesi iddiası yoktur.
