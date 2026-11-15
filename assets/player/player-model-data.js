@@ -174,6 +174,15 @@ function mesh(lod){
   rings(shoe,4,'YZ');
  }
  if(v.length/20>65535)throw Error('Base footballer exceeds WebGL1 index limit');
+ // The generated rings and sweeps use different local handedness. Align
+ // face winding with vertex normals before culling/GLB export (one-time work).
+ for(let i=0;i<tri.length;i+=3){
+  const ia=tri[i]*20,ib=tri[i+1]*20,ic=tri[i+2]*20;
+  const a=v.slice(ia,ia+3),b=v.slice(ib,ib+3),c=v.slice(ic,ic+3);
+  const normal=cross(sub(b,a),sub(c,a));
+  const target=sum(sum(v.slice(ia+3,ia+6),v.slice(ib+3,ib+6)),v.slice(ic+3,ic+6));
+  if(dot(normal,target)<-1e-10){const swap=tri[i+1];tri[i+1]=tri[i+2];tri[i+2]=swap;}
+ }
  const vertices=new Float32Array(v),indices=new Uint16Array(tri);
  return {vertices:encode(new Uint8Array(vertices.buffer)),indices:encode(new Uint8Array(indices.buffer)),indexType:'H',
   vertexCount:vertices.length/20,indexCount:indices.length};
