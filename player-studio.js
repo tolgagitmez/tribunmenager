@@ -39,6 +39,16 @@ function frame(now){const dt=Math.min(.1,Math.max(0,(now-last)/1000));last=now;
  const radius=(face?1.18:4.9)*zoom*frameScale,theta=angle+(p.face||0),eye=[target[0]+Math.cos(theta)*radius,target[1]+(face?.045:.45)+radius*pitch*.5,target[2]+Math.sin(theta)*radius],vp=matmul(perspective((face?24:31)*Math.PI/180,w/h),look(eye,target));
  gl.useProgram(floorProgram);gl.uniformMatrix4fv(floorLoc.uVP,false,vp);gl.uniform2fv(floorLoc.uCenter,[p.x,p.z]);const feet=Rig.getPose(p).legs;gl.uniform2fv(floorLoc.uFootA,mode==='idle'?[p.x+.02,p.z-.2]:[feet[0].ankle[0],feet[0].ankle[2]]);gl.uniform2fv(floorLoc.uFootB,mode==='idle'?[p.x+.02,p.z+.2]:[feet[1].ankle[0],feet[1].ankle[2]]);gl.bindBuffer(gl.ARRAY_BUFFER,floorBuffer);gl.enableVertexAttribArray(pos);gl.vertexAttribPointer(pos,3,gl.FLOAT,false,12,0);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.drawArrays(gl.TRIANGLES,0,6);gl.disable(gl.BLEND);gl.disableVertexAttribArray(pos);renderer.draw([p],vp,eye,'portrait');requestAnimationFrame(frame);
 }
-// Export only read-only inspection and stage shaders for validation tools.
-window.TribunPlayerStudio={getState:()=>({identity,skin,hair,kit,view,mode,paused}),floorVS,floorFS};requestAnimationFrame(frame);
+// Exact 60 Hz seek for animators and repeatable browser visual regression.
+// Rebuild the same scenario from tick zero to preserve planted-foot history.
+function seekPose(seconds){
+ const tick=Math.round(clamp(Number(seconds)||0,0,8)*60);
+ Rig.reset(state.p);state=Scenarios.create(mode==='idle'?'run':mode);
+ if(mode==='idle'){state.p.speed=0;state.p.action='idle';Rig.update(state.p,1/60);}
+ else for(let i=0;i<=tick;i++){Scenarios.sample(state,i/60,Rig);Rig.update(state.p,1/60);}
+ time=tick/60;accumulator=0;paused=true;appearance();
+ $('pause').textContent='Hareketi sürdür';return time;
+}
+// Exact visual sampling never advances match simulation.
+window.TribunPlayerStudio={getState:()=>({identity,skin,hair,kit,view,mode,paused,time}),seekPose,floorVS,floorFS};requestAnimationFrame(frame);
 })();

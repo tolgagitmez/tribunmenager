@@ -81,7 +81,12 @@ function pose(p,dt=1/60){
  // sending every footfall forwards in the direction of the chest.
  const fx=Math.cos(p.face||0),fz=Math.sin(p.face||0),moveX=travel>.0001?dx/travel:fx,moveZ=travel>.0001?dz/travel:fz;
  const forwardTravel=moveX*fx+moveZ*fz,lateralTravel=Math.abs(-moveX*fz+moveZ*fx),defensive=Math.max(lateralTravel,Math.max(0,-forwardTravel));
- const stride=mix(1.2,3.0,smooth(speed/6))*(1-defensive*.22),duty=clamp(mix(.61,.34,smooth(speed/6))+defensive*.06,.34,.7);
+ // At high sprint speed a long planted phase makes the ankle unreachable
+ // before the next flight phase. Shorten sprint contact and tune swing length
+ // while keeping ordinary running and the deterministic physics untouched.
+ const sprintContact=smooth((speed-4.8)/1.4);
+ const stride=mix(1.2,3.0,smooth(speed/6))*(1-defensive*.22)-.50*sprintContact;
+ const duty=clamp(mix(.61,.34,smooth(speed/6))+defensive*.06-.14*sprintContact,.20,.7);
  st.phase+=(travel/stride)+(speed<.3?Math.abs(yaw)*.12:0);
  const act=p.action||'idle',special=['pass','shoot','tackle','dive','catch','catch-ready','celebrate','protest','receive','throw','header'].includes(act)&&p.actionClock>0;
  // Gaze affects the drawn head only. It never turns the physical body or
