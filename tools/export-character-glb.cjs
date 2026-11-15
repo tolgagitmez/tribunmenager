@@ -137,6 +137,7 @@ function buildGLB({lod=0,assets=Assets,animations=false,fps=30,clips=CLIPS}={}){
    const timeline=accessor(baked.times,'SCALAR',5126,null,{min:[0],max:[baked.duration]});
    const animation={name:baked.name,samplers:[],channels:[],extras:{fps:baked.fps,duration:baked.duration}};
    if(baked.contactTime!==null)animation.extras.contactTime=baked.contactTime;
+   if(baked.loopReady)animation.extras.loopReady=true;
    for(let i=0;i<assets.bones.length;i++){
     for(const path of ['translation','rotation']){
      const output=accessor(baked.channels[i][path],path==='translation'?'VEC3':'VEC4',5126,null);
