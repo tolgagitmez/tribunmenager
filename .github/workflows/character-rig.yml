@@ -7,6 +7,7 @@ on:
       - feature/character-glb-export-v1
       - feature/character-glb-animation-v1
       - feature/character-footlock-glb-viewer-v1
+      - feature/character-kick-transition-sole-v1
   pull_request:
     paths:
       - 'humanoid-rig.js'
@@ -17,6 +18,7 @@ on:
       - 'tests/*rig*'
       - 'tools/export-character-glb.cjs'
       - 'tools/character-animation-baker.cjs'
+      - 'tests/character-kick-transition.test.cjs'
       - 'package.json'
       - '.github/workflows/character-rig.yml'
 
@@ -36,6 +38,7 @@ jobs:
           node --check assets/player/player-model-data.js
           node --check tools/export-character-glb.cjs
           node --check tools/character-animation-baker.cjs
+          node --check animation-scenarios.js
           node --check tools/validate-character-glb.cjs
       - name: Validate character rig, model and glTF
         run: npm run test:character-rig
