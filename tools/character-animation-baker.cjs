@@ -5,8 +5,8 @@
    This preserves the renderer's bind pose and avoids double-rotating children. */
 const Rig=require('../humanoid-rig.js');
 const Scenarios=require('../animation-scenarios.js');
-const Renderer=require('../player-renderer.js');
-const Assets=require('../assets/player/player-model-data.js');
+const Renderer=require('../player-renderer-procedural.js');
+const Assets=require('../assets/player/procedural-player-model-data.js');
 
 const CLIPS=Object.freeze([
  {name:'idle',duration:1},

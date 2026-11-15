@@ -2,7 +2,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const Blender=require('../character-blend-controller.js');
-const Assets=require('../assets/player/player-model-data.js');
+const Assets=require('../assets/player/procedural-player-model-data.js');
 const {bakeClip,CLIPS}=require('../tools/character-animation-baker.cjs');
 const {buildGLB,PARENT}=require('../tools/export-character-glb.cjs');
 const distance=(a,b)=>Math.hypot(...a.map((x,i)=>x-b[i]));

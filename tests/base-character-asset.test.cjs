@@ -2,8 +2,8 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const Rig=require('../humanoid-rig');
-const Renderer=require('../player-renderer');
-const Assets=require('../assets/player/player-model-data.js');
+const Renderer=require('../player-renderer-procedural');
+const Assets=require('../assets/player/procedural-player-model-data.js');
 const nearly=(a,b,tol=1e-5)=>assert(Math.abs(a-b)<tol,Math.abs(a-b)+' exceeds '+tol);
 function view(b64,Type){
  const buffer=Buffer.from(b64,'base64');

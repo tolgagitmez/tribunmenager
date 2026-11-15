@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const Assets=require('../assets/player/player-model-data.js');
+const Assets=require('../assets/player/procedural-player-model-data.js');
 const {buildGLB,PARENT}=require('../tools/export-character-glb.cjs');
 const EPS=1e-5;
 function parse(glb){
@@ -103,7 +103,7 @@ test('committed LOD0 binary is byte-for-byte reproducible from source',()=>{
 
 test('player studio exposes the committed GLB asset without a network dependency',()=>{
  const fs=require('node:fs'),path=require('node:path');
- const html=fs.readFileSync(path.resolve(__dirname,'../player-studio.html'),'utf8');
+ const html=fs.readFileSync(path.resolve(__dirname,'../player-studio-procedural.html'),'utf8');
  assert(html.includes('href="assets/player/tribun-base-footballer.glb"'));
  assert(fs.statSync(path.resolve(__dirname,'../assets/player/tribun-base-footballer.glb')).size>100000);
 });

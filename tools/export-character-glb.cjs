@@ -3,7 +3,7 @@
    humanoid. Zero npm dependencies, no third-party mesh or animation assets. */
 const fs = require('node:fs');
 const path = require('node:path');
-const Assets = require('../assets/player/player-model-data.js');
+const Assets = require('../assets/player/procedural-player-model-data.js');
 const {bakeClip,CLIPS}=require('./character-animation-baker.cjs');
 
 const PARENT = Object.freeze({

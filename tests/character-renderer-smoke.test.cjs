@@ -1,8 +1,8 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const Rig=require('../humanoid-rig');
-const Assets=require('../assets/player/player-model-data.js');
-const Renderer=require('../player-renderer');
+const Assets=require('../assets/player/procedural-player-model-data.js');
+const Renderer=require('../player-renderer-procedural');
 const Scenarios=require('../animation-scenarios');
 function mockWebGL(){
  const calls=[],uniforms={};

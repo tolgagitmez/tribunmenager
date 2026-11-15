@@ -3,8 +3,8 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const Rig=require('../humanoid-rig.js');
 const Scenarios=require('../animation-scenarios.js');
-const Renderer=require('../player-renderer.js');
-const Assets=require('../assets/player/player-model-data.js');
+const Renderer=require('../player-renderer-procedural.js');
+const Assets=require('../assets/player/procedural-player-model-data.js');
 
 // CPU implementation of the same four-weight skin transform used by WebGL
 // (per-index material and vertex positions from the committed GLB source).

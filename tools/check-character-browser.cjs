@@ -8,7 +8,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const assert=require('node:assert/strict');
 
-const output=path.resolve('dist/character-visual'),script=path.resolve('player-studio.html');
+const output=path.resolve('dist/character-visual'),script=path.resolve('player-studio-procedural.html');
 function metrics(buffer){
  const data=PNG.sync.read(buffer);
  let count=0,reds=0,greens=0,blues=0,nontransparent=0;

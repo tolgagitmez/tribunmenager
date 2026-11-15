@@ -2,7 +2,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const Rig=require('../humanoid-rig');
-const Renderer=require('../player-renderer');
+const Renderer=require('../player-renderer-procedural');
 
 const length=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i]));
 const close=(a,b,epsilon=1e-6)=>assert(Math.abs(a-b)<epsilon,`expected ${a} ≈ ${b}`);
