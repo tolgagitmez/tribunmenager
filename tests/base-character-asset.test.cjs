@@ -14,6 +14,8 @@ test('single procedural base footballer has a complete, stable nineteen-bone bin
  assert.equal(Assets.units,'metres');
  assert.equal(Assets.bones.length,19);
  assert.equal(Assets.boneCount,19);
+ assert.equal(Assets.restBends.length,4);
+ assert(Assets.restBends.every(v=>Number.isFinite(v)&&v>.1&&v<2.7));
  assert.equal(new Set(Assets.bones.map(b=>b.name)).size,19);
  for(const b of Assets.bones){
   assert.equal(b.head.length,3);
