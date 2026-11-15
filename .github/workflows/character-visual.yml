@@ -7,6 +7,7 @@ on:
       - feature/character-footlock-glb-viewer-v1
       - feature/character-kick-transition-sole-v1
       - feature/character-blend-loop-contact-v1
+      - feature/match-animation-bridge-22players-v1
   pull_request:
     paths:
       - 'assets/player/**'
@@ -19,12 +20,17 @@ on:
       - 'tools/serve-character-viewer.cjs'
       - 'character-viewer.html'
       - 'character-blend-controller.js'
+      - 'match-animation-bridge.js'
+      - 'scene3d.js'
+      - 'match3d.js'
+      - 'match.html'
+      - 'tools/benchmark-match-22-browser.cjs'
       - '.github/workflows/character-visual.yml'
 
 jobs:
   browser-character:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +44,8 @@ jobs:
         run: node tools/check-character-browser.cjs
       - name: Test independent GLB animation viewer
         run: node tools/check-independent-glb-browser.cjs
+      - name: Benchmark the real 22-player 3D match with the blend bridge
+        run: node tools/benchmark-match-22-browser.cjs
       - name: Upload screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
@@ -46,5 +54,6 @@ jobs:
           path: |
             dist/character-visual/
             dist/character-glb-viewer/
+            dist/match-animation-benchmark/
           if-no-files-found: warn
           retention-days: 30
