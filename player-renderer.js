@@ -7,9 +7,30 @@ const decode=s=>{const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.leng
 const VS=`precision highp float;
 attribute vec3 aPosition;attribute vec3 aNormal;attribute vec2 aUV;attribute vec4 aJoints;attribute vec4 aWeights;attribute float aMaterial;attribute vec3 aColor;
 uniform mat4 uVP;uniform mat4 uBones[19];uniform vec3 uVariant;uniform float uGoalie;
+uniform vec3 uJointRest[4];uniform vec3 uShoulderRest[2];uniform vec4 uJointFlex;uniform vec2 uShoulderFlex;
 varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying float vMaterial;varying float vHand;
 void main(){vec3 p=aPosition;float head=smoothstep(1.59,1.68,p.y);p.z*=mix(1.,uVariant.x,head);p.x+=head*max(0.,p.x-.035)*uVariant.y;
 vec4 hands=1.-step(vec4(.1),min(abs(aJoints-vec4(8.)),abs(aJoints-vec4(15.))));vHand=dot(aWeights,hands);if(aMaterial<.5){p.z+=sign(p.z)*.005*uGoalie*vHand;p.x+=.003*uGoalie*vHand;}
+// Rounded muscle/joint support in bind space; bones themselves never scale.
+float elbowL=0.,elbowR=0.,kneeL=0.,kneeR=0.,shoulderL=0.,shoulderR=0.;
+for(int i=0;i<4;i++){
+ float joint=aJoints[i],weight=aWeights[i];
+ elbowL+=weight*(1.-step(.5,abs(joint-6.))+1.-step(.5,abs(joint-7.)));
+ elbowR+=weight*(1.-step(.5,abs(joint-13.))+1.-step(.5,abs(joint-14.)));
+ kneeL+=weight*(1.-step(.5,abs(joint-9.))+1.-step(.5,abs(joint-10.)));
+ kneeR+=weight*(1.-step(.5,abs(joint-16.))+1.-step(.5,abs(joint-17.)));
+ shoulderL+=weight*(1.-step(.5,abs(joint-5.))+1.-step(.5,abs(joint-6.)));
+ shoulderR+=weight*(1.-step(.5,abs(joint-12.))+1.-step(.5,abs(joint-13.)));
+}
+float el=clamp(elbowL,0.,1.)*uJointFlex.x*(1.-smoothstep(.05,.19,length(p-uJointRest[0])));
+float er=clamp(elbowR,0.,1.)*uJointFlex.y*(1.-smoothstep(.05,.19,length(p-uJointRest[1])));
+float kl=clamp(kneeL,0.,1.)*uJointFlex.z*(1.-smoothstep(.06,.20,length(p-uJointRest[2])));
+float kr=clamp(kneeR,0.,1.)*uJointFlex.w*(1.-smoothstep(.06,.20,length(p-uJointRest[3])));
+float sl=clamp(shoulderL,0.,1.)*uShoulderFlex.x*(1.-smoothstep(.06,.23,length(p-uShoulderRest[0])));
+float sr=clamp(shoulderR,0.,1.)*uShoulderFlex.y*(1.-smoothstep(.06,.23,length(p-uShoulderRest[1])));
+p.z+=sign(p.z-uJointRest[0].z)*el*.016+sign(p.z-uJointRest[1].z)*er*.016;
+p.z+=sign(p.z-uJointRest[2].z)*kl*.019+sign(p.z-uJointRest[3].z)*kr*.019;
+p.z+=sign(p.z-uShoulderRest[0].z)*sl*.013+sign(p.z-uShoulderRest[1].z)*sr*.013;
 mat4 skin=aWeights.x*uBones[int(aJoints.x)]+aWeights.y*uBones[int(aJoints.y)]+aWeights.z*uBones[int(aJoints.z)]+aWeights.w*uBones[int(aJoints.w)];
 vec4 w=skin*vec4(p,1.);vWorld=w.xyz;vNormal=normalize(mat3(skin)*aNormal);vBind=p;vMaterial=aMaterial;vColor=aColor;gl_Position=uVP*w;}`;
 const FS=`precision highp float;
@@ -67,17 +88,27 @@ class PlayerRenderer{
   if(!assets)throw Error('Oyuncu modeli yüklenmedi');this.gl=gl;this.assets=assets;this.studio=false;
   const shader=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;};
   const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,VS));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));this.program=program;
-  this.loc={};for(const n of ['uVP','uBones[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie'])this.loc[n]=gl.getUniformLocation(program,n);
+  this.loc={};for(const n of ['uVP','uBones[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uJointRest[0]','uShoulderRest[0]','uJointFlex','uShoulderFlex'])this.loc[n]=gl.getUniformLocation(program,n);
   this.attributes=[['aPosition',3,0],['aNormal',3,3],['aUV',2,6],['aJoints',4,8],['aWeights',4,12],['aMaterial',1,16],['aColor',3,17]].map(([n,size,off])=>({location:gl.getAttribLocation(program,n),size,off}));
   const uint32=assets.lods.some(a=>a.indexType==='I')?gl.getExtension('OES_element_index_uint'):true;
   this.lods=assets.lods.map(a=>{if(a.indexType==='I'&&!uint32)return null;const vertices=new Float32Array(decode(a.vertices)),indices=a.indexType==='H'?new Uint16Array(decode(a.indices)):new Uint32Array(decode(a.indices));const vertex=gl.createBuffer(),index=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vertex);gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,indices,gl.STATIC_DRAW);return {vertex,index,count:indices.length,type:a.indexType==='H'?gl.UNSIGNED_SHORT:gl.UNSIGNED_INT};});
  }
  draw(players,vp,eye,camera='tv'){
-  const gl=this.gl;gl.useProgram(this.program);gl.uniformMatrix4fv(this.loc.uVP,false,new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
+  const gl=this.gl;gl.useProgram(this.program);
+  const jointNames=['forearm.L','forearm.R','shin.L','shin.R'],shoulderNames=['upper_arm.L','upper_arm.R'];
+  const center=name=>this.assets.bones.find(b=>b.name===name).head;
+  gl.uniform3fv(this.loc['uJointRest[0]'],new Float32Array(jointNames.flatMap(center)));
+  gl.uniform3fv(this.loc['uShoulderRest[0]'],new Float32Array(shoulderNames.flatMap(center)));
+  gl.uniformMatrix4fv(this.loc.uVP,false,new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
   for(const p of players){if(!p.active)continue;const d=Math.hypot(p.x-eye[0],p.z-eye[2]),lod=this.lods[camera==='portrait'?0:camera==='close'&&d<22?1:2]||this.lods[1]||this.lods[2],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
    const shirt=v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts=v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]);
    const set=(name,value)=>gl.uniform3fv(this.loc[name],value);set('uSkin',v.skin||p.skin||[.69,.48,.34]);set('uShirt',shirt);set('uShorts',shorts);set('uHair',v.hair||p.hair||[.10,.065,.043]);set('uBoots',v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3]);set('uIris',v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3]);set('uVariant',v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0]);
-   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));const pose=root.TribunHumanoidRig.getPose(p);gl.uniformMatrix4fv(this.loc['uBones[0]'],false,(v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose)));
+   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));const pose=root.TribunHumanoidRig.getPose(p);
+   const flex=angle=>clamp(((Number(angle)||0)-.65)/1.85,0,1);
+   gl.uniform4fv(this.loc.uJointFlex,new Float32Array([flex(pose.arms[0].bend),flex(pose.arms[1].bend),flex(pose.legs[0].bend),flex(pose.legs[1].bend)]));
+   const lift=a=>clamp((a.elbow[1]-a.shoulder[1]+.15)/.50,0,1);
+   gl.uniform2fv(this.loc.uShoulderFlex,new Float32Array([lift(pose.arms[0]),lift(pose.arms[1])]));
+   gl.uniformMatrix4fv(this.loc['uBones[0]'],false,(v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose)));
    gl.bindBuffer(gl.ARRAY_BUFFER,lod.vertex);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lod.index);for(const a of this.attributes){if(a.location<0)continue;gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,80,a.off*4);}gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);for(const a of this.attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);
   }
  }
