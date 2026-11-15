@@ -86,6 +86,10 @@ function palette(p,assets,pose){
 class PlayerRenderer{
  constructor(gl,assets=root.TribunPlayerAssets){
   if(!assets)throw Error('Oyuncu modeli yüklenmedi');this.gl=gl;this.assets=assets;this.studio=false;
+  const boneHead=name=>{const bone=assets.bones.find(b=>b.name===name);if(!bone)throw Error('Missing character bone: '+name);return bone.head;};
+  this.jointCenters=new Float32Array(['forearm.L','forearm.R','shin.L','shin.R'].flatMap(boneHead));
+  this.shoulderCenters=new Float32Array(['upper_arm.L','upper_arm.R'].flatMap(boneHead));
+  this.restBends=assets.restBends||[1.04,1.04,1.02,1.02];
   const shader=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;};
   const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,VS));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));this.program=program;
   this.loc={};for(const n of ['uVP','uBones[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uJointRest[0]','uShoulderRest[0]','uJointFlex','uShoulderFlex'])this.loc[n]=gl.getUniformLocation(program,n);
@@ -95,17 +99,16 @@ class PlayerRenderer{
  }
  draw(players,vp,eye,camera='tv'){
   const gl=this.gl;gl.useProgram(this.program);
-  const jointNames=['forearm.L','forearm.R','shin.L','shin.R'],shoulderNames=['upper_arm.L','upper_arm.R'];
-  const center=name=>this.assets.bones.find(b=>b.name===name).head;
-  gl.uniform3fv(this.loc['uJointRest[0]'],new Float32Array(jointNames.flatMap(center)));
-  gl.uniform3fv(this.loc['uShoulderRest[0]'],new Float32Array(shoulderNames.flatMap(center)));
+  gl.uniform3fv(this.loc['uJointRest[0]'],this.jointCenters);
+  gl.uniform3fv(this.loc['uShoulderRest[0]'],this.shoulderCenters);
   gl.uniformMatrix4fv(this.loc.uVP,false,new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
   for(const p of players){if(!p.active)continue;const d=Math.hypot(p.x-eye[0],p.z-eye[2]),lod=this.lods[camera==='portrait'?0:camera==='close'&&d<22?1:2]||this.lods[1]||this.lods[2],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
    const shirt=v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts=v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]);
    const set=(name,value)=>gl.uniform3fv(this.loc[name],value);set('uSkin',v.skin||p.skin||[.69,.48,.34]);set('uShirt',shirt);set('uShorts',shorts);set('uHair',v.hair||p.hair||[.10,.065,.043]);set('uBoots',v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3]);set('uIris',v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3]);set('uVariant',v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0]);
    gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));const pose=root.TribunHumanoidRig.getPose(p);
-   const flex=angle=>clamp(((Number(angle)||0)-.65)/1.85,0,1);
-   gl.uniform4fv(this.loc.uJointFlex,new Float32Array([flex(pose.arms[0].bend),flex(pose.arms[1].bend),flex(pose.legs[0].bend),flex(pose.legs[1].bend)]));
+   const bends=[pose.arms[0].bend,pose.arms[1].bend,pose.legs[0].bend,pose.legs[1].bend];
+   const flex=bends.map((angle,i)=>clamp(((Number(angle)||0)-this.restBends[i])/.95,0,1));
+   gl.uniform4fv(this.loc.uJointFlex,new Float32Array(flex));
    const lift=a=>clamp((a.elbow[1]-a.shoulder[1]+.15)/.50,0,1);
    gl.uniform2fv(this.loc.uShoulderFlex,new Float32Array([lift(pose.arms[0]),lift(pose.arms[1])]));
    gl.uniformMatrix4fv(this.loc['uBones[0]'],false,(v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose)));
