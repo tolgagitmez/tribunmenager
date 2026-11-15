@@ -117,6 +117,7 @@ test('committed animated GLB is byte-for-byte reproducible from the 60 Hz source
  const target=path.resolve(__dirname,'../assets/player/tribun-base-footballer-animated.glb');
  const binary=fs.readFileSync(target);
  const baked=Buffer.from(buildGLB({lod:0,animations:true,fps:30}).glb);
- assert.equal(Buffer.compare(binary,baked),0);
+ const mismatch=Array.from(binary).findIndex((byte,i)=>byte!==baked[i]);
+ assert.equal(Buffer.compare(binary,baked),0,'committed GLB mismatch: stored='+binary.length+' generated='+baked.length+' firstDifference='+mismatch+' storedByte='+binary[mismatch]+' generatedByte='+baked[mismatch]);
  assert(binary.byteLength>500000);
 });
