@@ -97,7 +97,7 @@ function pose(p,dt=1/60){
  const kick= kicking?action*Math.sin(contact*Math.PI*.5)*(1-smooth(after)):0;
  const tackle=act==='tackle'?action:0,diving=act==='dive'?action:0,celebrating=act==='celebrate'?action:0,protest=act==='protest'?action:0;
  const bounce=st.activity*(.012+.025*sprint)*Math.sin(st.phase*4*Math.PI);
- const gather=gatherDrop(p),hipHeight=.87+bounce-tackle*.16-gather;
+ const gather=gatherDrop(p),hipHeight=1.00+bounce-tackle*.16-gather;
  const feint=p.feintClock>0?Math.sin(p.feintClock/.35*Math.PI)*(p.feintSign??((p.personality??.6)>.5?1:-1))*.09:0;
  const pelvis=world(p,-.04,0,hipHeight),torsoBase=world(p,-.05,0,1.08+bounce-tackle*.18-gather);
  const torsoUpper=world(p,.02+st.lean+kick*.08,st.turn*.1+feint,1.47+bounce-tackle*.24-gather);
@@ -150,14 +150,14 @@ function pose(p,dt=1/60){
   if(!kicking&&act!=='receive'&&p.footTouch>0&&p.touchPosition&&i===p.dribbleFoot){const w=Math.sin(clamp(p.footTouch/.14,0,1)*Math.PI/2)*.72;const target=[p.touchPosition.x-facing[0]*.24,GROUND,p.touchPosition.z-facing[2]*.24];foot=blend(foot,target,w);footFace=p.face;stance=false;}
   if(tackle>.01){foot=blend(foot,world(p,.50+side*.12,side*.33,.12),tackle);stance=false;}
   if(act==='receive'&&i===(p.kickFoot===0?0:1)){const cushion=Math.sin(Math.PI*clamp((p.actionElapsed||0)/Math.max(.01,p.actionDuration||.25),0,1));foot=blend(foot,world(p,.26,side*.18,.17),cushion*.65);stance=false;}
-  const legIK=solveLimb(hip,foot,.47,.47,facing,2.60,.085);
+  const legIK=solveLimb(hip,foot,.50,.50,facing,2.60,.085);
   if(legIK.limited)stance=false;
   foot=legIK.end;
   const knee=legIK.joint,toe=add(foot,[Math.cos(footFace)*.20,0,Math.sin(footFace)*.20]);
   legs.push({hip,knee,ankle:foot,toe,stance,footLift:foot[1]-GROUND,bend:legIK.bend});
   const shoulder=world(p,.015+st.lean,side*.32,1.47+bounce-tackle*.23-gather);
   const swing=-Math.sin(st.phase*2*Math.PI+i*Math.PI)*st.activity*(.22+.12*sprint);
-  let wrist=world(p,swing+kick*(i===1?-.35:.24),side*(.43+kick*.12),1.03+bounce+celebrating*.93+protest*.30-tackle*.17);
+  let wrist=world(p,swing+kick*(i===1?-.35:.24),side*(.43+kick*.12),.90+bounce+celebrating*.93+protest*.30-tackle*.17);
   if(act==='throw'&&p.actionClock>0){const u=smooth((p.actionElapsed||0)/Math.max(.1,p.contactTime||.55));wrist=blend(wrist,world(p,mix(-.06,.4,u),side*.12,1.95),action);}
   if(['catch','catch-ready'].includes(act)&&p.actionClock>0)wrist=blend(wrist,catchHands(p)[i],action);
   const armIK=solveLimb(shoulder,wrist,.33,.34,world({x:0,z:0,face:p.face},-.1,side,.1),2.70,.08);
