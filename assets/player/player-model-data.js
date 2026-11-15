@@ -132,8 +132,8 @@ function mesh(lod){
   const shoulder=bones[id['upper_arm.'+side]].head,elbow=a.elbow,wrist=a.wrist;
   const up='upper_arm.'+side,fore='forearm.'+side,hand='hand.'+side;
   const armNodes=[
-   [shoulder,.113,.112,skin(['clavicle.'+side,.30],[up,.70]),1],
-   [blend(shoulder,elbow,.15),.115,.110,skin([up,1]),1],
+   [shoulder,.113,.112,skin(['clavicle.'+side,.42],[up,.58]),1],
+   [blend(shoulder,elbow,.15),.115,.110,skin(['clavicle.'+side,.18],[up,.82]),1],
    [blend(shoulder,elbow,.36),.111,.105,skin([up,1]),1],
    [blend(shoulder,elbow,.52),.102,.096,skin([up,1]),1],
    [blend(shoulder,elbow,.67),.092,.087,skin([up,1]),0],
@@ -150,8 +150,8 @@ function mesh(lod){
   ellipsoid(handCenter,.056,.081,.059,skin([hand,1]),0,8);
   const thigh='thigh.'+side,shin='shin.'+side,foot='foot.'+side;
   const legNodes=[
-   [l.hip,.133,.139,skin(['pelvis',.28],[thigh,.72]),2],
-   [blend(l.hip,l.knee,.14),.142,.144,skin([thigh,1]),2],
+   [l.hip,.133,.139,skin(['pelvis',.45],[thigh,.55]),2],
+   [blend(l.hip,l.knee,.14),.142,.144,skin(['pelvis',.18],[thigh,.82]),2],
    [blend(l.hip,l.knee,.34),.137,.141,skin([thigh,1]),2],
    [blend(l.hip,l.knee,.49),.129,.131,skin([thigh,1]),2],
    [blend(l.hip,l.knee,.66),.115,.116,skin([thigh,1]),0],
@@ -166,12 +166,18 @@ function mesh(lod){
   sweep(legNodes,2);
   // X-forward low-cut football boot with rounded toe and heel (local X/Y/Z).
   const ank=l.ankle;const shoe=[
-   [-.105,.109,.038,.047],[-.052,.107,.068,.074],
-   [.01,.102,.074,.091],[.092,.096,.066,.093],
-   [.185,.091,.050,.088],[.278,.087,.025,.054],
-   [.303,.085,.003,.006]
+   [-.105,.050,.038,.047],[-.052,.072,.068,.074],
+   [.01,.077,.074,.091],[.092,.074,.066,.093],
+   [.185,.057,.050,.088],[.278,.037,.025,.054],
+   [.303,.030,.003,.006]
   ].map(([dx,y,rx,rz])=>({p:[ank[0]+dx,y,ank[2]],rx,rz,w:skin([foot,1]),m:4}));
   rings(shoe,4,'YZ');
+  // The outsole is a shallow continuous strip: minimum bind-pose height
+  // 5 mm above the pitch rather than a rounded boot hovering 3–7 cm.
+  // It shares the boot's rigid foot weight, so planted feet do not stretch.
+  const outsole=[[-.11,.046],[-.07,.077],[0,.096],[.09,.099],[.18,.088],[.27,.052],[.305,.006]]
+    .map(([dx,halfWidth])=>({p:[ank[0]+dx,.015,ank[2]],rx:.010,rz:halfWidth,w:skin([foot,1]),m:4}));
+  rings(outsole,4,'YZ');
  }
  if(v.length/20>65535)throw Error('Base footballer exceeds WebGL1 index limit');
  // The generated rings and sweeps use different local handedness. Align
@@ -187,7 +193,7 @@ function mesh(lod){
  return {vertices:encode(new Uint8Array(vertices.buffer)),indices:encode(new Uint8Array(indices.buffer)),indexType:'H',
   vertexCount:vertices.length/20,indexCount:indices.length};
 }
-const assets={version:'base-footballer-procedural-2',units:'metres',up:'Y',boneCount:bones.length,bones,
+const assets={version:'base-footballer-procedural-3',units:'metres',up:'Y',boneCount:bones.length,bones,
  restBends:[rest.arms[0].bend,rest.arms[1].bend,rest.legs[0].bend,rest.legs[1].bend],
  lods:[mesh(0),mesh(1),mesh(2)]};
 root.TribunPlayerAssets=assets;
