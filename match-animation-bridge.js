@@ -12,20 +12,25 @@ const category=action=>{
   ['idle','stand','ready'].includes(a)?'idle':a;
 };
 function quat(m,o){
- const a=m[o],b=m[o+5],c=m[o+10],trace=a+b+c;
- let x,y,z,w,s;
+ // Licensed MakeHuman rig preserves calibrated bind-scale in some bones.
+ // Normalize each basis column for rotation extraction; scale is blended
+ // separately, never dropped at the end of a transition.
+ const scale=[0,1,2].map(j=>Math.hypot(m[o+j*4],m[o+j*4+1],m[o+j*4+2])||1);
+ const at=(r,c)=>m[o+c*4+r]/scale[c];
+ const a=at(0,0),b=at(1,1),c=at(2,2),trace=a+b+c;
+ let x,y,z,w,k;
  if(trace>0){
-  s=2*Math.sqrt(Math.max(.00001,trace+1));w=.25*s;
-  x=(m[o+6]-m[o+9])/s;y=(m[o+8]-m[o+2])/s;z=(m[o+1]-m[o+4])/s;
+  k=2*Math.sqrt(Math.max(.00001,trace+1));
+  w=.25*k;x=(at(2,1)-at(1,2))/k;y=(at(0,2)-at(2,0))/k;z=(at(1,0)-at(0,1))/k;
  }else if(a>b&&a>c){
-  s=2*Math.sqrt(Math.max(.00001,1+a-b-c));
-  w=(m[o+6]-m[o+9])/s;x=.25*s;y=(m[o+4]+m[o+1])/s;z=(m[o+8]+m[o+2])/s;
+  k=2*Math.sqrt(Math.max(.00001,1+a-b-c));
+  w=(at(2,1)-at(1,2))/k;x=.25*k;y=(at(0,1)+at(1,0))/k;z=(at(0,2)+at(2,0))/k;
  }else if(b>c){
-  s=2*Math.sqrt(Math.max(.00001,1+b-a-c));
-  w=(m[o+8]-m[o+2])/s;x=(m[o+4]+m[o+1])/s;y=.25*s;z=(m[o+9]+m[o+6])/s;
+  k=2*Math.sqrt(Math.max(.00001,1+b-a-c));
+  w=(at(0,2)-at(2,0))/k;x=(at(0,1)+at(1,0))/k;y=.25*k;z=(at(1,2)+at(2,1))/k;
  }else{
-  s=2*Math.sqrt(Math.max(.00001,1+c-a-b));
-  w=(m[o+1]-m[o+4])/s;x=(m[o+8]+m[o+2])/s;y=(m[o+9]+m[o+6])/s;z=.25*s;
+  k=2*Math.sqrt(Math.max(.00001,1+c-a-b));
+  w=(at(1,0)-at(0,1))/k;x=(at(0,2)+at(2,0))/k;y=(at(1,2)+at(2,1))/k;z=.25*k;
  }
  return normalize([x,y,z,w]);
 }
@@ -47,6 +52,13 @@ function mixRigid(source,destination,out,t,deltaX=0,deltaZ=0){
  for(let o=0;o<source.length;o+=16){
   const q=slerp(quat(source,o),quat(destination,o),t);
   writeRotation(out,o,q);
+  for(let axis=0;axis<3;axis++){
+   const idx=o+axis*4;
+   const initial=Math.hypot(source[idx],source[idx+1],source[idx+2]);
+   const final=Math.hypot(destination[idx],destination[idx+1],destination[idx+2]);
+   const length=initial*(1-t)+final*t;
+   for(let j=0;j<3;j++)out[idx+j]*=length;
+  }
   out[o+12]=(source[o+12]+deltaX)*(1-t)+destination[o+12]*t;
   out[o+13]=source[o+13]*(1-t)+destination[o+13]*t;
   out[o+14]=(source[o+14]+deltaZ)*(1-t)+destination[o+14]*t;
