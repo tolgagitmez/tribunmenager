@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "modelId": "tribun-makehuman-footballer-v1",
-  "version": 1,
+  "version": 2,
   "license": "CC0-1.0",
   "sourceCommit": "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
-  "rigReferenceSHA256": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+  "rigReferenceSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
   "runtime": "assets/player/player-model-data.js",
   "standardModel": "assets/player/footballer.glb",
   "textures": {
@@ -13,20 +13,95 @@
   },
   "bones": 19,
   "lods": 1,
-  "vertices": 15544,
-  "triangles": 27350,
+  "vertices": 16558,
+  "triangles": 28946,
+  "anatomicalReference": {
+    "schemaVersion": 1,
+    "standingHeight": 1.88,
+    "pelvisHeight": 1.03,
+    "shoulderJointSpan": 0.44,
+    "hipJointSpan": 0.26,
+    "headBoneHeight": 0.25,
+    "upperArmLength": 0.315,
+    "forearmLength": 0.29,
+    "handBoneLength": 0.17,
+    "thighLength": 0.475,
+    "shinLength": 0.431,
+    "bootLength": 0.29,
+    "bootWidth": 0.116,
+    "headWidthScale": 0.86,
+    "headDepthScale": 0.92,
+    "bindFrames": "TribunHumanoidRig.boneFrames(idle), without renderer offsets or bone scale",
+    "proportionReference": "adult athletic human: 1.88 m standing height, 7.52 head-bone units; shoulder and hip measurements are joint-center spans",
+    "sourceProportions": "source head narrowed and depth reduced continuously, limb lengths corrected along their source axes before rigid bind rotation",
+    "skinWeights": "authored runtime derivative: anatomical collapse plus local joint painting; pinned upstream originals retained verbatim",
+    "runtimeWeightPainting": {
+      "method": "local Jacobi smoothing of the collapsed source skin",
+      "iterations": 6,
+      "selfWeight": 0.5,
+      "neighborWeight": 0.5,
+      "radii": {
+        "shoulder": 0.18,
+        "elbow": 0.12,
+        "knee": 0.15
+      },
+      "minimumAdjacentBoneWeight": 0.35,
+      "maximumInfluences": 4,
+      "adjacency": "original body quad edges, shared source vertices before UV and material splits",
+      "stage": "runtime weights only, after bind geometry is fixed",
+      "protected": "all source hand influences and vertices within 0.13 m of either wrist",
+      "originalWeights": "retained verbatim in the official pinned source archive; runtime weights are an authored derivative"
+    }
+  },
   "statistics": {
     "sourceVisibleVertices": 13380,
     "sourceVisibleQuads": 13378,
     "sourceScale": 0.11285258930661686,
     "sourceGroundY": -8.1676,
+    "sourceWeights": "normalized upstream weights collapsed by anatomical ancestry for bind geometry; runtime joint weights are an authored derivative",
+    "runtimeWeightPainting": {
+      "parameters": {
+        "method": "local Jacobi smoothing of the collapsed source skin",
+        "iterations": 6,
+        "selfWeight": 0.5,
+        "neighborWeight": 0.5,
+        "radii": {
+          "shoulder": 0.18,
+          "elbow": 0.12,
+          "knee": 0.15
+        },
+        "minimumAdjacentBoneWeight": 0.35,
+        "maximumInfluences": 4,
+        "adjacency": "original body quad edges, shared source vertices before UV and material splits",
+        "stage": "runtime weights only, after bind geometry is fixed",
+        "protected": "all source hand influences and vertices within 0.13 m of either wrist",
+        "originalWeights": "retained verbatim in the official pinned source archive; runtime weights are an authored derivative"
+      },
+      "selectedSourceVertices": 1296,
+      "changedSourceVertices": 1296,
+      "jointPatchVertices": {
+        "shoulder.L": 243,
+        "elbow.L": 192,
+        "knee.L": 213,
+        "shoulder.R": 243,
+        "elbow.R": 192,
+        "knee.R": 213
+      },
+      "protectedHandAndWristVertices": 3556,
+      "maximumWeightSumError": 2.220446049250313e-16,
+      "meanPatchEdgeWeightL1Before": 0.12981193936587695,
+      "meanPatchEdgeWeightL1After": 0.11802814503001993
+    },
+    "bindRetarget": "positive axial proportion correction followed by normalized rigid dual quaternion skinning",
+    "minimumLimbAxialScale": 0.851972071570447,
+    "maximumLimbAxialScale": 1.2865367083310195,
     "materials": {
-      "skin": 18178,
-      "shirt": 3642,
-      "shorts": 2190,
-      "socks": 1074,
+      "skin": 18320,
+      "shirt": 4854,
+      "shorts": 1714,
+      "socks": 830,
       "boots": 736,
-      "hair": 522,
+      "hair": 1484,
       "eye-white": 336,
       "iris": 240,
       "pupil": 240,
@@ -36,8 +111,8 @@
   "files": [
     {
       "path": "assets/player/CREDITS.md",
-      "bytes": 2243,
-      "sha256": "a843ea811ea3655d15b16fe3540425d93062d48c5da2fac4ce6bca21d35351bd"
+      "bytes": 3812,
+      "sha256": "be327ed318dd08a106ddff77938bb626858a2d85054c28fcbc7fa177dc703602"
     },
     {
       "path": "assets/player/LICENSE-CC0.txt",
@@ -51,18 +126,18 @@
     },
     {
       "path": "assets/player/footballer.glb",
-      "bytes": 1307328,
-      "sha256": "9a73a3afa376b189a2760729a881b2ee2de62916bc916063e035b4cad5546345"
+      "bytes": 1385096,
+      "sha256": "b07add00bd67ea7ebd51ca95c979968364f4209452c16e0ac8a5350ee7079d1c"
     },
     {
       "path": "assets/player/player-model-data.js",
-      "bytes": 1888529,
-      "sha256": "272f3c2e4ec8be6219377ddbbd1cf954dd89b3dcbfbb5879c5513908bd220fe2"
+      "bytes": 2010998,
+      "sha256": "2e85609fab846a229000981a8dbc0cb5bd10bb356e59c0b27e6003d6be6ad401"
     },
     {
       "path": "assets/player/skeleton.json",
-      "bytes": 18378,
-      "sha256": "8ce81c34eea49808c5544c71120494495d3cbd40d0391cf09f76e37d4890fa19"
+      "bytes": 18832,
+      "sha256": "8b99e4ea298a885bab5132c886e6f360178d74ecb0ae9761aca8ecf0c2a24a3a"
     },
     {
       "path": "assets/player/source/makehuman-base.obj.gz",

@@ -1,0 +1,62 @@
+name: Licensed human character
+
+on:
+  pull_request:
+    paths:
+      - 'humanoid-rig.js'
+      - 'player-skinning.js'
+      - 'character-palette-constraints.js'
+      - 'player-renderer.js'
+      - 'match-animation-bridge.js'
+      - 'scene3d.js'
+      - 'match.html'
+      - 'player-studio.html'
+      - 'animation-lab.html'
+      - 'animation-lab.js'
+      - 'assets/player/**'
+      - 'tests/**'
+      - 'tools/check-character-*'
+      - 'tools/build-player-assets.py'
+      - 'package*.json'
+      - 'requirements-player-assets.txt'
+      - '.github/workflows/licensed-character.yml'
+  workflow_dispatch:
+
+jobs:
+  regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install -r requirements-player-assets.txt
+      - run: npm run test:stage14
+      - run: node tools/check-character-physics.cjs
+
+  rendered-character:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python tools/check-character-browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: licensed-human-browser
+          path: |
+            docs/validation/character-browser.json
+            work/stage14/*.png
+            work/stage14/*server.log
+          if-no-files-found: error
+          retention-days: 14

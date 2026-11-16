@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-16T09:26:41.900492+00:00",
+  "verified": true,
+  "verificationScope": "Direct assistant image review of the 15 source-bound final normal-page and frozen stress PNGs. Accepted as a character foundation with the extreme overhead-shoulder defects listed below.",
+  "inspection": {
+    "method": "The browser assistant directly opened each final capture with the image viewer. Published copies are SHA-256 identical to those inspected captures. The root assistant also reviewed the front/full, run, shoot and right-dive candidate packet from the same frozen source set.",
+    "reviewer": "assistant",
+    "externalHumanSignoff": false,
+    "specialistArtistSignoff": false,
+    "photorealismCertified": false,
+    "animationRealismCertified": false,
+    "scopeLimit": "Still-image inspection and Chromium SwiftShader browser checks do not certify lifelike motion, artist-corrective quality, true tissue-volume preservation or real-device frame rates."
+  },
+  "modelId": "tribun-makehuman-footballer-v1",
+  "browserEvidence": {
+    "path": "docs/validation/character-browser.json",
+    "sha256": "8db186f09db7070506b2ca86200439134c2f566c1df1a1323e3afa205fa33ab2",
+    "bytes": 299444,
+    "normalPages": 3,
+    "stressPoses": 6,
+    "failureCases": 10,
+    "publicCaptureCount": 25,
+    "sourceCount": 58,
+    "sourcesUnchangedBeforeAndAfterReviewNoteWrite": true,
+    "sourceAndAssetSetGuard": "Every browser-report source SHA-256 and the complete assets/player file set were checked before and after writing this note.",
+    "publicCaptureHashesVerified": true
+  },
+  "sources": {
+    "start.py": "2ce2c84570ecc2be729e4c33c50b1cbaa9a9aa13810c63cdfda3405763d8ff88",
+    "player-renderer.js": "634ee69b288e8d51787e9f629cad044b7714c582f3b0b06ebecb6f48fdcc24c7",
+    "player-skinning.js": "394c0ab07fb723b3cc9f90227c9f67642e7647ee7cdb86a4b20e9b82d6c0d017",
+    "player-asset-status.js": "6cfe7ca44cb3100530c1cffbc5641b6e10a5d887862f2bf9a3f62ef674f175ec",
+    "scene3d.js": "05462c68125500e076bab60e75f32ff17e4789e249e1e580b7e59a17fc9203be",
+    "match-animation-bridge.js": "27ca9afe75a798482a5c3fa7b814e31d456e901726a061674f0a15e3710d4fec",
+    "character-palette-constraints.js": "a50f99971e2c8b0769709da80e9baa8ee267812f92ae6a1209c021f3ce759f42",
+    "character-blend-controller.js": "bcca12819dccb1906f31a2bccc0462ffbf42d3ecd3872afcf06987e3cf6ca191",
+    "animation-lab.css": "d7ba94bab4a38e8a4bee20fb434397dae0e77f9025cd0b778602ffc6c8caffb9",
+    "humanoid-rig-procedural.js": "f056da2a84a461df4f64db919960cd912e23f5c18e1ee4891bf4b1b3770d3104",
+    "player-renderer-procedural.js": "6e405952c5481ea64faa5cf9959b417a457a7611f67cc890b1f43d4517eae804",
+    "player-studio-procedural.js": "e103eff650732579889f6b9ba9f9f8002c18f38180eb7b7ab0350c695d1cb12c",
+    "player-studio-procedural.html": "e6e9bea05b3b9918e3f2e927d290ce92ab6f8ff885dba05f8d3b7d39be16cd8a",
+    "match3d.js": "1b5f4db56f9bfc0104ddfe096ddbb7ca6af2e989b4bd78bfabf1de3c4393f7d8",
+    "match.html": "09ab4eaa01fbceb14500e06fac5522bc68ed9c14190c2f462fcfdf1185b4931d",
+    "player-studio.js": "a0eb71684f075ca91ded10523977c646b9cc77caf8e4a53fc628f551aca93821",
+    "player-studio.html": "0d6de8db0c935ca40d5ad4cfb262e37b0482809919c9ab5eab19edf7474a1564",
+    "animation-lab.js": "a430b03ef45109ae50bd84d16641a2a845cd57ca18eeb4da427b28a9cbdc305b",
+    "animation-lab.html": "b0225d3e7d6ed4fb8e6ed1a435d7c9d6e2032abedf548ed270ce9c3823d25873",
+    "humanoid-rig.js": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
+    "animation-scenarios.js": "5f80bfe24d5f5cc39456ea14fa3a1674ace182657f2c5d29c6c091968475c5bd",
+    "player-studio.css": "0cc7c5ea785b88154205d761c37504e2ed148dd600aff084c8821e93a2910bf9",
+    "ui-shell.js": "132213f913ec9c22f66e313016823609c8f2d25d719436c464bad778ba04c4ae",
+    "ui-shell.css": "7ed5d37fb3aef031a1efc42dd32c1b721beb7d2a7678548b120b175aaf39deab",
+    "match3d.css": "97656e445cb8feaeaf0a3fbbcd96945b9d4ebd3f0b5fa511a0d9cb316064f921",
+    "football-sim.js": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd",
+    "match-rules.js": "8bbf5af5ac74be2a0e64154297f083686e1bbfae455da538657a1be8d0295876",
+    "referee-laws.js": "e5e5d3694f9da9f65054f07030a0beb06149d33c16abf25b8a51616ffe31ab87",
+    "pitch-laws.js": "55b35441c614dc3b15dbaa1b0e9722082e77fa01ebba398d0c50e9a2d9ef06fa",
+    "player-perception.js": "d0879e2e845a34bd8f08fd117e3100ac651ee79f28371e153a7aed3c48bc08b8",
+    "team-intent.js": "cce8be16d8dd88ef758051e0cf6761326ad21cb55b1733397c5fa3815aac0030",
+    "tactics.js": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea",
+    "club-data.js": "73c9d01c12262497f0d266203b4f7143750732ef1bde8c289d80841bf2efcfca",
+    "player-model.js": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02",
+    "player-model-profiles.js": "a06068f2a706e58b9e71110da31da72f9968b3abcf2f548cba265ef78be40aa8",
+    "player-model-profiles.json": "d97a900209e5c3b837539042f5435c8fb7f063492f2d16deed1caaabc7a45da6",
+    "attack-diagnostics.js": "9176b438e591ad7fb411ab1b89cde25d6a4cf602288485798be3c031901c9ebb",
+    "attack-analysis-ui.js": "5aaa31a880ad7a43030b2295dd59a6f6c181ee436d03cc695c8c8d1ad1a62f05",
+    "transfer-client.js": "403615be8ca1b51e4c4246ab23c5b9a5b3fc7827b46d8afc9f3f645326e81b44",
+    "match-config.js": "00039cebe0666754c96ec2573f9254c577a0a57354b79f689788232794b36a72",
+    "tools/check-character-browser.py": "516354a4c3e37eaa7a3535d031f936b6a19643d3e09ff930e646e5006edab9ba",
+    "tools/build-player-assets.py": "4efd1d12ef92d865534c73dcc78deb93b5ed2fe6a0e4239fcb9ca14471148661",
+    "assets/player/CREDITS.md": "be327ed318dd08a106ddff77938bb626858a2d85054c28fcbc7fa177dc703602",
+    "assets/player/LICENSE-CC0.txt": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c",
+    "assets/player/SOURCE-LICENSE.md": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1",
+    "assets/player/footballer.glb": "b07add00bd67ea7ebd51ca95c979968364f4209452c16e0ac8a5350ee7079d1c",
+    "assets/player/manifest.json": "2b679cf20fca00b216a68d4bb35df6a619f24660efc8e639648d4205e41e260a",
+    "assets/player/player-model-data.js": "2e85609fab846a229000981a8dbc0cb5bd10bb356e59c0b27e6003d6be6ad401",
+    "assets/player/procedural-player-model-data.js": "e3016bd759b748472e7d8d537feadb988105e68577760ba866ffb06ca303233c",
+    "assets/player/skeleton.json": "8b99e4ea298a885bab5132c886e6f360178d74ecb0ae9761aca8ecf0c2a24a3a",
+    "assets/player/source/makehuman-base.obj.gz": "abe544ec8046b07ffe3a31bb0ee88203d773cb1febb8ce58e89c0efc6b1d783c",
+    "assets/player/source/makehuman-default.mhskel.gz": "a09fb1d526aec0384b636fbf5faff36ad3decdb712ccf781d147f5139d01337a",
+    "assets/player/source/makehuman-default_weights.mhw.gz": "6fcf3332b28d225ae75d5754bc3f7fa5e1d0a098dc389785baafa89323578a80",
+    "assets/player/source/provenance.json": "c13b9b8c834e9397c91e18a6ea3fd2ed0e72dcbce4ce5f168f2ec54c683eaf22",
+    "assets/player/textures/fabric-detail.png": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24",
+    "assets/player/textures/skin-detail.png": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae",
+    "assets/player/tribun-base-footballer-animated.glb": "d0af80e4c8334d88bd821b598c4488e783fdcfdf485ddf83a3181a8fd6cf5fc6",
+    "assets/player/tribun-base-footballer.glb": "e0e25adea33ef88b87be3a5fa630935e2e5d5e3e382c7187f71ef6b34fdc887b"
+  },
+  "images": [
+    {
+      "path": "docs/previews/character-match-close-final.png",
+      "sha256": "6b8fb340032a7834b7c8015aa51be31ede8252c603ba01b6927c3c6006011446",
+      "bytes": 105832,
+      "directlyInspected": true,
+      "observation": "The match uses the anatomical player silhouettes. The Yakın camera remains a broad field view, so this image does not establish close facial quality."
+    },
+    {
+      "path": "docs/previews/character-match-mobile-final.png",
+      "sha256": "98e4cef177d3d70915b57a693570798043e0d6920438d8d1dbd5f35e97a27a2a",
+      "bytes": 38846,
+      "directlyInspected": true,
+      "observation": "The mobile match capture shows the field and anatomical player silhouettes within the canvas."
+    },
+    {
+      "path": "docs/previews/character-studio-full-final.png",
+      "sha256": "9e4e23cbbb7a6709ebd6ac18f6ccc021090b4b6fc4b4798167d7bfaee926627e",
+      "bytes": 270233,
+      "directlyInspected": true,
+      "observation": "The full-body three-quarter view shows continuous head, torso, arms, hands and legs in an upright idle stance."
+    },
+    {
+      "path": "docs/previews/character-studio-front-final.png",
+      "sha256": "f0ab773f70d6e6267b9d2ed02d86d7316b6b883605ccdaed133acc206c39af8b",
+      "bytes": 270731,
+      "directlyInspected": true,
+      "observation": "The front view shows the same upright anatomy and kit with continuous shoulder, elbow and knee regions in this neutral pose."
+    },
+    {
+      "path": "docs/previews/character-studio-side-final.png",
+      "sha256": "bc46a26062300d17a9cd3f3ff119e6a4dae6d35715121e2d55587e2459d3044f",
+      "bytes": 251443,
+      "directlyInspected": true,
+      "observation": "The side view shows the body profile and limb proportions in the neutral pose."
+    },
+    {
+      "path": "docs/previews/character-studio-face-final.png",
+      "sha256": "02bd8a8fa91a8ab7757e3ab7637d6aa528affda7bf77ded5f344b5f8e08196e3",
+      "bytes": 334135,
+      "directlyInspected": true,
+      "observation": "The face view shows modeled facial features, ears and the neck connection; the face and cap hair remain stylized."
+    },
+    {
+      "path": "docs/previews/character-studio-identity-face-final.png",
+      "sha256": "347aab7a55f409d08d9c1c28c289677ffe8b688a26df72291e89b984e3a1cb02",
+      "bytes": 300106,
+      "directlyInspected": true,
+      "observation": "The alternate identity and kit colors render on the same face geometry."
+    },
+    {
+      "path": "docs/previews/character-studio-run-final.png",
+      "sha256": "7ac4aee04240b36429654129e8c64808045c031aacdaee13419a57b2dcff0195",
+      "bytes": 247763,
+      "directlyInspected": true,
+      "observation": "The frozen run view shows articulated knees and elbows in the alternate identity and kit; one still does not establish motion quality."
+    },
+    {
+      "path": "docs/previews/character-studio-mobile-final.png",
+      "sha256": "8506befd97bc8aa6d76280bbdca2d995114454988a0984c698b7dc398eeb3e8c",
+      "bytes": 117989,
+      "directlyInspected": true,
+      "observation": "The mobile studio view keeps the articulated player within the canvas; overlaid identity text covers part of the lower body."
+    },
+    {
+      "path": "docs/previews/character-stress-run-final.png",
+      "sha256": "979509432f7a81cd1151ce5ccb70186076f7871b967d7e4fea76acb01d4b4479",
+      "bytes": 73687,
+      "directlyInspected": true,
+      "observation": "The frozen lab run pose shows the player at a closer framing than the match view."
+    },
+    {
+      "path": "docs/previews/character-stress-turn-final.png",
+      "sha256": "6c99346fdd393dd3a04d39d6168b646d3cb70cdc10d5b2b751d739f31b08afbe",
+      "bytes": 76554,
+      "directlyInspected": true,
+      "observation": "The frozen lab turn pose shows a changed lower-body stance and body direction."
+    },
+    {
+      "path": "docs/previews/character-stress-pass-final.png",
+      "sha256": "61f4f8e241c662e65e8d1ee9a04e2b46c1e1e443745dcaf0600b04c4c306af7a",
+      "bytes": 83637,
+      "directlyInspected": true,
+      "observation": "The frozen pass impact pose shows the extended arms and supporting leg. Its silhouette is close to the selected shoot impact frame."
+    },
+    {
+      "path": "docs/previews/character-stress-shoot-final.png",
+      "sha256": "5bf0ab4fa58bfe3f917854d4ab9179ed7e454380edd12d53ab024f86706a11e1",
+      "bytes": 83753,
+      "directlyInspected": true,
+      "observation": "The selected shoot impact frame is visually close to the pass frame; the browser evidence separately records distinct relative joint and framebuffer signatures."
+    },
+    {
+      "path": "docs/previews/character-stress-dive-left-final.png",
+      "sha256": "60400302a6e11f3747f273df775e09d34bfa186fd3e190a9fd8e1eaeed8c921f",
+      "bytes": 78145,
+      "directlyInspected": true,
+      "observation": "The left dive is readable as a raised-arm lateral reach. The overhead upper arm folds tightly near the shoulder and head."
+    },
+    {
+      "path": "docs/previews/character-stress-dive-right-final.png",
+      "sha256": "254e0b56260dfcb06d5c20891b698b2a1d2885c4e916a0fe553817cc211ac334",
+      "bytes": 89363,
+      "directlyInspected": true,
+      "observation": "The right dive remains readable, with conspicuous shoulder and upper-arm folding in the overhead reach. This is a remaining extreme-pose defect."
+    }
+  ],
+  "remainingExtremePoseIssues": [
+    "Overhead dive reaches still produce conspicuous shoulder and upper-arm folds, especially in the right-dive capture; the raised arm in the left dive remains tight around the shoulder and head.",
+    "The frozen dive screenshots do not resolve the severe-pose intersections measured by the separate deformation audit. Corrective shapes or further weights and motion refinement remain work before claiming artist-corrective anatomy."
+  ],
+  "sceneInterpretation": "The pale rounded mark near the lab player is the existing center-pitch scene marker, not a detached character mesh part."
+}

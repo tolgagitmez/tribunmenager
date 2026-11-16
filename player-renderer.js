@@ -1,17 +1,28 @@
 'use strict';
 /* Appearance-only GPU skinning. Reads cached poses; never advances simulation. */
 (function(root){
+const Skinning=typeof module!=='undefined'&&module.exports?require('./player-skinning'):root.TribunPlayerSkinning;
+const Rig=typeof module!=='undefined'&&module.exports?require('./humanoid-rig'):root.TribunHumanoidRig;
+const Constraints=typeof module!=='undefined'&&module.exports?require('./character-palette-constraints'):root.TribunCharacterConstraints;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),add=(a,b)=>a.map((v,i)=>v+b[i]),sub=(a,b)=>a.map((v,i)=>v-b[i]),mul=(a,s)=>a.map(v=>v*s),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),len=a=>Math.hypot(...a),unit=a=>mul(a,1/(len(a)||1)),cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
 const matmul=(a,b)=>{const out=new Float32Array(16);for(let c=0;c<4;c++)for(let r=0;r<4;r++)out[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];return out;};
 const decode=s=>{const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a.buffer;};
 const VS=`precision highp float;
 attribute vec3 aPosition;attribute vec3 aNormal;attribute vec2 aUV;attribute vec4 aJoints;attribute vec4 aWeights;attribute float aMaterial;attribute vec3 aColor;
-uniform mat4 uVP;uniform mat4 uBones[19];uniform vec3 uVariant;uniform float uGoalie;
+uniform mat4 uVP;uniform vec4 uBoneReal[19];uniform vec4 uBoneDual[19];uniform vec3 uVariant;uniform float uGoalie;
 varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying vec2 vUV;varying float vMaterial;varying float vHand;
+vec3 rotateUnit(vec4 q,vec3 p){return p+2.*cross(q.xyz,cross(q.xyz,p)+q.w*p);}
 void main(){vec3 p=aPosition;float head=smoothstep(1.59,1.68,p.y);p.z*=mix(1.,uVariant.x,head);p.x+=head*max(0.,p.x-.035)*uVariant.y;
 vec4 hands=1.-step(vec4(.1),min(abs(aJoints-vec4(8.)),abs(aJoints-vec4(15.))));vHand=dot(aWeights,hands);if(aMaterial<.5){p.z+=sign(p.z)*.005*uGoalie*vHand;p.x+=.003*uGoalie*vHand;}
-mat4 skin=aWeights.x*uBones[int(aJoints.x)]+aWeights.y*uBones[int(aJoints.y)]+aWeights.z*uBones[int(aJoints.z)]+aWeights.w*uBones[int(aJoints.w)];
-vec4 w=skin*vec4(p,1.);vWorld=w.xyz;vNormal=normalize(mat3(skin)*aNormal);vBind=p;vUV=aUV;vMaterial=aMaterial;vColor=aColor;gl_Position=uVP*w;}`;
+vec4 r0=uBoneReal[int(aJoints.x)],r1=uBoneReal[int(aJoints.y)],r2=uBoneReal[int(aJoints.z)],r3=uBoneReal[int(aJoints.w)];
+vec4 reference=r0;float largest=aWeights.x;
+if(aWeights.y>largest){reference=r1;largest=aWeights.y;}if(aWeights.z>largest){reference=r2;largest=aWeights.z;}if(aWeights.w>largest)reference=r3;
+vec4 weights=aWeights*vec4(dot(reference,r0)<0.?-1.:1.,dot(reference,r1)<0.?-1.:1.,dot(reference,r2)<0.?-1.:1.,dot(reference,r3)<0.?-1.:1.);
+vec4 r=r0*weights.x+r1*weights.y+r2*weights.z+r3*weights.w;
+vec4 d=uBoneDual[int(aJoints.x)]*weights.x+uBoneDual[int(aJoints.y)]*weights.y+uBoneDual[int(aJoints.z)]*weights.z+uBoneDual[int(aJoints.w)]*weights.w;
+float magnitude=max(length(r),.000001);r/=magnitude;d/=magnitude;d-=r*dot(r,d);
+vec3 translation=2.*(r.w*d.xyz-d.w*r.xyz+cross(r.xyz,d.xyz));
+vec4 w=vec4(rotateUnit(r,p)+translation,1.);vWorld=w.xyz;vNormal=normalize(rotateUnit(r,aNormal));vBind=p;vUV=aUV;vMaterial=aMaterial;vColor=aColor;gl_Position=uVP*w;}`;
 const FS=`precision highp float;
 varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying vec2 vUV;varying float vMaterial;varying float vHand;
 uniform sampler2D uSkinTexture;uniform sampler2D uFabricTexture;
@@ -67,15 +78,12 @@ color+=base*.08*pow(1.-max(0.,dot(N,V)),3.)*(id>.5&&id<3.5?1.:.3);
 color=aces(color*(uStudio>.5?1.03:.95));gl_FragColor=vec4(pow(color,vec3(1./2.2)),1.);}`;
 function quatAlign(a,b,v){const c=cross(a,b),d=clamp(dot(a,b),-1,1);if(d<-.9999){let axis=unit(cross(a,Math.abs(a[0])<.8?[1,0,0]:[0,1,0]));return sub(mul(axis,2*dot(axis,v)),v);}return add(add(v,cross(c,v)),mul(cross(c,cross(c,v)),1/(1+d)));}
 function presentationPalette(p,assets){const a=new Float32Array(assets.bones.length*16),c=Math.cos(p.face||0),s=Math.sin(p.face||0),M=[c,0,s,0,0,1,0,0,-s,0,c,0,p.x,0,p.z,1];for(let i=0;i<assets.bones.length;i++)a.set(M,i*16);return a;}
+function renderPalette(raw,mixed,assets){return mixed===raw?raw:Constraints.constrain(mixed,assets.bones,Rig.LIMITS);}
 function palette(p,assets,pose){
- const f=[Math.cos(p.face||0),0,Math.sin(p.face||0)],side=[-f[2],0,f[0]],yaw=v=>[v[0]*f[0]+v[2]*side[0],v[1],v[0]*f[2]+v[2]*side[2]],shift=(v,y)=>[v[0],v[1]+y,v[2]];
- const hip=pose.pelvis,chest=shift(pose.torsoUpper,.02),waist=shift(hip,.08),mid=mix(waist,chest,.56),neck=shift(pose.neck,.04),headTop=shift(pose.head,.11),frames={pelvis:[hip,waist],spine:[waist,mid],chest:[mid,chest],neck:[chest,neck],head:[neck,headTop]};
- for(let i=0;i<2;i++){
-  const s=i===0?'L':'R',a=pose.arms[i],l=pose.legs[i],shoulder=mix(shift(pose.torsoUpper,-.01),a.shoulder,.84),handEnd=add(a.wrist,mul(unit(sub(a.wrist,a.elbow)),.125));frames['clavicle.'+s]=[shift(pose.torsoUpper,-.01),shoulder];frames['upper_arm.'+s]=[shoulder,a.elbow];frames['forearm.'+s]=[a.elbow,a.wrist];frames['hand.'+s]=[a.wrist,handEnd];frames['thigh.'+s]=[l.hip,l.knee];frames['shin.'+s]=[l.knee,l.ankle];frames['foot.'+s]=[l.ankle,shift(l.toe,-.075)];
- }
+ const f=[Math.cos(p.face||0),0,Math.sin(p.face||0)],side=[-f[2],0,f[0]],yaw=v=>[v[0]*f[0]+v[2]*side[0],v[1],v[0]*f[2]+v[2]*side[2]],frames=Rig.boneFrames(pose);
  const all=new Float32Array(assets.bones.length*16),headYaw=Number.isFinite(pose.headYaw)?clamp(pose.headYaw,-.8,.8):0;
- assets.bones.forEach((bone,i)=>{const scan=bone.name==='head'?headYaw:bone.name==='neck'?headYaw*.25:0,cs=Math.cos(scan),sn=Math.sin(scan),boneYaw=v=>{const u=yaw(v);return scan?[u[0]*cs-u[2]*sn,u[1],u[0]*sn+u[2]*cs]:u;};const [a,b]=frames[bone.name],rest=unit(sub(bone.tail,bone.head)),start=boneYaw(rest),target=unit(sub(b,a)),ratio=clamp(len(sub(b,a))/len(sub(bone.tail,bone.head)),.5,1.7),M=new Float32Array(16);
-  for(let col=0;col<3;col++){let v=quatAlign(start,target,boneYaw(bone.matrix.slice(col*4,col*4+3)));if(col===1)v=mul(v,ratio);for(let j=0;j<3;j++)M[col*4+j]=v[j];}M[12]=a[0];M[13]=a[1];M[14]=a[2];M[15]=1;all.set(matmul(M,bone.inverseBind),i*16);
+ assets.bones.forEach((bone,i)=>{const scan=bone.name==='head'?headYaw:bone.name==='neck'?headYaw*.25:0,cs=Math.cos(scan),sn=Math.sin(scan),boneYaw=v=>{const u=yaw(v);return scan?[u[0]*cs-u[2]*sn,u[1],u[0]*sn+u[2]*cs]:u;};const [a,b]=frames[bone.name],rest=unit(sub(bone.tail,bone.head)),start=boneYaw(rest),target=unit(sub(b,a)),M=new Float32Array(16);
+  for(let col=0;col<3;col++){const v=quatAlign(start,target,boneYaw(bone.matrix.slice(col*4,col*4+3)));for(let j=0;j<3;j++)M[col*4+j]=v[j];}M[12]=a[0];M[13]=a[1];M[14]=a[2];M[15]=1;all.set(matmul(M,bone.inverseBind),i*16);
  });return all;
 }
 // Runtime mesh LOD for the licensed, single-LOD MakeHuman asset.
@@ -134,11 +142,13 @@ function simplifyLOD(sourceVertices,sourceIndices,cell){
 class PlayerRenderer{
  constructor(gl,assets=root.TribunPlayerAssets){
   if(!assets)throw Error('Oyuncu modeli yüklenmedi');
+  if(!Skinning)throw Error('Oyuncu deri çizim modülü yüklenemedi: player-skinning.js');
+  if(!Constraints)throw Error('Oyuncu eklem sınırı modülü yüklenemedi: character-palette-constraints.js');
   this.validation=root.TribunPlayerAssetStatus?.validate(assets);if(this.validation&&!this.validation.ok){const error=Error(this.validation.errors.map(e=>e.code+' '+e.path+': '+e.message).join('; '));error.validation=this.validation;throw error;}
   this.gl=gl;this.assets=assets;this.studio=false;this.visualQuality='auto';this.lastRenderStats={players:0,fast:0,detailed:0,triangles:0};
   const shader=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;};
   const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,VS));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));this.program=program;
-  this.loc={};for(const n of ['uVP','uBones[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uFast','uSkinTexture','uFabricTexture'])this.loc[n]=gl.getUniformLocation(program,n);
+  this.loc={};for(const n of ['uVP','uBoneReal[0]','uBoneDual[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uFast','uSkinTexture','uFabricTexture'])this.loc[n]=gl.getUniformLocation(program,n);
   this.attributes=[['aPosition',3,0],['aNormal',3,3],['aUV',2,6],['aJoints',4,8],['aWeights',4,12],['aMaterial',1,16],['aColor',3,17]].map(([n,size,off])=>({location:gl.getAttribLocation(program,n),size,off}));
   const uint32=assets.lods.some(a=>a.indexType==='I')?gl.getExtension('OES_element_index_uint'):true;
   const original=assets.lods.map(a=>({vertices:new Float32Array(decode(a.vertices)),
@@ -183,14 +193,16 @@ class PlayerRenderer{
    renderStats.players++;renderStats[detailed?'detailed':'fast']++;renderStats.triangles+=lod.count/3;
    const shirt=v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts=v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]);
    const set=(name,value)=>gl.uniform3fv(this.loc[name],value);set('uSkin',v.skin||p.skin||[.69,.48,.34]);set('uShirt',shirt);set('uShorts',shorts);set('uHair',v.hair||p.hair||[.10,.065,.043]);set('uBoots',v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3]);set('uIris',v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3]);set('uVariant',v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0]);
-   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));const pose=root.TribunHumanoidRig.getPose(p);
+   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));const pose=Rig.getPose(p);
    const rawPalette=v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose);
    const skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;
-   gl.uniformMatrix4fv(this.loc['uBones[0]'],false,skinPalette);
+   const connected=renderPalette(rawPalette,skinPalette,this.assets);
+   const dual=Skinning.fromMatrices(connected);
+   gl.uniform4fv(this.loc['uBoneReal[0]'],dual.real);gl.uniform4fv(this.loc['uBoneDual[0]'],dual.dual);
    gl.bindBuffer(gl.ARRAY_BUFFER,lod.vertex);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lod.index);for(const a of this.attributes){if(a.location<0)continue;gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,80,a.off*4);}gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);for(const a of this.attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);
   }
   this.lastRenderStats=renderStats;
  }
 }
-PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
+PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
 })(typeof window!=='undefined'?window:globalThis);
