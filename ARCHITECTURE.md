@@ -1,3 +1,19 @@
+## Aşama 14: ortak insan iskeleti ve rijit deri çizimi — v1.33.0
+
+Üretim yolu `humanoid-rig.js` → `Rig.boneFrames(pose)` → `player-renderer.js` → `player-skinning.js` şeklindedir. `tools/build-player-assets.py` aynı kanonik poz ve 19 kemik uç noktasını okuyarak lisanslı MakeHuman bağlama verisini üretir. Çizicinin kendi omuz, el veya gövde uzaklıklarıyla ikinci bir iskelet kurması yerine üretici ve çalışma anı aynı çerçeveleri kullanır. Metre, `+Y` yukarı ve `+X` ileri sözleşmesi korunur.
+
+`Rig.ANATOMY`, 1,88 m referans insanın gövde ve uzuv ölçülerini; `Rig.LIMITS`, oyun amaçlı eklem sınırlarını tanımlar. İki kemikli IK erişim dışındaki hedefi sınırlı erişim halkasına yansıtır; kök eklem açıları gövdenin yerel çerçevesinde sınanır. Dalışta gövdeyle birlikte dönen bu çerçeve, sabit kemik uzunluğunu korur. Çözülmüş poz hedef hatasını ayrıca taşır; erişilemeyen temas sessizce başarılı sayılmaz.
+
+`player-skinning.js`, rijit matrisleri denetleyip gerçek/dual quaternion paletine çevirir. GPU, köşe ağırlıklarının quaternion işaretlerini eşleştirir ve normalize edilmiş dual quaternion ile konum/normal dönüşümünü uygular. Kemik ölçeklemesi veya makaslama bu sözleşmeye uymaz. Bu yöntem dönüş kaynaklı matris karışımı çökmesini azaltır; heykellenmiş düzeltici şekiller veya tam doku hacmi modeli değildir.
+
+Maçın `match-animation-bridge.js` geçişleri, çalışma anı LOD sadeleştirmesi, `uFast` shader yolu ve `scene3d.js` FPS/çözünürlük profilleri korunur. Çizim hazırlığı maç nesnesine, topa, kararlara veya RNG'ye yazmaz. `football-sim.js` fizik kaynağı ile `kickContact` ve fiziksel `saveHands` hedefleri bu aşamada korunur. Lisanslı paketin beş kaynak pin'i ve manifest/çevrimdışı üretim denetimi sürer.
+
+GitHub `main` karakter aşamaları ayrıca `humanoid-rig-procedural.js`, `player-renderer-procedural.js` ve `assets/player/procedural-player-model-data.js` üzerinden yaşamaya devam eder. `player-studio-procedural.html` bu deney modelini; `character-viewer.html` ayrı animasyonlu GLB'nin 15 klibini gösterir. Bu dosyalar lisanslı modelin manifestine eklenmez. GLB laboratuvarının oynatıcısı ile maçın WebGL çizicisi ayrı yollardır.
+
+Güncel ölçüler, eklem sınırları ve kabul sınırı [docs/CHARACTER_MODEL.md](docs/CHARACTER_MODEL.md), kaynak/üretim sözleşmesi [docs/PLAYER_ASSETS.md](docs/PLAYER_ASSETS.md), doğrulama kanıtları [DOGRULAMA.md](DOGRULAMA.md) içindedir. Aşağıdaki bölümler tarihsel sürüm kaydıdır.
+
+---
+
 ## Aşama 13: kaynaklı insan modeli ve ortak yükleme tanılaması
 
 `tools/build-player-assets.py`, sabit MakeHuman CC0 OBJ/iskelet/ağırlık verisini mevcut 19 kemikli `humanoid-rig.js` bağlama pozuna uyarlar. Beş resmî kaynak/lisans dosyasının hash, URL ve commit kaydı ile rig referans hash'i üretimden önce denetlenir. Sıkıştırılmış özgün kaynaklar pakette kalır; `--from-package` aynı çıktıları çevrimdışı yeniden üretir. Çıktı `player-model-data.js`, standart GLB, iskelet, iki yerel PNG ve dosya manifestidir. Runtime GLB ayrıştırmaz; özel model verisini kullanır.

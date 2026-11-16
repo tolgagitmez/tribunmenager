@@ -10,9 +10,22 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import numpy as np
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / 'assets/player'
+# This package shares its directory with the independent procedural character.
+# Its builder owns only these licensed MakeHuman derivative artifacts.
+LICENSED_ARTIFACTS = {
+    Path(name) for name in [
+        'CREDITS.md', 'LICENSE-CC0.txt', 'SOURCE-LICENSE.md', 'footballer.glb',
+        'manifest.json', 'player-model-data.js', 'skeleton.json',
+        'source/makehuman-base.obj.gz', 'source/makehuman-default.mhskel.gz',
+        'source/makehuman-default_weights.mhw.gz', 'source/provenance.json',
+        'textures/fabric-detail.png', 'textures/skin-detail.png',
+    ]
+}
 spec = importlib.util.spec_from_file_location('tribun_asset_builder', ROOT / 'tools/build-player-assets.py')
 builder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(builder)
@@ -25,16 +38,97 @@ def unpack(target):
         (target / name).write_bytes((PACKAGE / src).read_bytes())
 
 
+def source_mesh():
+    with tempfile.TemporaryDirectory(prefix='tribun-weight-source-') as directory:
+        source = Path(directory)
+        unpack(source)
+        points, uv, groups = builder.obj(source / 'makehuman-base.obj')
+        skeleton = json.loads((source / 'makehuman-default.mhskel').read_text())
+        weights = json.loads((source / 'makehuman-default_weights.mhw').read_text())
+        return points, uv, groups, skeleton, weights
+
+
 class PlayerAssetBuildTests(unittest.TestCase):
+    def test_joint_weight_smoothing_uses_six_jacobi_rounds_and_only_source_body_edges(self):
+        # A four-edge body loop with a hard half/half weight boundary has a
+        # known diffusion result. Helper faces must contribute no adjacency.
+        points = np.array([[-.01,-.01,0], [.01,-.01,0], [.01,.01,0], [-.01,.01,0],
+                           [.02,0,0], [.03,0,0], [.04,0,0],
+                           [-.01,-.29,0], [.01,-.29,0], [.01,-.31,0], [-.01,-.31,0]], dtype=float)
+        weights = np.zeros((len(points),19));weights[:2,6] = 1;weights[2:4,7] = 1
+        weights[4:7,18] = 1;weights[7:,8] = 1
+        original = weights.copy();original_points = points.copy()
+        groups = {'body': [[(i, i) for i in range(4)], [(i, i) for i in range(7,11)]],
+                  'joint-l-elbow': [[(0,0),(4,0),(5,0),(6,0)]]}
+        frames = {}
+        for side,x in [('L',0),('R',1)]:
+            for bone,y in [('upper_arm',1),('forearm',0),('shin',-2),('hand',-.29)]:
+                frames[bone+'.'+side] = (np.array([x,y,0.]),np.array([x,y-.1,0.]))
+        derived, _ = builder.smooth_joint_weights(points, weights, groups, frames)
+        np.testing.assert_array_equal(weights, original)
+        np.testing.assert_array_equal(points, original_points)
+        np.testing.assert_allclose(derived[:2,6], .5078125, atol=1e-14, rtol=0)
+        np.testing.assert_allclose(derived[2:4,6], .4921875, atol=1e-14, rtol=0)
+        np.testing.assert_allclose(derived[:4,6]+derived[:4,7], 1, atol=1e-14, rtol=0)
+        np.testing.assert_array_equal(derived[4:], original[4:])
+
+    def test_derived_joint_weights_preserve_source_bind_geometry_and_wrist_skin(self):
+        source, uv, groups, skeleton, weights = source_mesh()
+        smoother = builder.smooth_joint_weights
+        captured = {}
+
+        def record(points, source_weights, body_groups, frames):
+            before_points = points.copy();before_weights = source_weights.copy()
+            derived, stats = smoother(points, source_weights, body_groups, frames)
+            np.testing.assert_array_equal(points, before_points)
+            np.testing.assert_array_equal(source_weights, before_weights)
+            captured.update(points=before_points, original=before_weights, derived=derived.copy(), frames=frames)
+            return derived, stats
+
+        with patch.object(builder, 'smooth_joint_weights', side_effect=record):
+            smoothed, smoothed_indices, smoothed_bones, _ = builder.skin_geometry(source, uv, groups, skeleton, weights)
+
+        def unchanged(points, source_weights, body_groups, frames):
+            _, stats = smoother(points, source_weights, body_groups, frames)
+            return source_weights.copy(), stats
+
+        with patch.object(builder, 'smooth_joint_weights', side_effect=unchanged):
+            original, original_indices, original_bones, _ = builder.skin_geometry(source, uv, groups, skeleton, weights)
+        np.testing.assert_array_equal(smoothed[:,:8], original[:,:8], 'runtime weight repair must not change positions, normals or UVs')
+        np.testing.assert_array_equal(smoothed[:,16:], original[:,16:], 'runtime weight repair must not change material or color geometry')
+        np.testing.assert_array_equal(smoothed_indices, original_indices)
+        self.assertEqual(smoothed_bones, original_bones)
+        self.assertFalse(np.array_equal(smoothed[:,8:16], original[:,8:16]), 'the derivative must actually repair runtime influences')
+
+        points = captured['points'];original_weights = captured['original'];derived = captured['derived']
+        body_ids = np.array(sorted({i for face in groups['body'] for i,_ in face}))
+        body_mask = np.zeros(len(points), dtype=bool);body_mask[body_ids] = True
+        selected = np.zeros(len(points), dtype=bool)
+        for side in ('L','R'):
+            for bone,radius in [('upper_arm',.18),('forearm',.12),('shin',.15)]:
+                within = np.linalg.norm(points-captured['frames'][bone+'.'+side][0],axis=1)<radius
+                selected |= within
+                self.assertGreater(np.count_nonzero(within & body_mask & np.any(np.abs(derived-original_weights)>1e-12,axis=1)),20)
+        changed = np.any(np.abs(derived-original_weights)>1e-12,axis=1)
+        self.assertGreater(np.count_nonzero(changed),300)
+        self.assertFalse(np.any(changed & ~(selected & body_mask)), 'only the six selected body joint patches may change')
+        self.assertTrue(np.isfinite(derived).all());self.assertGreaterEqual(float(derived.min()),0)
+        np.testing.assert_allclose(derived[body_ids].sum(axis=1),1,atol=2e-15,rtol=0)
+        protected = original_weights[:,[8,15]].sum(axis=1)>.001
+        for side in ('L','R'):
+            protected |= np.linalg.norm(points-captured['frames']['hand.'+side][0],axis=1)<.10
+        protected &= body_mask
+        self.assertGreater(np.count_nonzero(protected),500)
+        np.testing.assert_array_equal(derived[protected],original_weights[protected], 'hand, finger and wrist weights stay source-derived without smoothing')
+
     def test_packaged_sources_rebuild_every_artifact_byte_for_byte_outside_repo(self):
         with tempfile.TemporaryDirectory(prefix='tribun-assets-rebuild-') as directory:
             out = Path(directory) / 'output'
             result = subprocess.run([sys.executable, str(ROOT / 'tools/build-player-assets.py'), '--from-package', '--output', str(out)], cwd=directory, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
-            existing = {p.relative_to(PACKAGE) for p in PACKAGE.rglob('*') if p.is_file()}
             generated = {p.relative_to(out) for p in out.rglob('*') if p.is_file()}
-            self.assertEqual(generated, existing)
-            for name in sorted(existing):
+            self.assertEqual(generated, LICENSED_ARTIFACTS)
+            for name in sorted(LICENSED_ARTIFACTS):
                 with self.subTest(file=str(name)):
                     self.assertEqual((out / name).read_bytes(), (PACKAGE / name).read_bytes())
 

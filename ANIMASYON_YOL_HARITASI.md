@@ -1,17 +1,19 @@
 # Ticari 3D animasyon üretim yolu
 
-## Güncel durum — v1.32.0
+## Güncel durum — v1.33.0
 
-İlk kabul adımı, kaynağı ve lisansı izlenebilen bir insan modelini gerçek maç ve oyuncu stüdyosunda çalıştırmaktır. MakeHuman Community CC0 temeli, 19 kemikli iskelet, iki yerel doku, standart GLB ve oyun çizicisinin özel verisi pakete eklendi. Gerçek tarayıcı aracı, dosyanın yanıt hash'ini ve iskeletli GPU çizimini doğrular; eksik model/doku, bozuk veri, shader hatası ve WebGL yokluğunu görünür tanılamayla sınar. Kaynak belgeleri ve tekrar üretim [oyuncu varlıkları sözleşmesindedir](docs/PLAYER_ASSETS.md).
+İkinci kalite adımı, lisanslı insan gövdesinin oranlarını ve deformasyon temelini üretim maçına bağlar. MakeHuman CC0 modeli, maç/stüdyo/atölyede aynı 1,88 m kanonik rig'i, sabit uzuv uzunluklarını ve oyun amaçlı eklem sınırlarını kullanır. Üretici ve çizici aynı 19 kemik çerçevesini paylaşır; normalize rijit dual quaternion skinning dönüş kaynaklı LBS çökmesini azaltır. Kapsam ve kalan yüzey sorunları [karakter modeli sözleşmesinde](docs/CHARACTER_MODEL.md), kaynak ve çevrimdışı üretim [oyuncu varlıkları sözleşmesindedir](docs/PLAYER_ASSETS.md).
 
-Mevcut prosedürel pozlar ve ayak IK/basış sistemi korunur. Bu aşama yeni hareket klibi, mocap, genel amaçlı glTF animasyon oynatıcı veya ayrıntılı parmak/yüz iskeleti getirmez. Paket bir LOD içerir. Aşağıdaki eski Blender ve üç LOD notları tarihsel sürümlere aittir; özgün paket geri getirilemedi.
+GitHub `main` karakter çalışmaları dahil edilmiştir. Maçın hareket geçiş köprüsü, FPS profilleri, hızlı shader yolu ve çalışma anı LOD'ları korunur. [Prosedürel stüdyo](player-studio-procedural.html) ile [15 klipli bağımsız GLB görüntüleyici](character-viewer.html) ayrı deney yolu olarak kullanılabilir. Maç mevcut kanonik pozları kullanır; bu laboratuvar kliplerini doğrudan oynatmaz. Lisanslı GLB tek tam çözünürlüklü kaynak içerir; maç için ek LOD'lar çalışma anında üretilir.
+
+Güncel test ve görüntü kanıtları [DOGRULAMA.md](DOGRULAMA.md) içindedir. Sabit kemikler ve DQS, bütün doku hacminin veya kusursuz temasın tek başına kanıtı değildir. Bu aşama sanatçı üretimi corrective shape key, mocap ya da ayrıntılı parmak/yüz animasyonu getirmez. Aşağıdaki eski Blender, eksik varlık ve üç LOD notları kendi sürümlerinin tarihsel kaydıdır.
 
 Sıradaki görsel adımlar:
 
-1. Yakın kamera için giysi silueti, yüz, saç, cilt ve ışığı geliştir; sabit pozlar ile koşu/vuruş sırasında deformasyonları birlikte incele.
+1. Omuz, kalça, diz ve dirsekte gerçek mesh yüzeyini ve uç poz siluetini ölç; ağırlıkları ve gerekiyorsa sanatçı kontrollü düzeltici şekilleri bu kanıta göre geliştir. Yakın kamera için giysi, yüz, saç, cilt ve ışığı birlikte değerlendir.
 2. Kaynağı ve lisansı doğrulanmış koşu, fren, dönüş, pas, şut ve kaleci kliplerini mevcut temas/ayak IK sözleşmesine uyarla. Hareket geçişlerini hız ve yönle sür.
 3. Mevcut basış ve ayak-top temasını kliplerle birlikte doğrula; top çıkışı ile görünen vuruş aynı zaman ve noktada olmalı.
-4. Birden fazla LOD ve çizim bütçesi ekle; 22 oyunculu maçı gerçek masaüstü ve düşük güçlü cihazlarda ölç.
+4. Mevcut çalışma anı LOD'ları ve çizim bütçesini gerçek masaüstü ve düşük güçlü cihazlarda 22 oyunculu maçla ölç; kayıp siluet ve eklem ayrıntısını hız kazanımıyla birlikte değerlendir.
 5. Kamera, ışık, malzeme ve hareketleri kesintisiz maç görüntüsünde değerlendir; tek bir stüdyo karesini maçın görsel kalitesi kabulü sayma.
 
 ## Uzun vadeli standart ve tarihsel notlar

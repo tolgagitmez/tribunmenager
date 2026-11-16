@@ -1,0 +1,69 @@
+{
+  "generatedAt": "2026-11-15T21:34:07.898Z",
+  "sources": {
+    "football-sim.js": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd",
+    "humanoid-rig.js": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
+    "tactics.js": "412b399129c03bda38232a84ab597432f751d1dc57cd1fbf199edad36fb91fea",
+    "player-model.js": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02",
+    "player-model-profiles.js": "a06068f2a706e58b9e71110da31da72f9968b3abcf2f548cba265ef78be40aa8",
+    "player-model-profiles.json": "d97a900209e5c3b837539042f5435c8fb7f063492f2d16deed1caaabc7a45da6",
+    "player-perception.js": "d0879e2e845a34bd8f08fd117e3100ac651ee79f28371e153a7aed3c48bc08b8",
+    "team-intent.js": "cce8be16d8dd88ef758051e0cf6761326ad21cb55b1733397c5fa3815aac0030",
+    "match-rules.js": "8bbf5af5ac74be2a0e64154297f083686e1bbfae455da538657a1be8d0295876",
+    "referee-laws.js": "e5e5d3694f9da9f65054f07030a0beb06149d33c16abf25b8a51616ffe31ab87",
+    "pitch-laws.js": "55b35441c614dc3b15dbaa1b0e9722082e77fa01ebba398d0c50e9a2d9ef06fa",
+    "docs/validation/baselines/licensed-character-rig-6ddd4f1.js.gz": "9e221162abc872cef1c4dbc0f41c2fdbadc2ac9350b89a8fdb43e6d7c866f370",
+    "tools/check-character-physics.cjs": "69700dc8f808e1a693104a31115246d8d8b7c7ee10545bf8bcc36c07010538b9"
+  },
+  "baselineCommit": "6ddd4f18b8ffb1789379fb8635dd37540983a952",
+  "baselineRigSHA256": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+  "method": "Three natural 5-minute configurations, each run with the retained old rig and revised rig. Both rigs update every active player after each fixed physical step. Every two simulated seconds and at the end, complete own-state graphs are deeply compared, preserving object references, Maps and Sets. Only the immutable motion-module object is replaced with null for comparison; no player, ball, referee, RNG, task, perception, event or clock field is omitted.",
+  "runs": [
+    {
+      "seed": 21,
+      "ticks": 18960,
+      "completeStateComparisons": 158,
+      "elapsedSeconds": 316.00000000001194,
+      "score": [
+        0,
+        0
+      ],
+      "shots": [
+        0,
+        0
+      ],
+      "physicalStateEqual": true
+    },
+    {
+      "seed": 42,
+      "ticks": 21000,
+      "completeStateComparisons": 175,
+      "elapsedSeconds": 349.999999999981,
+      "score": [
+        0,
+        0
+      ],
+      "shots": [
+        1,
+        1
+      ],
+      "physicalStateEqual": true
+    },
+    {
+      "seed": 77,
+      "ticks": 19440,
+      "completeStateComparisons": 162,
+      "elapsedSeconds": 323.9999999999983,
+      "score": [
+        0,
+        0
+      ],
+      "shots": [
+        0,
+        0
+      ],
+      "physicalStateEqual": true
+    }
+  ],
+  "verified": true
+}
