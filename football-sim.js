@@ -1979,25 +1979,89 @@ class Match{
   if(p.actionClock<=0){p.action=p.speed>3.2?'run':p.speed>.4?'jog':'idle';p.kickMoving=false;}
  }
  aerial(previous){
-  const f=this.flight,b=this.ball;if(!f||f.kind!=='cross'||f.aerialResolved||b.vy>0||b.y<1.60||b.y>2.15)return false;
-  const candidates=this.players.filter(p=>p.active&&!p.referee&&p.role!=='GK'&&!(p.duelRecovery>0)).map(p=>({p,h:segment(p,previous,b)})).filter(o=>o.h.d<.43);
+  const f=this.flight,b=this.ball;
+  const delivery=!!f&&['cross','long-pass','clearance','throw'].includes(f.kind);
+  const secondBall=!f&&!this.owner&&b.y>=1.05&&b.y<=2.2&&b.vy<0;
+  if((!delivery&&!secondBall)||f?.aerialResolved||b.vy>0||b.y<1.05||b.y>2.72)return false;
+  const contactHeight=p=>Math.max(.11,previous.y+(b.y-previous.y)*segment(p,previous,b).u);
+  const candidates=this.players.filter(p=>p.active&&!p.referee&&p.role!=='GK'&&
+   p.touchClock<=0&&!(p.duelRecovery>0)).map(p=>{
+    const hit=segment(p,previous,b),y=contactHeight(p),heading=p.heading??p.skill;
+    // Jump reach depends on heading, momentum and remaining energy; a high
+    // ball cannot be played by a standing head or a chest out of reach.
+    const jump=clamp(.16+(heading-55)*.0075+Math.min(4,p.speed||0)*.024,0,.52)*(p.energy??1);
+    const reach=1.83+jump,effort=hit.d*30+Math.max(0,y-1.83)*25;
+    return {p,hit,y,jump,reach,score:heading-effort};
+   }).filter(o=>o.hit.d<.62&&o.y<=o.reach+1e-7);
   if(!candidates.length)return false;
-  candidates.sort((a,c)=>((c.p.heading??c.p.skill)-c.h.d*28)-((a.p.heading??a.p.skill)-a.h.d*28));
-  const p=candidates[0].p;if(this.offsideTouch(p))return true;this.offsidePhase=this.captureOffside(p);p.headerHeight=b.y;f.aerialResolved=true;this.action(p,'header',.5);p.actionElapsed=.18;p.actionClock=.32;p.touchClock=.5;this.lastTouch=p;this.owner=null;delete b.spin;
+  candidates.sort((x,y)=>y.score-x.score||x.hit.d-y.hit.d||x.p.id-y.p.id);
+  const win=candidates[0],p=win.p;
+  if(this.penaltyImpact(p)||this.offsideTouch(p))return true;
+  const challenged=candidates.find(o=>o.p.team!==p.team&&o.hit.d<.58&&Math.abs(o.score-win.score)<15);
+  b.x=previous.x+(b.x-previous.x)*win.hit.u;b.z=previous.z+(b.z-previous.z)*win.hit.u;
+  b.y=win.y;
+  if(f)f.aerialResolved=true;
+  this.lastTouch=p;
+  if(f?.kind==='long-pass')this.telemetry.aerialLongBalls=(this.telemetry.aerialLongBalls||0)+1;
+  if(secondBall)this.telemetry.aerialSecondBalls=(this.telemetry.aerialSecondBalls||0)+1;
+  if(challenged){
+   // Both players actually reach the falling ball. The header becomes a
+   // physical glancing deflection and a free second ball, not an instant
+   // possession award to the nominally higher-rated player.
+   this.telemetry.aerialDuels=(this.telemetry.aerialDuels||0)+1;
+   this.telemetry.secondBallContests=(this.telemetry.secondBallContests||0)+1;
+   this.telemetry.looseBalls++;
+   const defender=challenged.p,side=this.direction(p.team);
+   b.vx=side*clamp(3+(win.score-challenged.score)*.18,1,7);
+   b.vz=clamp((p.z-defender.z)*3,-6,6)+(p.id%2?2:-2);
+   b.vy=clamp(1.3+Math.abs(win.score-challenged.score)*.025,1.3,2.2);
+   p.touchClock=defender.touchClock=.42;
+   this.action(p,'header',.48);this.action(defender,'header',.48);
+   p.jumpHeight=win.jump;defender.jumpHeight=challenged.jump;
+   this.owner=null;this.flight=null;this.phase='open';this.planClock=0;
+   this.emit('aerial-duel','Hava topu mücadelesi','İki futbolcu yükseldi; seken top henüz kimsenin kontrolünde değil.',p);
+   return true;
+  }
+  // A chest trap is an actual touch of a dropping ball. No player or ball is
+  // teleported to the ground. The ordinary ball physics handles its descent.
+  if(win.y<=1.78&&Math.hypot(b.vx-p.vx,b.vz-p.vz)<26){
+   if(!this.acquire(p))return true;
+   b.vx=b.vx*.40+p.vx*.20;b.vz=b.vz*.40+p.vz*.20;b.vy=Math.min(0,b.vy*.18);
+   p.receiveClock=Math.max(p.receiveClock,.25);p.decision=Math.max(p.decision,p.receiveClock+.08);
+   p.chestContactHeight=win.y;
+   this.action(p,'chest',.45);
+   this.telemetry.chestControls=(this.telemetry.chestControls||0)+1;
+   if(secondBall)this.telemetry.secondBallRecoveries=(this.telemetry.secondBallRecoveries||0)+1;
+   this.emit('chest-control','Göğüs kontrolü',p.name+' düşen topu göğsüyle yumuşattı.',p);
+   return true;
+  }
+  // A high ball requires a jump; the actual reach is checked above. Preserve
+  // the existing headed-shot / headed-pass / defensive-clearance outcomes.
+  this.offsidePhase=this.captureOffside(p);
+  p.headerHeight=win.y;p.jumpHeight=win.jump;this.action(p,'header',.5);p.actionElapsed=.18;p.actionClock=.32;p.touchClock=.5;
+  this.owner=null;delete b.spin;
+  const attack=f?.from?.team??this.lastTeam;
   const window=this.shotWindow(p);
-  if(p.team===f.from.team&&window.distance<22&&window.quality>.09&&window.open>=.4){
+  if(p.team===attack&&window.distance<22&&window.quality>.09&&window.open>=.4){
    const skill=p.heading??p.skill,pressure=Math.min(12,...this.field(1-p.team).map(q=>dist(q,p))),scatter=1.0+(100-skill)*.10+window.distance*.065+Math.max(0,2.5-pressure)*.6;
    const toPlane=Math.max(1,52-p.x*this.direction(p.team)),aim={x:54*this.direction(p.team),z:p.z+(window.point.z-p.z)*(54-p.x*this.direction(p.team))/toPlane+(this.random()-.5)*scatter*2};
-   const d=dist(b,aim)||1,power=12+skill*.055+Math.min(2,Math.hypot(b.vx,b.vz)*.04),t=d/power,height=clamp(.85+(this.random()-.5)*(3.0+(100-skill)*.13+window.distance*.07),.10,4.0);
+   const d=dist(b,aim)||1,power=12+skill*.055+Math.min(2,Math.hypot(b.vx,b.vz)*.04),height=clamp(.85+(this.random()-.5)*(3.0+(100-skill)*.13+window.distance*.07),.10,4.0);
    b.vx=(aim.x-b.x)/d*power;b.vz=(aim.z-b.z)/d*power;b.vy=BallPhysics.verticalLaunch(d,power,b.y,height,7,-7);
-   this.flight={id:++this.releaseSerial,kind:'shot',from:p,target:null,age:0,offsidePlayers:this.offsidePhase.playerIds.slice()};this.shots[p.team]++;this.xg[p.team]+=window.quality*.65;this.telemetry.headers++;this.emit('header','Kafa vuruşu!',`${p.name} ortayı kaleye yönlendirdi.`,p);
-  }else if(p.team===f.from.team){
+   this.flight={id:++this.releaseSerial,kind:'shot',from:p,target:null,age:0,offsidePlayers:this.offsidePhase.playerIds.slice()};
+   this.shots[p.team]++;this.xg[p.team]+=window.quality*.65;this.telemetry.headers++;this.emit('header','Kafa vuruşu!',p.name+' hava topunu kaleye yönlendirdi.',p);
+  }else if(p.team===attack){
    const option=this.passOptions(p).find(o=>o.kind==='pass'&&o.risk<.5&&o.distance<20);
-   if(option){const d=dist(b,option.point)||1;b.vx=(option.point.x-b.x)/d*11;b.vz=(option.point.z-b.z)/d*11;b.vy=.5;this.flight={id:++this.releaseSerial,kind:'pass',from:p,target:option.q,point:option.point,age:0,offsidePlayers:this.offsidePhase.playerIds.slice()};this.passes[p.team]++;this.telemetry.headedPasses=(this.telemetry.headedPasses||0)+1;this.emit('header','Kafayla indirdi',`${p.name} topu arkadaşının önüne bıraktı.`,p);}
-   else{b.vx=this.direction(p.team)*6;b.vz*=.25;b.vy=-1;this.flight=null;}
+   if(option){
+    const d=dist(b,option.point)||1;b.vx=(option.point.x-b.x)/d*11;b.vz=(option.point.z-b.z)/d*11;b.vy=.5;
+    this.flight={id:++this.releaseSerial,kind:'pass',from:p,target:option.q,point:option.point,age:0,offsidePlayers:this.offsidePhase.playerIds.slice()};
+    this.passes[p.team]++;this.telemetry.headedPasses=(this.telemetry.headedPasses||0)+1;
+    this.emit('header','Kafayla indirdi',p.name+' topu arkadaşının önüne bıraktı.',p);
+   }else{b.vx=this.direction(p.team)*6;b.vz*=.25;b.vy=-1;this.flight=null;}
   }else{
-   b.vx=this.direction(p.team)*12;b.vz=(b.z>=0?1:-1)*8;b.vy=3;this.flight=null;this.emit('clearance','Savunma uzaklaştırdı',`${p.name} hava topunda araya girdi.`,p);
+   b.vx=this.direction(p.team)*12;b.vz=(b.z>=0?1:-1)*8;b.vy=3;this.flight=null;
+   this.emit('clearance','Savunma uzaklaştırdı',p.name+' hava topunda araya girdi.',p);
   }
+  this.telemetry.aerialHeaders=(this.telemetry.aerialHeaders||0)+1;
   this.phase='open';this.planClock=0;return true;
  }
  integrateBall(dt){BallPhysics.step(this.ball,dt);}
