@@ -30,11 +30,15 @@ async function run(browser,url,profile){
    await page.evaluate(mode=>window.TRIBUN_MATCH_TEST.setGraphicsMode(mode),mode);
    // Warm the real 22-player stadium renderer before sampling frame pacing.
    const readings=await page.evaluate(async()=>{
-    const api=window.TRIBUN_MATCH_TEST,frames=[];
+    const api=window.TRIBUN_MATCH_TEST,frames=[],physics=[],draw=[],work=[];
     await new Promise(resolve=>{
      let last=null;
      const tick=now=>{
-      if(last!==null)frames.push(now-last);
+      if(last!==null){
+       frames.push(now-last);
+       const cost=api.frameCost?.();
+       if(cost){physics.push(cost.physicsMs);draw.push(cost.drawSubmitMs);work.push(cost.mainThreadMs);}
+      }
       last=now;
       if(frames.length>=48)resolve();
       else requestAnimationFrame(tick);
@@ -42,12 +46,18 @@ async function run(browser,url,profile){
      requestAnimationFrame(tick);
     });
     const probe=api.renderProbe(),perf=api.performanceStats(),pilot=api.pilotStats();
-    return {frames,probe,perf,pilot};
+    return {frames,physics,draw,work,probe,perf,pilot};
    });
    assert.equal(readings.probe.active,22);
    assert(readings.probe.webgl,'actual match must use WebGL');
    assert(readings.pilot.blenderSamples>0,'real Blender palettes must have been sampled');
-   variants[mode]={...summary(readings.frames,profile.budget),renderProbeMs:readings.probe.cpuGpuMs,
+   variants[mode]={...summary(readings.frames,profile.budget),
+    mainThreadBreakdown:{
+     simulation:readings.physics.length?summary(readings.physics,profile.budget):null,
+     drawSubmit:readings.draw.length?summary(readings.draw,profile.budget):null,
+     totalWork:readings.work.length?summary(readings.work,profile.budget):null
+    },
+    renderProbeMs:readings.probe.cpuGpuMs,
     rendered:readings.perf.players,canvas:readings.perf.canvas,
     pilot:{clip:readings.pilot.clip,blenderSamples:readings.pilot.blenderSamples,
      contactFrames:readings.pilot.contactFrames,
