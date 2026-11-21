@@ -1,0 +1,80 @@
+name: Unified set-piece skill and foot physics (current main)
+on:
+  push:
+    branches: [feature/main-specialist-kick-physics-20261122, main]
+  pull_request:
+    paths:
+      - football-sim.js
+      - tests/kick-skill-parity.test.cjs
+      - tools/compare-specialist-kicks.cjs
+      - .github/workflows/specialist-kick-current.yml
+  workflow_dispatch:
+jobs:
+  specialist-real-contact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Two user control paths, real foot releases and specialist 20 vs 94 parity
+        run: node --test tests/kick-skill-parity.test.cjs
+      - name: Historical main baseline and new full 60 Hz ballistic / goalkeeper comparison
+        run: node tools/compare-specialist-kicks.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: specialist-impulse-comparison
+          path: docs/validation/kick-specialist-parity.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Penalty, free kick, corner, cross and indirect FK Laws
+        run: npm run test:manager-kick && node --test tests/aerial-keeper-law-boundaries.test.cjs
+      - name: All twenty-one physically controlled contact situations
+        run: node --test tests/attacking-coverage.test.cjs
+  authoritative-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - name: Natural home and away managed free kicks through the real league worker
+        run: npm run test:live-match
+      - name: Manager-independent season fixture engine and spectator parity
+        run: node --test tests/fixture-watch-parity.test.cjs && python -m unittest discover -s tests -p test_season_rotation.py -v
+  full-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install -r requirements-player-assets.txt
+      - name: All historical match, physics, renderer, licensed player, glTF and Blender tests
+        run: npm run test:stage15
+  rig-and-fps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Contact-invariant animation and physical game state
+        run: npm run test:engine-invariance
+      - name: Static renderer performance and reliable test smoke
+        run: npm run test:match-fps
