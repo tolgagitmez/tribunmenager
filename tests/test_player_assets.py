@@ -161,7 +161,7 @@ class PlayerAssetBuildTests(unittest.TestCase):
                 target.parent.mkdir(parents=True,exist_ok=True)
                 target.write_bytes((PACKAGE/relative).read_bytes())
             source = pkg/'source/provenance.json'
-            source.write_bytes(source.read_bytes()+b'\\n')
+            source.write_bytes(source.read_bytes()[:-1] + b' ')
             with self.assertRaisesRegex(AssertionError,'SHA256 integrity failure'):
                 rebuild_verifier.verify_manifest(pkg)
 
