@@ -4,17 +4,17 @@ Yerel futbol simülasyonu için **Python 3.10 veya üzeri** ve güncel Chrome, E
 
 ## 1. Oyunu indir
 
-İnsan modeli geliştirmesini içeren sürüm `codex/gltf-import-comparison` dalındadır:
+Menajer vuruşlarını ve canlı ligi içeren sürüm `codex/manager-kick-control` dalındadır.
 
-- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/gltf-import-comparison.zip), ZIP'i çıkar ve içindeki klasörü aç.
+- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/manager-kick-control.zip), ZIP'i çıkar ve içindeki klasörü aç.
 - Git kullanıyorsan:
 
 ```sh
-git clone --branch codex/gltf-import-comparison https://github.com/tolgagitmez/tribunmenager.git
+git clone --branch codex/manager-kick-control https://github.com/tolgagitmez/tribunmenager.git
 cd tribunmenager
 ```
 
-`main` önceki geliştirme aşamalarını içerir; yeni insan modeli değişikliklerini [dal karşılaştırmasından](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/gltf-import-comparison) inceleyebilirsin. Aşağıdaki doğrulama komutları bu dal içindir.
+`main` önceki geliştirme aşamalarını içerir. [Dal karşılaştırması](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/manager-kick-control).
 
 ## 2. Python'u kontrol et
 
@@ -76,6 +76,18 @@ python3 start.py --mode full
 
 Windows'ta aynı komutun başında `py -3` kullanabilirsin. Tam modun geliştirme sunucusu SQLite verisini `tribun-dev.sqlite3` dosyasında saklar. Mevcut veri dosyasını ve tarayıcı depolamasını koru. Kayıtlar tarayıcı profiline, adrese ve porta bağlıdır; `localhost` ile `127.0.0.1` ayrı tarayıcı depoları kullanır. Yerel gösterim maçının sonucu günlük lig fikstürünü değiştirmez.
 
+## Canlı lig
+
+Python'a ek olarak Node.js 24 LTS kur. Lig modu maç motorunu sunucuda çalıştırır ve transfer kataloğu gerektirmez.
+
+```sh
+python3 start.py --mode league --host 0.0.0.0
+```
+
+Windows'ta `py -3 start.py --mode league --host 0.0.0.0` kullan. İki menajer aynı sunucunun adresindeki `/league.html` sayfasını açmalı. Aynı ağda ikinci cihaz, `127.0.0.1` yerine sunucuyu çalıştıran bilgisayarın ağ adresini kullanır. Bir menajer lig kurar, diğeri davet koduyla katılır. Fikstür saati geldiğinde **Canlı maçı izle** bağlantısı açılır.
+
+Maç sunucuda devam eder. İzlerken kendi takımının vuruşlarını seçebilirsin. Başka sekmeye geçersen izleyici bağlantısı kısa süre içinde düşer ve seçim otomatik kullanıma döner. Sunucu tamamlanan maçın skorunu SQLite lig tablosuna yazar.
+
 ## Sorun giderme
 
 | Sorun | Yapılacak işlem |
@@ -104,9 +116,13 @@ python3 -m venv .venv
 . .venv/bin/activate
 python3 -m pip install -r requirements-player-assets.txt
 npm run test:stage15
+npm run test:manager-kick
+npm run test:live-match
 ```
 
 Windows'ta sanal ortamı `.venv\Scripts\activate` ile etkinleştir; Python komutlarında `py -3` veya etkin ortamın `python` komutunu kullan.
+
+Tarayıcı denemeleri için `npx playwright install chromium` çalıştır. Ardından `npm run test:manager-kick-browser` ile masaüstü ve mobil vuruşu, `npm run test:live-match-browser` ile iki menajerin maç ekranını doğrula. Sistemde Chromium kuruluysa `CHROMIUM` değişkeniyle dosya yolunu verebilirsin.
 
 Modeli paketlenmiş kaynaklardan internet kullanmadan ayrı bir dizinde yeniden üretmek için:
 

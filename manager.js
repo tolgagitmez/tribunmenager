@@ -94,9 +94,15 @@ function selectPlayer(id) {
 }
 function renderSpecial() {
   reconcileSpecialRoles();
-  $('specialGrid').innerHTML = [['captain','Kaptan'],['penalty','Penaltı'],['free','Serbest vuruş'],['corner','Korner']].map(([key,name])=>{
+  const model=window.TribunPlayerModel;
+  $('specialGrid').innerHTML = [['captain','Kaptan','rating'],['penalty','Penaltı','penalty'],['free','Serbest vuruş','freeKick'],['corner','Korner','corner']].map(([key,name,attribute])=>{
     const p=P[state.special[key]];
-    return `<div class="spec"><strong>${name}</strong><img src="${portrait(p)}" alt=""><select aria-label="${name}" data-spec="${key}">${state.starters.map(id=>`<option value="${id}" ${id===p.id?'selected':''}>${escapeHtml(P[id].name.split(' ').at(-1))} (${P[id].rating})</option>`).join('')}</select></div>`;
+    const options=state.starters.map((id,i)=>{
+      const player=P[id];
+      const score=attribute==='rating'?player.rating:Math.round(model.forSlot(player,model.slotFor(state.formation,i))[attribute]);
+      return `<option value="${id}" ${id===p.id?'selected':''}>${escapeHtml(player.name.split(' ').at(-1))} (${score})</option>`;
+    });
+    return `<div class="spec"><strong>${name}</strong><img src="${portrait(p)}" alt=""><select aria-label="${name}" data-spec="${key}">${options.join('')}</select></div>`;
   }).join('');
   document.querySelectorAll('[data-spec]').forEach(el=>el.onchange=()=>{state.special[el.dataset.spec]=+el.value;store();renderSpecial();notify('Duran top sorumlusu güncellendi.');});
 }

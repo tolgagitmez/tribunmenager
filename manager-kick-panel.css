@@ -1,0 +1,232 @@
+.manager-kick {
+  margin-top: 12px;
+  padding: clamp(14px, 2.4vw, 24px);
+  border: 1px solid #61794c;
+  border-radius: var(--radius);
+  background: linear-gradient(120deg, #192e22, var(--surface) 62%);
+  box-shadow: 0 12px 28px #050a075e;
+}
+
+.manager-kick-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 8px 20px;
+}
+
+.manager-kick-kind {
+  margin: 0 0 3px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.manager-kick-header h2 {
+  margin: 0;
+  font: 650 clamp(21px, 3vw, 30px)/1.16 var(--display);
+}
+
+.manager-kick-header h2:focus { outline: none; }
+
+.manager-kick-player {
+  display: grid;
+  line-height: 1.45;
+}
+
+.manager-kick-player strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.manager-kick-player span {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.manager-kick-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 14px 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.manager-kick-steps li {
+  padding: 4px 0 6px;
+  border-bottom: 2px solid #3c5341;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.manager-kick-steps [aria-current=step] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.manager-kick-instruction {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.manager-kick-aim,
+.manager-kick-impact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: clamp(12px, 3vw, 26px);
+}
+
+.manager-kick-range {
+  display: grid;
+  min-width: 0;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.manager-kick-range > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.manager-kick-range output {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.manager-kick-range label {
+  color: inherit;
+  font: inherit;
+}
+
+.manager-kick-range input {
+  height: 32px;
+  margin: 0;
+}
+
+.manager-kick-impact {
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 6px 0;
+}
+
+.manager-kick-impact-controls {
+  display: grid;
+  gap: 5px;
+}
+
+.manager-kick-ball {
+  position: relative;
+  justify-self: center;
+  width: clamp(132px, 23vw, 220px);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #dde1d5;
+  box-shadow: 0 14px 20px #0409058c;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.manager-kick-ball-seams,
+.manager-kick-ball-light,
+.manager-kick-ball-panels {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.manager-kick-ball-seams {
+  background:
+    repeating-conic-gradient(from 17deg, #677369 0deg 1.05deg, #a7aea0 1.15deg 1.6deg, transparent 1.7deg 72deg),
+    radial-gradient(circle at 31% 26%, #fffef1, #dce1d3 65%, #a3ada5 100%);
+}
+
+.manager-kick-ball-panels { overflow: hidden; }
+
+.manager-kick-ball-panels i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30%;
+  height: 29%;
+  clip-path: polygon(50% 0, 98% 36%, 80% 98%, 20% 98%, 2% 36%);
+  background: linear-gradient(150deg, #414b45, #131b1a 80%);
+  transform: translate(-50%, -50%) rotate(54deg);
+}
+
+.manager-kick-ball-panels i:nth-child(2) { top: 3%; left: 65%; transform: translate(-50%, -50%) rotate(127deg); }
+.manager-kick-ball-panels i:nth-child(3) { top: 50%; left: 98%; transform: translate(-50%, -50%) rotate(195deg); }
+.manager-kick-ball-panels i:nth-child(4) { top: 94%; left: 65%; transform: translate(-50%, -50%) rotate(267deg); }
+.manager-kick-ball-panels i:nth-child(5) { top: 81%; left: 10%; transform: translate(-50%, -50%) rotate(341deg); }
+.manager-kick-ball-panels i:nth-child(6) { top: 20%; left: 10%; transform: translate(-50%, -50%) rotate(52deg); }
+
+.manager-kick-ball-light {
+  background:
+    radial-gradient(ellipse at 31% 22%, #fff9 0%, #fff1 34%, transparent 60%),
+    radial-gradient(circle at 39% 24%, transparent 44%, #07181399 85%, #061613 100%);
+  box-shadow: inset 0 0 0 1px #eefbee77;
+}
+
+.manager-kick-ball-marker {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  width: 23px;
+  height: 23px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #11210d, 0 0 10px #131c0ed4;
+  background: radial-gradient(circle, var(--accent) 0 2px, transparent 3px);
+  pointer-events: none;
+}
+
+.manager-kick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.manager-kick-actions button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid #526d53;
+  border-radius: 7px;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.manager-kick-actions button:hover { background: var(--surface-3); }
+
+.manager-kick-actions .manager-kick-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #17250d;
+}
+
+.manager-kick-actions .manager-kick-primary:hover { background: #eaff9d; }
+
+@media (max-width: 440px) {
+  .manager-kick { padding: 13px; }
+  .manager-kick-aim,
+  .manager-kick-impact { gap: 12px; }
+  .manager-kick-impact {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+  .manager-kick-ball { width: clamp(140px, 44vw, 190px); }
+  .manager-kick-actions button { flex: 1 1 auto; }
+}

@@ -2,6 +2,7 @@
 """Standard-library launcher. Local matches work without economy catalogue files."""
 import argparse
 import json
+import shutil
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -26,21 +27,21 @@ class LocalHandler(SimpleHTTPRequestHandler):
         if path == '/api/health':
             return self.reply(200, {'ok': True, 'mode': 'local', 'transfers': False, 'dailyLeague': False})
         if path.startswith('/api/'):
-            return self.reply(503, {'error': 'Yerel maç modu açık. Transfer ve günlük lig için tam sunucu ve veri dosyaları gerekli.'})
+            return self.reply(503, {'error': 'Yerel maç modu açık. Günlük lig için --mode league, transferler için --mode full kullan.'})
         parts = Path(path).parts
         if any(p.startswith('.') or p in ('work', 'node_modules', '__pycache__') for p in parts if p not in ('/', '')) or path.endswith(('.py', '.db', '.sqlite', '.sqlite3', '-wal', '-shm', '.key', '.pem')):
             return self.reply(403, {'error': 'Dosya erişime kapalı.'})
         return super().do_GET()
 
     def do_POST(self):
-        self.reply(503, {'error': 'Yerel maç modunda sunucu hesabı oluşturulmaz. Tam mod için KURULUM.md dosyasına bak.'})
+        self.reply(503, {'error': 'Yerel maç modu açık. Lig hesabı için --mode league, transfer hesabı için --mode full kullan.'})
 
 
 def main(argv=None):
     if sys.version_info < (3, 10):
         raise SystemExit('Python 3.10 veya daha yeni bir sürüm gerekli.')
     parser = argparse.ArgumentParser(description='Tribün Manager başlatıcısı')
-    parser.add_argument('--mode', choices=['local', 'full'], default='local')
+    parser.add_argument('--mode', choices=['local', 'league', 'full'], default='local')
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', type=int, default=8000)
     args = parser.parse_args(argv)
@@ -52,6 +53,11 @@ def main(argv=None):
             parser.error('Tam mod için eksik dosyalar: ' + ', '.join(missing) + '. Yerel maç için --mode local kullan. Ayrıntılar KURULUM.md içinde.')
         import server
         return server.run(host=args.host, port=args.port)
+    if args.mode == 'league':
+        if not shutil.which('node'):
+            parser.error('Canlı lig için Node.js kurulu olmalı.')
+        import server
+        return server.run(host=args.host, port=args.port, with_transfers=False)
     print(f'Tribün Manager · YEREL MAÇ: http://{args.host}:{args.port}/', flush=True)
     print('Kadro → Taktik → Maçı başlat. Transfer/günlük lig bu modda kapalı. Kapatmak için Ctrl+C.', flush=True)
     try:

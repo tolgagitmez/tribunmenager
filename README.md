@@ -2,6 +2,19 @@
 
 **[Oyunu kurmak ve çalıştırmak için adım adım KURULUM.md rehberini aç.](KURULUM.md)** Python 3.10+ yeterlidir: Windows’ta `BASLAT.bat`, macOS/Linux’ta `sh BASLAT.sh`. Varsayılan yerel maç modu eksik ekonomi kataloğuna ihtiyaç duymaz.
 
+## Maç içinde menajer vuruşları
+
+Yerel maçta takımın bir penaltı, frikik, korner veya açık oyun ortası kullanmaya hazır olduğunda maç saati bekler.
+
+1. Sahada dokun veya sürükle. Yönü ve gücü, klavyeyle kullanılabilen kaydırıcılarla da ayarlayabilirsin.
+2. **Temas noktasına geç** ve top üzerinde vuracağın yeri seç. Alt temas topu kaldırır, üst temas daha alçak gönderir ve yan temas topa falso verir. **Vuruşu yap** ile maç kaldığı yerden devam eder.
+
+**Oyuncuya bırak** düğmesi vuruşu otomatik kullandırır. Orta, frikik, korner ve penaltı becerileri vuruştaki sapmayı etkiler. Kadro ekranında duran top sorumlusunu seçerken ilgili beceri puanını görebilirsin. Kayıtta ayrı bir duran top puanı varsa motor onu kullanır. Eski kadrolarda bu puanlar mevcut pas, bitiricilik, soğukkanlılık ve orta becerilerinden hesaplanır.
+
+Günlük ligde maç saati geldiğinde **Lig → Canlı maçı izle** yolunu kullan. İki menajer bağlandığında herkes kendi takımının vuruşlarını kullanır. Botlar ve maçı izlemeyen menajerlerin oyuncuları otomatik vurur. Canlı seçim için 12 saniye verilir. Sunucu iki tarafa aynı maç saatini, skoru ve olayları gönderir ve maçın sonucunu lig tablosuna işler. [Canlı lig kurulumu](KURULUM.md#canlı-lig).
+
+[Sahada yön ve güç seçimi](docs/previews/manager-kick-aim.png) · [Mobilde temas noktası seçimi](docs/previews/manager-kick-contact.png)
+
 ## On beşinci aşama: standart Blender aktarımı ve çizici karşılaştırması — v1.34.0
 
 **[Standart model karşılaştırma atölyesini aç](interop-lab.html).** Aynı Blender futbolcusunun GLB veya harici dosyalı glTF sürümünü mevcut WebGL çizicisi ve Three.js üzerinde, aynı animasyon zamanı ve kamera ile inceleyebilirsin. Python başlatıcısı yeterlidir; gerekli kütüphaneler pakettedir, CDN veya npm çalışma anında gerekmez.
