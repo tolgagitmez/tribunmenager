@@ -32,3 +32,38 @@ jobs:
           if [ -f tests/attack-breakpoint.test.cjs ]; then
             node --test tests/attack-breakpoint.test.cjs
           fi
+
+  broader-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install -r requirements-player-assets.txt
+      - name: Existing character, rules and match regressions
+        run: npm run test:stage15
+      - name: Manager kicks and shared live league
+        run: npm run test:manager-kick && npm run test:live-match
+
+  presentation-physics-invariance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Old and new animation rig on the updated single-cause engine
+        run: npm run test:engine-invariance
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: attack-fixed-motor-rig-invariance
+          path: docs/validation/character-physics.json
+          retention-days: 30
