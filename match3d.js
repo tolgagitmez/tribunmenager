@@ -231,7 +231,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     game.sample(now,stopped?0:dt);
     if(overlayTime>0&&(overlayTime-=dt)<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}
    }
-   if(!scene.matchPilot&&window.TribunLiveClipPilot&&new URLSearchParams(location.search).get('pilot')!=='0')
+   if(!scene.matchPilot&&window.TribunLiveClipPilot&&new URLSearchParams(location.search).get('pilot')==='1')
     scene.matchPilot=window.TribunLiveClipPilot.create({playerId:0});
    scene.matchPilot?.observe(game,stopped?0:dt);
    let drawMs=0;
