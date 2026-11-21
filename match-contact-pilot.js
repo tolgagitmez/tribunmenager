@@ -39,6 +39,7 @@ function create({playerId=0}={}){
   const keys=Object.keys(proxy);for(const key of keys)if(!(key in p))delete proxy[key];
   Object.assign(proxy,p);
   proxy.pilotBrake=brake;proxy.pilotTurn=turn;
+  proxy.pilotPlant=inRecovery||shot&&p.actionClock>0;
   if(inRecovery){
    const contact=Math.max(.1,p.contactTime||.38),follow=now-releaseAt;
    proxy.action=p.action==='pass'?'pass':'shoot';
