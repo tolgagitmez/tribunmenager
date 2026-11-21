@@ -71,7 +71,10 @@ python3 -m venv .venv
 . .venv/bin/activate
 python3 -m pip install -r requirements-player-assets.txt
 python3 tools/build-player-assets.py --from-package --output /tmp/tribun-player-rebuild
+python3 tools/verify-player-asset-rebuild.py --package assets/player --rebuilt /tmp/tribun-player-rebuild
 ```
+
+Karşılaştırıcı iki paketin de manifest SHA-256 kayıtlarının geçerli olmasını ister. Özgün CC0 kaynakları, lisans, provenance, indeksler, eklemler ve PNG dosyaları birebir; yalnız türetilmiş GLB/runtime modelin kayan noktalı geometri bileşenleri en çok **2 × 10⁻⁶**, JSON matris/istatistik sayıları en çok **10⁻¹⁰** mutlak farkla eşdeğer olmalıdır. Bu kontrol, farklı BLAS/CPU/NumPy ortamlarında *bayt düzeyinde yeniden üretimi garanti etmez*; kaynak orijinalliğini ve geometri eşitliğini ayrı ayrı doğrular.
 
 Windows'ta sanal ortamı `.venv\Scripts\activate` ile etkinleştir; `python` veya `py -3` ve örneğin `--output oyuncu-yeniden-uretim` kullan. NumPy/Pillow kurulumundan sonra üretici ağ bağlantısı kullanmaz. Paketlenmiş kaynakları geçici dizine açar, beş kaynak/lisans dosyasını denetler, rig referansını karşılaştırır ve çıktıları belirtilen dizine üretir. Özel bir paket dizini için `--from-package /dosya/yolu/assets/player` kullanılabilir. `--source-dir` özgün, doğrulanmış indirme dizinine alternatif giriştir; `--from-package` ile birlikte kullanılmaz.
 

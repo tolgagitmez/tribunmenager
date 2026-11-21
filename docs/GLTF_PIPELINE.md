@@ -25,6 +25,8 @@ Varlık paketi CC0-1.0'dır: [krediler](../assets/interchange/CREDITS.md), [CC0 
 
 `manifest.json` içindeki `files` listesi, teslim edilen `editable.blend` dahil dosyaların byte uzunluğunu ve SHA-256 değerlerini verir. Bu, hangi düzenlenebilir kaynağın hangi çıktıyla teslim edildiğini izlemeyi sağlar. `.blend` oturum metaverisi içerdiği için yeniden üretimde birebir aynı byte dizisini vermesi beklenmez; geometri, doku ve örneklenmiş pozlar sayısal olarak doğrulanır.
 
+`rebuild.json` içindeki kaynak dosya hash'leri **Blender 4.3.2 paketi üretildiği andaki tarihsel kaynak fotoğrafıdır**; sonradan geliştirilmiş çizici veya üretici açıklamasına göre geriye dönük değiştirilmez. Güncel `player-renderer.js` ve `tools/build-player-assets.py` revizyonlarının Git blob özetleri ayrıca testte sabittir. Bu iki dosya güncellense de `bake-licensed-clips.cjs` tarafından bugün oluşturulan **tam kanonik animasyonlu GLB**, paket ilk üretilirken kaydedilmiş `canonicalInput.sha256` ve byte uzunluğuyla birebir aynı olmalıdır. Oynaması veya geometri değiştirmesi bu kontrolü kırar. Kaynak MakeHuman CC0 pinleri ve teslim edilen Blender dosyalarının SHA-256 kayıtları aynen korunur.
+
 ## Yeniden üretme
 
 Proje tarafından desteklenen Node sürümü, `npm ci` ile kurulan sabit bağımlılıklar ve `io_scene_gltf2` eklentisi bulunan Blender 4.3.2 gerekir. Depo kökünden:
