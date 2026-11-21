@@ -29,6 +29,10 @@ LICENSED_ARTIFACTS = {
 spec = importlib.util.spec_from_file_location('tribun_asset_builder', ROOT / 'tools/build-player-assets.py')
 builder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(builder)
+check_spec = importlib.util.spec_from_file_location(
+    'tribun_asset_rebuild_verifier', ROOT / 'tools/verify-player-asset-rebuild.py')
+rebuild_verifier = importlib.util.module_from_spec(check_spec)
+check_spec.loader.exec_module(rebuild_verifier)
 
 
 def unpack(target):
@@ -121,16 +125,45 @@ class PlayerAssetBuildTests(unittest.TestCase):
         self.assertGreater(np.count_nonzero(protected),500)
         np.testing.assert_array_equal(derived[protected],original_weights[protected], 'hand, finger and wrist weights stay source-derived without smoothing')
 
-    def test_packaged_sources_rebuild_every_artifact_byte_for_byte_outside_repo(self):
+    def test_packaged_sources_rebuild_every_artifact_with_verified_binary_geometry_outside_repo(self):
         with tempfile.TemporaryDirectory(prefix='tribun-assets-rebuild-') as directory:
             out = Path(directory) / 'output'
             result = subprocess.run([sys.executable, str(ROOT / 'tools/build-player-assets.py'), '--from-package', '--output', str(out)], cwd=directory, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             generated = {p.relative_to(out) for p in out.rglob('*') if p.is_file()}
             self.assertEqual(generated, LICENSED_ARTIFACTS)
-            for name in sorted(LICENSED_ARTIFACTS):
-                with self.subTest(file=str(name)):
-                    self.assertEqual((out / name).read_bytes(), (PACKAGE / name).read_bytes())
+            # Official sources, license, provenance, texture PNGs and every
+            # manifest hash remain BYTE-EXACT. Only derived float attributes
+            # may differ by less than 2e-6 from the packaged reviewed model.
+            # NumPy/BLAS can otherwise produce differing last mantissa bits.
+            report = rebuild_verifier.compare_packages(PACKAGE, out)
+            self.assertGreater(report['float32ComponentsChecked'], 150000)
+            self.assertGreater(report['glbViewsChecked'], 6)
+            self.assertLessEqual(report['maxFloat32Delta'], 2e-6)
+            self.assertLessEqual(report['maxFloat64Delta'], 1e-10)
+
+    def test_rebuild_verification_does_not_accept_material_geometry_or_license_changes(self):
+        # Tolerance is only for sub-micrometre float32 rounding, not an
+        # altered shape, weight painting, index, source, texture or manifest.
+        a = np.array([.10, 1.2, -.4],dtype='<f4').tobytes()
+        b = np.array([.10, 1.201, -.4],dtype='<f4').tobytes()
+        with self.assertRaisesRegex(AssertionError, 'geometry differs'):
+            rebuild_verifier.compare_float32(a, b, 'tampered vertex', {
+                'maxFloat32Delta':0.,'float32ComponentsChecked':0})
+        with self.assertRaises(AssertionError):
+            rebuild_verifier.compare_structure(
+                {'model':{'weights':[1.,0.,0.]}},
+                {'model':{'weights':[0.,1.,0.]}}, 'modified weights')
+        with tempfile.TemporaryDirectory(prefix='tribun-source-integrity-') as directory:
+            pkg = Path(directory)
+            for relative in LICENSED_ARTIFACTS:
+                target=pkg/relative
+                target.parent.mkdir(parents=True,exist_ok=True)
+                target.write_bytes((PACKAGE/relative).read_bytes())
+            source = pkg/'source/provenance.json'
+            source.write_bytes(source.read_bytes()+b'\\n')
+            with self.assertRaisesRegex(AssertionError,'SHA256 integrity failure'):
+                rebuild_verifier.verify_manifest(pkg)
 
     def assert_rejected(self, name):
         with tempfile.TemporaryDirectory(prefix='tribun-assets-rejection-') as directory:
