@@ -69,3 +69,14 @@ jobs:
           name: attack-fixed-motor-rig-invariance
           path: docs/validation/character-physics.json
           retention-days: 30
+
+  find-live-match-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Find organic two-manager kick windows after engine change
+        run: node tools/find-live-match-fixture.cjs
