@@ -51,8 +51,11 @@ function penaltyPositionSnapshot({players,team,side,takerId,spot}){
 // scored goal stands and an unaffected miss is not automatically retaken.
 function penaltyDecision({keeperOffLine=false,goal=false,keeperSaved=false,
  attackingImpact=false,defendingImpact=false,keeperDistractedKicker=false}={}){
- if(goal)return {kind:attackingImpact?'indirect-free-kick':'goal',reason:attackingImpact?'attacker-impact':'scored'};
  if(attackingImpact&&defendingImpact)return {kind:'retake',reason:'both-teams-impact'};
+ // If an early attacker clearly distracted the goalkeeper and the kick
+ // scored, retake; an entrant who actually plays a rebound is dealt with
+ // earlier as an indirect free kick by the engine's touch adjudicator.
+ if(goal)return {kind:attackingImpact?'retake':'goal',reason:attackingImpact?'attacker-impact':'scored'};
  if(attackingImpact)return {kind:'indirect-free-kick',reason:'attacker-impact'};
  if(defendingImpact)return {kind:'retake',reason:'defender-impact'};
  if(keeperOffLine&&(keeperSaved||keeperDistractedKicker))return {kind:'retake',reason:'keeper-line'};
