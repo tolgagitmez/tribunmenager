@@ -148,10 +148,16 @@ def settle_due(now=None):
                     (league,round,home,away,kickoff,config) VALUES(?,?,?,?,?,?)''',
                     (*key,kickoff,json.dumps(config,ensure_ascii=False)))
                 created.append((key,kickoff,config))
-        # Register only after the committed, immutable kickoff configurations
-        # exist; an absent manager simply leaves the same engine on autopilot.
-        for key,kickoff,config in created:
-            LIVE_MATCHES.get(Path(DATA).resolve(),key,kickoff,config)
+            pending=c.execute('''SELECT league,round,home,away,kickoff,config
+                FROM live_matches WHERE final_state IS NULL AND kickoff<=?
+                ORDER BY kickoff,league,round,home,away''',(now,)).fetchall()
+        # Register only after the committed kickoff snapshots exist. Reconcile
+        # already provisioned matches as well, so a process failure between
+        # committing a fixture and registering its worker cannot strand it.
+        registry_path=Path(DATA).resolve()
+        for item in pending:
+            key=tuple(item[field] for field in ('league','round','home','away'))
+            LIVE_MATCHES.get(registry_path,key,item['kickoff'],json.loads(item['config']))
     return len(created)
 
 def status(token, now=None):
