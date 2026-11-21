@@ -183,3 +183,19 @@ for(const mode of ['catch-ready','dive']){
   }
  });
 }
+
+test('a screened shot can become reachable later, but is counted once',()=>{
+ const m=match(),gk=m.players[21],shooter=m.players[0];gk.x=52;gk.z=0;gk.action='idle';
+ m.ball={x:49,y:1,z:0,vx:12,vy:0,vz:0};
+ m.flight={id:201,kind:'shot',from:shooter,age:.1};
+ m.lastTouch=shooter;m.goalThreat=()=>true;
+ m.ballCrossing=()=>({x:52,t:.5,y:1,z:0});
+ m.keeperVisibility=()=>false;
+ m.keeper({x:48.8,y:1,z:0},1/60);
+ assert.equal(m.telemetry.keeperReachableShots||0,0);
+ m.keeperVisibility=()=>true;
+ m.keeper({x:48.8,y:1,z:0},1/60);
+ m.keeper({x:48.8,y:1,z:0},1/60);
+ assert.equal(m.telemetry.keeperReachableShots,1);
+ assert.equal(m.keeperSummary().reachableShots,1);
+});
