@@ -6,6 +6,15 @@
 
 **Düzeltme:** Yalnızca bu özel bekleme dalında, `passOptions()`'ın zaten ürettiği kısa, ileri, düşük riskli seçenekler sırayla yoklanır. İleri kazanım >3 m, mesafe <24 m, şerit riski <0,34, varış riski <0,60, açık alan >2,4 m, uygun gövde dönüşü ve pozitif skor gerekir. Ayrıca normal `passPreparation()` izole fizik tahmini vuruşun gerçekten hazırlanabilir olduğunu doğrulamalıdır. İlk iki aday da başarısızsa **eski bekleme davranışı korunur**. Yeni rastgelelik, teleport, vuruş istisnası, hakem kuralı veya savunmacı zayıflatması yoktur. Alıcı dönüşü, destek yerleşimi ve ceza sahası koşusu kodlarına dokunulmadı.
 
+## Birlikte incelenen dört bileşen
+
+- **Alıcının gövde yönü:** 177 alıcı değişiminin 57'sinde oyuncu hücum yönüne ters bakıyordu; tek başına hatalı ilk kontrol kanıtı değildir.
+- **Erişilebilir destek:** Bu alıcı anlarının 138'inde yakın destek görünüyordu; her başarısız hücumu desteksizliğe bağlamak doğru olmaz.
+- **Pas hazırlığı:** Gözlemci 50 bekletme kararı (toplam yaklaşık 21,8 saniye) ve yalnızca bir hazırlık iptali kaydetti. Düzeltme gerçek hazırlık tahminini geçemeyen pasları seçmez.
+- **Ceza sahası koşusu:** Son bölgedeki 751 gözlem karesinin 376'sında koşucu komutu vardı. Koşu yokluğu tek başına açıklama değildir; fiziksel top girişini ayrıca ölçmek gerekir.
+
+Böylece tercih edilen tek müdahale oyuncuları hızlandırmak veya rakibi zayıflatmak değil, **uygun pas hazırken kararın gecikmesini önlemek** oldu.
+
 ## Ölçülen dört maçın ilk 120 saniyesi
 
 Aynı mevcut motor/aynı tohum/dizilişle karşılaştırılan dört senaryo: `balanced21`, `press42`, `narrow21`, `wide21`. Her senaryoda kendi sabit kadrosu ve taktikleri kullanıldı; kullanıcıdan gelen 413 saniye / 2 şut örnekleminin tam konfigürasyonları verilmediğinden **aynı deneymiş gibi gösterilmez**.
