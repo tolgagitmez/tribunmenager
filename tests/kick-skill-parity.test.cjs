@@ -6,7 +6,7 @@ const {Match}=require('../football-sim');
 for(const kind of ['penalty','free-kick','corner']){
  for(const mode of ['automatic','manager']){
   test(kind+' '+mode+' uses its specialist for real heading and first landing',()=> {
-   const low=evaluate(kind,20,mode),high=evaluate(kind,94,mode);
+   const low=evaluate(kind,20,mode),high=evaluate(kind,94,mode);\n   if(kind==='corner')console.log('CORNER_DIAGNOSTIC',JSON.stringify({low:{skill:low.skill,context:low.releaseContext,angle:low.targetDeviationDegrees},high:{skill:high.skill,context:high.releaseContext,angle:high.targetDeviationDegrees}}));
    assert(high.skill>low.skill+45,'specialized rating must reach foot execution');
    assert.equal(high.targetAngle,low.targetAngle,'selected heading must not depend on the execution score');
    assert(high.targetDeviationDegrees<low.targetDeviationDegrees*.85,
@@ -26,7 +26,7 @@ for(const kind of ['penalty','free-kick','corner']){
  test(kind+' automatic and manager control with identical intention use identical impulse',()=>{
   for(const rating of [20,94]){
    const ai=evaluate(kind,rating,'automatic');
-   const same=evaluate(kind,rating,'automatic',Match,true);
+   const same=evaluate(kind,rating,'automatic',Match,true);\n   if(kind==='corner')console.log('CORNER_CONTROL_PARITY',JSON.stringify({rating,ai:ai.releaseContext,same:same.releaseContext}));
    assert.deepEqual(ai.rawVelocity,same.rawVelocity);
    assert.equal(ai.seedAtRelease,same.seedAtRelease,'RNG draws must match');
    assert.deepEqual(ai.firstLanding,same.firstLanding);
