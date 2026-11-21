@@ -1,7 +1,7 @@
 'use strict';
 const {Match}=require('../football-sim');
 const tactics={playstyle:'wing',crossing:'early',tempo:90,mentality:'attacking',aggression:80,press:76,passing:'direct'};
-const max=Number(process.env.SEED_MAX||70);
+const max=Number(process.env.SEED_MAX||60);
 let firstHome=0,firstAway=0;
 for(let seed=1;seed<=max;seed++){
  const match=new Match({seed,tactics,awayTactics:tactics,rules:{periodSeconds:45,halftimeSeconds:0,addedTime:false}});
@@ -13,7 +13,12 @@ for(let seed=1;seed<=max;seed++){
    const offer=match.pendingManagerKick;
    offers.push({tick,team:offer.team,kind:offer.kind,period:match.period,id:offer.id});
    if(!match.resolveManagerKick(offer.id,null))throw Error('Failed to delegate AI kick at '+seed+'/'+tick);
+   // A different first or second offer cannot satisfy the original worker test.
+   if(offers.length>=2||offers.length===1&&
+      !(offer.team===0&&offer.kind==='free-kick'&&offer.period===1&&offer.tick<=2400))break;
   }
+  if(!offers.length&&tick>2400)break;
+  if(offers.length===1&&tick-offers[0].tick>2700)break;
  }
  if(offers[0]?.team===0&&offers[0]?.kind==='free-kick'&&offers[0]?.period===1&&offers[0]?.tick<=2400)firstHome++;
  if(offers[1]?.team===1&&offers[1]?.kind==='free-kick'&&offers[1]?.period===2)firstAway++;
