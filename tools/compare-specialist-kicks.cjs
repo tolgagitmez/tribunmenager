@@ -43,7 +43,10 @@ function evaluate(kind,rating,mode,Engine=Match,forceSameControl=false){
   const requested=control?.angle??Math.atan2(k.point.z-this.ball.z,k.point.x-this.ball.x);
   const aim={...k.point},before={...this.ball};
   const okay=oldRelease.apply(this,args);
-  if(this.releaseSerial>prior){
+  // Keep the first actual set-piece release: 180 following frames are for
+  // keeper observation only, and can contain later ordinary teammate passes.
+  // A subsequent pass must never overwrite this specialist measurement.
+  if(this.releaseSerial>prior && released===null){
    const velocity={...this.ball},angle=Math.atan2(velocity.vz,velocity.vx);
    const speed=Math.hypot(velocity.vx,velocity.vz);
    const expected={...velocity,vx:Math.cos(requested)*speed,vz:Math.sin(requested)*speed};
