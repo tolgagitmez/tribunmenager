@@ -32,9 +32,9 @@ jobs:
           node-version: '24'
       - name: Discover actual home and away manager-kick windows without injected restarts
         run: node tools/probe-live-offers.cjs
-  archived-regression:
+  gameplay-and-live:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -44,6 +44,11 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
-      - run: python -m pip install -r requirements-player-assets.txt
-      - name: Retain full previous football/character and glTF behavior
-        run: npm run test:stage15
+      - name: All historic field-engine tests before licensed-asset rebuilding
+        run: npm run test:stage12
+      - name: Two authentic home and away manager kicks with physical release
+        run: node --test tests/live-match-worker.test.cjs
+      - name: Authenticated HTTP league, worker replay and season status
+        run: python -m unittest discover -s tests -p 'test_live_match.py' -v && python -m unittest discover -s tests -p 'test_season_rotation.py' -v
+      - name: Spectator/watch parity
+        run: node --test tests/fixture-watch-parity.test.cjs
