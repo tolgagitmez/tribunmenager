@@ -1,0 +1,54 @@
+name: Physical aerial opportunities and legacy coverage gate
+on:
+  pull_request:
+    paths:
+      - tools/check-attacking-coverage.cjs
+      - tests/attacking-coverage.test.cjs
+      - .github/workflows/attack-coverage-sync.yml
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  controlled-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Measure actual aerial reachability, header, pass and miss denominators
+        run: node --test tests/attacking-coverage.test.cjs
+      - name: Real long-pass aerial collision regression
+        run: node --test tests/aerial-keeper-law-boundaries.test.cjs
+  real-offer-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Discover actual home and away manager-kick windows without injected restarts
+        run: node tools/probe-live-offers.cjs
+  gameplay-and-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - name: All historic field-engine tests before licensed-asset rebuilding
+        run: npm run test:stage12
+      - name: Two authentic home and away manager kicks with physical release
+        run: node --test tests/live-match-worker.test.cjs
+      - name: Authenticated HTTP league, worker replay and season status
+        run: python -m unittest discover -s tests -p 'test_live_match.py' -v && python -m unittest discover -s tests -p 'test_season_rotation.py' -v
+      - name: Spectator/watch parity
+        run: node --test tests/fixture-watch-parity.test.cjs

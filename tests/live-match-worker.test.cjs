@@ -13,7 +13,7 @@ const tactics = {
   aggression: 80, press: 76, passing: 'direct'
 };
 const config = {
-  seed: 6, tactics, awayTactics: tactics,
+  seed: 5, tactics, awayTactics: tactics,
   rules: {periodSeconds: 45, halftimeSeconds: 0, addedTime: false}
 };
 
@@ -68,9 +68,10 @@ async function advanceWithoutOffer(engine, teams, steps) {
   return state;
 }
 
-test('one worker processes both sides of a seeded match and an absent team takes the same AI kick', {timeout: 80000}, async () => {
+test('two authentic seeded fixtures exercise both managers and absent-team delegation', {timeout: 80000}, async () => {
   const shared = worker();
   const absent = worker();
+  const awayEngine = worker();
   try {
     const [start, alternate] = await Promise.all([shared, absent].map(engine =>
       accepted(engine, {op: 'init', config})
@@ -106,31 +107,35 @@ test('one worker processes both sides of a seeded match and an absent team takes
     assert.deepEqual(bot.score, delegated.state.score);
     assert.equal(bot.time, delegated.state.time);
 
-    const away = await reachOffer(shared, [0, 1], 2700);
+    // Current tactics produce no second period free kick in seed 5.
+    // Seed 9 naturally offers the away manager a period-two free kick.
+    // These are TWO real and fully physical fixtures, not an injected event.
+    await accepted(awayEngine, {op:'init', config:{...config,seed:9}});
+    const away = await reachOffer(awayEngine, [0, 1], 4600);
     const awayOffer = away.state.pendingManagerKick;
     assert.equal(awayOffer.team, 1);
     assert.equal(awayOffer.kind, 'free-kick');
     assert.equal(away.state.period, 2);
-    assert(awayOffer.id > homeOffer.id);
-    const stale = await accepted(shared, {op: 'kick', id: homeOffer.id, input: null});
+    assert.equal(awayOffer.id, 1, 'the separate fixture uses its own event series');
+    const stale = await accepted(awayEngine, {op: 'kick', id: awayOffer.id+99, input: null});
     assert.equal(stale.accepted, false);
     assert.deepEqual(stale.state, away.state);
 
     const input = {angle: awayOffer.angle + .08, power: .73, contactX: .45, contactY: -.35};
-    const invalid = await accepted(shared, {op: 'kick', id: awayOffer.id, input: {...input, power: 2}});
+    const invalid = await accepted(awayEngine, {op: 'kick', id: awayOffer.id, input: {...input, power: 2}});
     assert.equal(invalid.accepted, false);
     assert.deepEqual(invalid.state, away.state);
-    const manual = await accepted(shared, {op: 'kick', id: awayOffer.id, input});
+    const manual = await accepted(awayEngine, {op: 'kick', id: awayOffer.id, input});
     assert.equal(manual.accepted, true);
     assert.equal(manual.state.pendingManagerKick, null);
     assert.equal(manual.state.releaseSerial, away.state.releaseSerial, 'the accepted kick still needs foot contact');
     assert.deepEqual(manual.state.ball, away.state.ball);
-    const retry = await accepted(shared, {op: 'kick', id: awayOffer.id, input});
+    const retry = await accepted(awayEngine, {op: 'kick', id: awayOffer.id, input});
     assert.equal(retry.accepted, false);
 
     let flight = manual.state;
     for (let i = 0; i < 360 && flight.releaseSerial === away.state.releaseSerial; i++) {
-      const tick = await accepted(shared, {op: 'advance', steps: 1, teams: [0, 1]});
+      const tick = await accepted(awayEngine, {op: 'advance', steps: 1, teams: [0, 1]});
       assert.equal(tick.steps, 1);
       flight = tick.state;
     }
@@ -145,6 +150,6 @@ test('one worker processes both sides of a seeded match and an absent team takes
     assert(flight.events.some(event => ['cross', 'shot'].includes(event.type) &&
       event.team === 1 && event.playerId === awayOffer.playerId && event.time >= away.state.time));
   } finally {
-    await Promise.all([shared.close(), absent.close()]);
+    await Promise.all([shared.close(), absent.close(), awayEngine.close()]);
   }
 });

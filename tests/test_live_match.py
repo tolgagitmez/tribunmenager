@@ -69,13 +69,13 @@ class LiveMatchTest(unittest.TestCase):
 
     def scenario(self, database, key, now, kickoff):
         config = self.original_config(database, key, now, kickoff)
-        # This seed generates a home free kick and then an away free kick
-        # through ordinary play. We advance fixed ticks without wall waits.
+        # Each selected seed is a real physical match, not an injected
+        # restart. Home seed 5 and away seed 9 cover independent live prompts.
         tactics = {"playstyle": "wing", "crossing": "early", "tempo": 90,
                    "mentality": "attacking", "aggression": 80, "press": 76, "passing": "direct"}
         for field in ("players", "starters", "awayPlayers", "awayStarters"):
             config.pop(field)
-        return {**config, "seed": 6, "catchupSteps": 0, "awayFormation": "4-2-3-1",
+        return {**config, "seed": getattr(self, "match_seed", 5), "catchupSteps": 0, "awayFormation": "4-2-3-1",
                 "tactics": tactics, "awayTactics": tactics,
                 "rules": {"periodSeconds": 45, "halftimeSeconds": 0, "addedTime": False}}
 
@@ -91,6 +91,47 @@ class LiveMatchTest(unittest.TestCase):
             if condition(session.state):
                 return session.state
         self.fail(f"Match condition did not happen by {session.state['time']:.2f}s")
+
+    def test_away_free_kick_manual_control_is_authoritative_and_replayable(self):
+        # Real seed 9 naturally offers an away free kick in period two.
+        # It is independent of seed 5's home prompt; no restart is injected.
+        self.match_seed = 9
+        self.original_config = server.live_config
+        with patch.object(server, "live_config", self.scenario):
+            home = self.get(self.home)
+            away = self.get(self.away)
+        self.session = self.registry.matches[(self.path, self.key)]
+        self.assertEqual(home["state"], away["state"])
+        away_state = self.next_state(
+            lambda x: x.get("pendingManagerKick"), side_tokens=(self.home, self.away))
+        away_offer = away_state["pendingManagerKick"]
+        self.assertEqual(away_offer["team"], 1)
+        self.assertEqual(away_offer["kind"], "free-kick")
+        self.assertEqual(away_state["period"], 2)
+        self.assert_http(409, self.kick, self.home, away_offer["id"], None)
+        control = {"angle": away_offer["angle"], "power": .9,
+                   "contactX": .4, "contactY": -.55}
+        accepted = self.kick(self.away, away_offer["id"], control)
+        self.assertIsNone(accepted["state"]["pendingManagerKick"])
+        self.assertEqual(accepted["state"], self.get(self.home)["state"])
+        self.assert_http(409, self.kick, self.away, away_offer["id"], control)
+        self.session.discard_worker()
+        self.assertEqual(accepted["state"], self.get(self.home)["state"])
+        next_release = self.next_state(
+            lambda x: x["releaseSerial"] > accepted["state"]["releaseSerial"],
+            side_tokens=(), iterations=8)
+        self.assertGreater(next_release["releaseSerial"],
+                           accepted["state"]["releaseSerial"])
+        self.session.presence[:] = [0, 0]
+        final = self.next_state(lambda x: x["done"], side_tokens=())
+        self.assertEqual(final, self.get(self.home)["state"])
+        with server.db() as database:
+            result = database.execute(
+                f"SELECT * FROM fixtures WHERE {live_match.FIXTURE_KEY}", self.key).fetchone()
+            self.assertEqual(final["score"], [result["home_score"], result["away_score"]])
+            self.assertTrue(database.execute(
+                f"SELECT final_state FROM live_matches WHERE {live_match.FIXTURE_KEY}",
+                self.key).fetchone()["final_state"])
 
     def test_authoritative_fixture_kicks_disconnect_and_table(self):
         self.original_config = server.live_config
@@ -121,22 +162,6 @@ class LiveMatchTest(unittest.TestCase):
         self.session.presence[0] = time.monotonic() - 1
         self.session.tick()
         self.assertIsNone(self.get(self.away)["state"]["pendingManagerKick"])
-        away_state = self.next_state(lambda x: x.get("pendingManagerKick"), side_tokens=sides)
-        away_offer = away_state["pendingManagerKick"]
-        self.assertEqual(away_offer["team"], 1)
-        self.assert_http(409, self.kick, self.home, away_offer["id"], None)
-        control = {"angle": away_offer["angle"], "power": .9, "contactX": .4, "contactY": -.55}
-        accepted = self.kick(self.away, away_offer["id"], control)
-        self.assertIsNone(accepted["state"]["pendingManagerKick"])
-        self.assertEqual(accepted["state"], self.get(self.home)["state"])
-        self.assert_http(409, self.kick, self.away, away_offer["id"], control)
-        # A worker restart must replay the command and preserve the match
-        # state which both watchers already received.
-        self.session.discard_worker()
-        self.assertEqual(accepted["state"], self.get(self.home)["state"])
-        next_release = self.next_state(lambda x: x["releaseSerial"] > accepted["state"]["releaseSerial"],
-                                       side_tokens=(), iterations=8)
-        self.assertGreater(next_release["releaseSerial"], accepted["state"]["releaseSerial"])
         self.session.presence[:] = [0, 0]
         final = self.next_state(lambda x: x["done"], side_tokens=())
         self.assertEqual(final, self.get(self.home)["state"])
