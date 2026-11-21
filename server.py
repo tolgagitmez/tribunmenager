@@ -310,9 +310,11 @@ class Handler(SimpleHTTPRequestHandler):
         if p.path=='/api/health':return self.json_response({'ok':True,'mode':'development' if TRANSFERS_ENABLED else 'league','daily_match_seconds':300,'dailyLeague':True,'transfers':TRANSFERS_ENABLED})
         if p.path=='/api/league/status':
             try:return self.json_response(status(parse_qs(p.query).get('token',[''])[0]))
+            except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
             except ValueError as e:return self.json_response({'error':str(e)},403)
         if p.path=='/api/league/local-match':
             try:return self.json_response(local_match(self.transfer_token()))
+            except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
             except ValueError as e:return self.json_response({'error':str(e)},403)
         if p.path=='/api/league/live-match':
             try:
@@ -368,6 +370,7 @@ class Handler(SimpleHTTPRequestHandler):
             elif p.endswith('join'):data=join_league(body.get('code'),body.get('manager'))
             else:data=update_tactics(body.get('token'),body.get('tactics'),body.get('formation'))
             return self.json_response(data)
+        except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
         except (ValueError,json.JSONDecodeError) as e:return self.json_response({'error':str(e)},400)
     def log_message(self,format,*args):pass
 
