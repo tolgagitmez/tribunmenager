@@ -1,0 +1,102 @@
+{
+  "type": "verified-current-engine-reference",
+  "measuredAt": "2026-11-21T18:13:38.766Z",
+  "provenance": {
+    "repository": "tolgagitmez/tribunmenager",
+    "testedPullRequest": 14,
+    "testedHead": "ab78594e1832eefa53f6ccf22e235b48e35f12a4",
+    "githubActionsRun": "https://github.com/tolgagitmez/tribunmenager/actions/runs/44933935510",
+    "artifact": "https://github.com/tolgagitmez/tribunmenager/actions/runs/44933935510/artifacts/14718618989",
+    "ciMergeSha": "dfc46f483c266466523c546f28b2702105f72ea0",
+    "fullReportFile": "character-physics.json",
+    "reportZipSHA256": "31b673fc36da91cefbda2e7d6c61c10916246962dde4aec73877f437f37e524f"
+  },
+  "sources": {
+    "currentEngineSHA256": "593d6e80f3d4eadbe85f8969d3778773be617c4b3c0fdf65825125b3c62551ba",
+    "currentRigSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
+    "oldRigSHA256": "2c024a0fd130d50baa04533ae255a8f72b7dc93c269ef3d0af86ae6771820b3d",
+    "checkerSHA256": "aebeb0ac3b59c1152b1a7603f110c8c5e99204217d1598727c76d31e4d148a8d"
+  },
+  "method": "Both animation rigs run identical seeded fixtures on the current engine. Exact ball, score, card, referee, events and RNG state every 1/60s; full structured match state every 120 ticks and at end.",
+  "totals": {
+    "scenarios": 3,
+    "physicalTicks": 59400,
+    "completeStateChecks": 495,
+    "divergences": 0
+  },
+  "scenarios": [
+    {
+      "seed": 21,
+      "ticks": 18960,
+      "stateChecks": 158,
+      "score": [
+        0,
+        0
+      ],
+      "shots": [
+        0,
+        0
+      ],
+      "fouls": [
+        1,
+        0
+      ],
+      "cards": [
+        0,
+        0
+      ],
+      "refereeDecisions": 1,
+      "ballSHA256": "a43a514e2cc7ad273cfcbdb7acdcb2607c21e2de9f5cff6b5abd4711490b9a5d",
+      "refereeSHA256": "e3ed848c395230e40ab1aa018b48b011005e1957f99fe2a347adaa1bcf0c0406"
+    },
+    {
+      "seed": 42,
+      "ticks": 21000,
+      "stateChecks": 175,
+      "score": [
+        0,
+        0
+      ],
+      "shots": [
+        1,
+        1
+      ],
+      "fouls": [
+        2,
+        1
+      ],
+      "cards": [
+        1,
+        1
+      ],
+      "refereeDecisions": 3,
+      "ballSHA256": "bd2113113a59e753cfaae91d185d90b48e2e4a1069c4a2d5e74ea0f582a9160b",
+      "refereeSHA256": "6e78c01655de2ae1095240c8136d219460738e73e07ca5959d735da7fc24e450"
+    },
+    {
+      "seed": 77,
+      "ticks": 19440,
+      "stateChecks": 162,
+      "score": [
+        0,
+        0
+      ],
+      "shots": [
+        0,
+        0
+      ],
+      "fouls": [
+        0,
+        2
+      ],
+      "cards": [
+        0,
+        0
+      ],
+      "refereeDecisions": 2,
+      "ballSHA256": "0cc74164676e2d3c219710a77edd75462e2e2d7de3a9d2f097e1087a88931a1",
+      "refereeSHA256": "2daa2236bb765b562f57afefb5a0593b97c8f1106c83edba22d3c46d57396932"
+    }
+  ],
+  "verified": true
+}
