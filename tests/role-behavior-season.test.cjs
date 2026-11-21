@@ -58,7 +58,7 @@ test('real Match defensive and offensive instructions distinguish DM/AM and full
 });
 test('the same stored slot ID keeps original identity while bench sub earns separate playing minutes',()=>{
  const players=Model.demoTeam(0,'4-3-3');players.push(raw('AM',99));
- const m=new Match({seed:9,players,starters:players.slice(0,11).map(p=>p.id),rules:{minPlayers:1,periodSeconds:30,halftimeSeconds:0,addedTime:false}});
+ const m=new Match({seed:9,seasonTracking:true,players,starters:players.slice(0,11).map(p=>p.id),rules:{minPlayers:1,periodSeconds:30,halftimeSeconds:0,addedTime:false}});
  for(let i=0;i<42;i++)m.step(1/60);
  const old=m.players[0].rosterId;
  const prior=m.appearanceReport().find(a=>a.team===0&&a.rosterId===old);
