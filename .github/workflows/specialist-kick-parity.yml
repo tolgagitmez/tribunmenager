@@ -59,3 +59,14 @@ jobs:
         with:
           node-version: '24'
       - run: npm run test:engine-invariance
+
+  search-live-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Locate two natural controlled kicks for worker regression
+        run: node tools/find-specialist-live-seed.cjs
