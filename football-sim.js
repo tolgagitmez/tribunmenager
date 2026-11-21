@@ -154,7 +154,7 @@ class Match{
   this.rules=MatchRules.normalize(this.cfg);this.duration=this.rules.periodSeconds*2;
   this.matchClock=MatchRules.createClock(this.rules);this.period=1;this.lifecycle='playing';
   this.substitutionState=MatchRules.createSubstitutionState();this.subWindowsUsed=0;this.substitutionPause=null;
-  this.referee={pendingAdvantage:null,pendingDiscipline:[],decisions:[]};this.penaltyAttempt=null;this.offsidePhase=null;this.stoppageSerial=0;
+  this.appearances=new Map();this.referee={pendingAdvantage:null,pendingDiscipline:[],decisions:[]};this.penaltyAttempt=null;this.offsidePhase=null;this.stoppageSerial=0;
   this.activeWall=null;this.attackPlans=[null,null];this.flankPlans=[null,null];this.boxPlans=[null,null];this.buildPlans=[null,null];this.supportPlans=[null,null];this.pressUnits=[null,null];this.lastSwitch=[null,null];this.pressPolicies=[null,null];this.attackStats=[0,1].map(()=>({switches:0,returnSwitches:0,wideCarries:0,crosses:0,cutbacks:0,completedDeliveries:0,pressStarts:0,pressDrops:0}));this.defensiveUnits=[null,null];this.attackEpoch=[0,0];this.releaseSerial=0;
   Object.assign(this.telemetry,{returnSupports:0,giveGoReturns:0,giveGoCompletions:0,alignedThroughBalls:0,closeControlTouches:0,strideTouches:0,shieldCarries:0,duelOutlets:0,feintResponses:0,beatenDefenders:0,firstTouchRechecks:0,markHandoffs:0,markSamples:0,screenedReads:0,fastCatches:0,decisions:{pass:0,carry:0,feint:0,shot:0,clearance:0}});
   this.t=[Tactics.normalize(this.cfg.tactics),Tactics.normalize({playstyle:'counter',onWin:'counter',tempo:64,...this.cfg.awayTactics})];
@@ -170,7 +170,7 @@ class Match{
     const candidate=roster.find(p=>p.id===ids[i]&&p.owned!==false&&!used.has(p.id)),source=candidate||roster.find(p=>p.owned!==false&&!used.has(p.id))||fallback[i];
     used.add(source.id);
     const f=form[i],slot=PlayerModel.slotFor(formation,i),profile=PlayerModel.forSlot(source,slot),side=this.direction(team);
-    const p={...profile,id:team*11+i,index:i,team,role:f[0],position:slot.position,name:source.name||names[i],num:source.number??i+1,rosterId:source.id,portraitId:source.face??i,active:true,yellow:0,x:f[1]*side,z:f[2]*side,homeX:f[1]*side,homeZ:f[2]*side,vx:0,vz:0,speed:0,face:team===0?0:Math.PI,anim:0,action:'idle',actionClock:0,actionElapsed:0,actionDuration:0,kickFoot:profile.preferredFoot,decision:.2+this.random()*.4,touchClock:0,tackleClock:.5+this.random(),receiveClock:0,personality:this.random(),duelRecovery:0,feintCooldown:0,skin:[[.73,.54,.38],[.56,.37,.25],[.34,.23,.18],[.83,.67,.54]][i%4],hair:[[.12,.09,.07],[.22,.17,.11],[.34,.25,.20]][i%3]};
+    const p={...profile,id:team*11+i,index:i,team,role:f[0],position:slot.position,name:source.name||names[i],num:source.number??i+1,rosterId:source.id,rosterUid:source.uid??null,portraitId:source.face??i,active:true,yellow:0,x:f[1]*side,z:f[2]*side,homeX:f[1]*side,homeZ:f[2]*side,vx:0,vz:0,speed:0,face:team===0?0:Math.PI,anim:0,action:'idle',actionClock:0,actionElapsed:0,actionDuration:0,kickFoot:profile.preferredFoot,decision:.2+this.random()*.4,touchClock:0,tackleClock:.5+this.random(),receiveClock:0,personality:this.random(),duelRecovery:0,feintCooldown:0,skin:[[.73,.54,.38],[.56,.37,.25],[.34,.23,.18],[.83,.67,.54]][i%4],hair:[[.12,.09,.07],[.22,.17,.11],[.34,.25,.20]][i%3]};
     Object.assign(p,{energy:1,kickMoving:false,reception:null,nextAction:null});
     // A kick-off shape: sides remain in their own half, spread in their roles.
     p.x=side*(p.role==='GK'?-49:clamp(f[1]-.18*Math.max(0,f[1])-22,-42,-2));
@@ -364,6 +364,16 @@ class Match{
    const lane=long?risk*.32:risk,preferred=t.passing==='short'?11:t.passing==='direct'?29:17;
    let score=space*.68+advance*(t.playstyle==='counter'||t.playstyle==='direct'?.82:t.passing==='short'?.36:.48)-lane*28-reception.risk*9-Math.abs(d-preferred)*(t.passing==='short'?.52:.23);
    score+=Math.max(0,this.threat(point,p.team)-this.threat(p,p.team))*10;
+   // Equal overall ratings can yield different actual passing choices.
+   // DM reads the safe local outlet; AM seeks productive forward links.
+   if(p.position==='DM')score+=(18-d)*.22-risk*4.5;
+   if(p.position==='AM')score+=Math.max(0,advance)*.22-Math.max(0,-advance)*.18;
+   // A wide defender favours the ball-side lane only if the preferred
+   // foot can actually open that passing angle.
+   if(['LB','RB','LWB','RWB'].includes(p.position)){
+    const foot=p.footPreference,wide=Math.sign(p.homeZ||1)===Math.sign(point.z||1);
+    score+=wide?2*(foot==='both'||foot==='unknown'||foot===(p.homeZ<0?'left':'right')?1:.55):-.8;
+   }
    const context=this.matchContext(p.team),bodyTurn=Math.abs(angle(Math.atan2(point.z-p.z,point.x-p.x),p.face));
    score+=context.urgency*advance*.18-bodyTurn*(1-(p.composure??p.skill)/120)*1.2;
    if(context.protect)score+=lane<.2?2:-lane*5;
@@ -1136,7 +1146,7 @@ class Match{
   const pending=this.referee?.pendingDiscipline?.splice(0)||[];
   for(const d of pending){const p=this.players[d.playerId];if(!p?.active)continue;
    if(d.card==='yellow'){this.cards[p.team]++;p.yellow=(p.yellow||0)+1;if(p.yellow<2){this.emit('yellow','Sarı kart',`${p.name} kontrolsüz müdahalesi nedeniyle sarı kart gördü.`,p);continue;}}
-   p.active=false;p.vx=p.vz=p.speed=0;this.reds[p.team]++;this.emit('red',d.card==='red'?'Doğrudan kırmızı kart':'İkinci sarıdan kırmızı',`${p.name} oyun dışında. ${d.reason==='serious-foul-play'?'Rakibinin güvenliğini tehlikeye soktu.':d.reason==='denial-of-goal-opportunity'?'Bariz gol şansını engelledi.':''}`,p);
+   p.active=false;p.sentOff=true;p.vx=p.vz=p.speed=0;this.reds[p.team]++;this.emit('red',d.card==='red'?'Doğrudan kırmızı kart':'İkinci sarıdan kırmızı',`${p.name} oyun dışında. ${d.reason==='serious-foul-play'?'Rakibinin güvenliğini tehlikeye soktu.':d.reason==='denial-of-goal-opportunity'?'Bariz gol şansını engelledi.':''}`,p);
    if(this.team(p.team).length<this.rules.minPlayers&&!this.done)this.finishMatch('minimum-players');
   }
  }
@@ -1289,6 +1299,10 @@ class Match{
  }
  teamRole(p){
   if(p.role==='GK')return 'keeper';
+  if(p.position==='CB')return 'centre-back';
+  if(['LB','RB','LWB','RWB'].includes(p.position))return 'fullback';
+  if(p.position==='DM')return 'anchor';
+  if(p.position==='AM')return 'playmaker';
   if(p.role==='DEF')return Math.abs(p.homeZ)>20?'fullback':'centre-back';
   if(p.role==='ATT')return Math.abs(p.homeZ)>14?'winger':'striker';
   if(Math.abs(p.homeZ)>20)return 'wide-midfielder';
@@ -1646,7 +1660,8 @@ class Match{
    const trap=!has&&t.offside==='on'&&!this.flight&&opponents.find(q=>q.id===owner?.id)?.receiveClock>0&&aBall>-30?2.8:0;
    const width=t.width==='wide'?1.14:t.width==='narrow'?.73:.94,offsideLine=Math.max(this.teamRivals(team,true).map(q=>q.x*side).sort((a,b)=>b-a)[1]??49,aBall);
    let {presser,cover}=this.selectPress(team,owner,pool);
-   const defenders=pool.filter(p=>p.role==='DEF'),holding=pool.filter(p=>p.role==='MID').sort((a,b)=>a.homeX*side-b.homeX*side)[0];
+   const defenders=pool.filter(p=>p.role==='DEF'),holding=pool.filter(p=>p.position==='DM').sort((a,b)=>a.homeX*side-b.homeX*side)[0]||
+    pool.filter(p=>p.role==='MID').sort((a,b)=>a.homeX*side-b.homeX*side)[0];
    const build=has?this.buildOutSupport(team,owner):null,pattern=has?this.coordinatedAttack(team,owner,offsideLine):null,flank=has?this.flankSupport(team,owner,offsideLine):null;
    const box=has?this.boxAttack(team,owner):null;
    const connection=pattern?.connectorId!==undefined&&pattern.connectorId!==build?.id&&pattern.connectorId!==flank?.fullbackId&&!box?.points.has(pattern.connectorId)&&owner&&aBall>-12&&aBall<30?this.connectionPoint(owner,this.players[pattern.connectorId],baseLine,offsideLine):null;
@@ -1683,18 +1698,22 @@ class Match{
     }else if(p===owner){const target=p.carryTarget||{x:p.x+side*5,z:p.z};x=target.x;z=target.z;if(dist(p,ball)>1.1||p.receiveMode==='cushion'&&p.receiveClock>0){x=ball.x+ball.vx*.12;z=ball.z+ball.vz*.12;}const pressure=Math.min(20,...personal.map(q=>dist(q,p))),shield=p.shieldUntil>this.time;pace=p.receiveClock>0?.48:shield?.56:p.settleUntil>this.time?.34:counter?1.04:p.escapeUntil>this.time?.98:pressure>5&&aBall<20?.60:.98;state=p.receiveClock>0?'receive':shield?'shield':'dribble';}
     else if(!owner&&!this.flight){if(p===presser){const q=this.interceptPoint(p);x=q.x;z=q.z;pace=1.12;state='loose-ball';}else if(p===cover){x=ball.x-side*7;z=ball.z*.55+p.homeZ*.45;state='screen';}}
     else if(has){
-     if(p.role==='MID'){x=side*(baseLine+(p===holding?15:24)+(counter&&p!==holding?5:0));if(p===holding&&aBall>2)x=Math.min(x*side,aBall-7)*side;}
+     if(p.role==='MID'){x=side*(baseLine+(p===holding?15:24)+(counter&&p!==holding?5:0));if(p===holding&&aBall>2)x=Math.min(x*side,aBall-7)*side;
+      if(p.position==='DM')x=side*Math.min(x*side,baseLine+15,aBall-7);
+      if(p.position==='AM')x=side*Math.max(x*side,Math.min(offsideLine-2,baseLine+29));}
      if(p.role==='ATT'){x=side*Math.min(offsideLine-.9,baseLine+(counter?47:40));z=clamp(p.homeZ*width*(t.playstyle==='wing'?1.04:1)+ball.z*.10,-30,30);}
      if(supports.has(p.id)&&p!==this.flight?.target){
       const point=supports.get(p.id);x=point.x;z=point.z;state='support';pace=.94;
      }
      if(pattern?.runner?.id===p.id&&!supports.has(p.id)){x=pattern.runner.point.x;z=pattern.runner.point.z;state='penetration';pace=1.07;}
      else if(pattern?.connectorId===p.id&&connection&&!supports.has(p.id)){x=connection.x;z=connection.z;state='between-lines';}
-     if(!supports.has(p.id)&&p.role==='DEF'&&Math.abs(p.homeZ)>20&&p.homeZ*ball.z>0&&t.fullbacks!=='hold'&&aBall>-10){x=side*(t.fullbacks==='overlap'&&owner&&Math.abs(owner.z)>12?Math.min(44,aBall+8):Math.min(aBall-8,baseLine+12));z=Math.sign(p.homeZ)*Math.min(31,Math.abs(p.homeZ)*1.12);state=t.fullbacks==='overlap'?'overlap':'wide-support';pace=1.02;}
+     if(!supports.has(p.id)&&p.duty==='fullback'&&p.homeZ*ball.z>0&&t.fullbacks!=='hold'&&aBall>-10){x=side*(t.fullbacks==='overlap'&&owner&&Math.abs(owner.z)>12?Math.min(44,aBall+8):Math.min(aBall-8,baseLine+12));z=Math.sign(p.homeZ)*Math.min(31,Math.abs(p.homeZ)*1.12);state=t.fullbacks==='overlap'?'overlap':'wide-support';pace=1.02;}
      if(flank?.fullbackId===p.id){x=flank.point.x;z=flank.point.z;state=flank.state;pace=1.02;}
      if(!supports.has(p.id)&&t.fullbacks==='overlap'&&owner&&Math.abs(owner.z)>12&&p.homeZ*owner.z>0&&['winger','wide-midfielder'].includes(p.duty)&&p!==owner&&p.id!==pattern?.runner?.id){z=Math.sign(p.homeZ)*12.5;x=side*Math.min(offsideLine-1,Math.max(aBall+4,x*side));state='inside-support';}
      if(!supports.has(p.id)&&p.duty==='fullback'&&p.homeZ*ball.z<0&&aBall>0){x=side*Math.min(baseLine+2,aBall-15);z=p.homeZ*.80;state='rest-defence';}
      if(p===holding&&aBall>0){x=side*Math.min(x*side,aBall-10,baseLine+10);state='anchor';}
+     if(p.position==='CB'&&p!==owner&&aBall>0){x=side*Math.min(x*side,baseLine+3);state='rest-defence';}
+     if(p.position==='AM'&&!supports.has(p.id)&&p!==owner&&aBall>0&&x*side<baseLine+25){x=side*Math.min(offsideLine-1,baseLine+32);state='between-lines';}
      if(build?.id===p.id){x=build.point.x;z=build.point.z;state='build-support';pace=.98;}
      if(box?.points.has(p.id)){const q=box.points.get(p.id);x=q.x;z=q.z;state=q.state;pace=q.role==='edge'?.96:1.06;p.boxRole=q.role;}
      if(this.flight?.target===p){const q=['through','cross','long-pass'].includes(this.flight.kind)&&dist(p,ball)>3?this.flight.point:meeting||this.interceptPoint(p);x=q.x;z=q.z;state='receive-run';pace=1.13;}
@@ -1704,6 +1723,9 @@ class Match{
      if(p.role!=='DEF'&&!['receive-run'].includes(state)&&!this.flight&&x*side>offsideLine-.6)x=side*(offsideLine-.6);
     }else{
      x=side*(unit.line+trap+(p.role==='DEF'?0:p.role==='MID'?unit.midGap:unit.recovering?18:25));z=clamp(p.homeZ*(t.width==='narrow'?.66:.80)+ball.z*.24,-28,28);
+     if(p.position==='DM')x=side*(unit.line+trap+Math.max(3,unit.midGap-3));
+     if(p.position==='AM')x=side*(unit.line+trap+unit.midGap+8);
+     if(p.position==='CB')z=clamp(z,-16,16);
      const distance=dist(p,ball),engage=pressurePlan.engage??0;
      if(p===presser&&pressurePlan.active){const q=this.flight?this.interceptPoint(p):pressingUnit?.pressPoint||{x:ball.x-side*.65,z:ball.z};x=q.x;z=q.z;state=this.flight?'intercept':'press';pace=1.06;this.tacticalStats[team].pressSamples++;}
      else if(pressurePlan.active&&p===cover&&(distance<engage+7||t.press>=75&&presser&&dist(presser,ball)<engage)){const q=pressingUnit?.coverPoint||{x:ball.x-side*4.3,z:ball.z*.70};x=q.x;z=q.z;state='cover';pace=.98;}
@@ -2341,6 +2363,19 @@ class Match{
   if(this.done||this.pendingManagerKick||!Number.isFinite(dt)||dt<=0)return;
   if(this.lifecycle==='playing'&&!this.restart&&!this.kick?.restartContext&&!this.goalPause&&!this.substitutionPause?.remaining&&(!this.penaltyAttempt||this.penaltyAttempt.state==='settled')){const remaining=MatchRules.clockView(this.matchClock).remaining;if(remaining>1e-8&&remaining<dt)dt=remaining;}
   this.time+=dt;
+  if(this.lifecycle==='playing'&&this.players.length){
+   // Each physical, active footballer gets credit, not just the 11 slots.
+   // This ledger survives a change of occupant at a substitute's index.
+   for(const p of this.players){
+    if(p.referee||p.team>1||p.rosterId===undefined)continue;
+    const key=p.team+':'+String(p.rosterId),entry=this.appearances.get(key)||
+      {team:p.team,rosterId:p.rosterId,rosterUid:p.rosterUid??null,seconds:0,yellow:0,red:0};
+    if(p.active)entry.seconds+=dt;
+    entry.yellow=Math.max(entry.yellow,p.yellow||0);
+    if(p.sentOff)entry.red=1;
+    this.appearances.set(key,entry);
+   }
+  }
   if(this.lifecycle==='halftime'){this.advanceClock(dt,null,null);return;}
   const stoppedReason=this.substitutionPause?.remaining>0?'substitution':this.goalPause?'goal':this.restart||this.kick?.restartContext?'restart':null,stoppageId=(this.restart||this.kick?.restartContext)?.id??this.stoppageSerial;
   if(this.substitutionPause?.remaining>0){this.substitutionPause.remaining=Math.max(0,this.substitutionPause.remaining-dt);this.advanceClock(dt,stoppedReason,stoppageId);return;}
@@ -2392,6 +2427,11 @@ class Match{
   if(duel){const defender=this.players[duel.opponentId];if(!defender?.active||this.time-duel.at>4.5)carrier.dribbleDuel=null;else if((carrier.x-defender.x)*this.direction(carrier.team)>1.5&&dist(carrier,defender)>2.5&&dist(carrier,this.ball)<1.3){this.telemetry.beatenDefenders++;carrier.dribbleDuel=null;}}
   this.updateReferee?.(dt);if(!this.done)this.advanceClock(dt,stoppedReason,stoppageId);
  }
+ appearanceReport(){
+  const duration=Math.max(1,2*this.rules.periodSeconds);
+  return [...this.appearances.values()].filter(p=>p.seconds>0).map(p=>({...p,
+   minutes:Math.round(p.seconds/duration*90*100)/100})).sort((a,b)=>a.team-b.team||String(a.rosterId).localeCompare(String(b.rosterId)));
+ }
  advance(seconds){const n=Math.round(seconds*60);for(let i=0;i<n&&!this.done&&!this.pendingManagerKick;i++)this.step();}
  canSubstitute(){const r=this.restart,decision=MatchRules.substitutionAllowance(this.rules,this.substitutionState,{phase:this.lifecycle,deadBall:!!r||!!this.goalPause,stoppageId:r?.id??(this.goalPause?'goal-'+this.releaseSerial:null)});return {...decision,reason:decision.error,remaining:decision.remainingSubstitutions,windowsRemaining:decision.remainingWindows};}
  bench(){const ids=this.startingRosterIds||this.cfg.starters||[];return (this.cfg.players||[]).filter(p=>p.owned!==false&&!ids.includes(p.id)&&!this.usedBench.has(p.id));}
@@ -2402,7 +2442,7 @@ class Match{
   if(this.restart?.taker===p)return {ok:false,error:'Duran topu kullanacak oyuncu hazırlıkta; başka bir oyuncu seç.'};
   if(this.owner===p||this.kick?.p===p||this.flight?.target===p)return {ok:false,error:'Oyuncunun top aksiyonu sürüyor; pozisyon bitince tekrar dene.'};
   const old=p.name,profile=PlayerModel.forSlot(b,PlayerModel.slotFor(this.cfg.formation||'4-3-3',p.index));
-  Object.assign(p,profile,{id:p.id,index:p.index,team:p.team,role:p.role,position:p.position,rosterId:b.id,name:b.name,num:b.number,portraitId:b.face,yellow:0,energy:1,kickFoot:profile.preferredFoot,reception:null,nextAction:null,runIntent:null,supportIntent:null,offerIntent:null,connectionIntent:null,carryIntent:null,keeperRead:null,shieldUntil:0,shieldReadyAt:0,duelMemory:null,dribbleDuel:null});
+  Object.assign(p,profile,{id:p.id,index:p.index,team:p.team,role:p.role,position:p.position,rosterId:b.id,rosterUid:b.uid??null,name:b.name,num:b.number,portraitId:b.face,yellow:0,sentOff:false,energy:1,kickFoot:profile.preferredFoot,reception:null,nextAction:null,runIntent:null,supportIntent:null,offerIntent:null,connectionIntent:null,carryIntent:null,keeperRead:null,shieldUntil:0,shieldReadyAt:0,duelMemory:null,dribbleDuel:null});
   Intent.clear(p,'substitution',this.taskContext(p));Perception.clear(p,this.time);
   this.usedBench.add(b.id);MatchRules.recordSubstitution(this.substitutionState,decision);this.subCount=this.substitutionState.count;this.subWindowsUsed=this.substitutionState.windowsUsed;
   if(this.lifecycle!=='halftime')this.substitutionPause={remaining:(this.substitutionPause?.remaining||0)+this.rules.substitutionPauseSeconds};
