@@ -7,7 +7,10 @@ for(const kind of ['penalty','free-kick','corner']){
  for(const mode of ['automatic','manager']){
   test(kind+' '+mode+' uses its specialist for real heading and first landing',()=> {
    const low=evaluate(kind,20,mode),high=evaluate(kind,94,mode);
-   if(kind==='corner')console.log('CORNER_DIAGNOSTIC',JSON.stringify({low:{skill:low.skill,context:low.releaseContext,angle:low.targetDeviationDegrees},high:{skill:high.skill,context:high.releaseContext,angle:high.targetDeviationDegrees}}));
+   assert.equal(low.releaseContext.restartKind,kind,'the measured kick must be the intended set piece');
+   assert.equal(high.releaseContext.restartKind,kind);
+   assert.equal(low.releaseContext.specialistType,kind);
+   assert.equal(high.releaseContext.specialistType,kind);
    assert(high.skill>low.skill+45,'specialized rating must reach foot execution');
    assert.equal(high.targetAngle,low.targetAngle,'selected heading must not depend on the execution score');
    assert(high.targetDeviationDegrees<low.targetDeviationDegrees*.85,
@@ -28,7 +31,8 @@ for(const kind of ['penalty','free-kick','corner']){
   for(const rating of [20,94]){
    const ai=evaluate(kind,rating,'automatic');
    const same=evaluate(kind,rating,'automatic',Match,true);
-   if(kind==='corner')console.log('CORNER_CONTROL_PARITY',JSON.stringify({rating,ai:ai.releaseContext,same:same.releaseContext}));
+   assert.equal(ai.releaseContext.restartKind,kind);
+   assert.equal(same.releaseContext.restartKind,kind);
    assert.deepEqual(ai.rawVelocity,same.rawVelocity);
    assert.equal(ai.seedAtRelease,same.seedAtRelease,'RNG draws must match');
    assert.deepEqual(ai.firstLanding,same.firstLanding);
