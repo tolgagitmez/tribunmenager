@@ -1,0 +1,61 @@
+name: Unified specialist kick skill and physics
+on:
+  push:
+    branches:
+      - fix/shared-specialist-kick-physics
+  pull_request:
+    paths:
+      - 'football-sim.js'
+      - 'tests/kick-skill-parity.test.cjs'
+      - 'tools/compare-specialist-kicks.cjs'
+      - '.github/workflows/specialist-kick-parity.yml'
+  workflow_dispatch:
+jobs:
+  specialist-comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Rating 20 versus 94 in AI and manager penalty, free kick and corner
+        run: node tools/compare-specialist-kicks.cjs
+      - name: Persist velocity, first landing and keeper measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-specialist-kick-report
+          path: docs/validation/kick-specialist-parity.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Physical specialty/parity regressions
+        run: node --test tests/kick-skill-parity.test.cjs
+      - name: Existing manager and delegated AI kicks
+        run: npm run test:manager-kick
+
+  live-match-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: npm run test:live-match
+
+  rig-invariance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm run test:engine-invariance
