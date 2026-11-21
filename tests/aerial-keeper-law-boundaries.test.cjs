@@ -158,3 +158,28 @@ test('keeper reachability denominator is not all shots; catch/parry rates are co
  m.telemetry.keeperReachableParries=3;
  assert.deepEqual(m.keeperSummary(),{reachableShots:10,catches:4,parries:3,catchRate:.4,parryRate:.3});
 });
+
+for(const mode of ['catch-ready','dive']){
+ test('actual reachable shot '+mode+' counts exactly one keeper '+(mode==='catch-ready'?'catch':'parry'),()=>{
+  const m=match(),shooter=m.players[0],gk=m.players[21];
+  Object.assign(gk,{x:52,z:0,role:'GK',active:true,action:mode,
+   actionClock:.7,actionElapsed:.32,speed:0,vx:0,vz:0,touchClock:0,duelRecovery:0});
+  m.ball={x:51.9,y:1,z:0,vx:18,vy:0,vz:0};
+  m.flight={id:119,kind:'shot',from:shooter,age:.2};
+  m.lastTouch=shooter;m.lastTeam=0;
+  m.goalThreat=()=>true;m.keeperVisibility=()=>true;
+  m.ballCrossing=()=>({x:52,y:1,z:0,t:.4});
+  m.motion={saveHands:()=>[{x:51.8,y:1,z:0},{x:51.8,y:1,z:0}]};
+  const prev={x:51.7,y:1,z:0};
+  m.keeper(prev,1/60);
+  assert.equal(m.telemetry.keeperReachableShots,1);
+  const stats=m.keeperSummary();
+  if(mode==='catch-ready'){
+   assert.equal(stats.catches,1);assert.equal(stats.parries,0);assert.equal(stats.catchRate,1);
+   assert.equal(m.owner,gk);
+  }else{
+   assert.equal(stats.catches,0);assert.equal(stats.parries,1);assert.equal(stats.parryRate,1);
+   assert.equal(m.owner,null);
+  }
+ });
+}
