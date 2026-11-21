@@ -1,4 +1,4 @@
-"""One authoritative simulation for each watched league fixture."""
+"""One authoritative, recoverable simulation for every league fixture."""
 from __future__ import annotations
 
 from contextlib import closing
@@ -31,6 +31,13 @@ CREATE TABLE IF NOT EXISTS live_match_operations(
 );
 CREATE INDEX IF NOT EXISTS live_match_operations_fixture
 ON live_match_operations(league, round, home, away, seq);
+-- Periodic position/ball snapshots make the persistent command history useful
+-- for future highlights and substitution timelines without client authority.
+CREATE TABLE IF NOT EXISTS live_match_frames(
+    league TEXT NOT NULL, round INT NOT NULL, home INT NOT NULL, away INT NOT NULL,
+    step INT NOT NULL, snapshot TEXT NOT NULL,
+    PRIMARY KEY(league, round, home, away, step)
+);
 """
 
 
@@ -111,6 +118,8 @@ class LiveMatch:
         self.deadline = 0
         self.next_step = None
         self.catchup_steps = 0
+        self.step_index = 0
+        self.last_frame_step = -120
 
     def initialize(self, now):
         if self.state is not None:
@@ -122,6 +131,10 @@ class LiveMatch:
             operations = database.execute(
                 f"SELECT operation FROM live_match_operations WHERE {FIXTURE_KEY} ORDER BY seq", self.key
             ).fetchall()
+            latest_frame, = database.execute(
+                f"SELECT MAX(step) FROM live_match_frames WHERE {FIXTURE_KEY}", self.key
+            ).fetchone()
+        self.last_frame_step = latest_frame if latest_frame is not None else -120
         if final is not None:
             self.state = json.loads(final)
             return
@@ -138,8 +151,19 @@ class LiveMatch:
             self.discard_worker()
             raise
         self.state = state
+        self.step_index = advanced
         self.next_step = now
-        self.catchup_steps = max(0, self.config.get("catchupSteps", 0) - advanced)
+        # Kickoff is a wall-clock timestamp; 'now' is monotonic for the running
+        # worker. After a restart or late spectator, catch up only the steps
+        # that were not already committed. No replay needs a client to join.
+        elapsed_steps = max(0, int((time.time() - self.kickoff) / STEP_SECONDS))
+        self.catchup_steps = max(0, elapsed_steps - advanced)
+        if self.last_frame_step < 0:
+            with closing(connect(self.path)) as database, database:
+                database.execute("""INSERT OR IGNORE INTO live_match_frames
+                    (league,round,home,away,step,snapshot) VALUES(?,?,?,?,?,?)""",
+                    (*self.key, 0, encode(state)))
+            self.last_frame_step = 0
         self.remember_prompt(now)
 
     def discard_worker(self):
@@ -163,7 +187,14 @@ class LiveMatch:
             state = reply["state"]
             if operation["op"] == "advance":
                 operation = {**operation, "steps": reply["steps"]}
+            new_index = self.step_index + (reply["steps"] if operation["op"] == "advance" else 0)
             with closing(connect(self.path)) as database, database:
+                # Keep the COMPLETE deterministic operation ledger after
+                # full time. Replaying frozen config plus this log regenerates
+                # ball, positions, refereeing and future decisions.
+                database.execute("""INSERT INTO live_match_operations
+                    (league,round,home,away,operation) VALUES (?,?,?,?,?)""",
+                    (*self.key, encode(operation)))
                 if state["done"]:
                     home, away = state["score"]
                     hy, ay = state["cards"]
@@ -174,17 +205,21 @@ class LiveMatch:
                         (home, away, hy, ay, hr, ar, *self.key))
                     database.execute(f"UPDATE live_matches SET final_state=? WHERE {FIXTURE_KEY}",
                                      (encode(state), *self.key))
-                    database.execute(f"DELETE FROM live_match_operations WHERE {FIXTURE_KEY}", self.key)
-                else:
-                    database.execute("""INSERT INTO live_match_operations
-                        (league,round,home,away,operation) VALUES (?,?,?,?,?)""",
-                        (*self.key, encode(operation)))
+                if state["done"] or operation["op"] == "kick" or new_index - self.last_frame_step >= 120:
+                    database.execute("""INSERT INTO live_match_frames
+                        (league,round,home,away,step,snapshot) VALUES(?,?,?,?,?,?)
+                        ON CONFLICT(league,round,home,away,step)
+                        DO UPDATE SET snapshot=excluded.snapshot""",
+                        (*self.key, new_index, encode(state)))
         except Exception:
             # If a process or write fails before the commit, replay the saved
             # operations before accepting another decision.
             self.discard_worker()
             raise
         self.state = state
+        self.step_index = new_index
+        if state["done"] or operation["op"] == "kick" or new_index - self.last_frame_step >= 120:
+            self.last_frame_step = new_index
         self.remember_prompt(now)
         if state["done"]:
             self.worker.close()
@@ -208,8 +243,8 @@ class LiveMatch:
             self.expire_prompt(now)
             if self.state.get("pendingManagerKick"):
                 return False
-            # Catch up to the opening spectator without inventing any earlier
-            # attendance. Regular play thereafter runs at 60 fixed steps/s.
+            # Catch up to kickoff for every fixture, whether or not someone
+            # ever opens a tab. Subsequent play runs at 60 fixed steps/s.
             if self.catchup_steps:
                 for _ in range(4):
                     steps = min(MAX_STEPS, self.catchup_steps)
