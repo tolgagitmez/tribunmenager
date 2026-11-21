@@ -1,0 +1,39 @@
+name: Physical aerial opportunities and legacy coverage gate
+on:
+  pull_request:
+    paths:
+      - tools/check-attacking-coverage.cjs
+      - tests/attacking-coverage.test.cjs
+      - .github/workflows/attack-coverage-sync.yml
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  controlled-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Measure actual aerial reachability, header, pass and miss denominators
+        run: node --test tests/attacking-coverage.test.cjs
+      - name: Real long-pass aerial collision regression
+        run: node --test tests/aerial-keeper-law-boundaries.test.cjs
+  archived-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install -r requirements-player-assets.txt
+      - name: Retain full previous football/character and glTF behavior
+        run: npm run test:stage15
