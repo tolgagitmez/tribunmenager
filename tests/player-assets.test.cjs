@@ -105,14 +105,20 @@ test('curved crewneck, shorts and socks share continuous seams with the exposed 
  }
  let chest=0;for(let at=0;at<d.length;at+=20)if(d[at+16]===1&&d[at+8]<4&&d[at+1]>1.13&&d[at+1]<1.4&&Math.abs(d[at+2])<.15){assert(d[at]<.13,'neutral athletic chest envelope');chest++;}assert(chest>100);
 });
-test('standard GLB contains exactly the runtime positions, normals, UVs, joints, weights and colors',()=>{
+test('standard GLB preserves runtime geometry and weights with explicit standard color and unused-joint normalization',()=>{
  const d=floatRows(),primitives=G.json.meshes[0].primitives;assert.equal(G.json.asset.version,'2.0');assert.equal(G.json.extras.modelId,assets.metadata.id);assert.equal(G.json.extras.rigReferenceSHA256,assets.metadata.rigReferenceSHA256);assert.equal(G.json.animations,undefined);
  for(const [key,start,width] of [['POSITION',0,3],['NORMAL',3,3],['TEXCOORD_0',6,2],['JOINTS_0',8,4],['WEIGHTS_0',12,4],['COLOR_0',17,3]]){
   const values=accessor(primitives[0].attributes[key]);assert.equal(values.length,d.length/20);for(const p of primitives)assert.equal(p.attributes[key],primitives[0].attributes[key]);
-  values.forEach((row,i)=>row.forEach((v,k)=>assert.equal(v,d[i*20+start+k],`${key}/${i}/${k}`)));assert.equal(values[0].length,width);
+  values.forEach((row,i)=>row.forEach((v,k)=>{const runtime=d[i*20+start+k],expected=key==='COLOR_0'?Math.max(0,Math.min(1,runtime)):key==='JOINTS_0'&&d[i*20+12+k]===0?0:runtime;assert.equal(v,expected,`${key}/${i}/${k}`);}));assert.equal(values[0].length,width);
  }
  const b=Buffer.from(assets.lods[0].indices,'base64'),runtime=assets.lods[0].indexType==='H'?new Uint16Array(b.buffer,b.byteOffset,b.byteLength/2):new Uint32Array(b.buffer,b.byteOffset,b.byteLength/4);
  for(const primitive of primitives){const expected=[];for(let i=0;i<runtime.length;i+=3)if(d[runtime[i]*20+16]===primitive.material){assert.equal(d[runtime[i+1]*20+16],primitive.material);assert.equal(d[runtime[i+2]*20+16],primitive.material);expected.push(runtime[i],runtime[i+1],runtime[i+2]);}assert.deepEqual(accessor(primitive.indices).flat(),expected);}
+});
+test('standard licensed GLB passes the official Khronos validator with zero errors and warnings',async()=>{
+ const validator=require('gltf-validator'),result=await validator.validateBytes(new Uint8Array(bytes('footballer.glb')),{uri:'footballer.glb',maxIssues:1000});
+ assert.equal(result.issues.numErrors,0,JSON.stringify(result.issues));assert.equal(result.issues.numWarnings,0,JSON.stringify(result.issues));
+ const mesh=G.json.nodes.findIndex(node=>node.mesh!==undefined);assert(G.json.scenes[G.json.scene].nodes.includes(mesh));assert(!G.json.nodes.some(node=>(node.children||[]).includes(mesh)));
+ assert.equal(G.json.extras.standardNormalization.vertexColor,'COLOR_0 clamped to [0,1]');
 });
 test('GLB joint hierarchy and inverse bind matrices preserve the packaged rest shape',()=>{
  const skin=G.json.skins[0],ibm=accessor(skin.inverseBindMatrices),globals=new Map();assert.equal(skin.joints.length,19);

@@ -30,7 +30,7 @@ class PlayerIdentityTests(unittest.TestCase):
         self.service = economy.TransferService(Path(self.temp.name) / "test.sqlite3", rules={"maxSquad": 30})
 
     def test_catalogue_signing_and_storage_preserve_explicit_identity(self):
-        attributes = {key: 42 + index for index, key in enumerate(economy.PLAYER_ATTRIBUTES)}
+        attributes = {key: 42 + index for index, key in enumerate(economy.PLAYER_ATTRIBUTES + economy.SET_PIECE_ATTRIBUTES)}
         raw = catalog_player(preferredFoot="left", archetype="targetForward", positions=["ST", "CF"], **attributes)
         self.service.import_catalog({"version": 1, "players": [raw]})
         with self.service.connect() as connection:
@@ -53,7 +53,7 @@ class PlayerIdentityTests(unittest.TestCase):
         b = economy.validate_catalog_player(catalog_player(rating=1, externalId="two"))
         self.assertEqual(a["preferredFoot"], "unknown")
         self.assertEqual(b["preferredFoot"], "unknown")
-        for key in economy.PLAYER_ATTRIBUTES:
+        for key in economy.PLAYER_ATTRIBUTES + economy.SET_PIECE_ATTRIBUTES:
             self.assertNotIn(key, a)
             self.assertNotIn(key, b)
         self.assertNotIn("archetype", a)
@@ -69,7 +69,7 @@ class PlayerIdentityTests(unittest.TestCase):
                 economy.validate_catalog_player(catalog_player(preferredFoot=foot))
 
     def test_every_supplied_attribute_is_a_bounded_integer(self):
-        for key in economy.PLAYER_ATTRIBUTES:
+        for key in economy.PLAYER_ATTRIBUTES + economy.SET_PIECE_ATTRIBUTES:
             for value in [0, 100, -1, True, 80.0, "80", None]:
                 with self.subTest(attribute=key, value=value), self.assertRaises(economy.EconomyError):
                     economy.validate_catalog_player(catalog_player(**{key: value}))

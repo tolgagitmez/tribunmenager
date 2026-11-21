@@ -2,6 +2,33 @@
 
 **[Oyunu kurmak ve çalıştırmak için adım adım KURULUM.md rehberini aç.](KURULUM.md)** Python 3.10+ yeterlidir: Windows’ta `BASLAT.bat`, macOS/Linux’ta `sh BASLAT.sh`. Varsayılan yerel maç modu eksik ekonomi kataloğuna ihtiyaç duymaz.
 
+## Maç içinde menajer vuruşları
+
+Yerel maçta takımın bir penaltı, frikik, korner veya açık oyun ortası kullanmaya hazır olduğunda maç saati bekler.
+
+1. Sahada dokun veya sürükle. Yönü ve gücü, klavyeyle kullanılabilen kaydırıcılarla da ayarlayabilirsin.
+2. **Temas noktasına geç** ve top üzerinde vuracağın yeri seç. Alt temas topu kaldırır, üst temas daha alçak gönderir ve yan temas topa falso verir. **Vuruşu yap** ile maç kaldığı yerden devam eder.
+
+**Oyuncuya bırak** düğmesi vuruşu otomatik kullandırır. Orta, frikik, korner ve penaltı becerileri vuruştaki sapmayı etkiler. Kadro ekranında duran top sorumlusunu seçerken ilgili beceri puanını görebilirsin. Kayıtta ayrı bir duran top puanı varsa motor onu kullanır. Eski kadrolarda bu puanlar mevcut pas, bitiricilik, soğukkanlılık ve orta becerilerinden hesaplanır.
+
+Günlük ligde maç saati geldiğinde **Lig → Canlı maçı izle** yolunu kullan. İki menajer bağlandığında herkes kendi takımının vuruşlarını kullanır. Botlar ve maçı izlemeyen menajerlerin oyuncuları otomatik vurur. Canlı seçim için 12 saniye verilir. Sunucu iki tarafa aynı maç saatini, skoru ve olayları gönderir ve maçın sonucunu lig tablosuna işler. [Canlı lig kurulumu](KURULUM.md#canlı-lig).
+
+[Sahada yön ve güç seçimi](docs/previews/manager-kick-aim.png) · [Mobilde temas noktası seçimi](docs/previews/manager-kick-contact.png)
+
+## On beşinci aşama: standart Blender aktarımı ve çizici karşılaştırması — v1.34.0
+
+**[Standart model karşılaştırma atölyesini aç](interop-lab.html).** Aynı Blender futbolcusunun GLB veya harici dosyalı glTF sürümünü mevcut WebGL çizicisi ve Three.js üzerinde, aynı animasyon zamanı ve kamera ile inceleyebilirsin. Python başlatıcısı yeterlidir; gerekli kütüphaneler pakettedir, CDN veya npm çalışma anında gerekmez.
+
+Düzenlenebilir Blender dosyası, 19 kemik, 10 materyal, iki doku ve dört animasyon klibiyle birlikte dağıtılır. Gerçek Blender dışa aktarımı, bağımsız kemik/vertex karşılaştırması ve Khronos doğrulaması yapılır. Eksik model, BIN veya PNG; bozuk animasyon, zaman aşımı ve iptal durumları açıklanır. [Aktarım ve yeniden üretim rehberi](docs/GLTF_PIPELINE.md).
+
+Ölçülen prototipte Three.js daha kısa kare süresi verdi: 1 oyuncuda **40,0 ms / 83,9 ms**, 22 oyuncuda **587,7 ms / 858,6 ms** (Three.js / mevcut çizici medyanı). Bunlar SwiftShader'da senkron piksel okuması dahil seri kare süreleridir; gerçek cihaz FPS'i değildir. [Yöntem, görüntüler ve karar](docs/GLTF_RENDERER_DECISION.md).
+
+Standart dosya yükleme ve varlık inceleme yolu için resmi **GLTFLoader + Three.js** seçildi. Üretim maçı mevcut DQS çizicisini kullanmaya devam eder; Three.js'e maç aktarımı için eklem biçimi eşdeğerliği ve gerçek cihazda tam maç ölçümü ayrıca gerekir. Aşağıdaki sürümler kendi kaynaklarının tarihsel kayıtlarıdır.
+
+**548/548 test geçti.** Karşılaştırma 16 bağımsız poz kontrolü, 15 hata/kapsam durumu ve 720 ölçülmüş kare içerir. Mevcut maç/stüdyo yolları ve ayrı 15 klipli GLB görüntüleyici de gerçek tarayıcıda yeniden doğrulandı.
+
+---
+
 ## On dördüncü aşama: tek insan modeli, sabit kemikler ve eklem sınırları — v1.33.0
 
 Maç, **[Oyuncu Stüdyosu](player-studio.html)** ve **[Hareket Atölyesi](animation-lab.html)** aynı lisanslı MakeHuman gövdesini ve düzeltilmiş 1,88 m insan iskeletini kullanır. Üretim modeli, bağlama verisi ve GPU çizicisi artık aynı 19 kemik çerçevesinden beslenir. Uyluk/baldır ile üstkol/önkol uzunlukları poz boyunca sabittir; diz, dirsek, kalça, omuz ve gövde için oyun amaçlı açı sınırları uygulanır. Uzak hedefler kemiği uzatmak yerine erişilebilir konuma yansıtılır.

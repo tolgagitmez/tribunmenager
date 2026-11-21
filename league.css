@@ -52,3 +52,15 @@
 @keyframes league-busy{to{transform:rotate(360deg)}}
 @media(max-width:1000px){.league-card{padding:23px}.status-grid{grid-template-columns:1fr}.lobbygrid{gap:17px}.clublist{grid-template-columns:repeat(3,1fr)}.leader{min-width:560px}.league-heading h2{font-size:31px}}
 @media(max-width:650px){.lobbygrid{grid-template-columns:1fr;gap:16px}.league-card{padding:23px}.league-card h2{font-size:30px}.league-card p{font-size:11px}.league-card label{font-size:10px}.league-card button{width:100%;min-height:46px}.league-action{display:grid;grid-template-columns:1fr 1fr}.league-action button{font-size:10px;padding:11px 10px}.league-action a{font-size:10px}.clublist{grid-template-columns:1fr 1fr;gap:8px}.clubtile{padding:12px;font-size:10px}.code{font-size:35px;letter-spacing:3px;margin-left:6px}.countdown-large{font-size:43px}.leader{min-width:520px;font-size:10px}.leader td{padding:14px 8px}.leader th{font-size:7px;padding:12px 8px}.league-help{padding:18px}.league-help p{font-size:10px}.result-row{font-size:9px;gap:8px}.result-row>b{font-size:24px}.league-heading h2{font-size:30px;line-height:1.1}.status-grid{gap:16px}}
+
+.rotation-panel{margin:13px 0;border:1px solid var(--line-soft);border-radius:7px;padding:10px 12px;background:#14271b}
+.rotation-panel summary{cursor:pointer;font-size:12px;font-weight:750;color:var(--text)}
+.rotation-caption{font-size:10px;color:var(--faint);margin:9px 0;line-height:1.6}
+.rotation-rows{max-height:340px;overflow:auto;display:grid;gap:5px}
+.rotation-row{display:grid;grid-template-columns:minmax(80px,1.2fr) 34px minmax(110px,1fr);gap:7px;align-items:center;padding:7px 8px;border-radius:5px;background:#203625;font-size:11px}
+.rotation-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rotation-row small{color:var(--faint);font-size:10px}
+.rotation-row span{text-align:right;color:#cce4b1}
+.rotation-row[data-suspended="true"]{background:#3e2725}
+.rotation-row[data-suspended="true"] span{color:#ffb4a6;font-weight:700}
+@media(max-width:650px){.rotation-row{grid-template-columns:minmax(85px,1fr) 28px minmax(105px,1.1fr);font-size:10px}}

@@ -1,0 +1,80 @@
+name: Current engine determinism, manager kicks and live league
+
+on:
+  pull_request:
+    paths:
+      - 'football-sim.js'
+      - 'humanoid-rig.js'
+      - 'match-animation-bridge.js'
+      - 'live-match-worker.cjs'
+      - 'live_match.py'
+      - 'server.py'
+      - 'match.html'
+      - 'match3d.js'
+      - 'league.js'
+      - 'tests/**'
+      - 'tools/check-character-physics.cjs'
+      - 'docs/validation/baselines/**'
+      - 'package*.json'
+      - '.github/workflows/match-invariance.yml'
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  engine-invariance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compare old and current rigs on the checked-out engine
+        run: npm run test:engine-invariance
+      - name: Publish generated current-engine measurement
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: current-engine-physics
+          path: docs/validation/character-physics.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  kick-and-live-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - name: Manager free kicks, corners, penalties and live match worker
+        run: npm run test:manager-kick && npm run test:live-match
+
+  two-client-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: Resolve Playwright Chromium executable
+        id: browser
+        run: echo "path=$(node -p 'require(\"playwright\").chromium.executablePath()')" >> "$GITHUB_OUTPUT"
+      - name: Two-step kick UI in real Chromium
+        run: npm run test:manager-kick-browser
+        env:
+          CHROMIUM: ${{ steps.browser.outputs.path }}
+      - name: Shared league match in two independent Chromium contexts
+        run: npm run test:live-match-browser
+        env:
+          CHROMIUM: ${{ steps.browser.outputs.path }}

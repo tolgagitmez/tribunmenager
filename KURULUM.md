@@ -4,17 +4,17 @@ Yerel futbol simülasyonu için **Python 3.10 veya üzeri** ve güncel Chrome, E
 
 ## 1. Oyunu indir
 
-İnsan modeli geliştirmesini içeren sürüm `codex/licensed-character-volume` dalındadır:
+Menajer vuruşlarını ve canlı ligi içeren sürüm `codex/manager-kick-control` dalındadır.
 
-- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/licensed-character-volume.zip), ZIP'i çıkar ve içindeki klasörü aç.
+- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/manager-kick-control.zip), ZIP'i çıkar ve içindeki klasörü aç.
 - Git kullanıyorsan:
 
 ```sh
-git clone --branch codex/licensed-character-volume https://github.com/tolgagitmez/tribunmenager.git
+git clone --branch codex/manager-kick-control https://github.com/tolgagitmez/tribunmenager.git
 cd tribunmenager
 ```
 
-`main` önceki geliştirme aşamalarını içerir; yeni insan modeli değişikliklerini [dal karşılaştırmasından](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/licensed-character-volume) inceleyebilirsin. Aşağıdaki doğrulama komutları bu dal içindir.
+`main` önceki geliştirme aşamalarını içerir. [Dal karşılaştırması](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/manager-kick-control).
 
 ## 2. Python'u kontrol et
 
@@ -76,6 +76,18 @@ python3 start.py --mode full
 
 Windows'ta aynı komutun başında `py -3` kullanabilirsin. Tam modun geliştirme sunucusu SQLite verisini `tribun-dev.sqlite3` dosyasında saklar. Mevcut veri dosyasını ve tarayıcı depolamasını koru. Kayıtlar tarayıcı profiline, adrese ve porta bağlıdır; `localhost` ile `127.0.0.1` ayrı tarayıcı depoları kullanır. Yerel gösterim maçının sonucu günlük lig fikstürünü değiştirmez.
 
+## Canlı lig
+
+Python'a ek olarak Node.js 24 LTS kur. Lig modu maç motorunu sunucuda çalıştırır ve transfer kataloğu gerektirmez.
+
+```sh
+python3 start.py --mode league --host 0.0.0.0
+```
+
+Windows'ta `py -3 start.py --mode league --host 0.0.0.0` kullan. İki menajer aynı sunucunun adresindeki `/league.html` sayfasını açmalı. Aynı ağda ikinci cihaz, `127.0.0.1` yerine sunucuyu çalıştıran bilgisayarın ağ adresini kullanır. Bir menajer lig kurar, diğeri davet koduyla katılır. Fikstür saati geldiğinde **Canlı maçı izle** bağlantısı açılır.
+
+Maç sunucuda devam eder. İzlerken kendi takımının vuruşlarını seçebilirsin. Başka sekmeye geçersen izleyici bağlantısı kısa süre içinde düşer ve seçim otomatik kullanıma döner. Sunucu tamamlanan maçın skorunu SQLite lig tablosuna yazar.
+
 ## Sorun giderme
 
 | Sorun | Yapılacak işlem |
@@ -90,6 +102,10 @@ Windows'ta aynı komutun başında `py -3` kullanabilirsin. Tam modun geliştirm
 | Doku veya shader hatası görünüyor | Paneldeki teknik ayrıntıyı kaydet. Doku hatasında belirtilen PNG'nin pakette olduğunu, grafik hatasında tarayıcı/WebGL desteğini kontrol et. Maç yedek çizimle sürebilir. |
 | Eski transfer hesabı yerel maç başlangıcını engelliyor | Önce aynı tarayıcıdaki veriyi dışa aktar/yedekle; deneme için ayrı bir tarayıcı profili aç. Kayıtlarını silmek zorunda değilsin. |
 
+## Standart model aktarımı
+
+Yerel sunucu açıkken `http://localhost:8000/interop-lab.html` adresinden aynı Blender GLB/glTF dosyasını iki çizicide karşılaştır. Model türü, klip, zaman, kamera ve 1/22 oyuncu seçenekleri ortak çalışır. Three.js ve yardımcı modüller yerel `vendor/` klasöründedir; bu ekran için Node.js veya CDN gerekmez. Düzenlenebilir Blender kaynağı ve yeniden üretim adımları [GLTF_PIPELINE.md](docs/GLTF_PIPELINE.md), ölçülen karar [GLTF_RENDERER_DECISION.md](docs/GLTF_RENDERER_DECISION.md) içindedir.
+
 ## Geliştirici doğrulaması
 
 Oynamak için gerekli değildir. Testler için `package.json` içindeki sürüm aralığına uyan Node.js gerekir; **Node.js 24.15 veya üzerindeki 24.x** uygun bir seçimdir. Başlatıcı ve maç/ekonomi testleri Python standart kütüphanesini kullanır. Modelin yeniden üretimi ve varlık testleri ayrıca **Python 3.11+** ile [requirements-player-assets.txt](requirements-player-assets.txt) içindeki NumPy/Pillow sürümlerini gerektirir; bunları ayrı bir Python sanal ortamına kurabilirsin.
@@ -99,10 +115,14 @@ npm ci
 python3 -m venv .venv
 . .venv/bin/activate
 python3 -m pip install -r requirements-player-assets.txt
-npm run test:stage14
+npm run test:stage15
+npm run test:manager-kick
+npm run test:live-match
 ```
 
 Windows'ta sanal ortamı `.venv\Scripts\activate` ile etkinleştir; Python komutlarında `py -3` veya etkin ortamın `python` komutunu kullan.
+
+Tarayıcı denemeleri için `npx playwright install chromium` çalıştır. Ardından `npm run test:manager-kick-browser` ile masaüstü ve mobil vuruşu, `npm run test:live-match-browser` ile iki menajerin maç ekranını doğrula. Sistemde Chromium kuruluysa `CHROMIUM` değişkeniyle dosya yolunu verebilirsin.
 
 Modeli paketlenmiş kaynaklardan internet kullanmadan ayrı bir dizinde yeniden üretmek için:
 

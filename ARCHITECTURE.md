@@ -1,3 +1,13 @@
+## Aşama 15: standart dosya sınırı ve iki çizim backend'i — v1.34.0
+
+`gltf-asset-loader.mjs`, yerel ve sabitlenmiş resmi Three.js `GLTFLoader`'ını ortak giriş olarak kullanır. Ana belge, harici buffer ve resim bağımlılıkları tek iptal/zaman aşımı yaşamına bağlıdır. Hiyerarşi, accessor/skin ve animasyon kardinalitesi parse öncesinde denetlenir; son sahnenin bağlama, hedef ve çözülmüş dokuları hazır olmadan başarı yayımlanmaz. Kaynak sahipliği, Blob URL ve GPU varlıklarının temizliği açıkça izlenir. Desteklenmeyen zorunlu uzantı veya dörtten fazla skin etkisi açıklamalı hata verir.
+
+`interop-lab.mjs`, aynı çözülen sahne/klip sözleşmesini iki bağımsız WebGL bağlamına yollar. Three.js sahneyi doğrudan standart PBR/LBS ile çizer. `gltf-runtime-adapter.mjs`, yalnız uyumlu 19 isimli rijit iskelet ve açıkça desteklenen materyalleri mevcut 80 bayt vertex düzenine dönüştürür; clone sahnesinin dünya kemik matrisleri `PlayerRenderer.draw` için isteğe bağlı palet sağlar. Bu yolda prosedürel Rig örneklenmez. Decode edilmiş dokular, UV/sampler, linear temel renk ve roughness girdileri taşınır; desteklenmeyen özellikler sessizce kaybedilmez.
+
+`PlayerRenderer` yeni seçenek verilmedikçe eski maç sözleşmesiyle çalışır. Standart materyal shader dalı yalnız aktarım için derlenir; normal maça ek uniform dizileri yüklenmez. Fizik/RNG veya maç animasyon kaynağı değiştirilmez. Gerçek Blender paketinin üretimi, destek matrisi ve ölçüm kararı [GLTF_PIPELINE.md](docs/GLTF_PIPELINE.md) ile [GLTF_RENDERER_DECISION.md](docs/GLTF_RENDERER_DECISION.md) içindedir.
+
+---
+
 ## Aşama 14: ortak insan iskeleti ve rijit deri çizimi — v1.33.0
 
 Üretim yolu `humanoid-rig.js` → `Rig.boneFrames(pose)` → `player-renderer.js` → `player-skinning.js` şeklindedir. `tools/build-player-assets.py` aynı kanonik poz ve 19 kemik uç noktasını okuyarak lisanslı MakeHuman bağlama verisini üretir. Çizicinin kendi omuz, el veya gövde uzaklıklarıyla ikinci bir iskelet kurması yerine üretici ve çalışma anı aynı çerçeveleri kullanır. Metre, `+Y` yukarı ve `+X` ileri sözleşmesi korunur.

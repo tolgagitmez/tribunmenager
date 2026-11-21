@@ -1,12 +1,12 @@
 {
-  "version": "1.33.0",
-  "simulationStage": 14,
-  "upstreamCommit": "6ddd4f18b8ffb1789379fb8635dd37540983a952",
-  "simulationSHA256": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd",
+  "version": "1.35.0",
+  "simulationStage": 16,
+  "upstreamCommit": "0e11b9485162bfb347483189689e3e29f5bf7d50",
+  "simulationSHA256": "593d6e80f3d4eadbe85f8969d3778773be617c4b3c0fdf65825125b3c62551ba",
   "rigSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
-  "playerAssetId": "tribun-makehuman-footballer-v1",
-  "playerAssetManifestSHA256": "2b679cf20fca00b216a68d4bb35df6a619f24660efc8e639648d4205e41e260a",
-  "description": "All distributed files except this manifest. Current GitHub main is retained, including procedural GLB/clip/footlock workflows, match crossfades and adaptive FPS/runtime LODs. Production licensed human uses a canonical 19-bone anatomy, constrained rigid transitions, normalized dual-quaternion skinning and authored local weight refinement. Source-bound tests, mesh measurements, unchanged-football-state comparisons and actual browser images include explicit extreme-pose limits. Dependencies, local data, caches, Git metadata and scratch output are excluded.",
+  "playerAssetManifestSHA256": "71bbb3fa69153aa9279f97918a3983db0e060eb5c8490266c0ae0641d249f0c4",
+  "interchangeManifestSHA256": "c3b6e836838092283b9ada59aeb09e13770868804e465803f7d8424b1f49b6d7",
+  "description": "Distributed game files. Two-stage manager control for crosses, corners, free kicks and penalties, with player-dependent ball contact and flight. Watched league fixtures use one server simulation, authenticated team controls, automatic kicks for absent viewers and an official SQLite result. Dependencies and local work files are excluded.",
   "files": [
     {
       "path": ".github/workflows/character-rig.yml",
@@ -19,29 +19,34 @@
       "sha256": "7caaa9b299baa765f061993c40db9e2b1ebd6754e57551b88e81987765627d61"
     },
     {
+      "path": ".github/workflows/gltf-interop.yml",
+      "bytes": 1753,
+      "sha256": "f3f0d28756aa5e45628a8fab71da2e8c2085206b101975f264d0b2d5857fa2ef"
+    },
+    {
       "path": ".github/workflows/licensed-character.yml",
       "bytes": 1765,
       "sha256": "2f3b6845946a1d6bd81d113d3e68e7e4ba95b9141ab65b3ace4221184d8d1713"
     },
     {
       "path": ".gitignore",
-      "bytes": 63,
-      "sha256": "e828b87ff797f85c9f4b5813abf99786a5fa4903a5cd52e34eae07f852468ccc"
+      "bytes": 69,
+      "sha256": "f52c35c968a20a1fb3e5b484268faf760026a0b3c88075a366c2c0aa8eaa3311"
     },
     {
       "path": "ANIMASYON_YOL_HARITASI.md",
-      "bytes": 8316,
-      "sha256": "c9312b7ccb8099a26aded757248cf05494318d0f9b394881f0e404b93ce74fa3"
+      "bytes": 8965,
+      "sha256": "4f04846636dd5f83e71bf58653f306c47668ab5ddd435b7c84a976d803bf2577"
     },
     {
       "path": "ARCHITECTURE.md",
-      "bytes": 63481,
-      "sha256": "71b93eabc9dd1fd637f7bb40bfe857d7a962e29a2cb539582b601264858fe27b"
+      "bytes": 65158,
+      "sha256": "f6de3e0629e89c29ef5c2b4cbbbf57b5cb9485cd185070399f1e47884ee89211"
     },
     {
       "path": "ASSET_SOURCES.md",
-      "bytes": 10761,
-      "sha256": "e2cb722f5fed22542af09a4c035bd0f39388ed2c82fbb0c02c3c3cfaa102ed68"
+      "bytes": 11809,
+      "sha256": "b4723e6fb7206dce9a6905364082e4633707f6144ed7d743f262af4bfb6bd26f"
     },
     {
       "path": "BASLAT.bat",
@@ -60,8 +65,8 @@
     },
     {
       "path": "DOGRULAMA.md",
-      "bytes": 133856,
-      "sha256": "010f4667fc2c83610458191c9d3832e8c0c0ba30c97f46be2fcff568f647f6f7"
+      "bytes": 137831,
+      "sha256": "97bb50907bcddc67f4181fa33ea3e7236fabcc093baac68aac84d73b488c64a8"
     },
     {
       "path": "FIFA_REFERANSI.md",
@@ -70,13 +75,13 @@
     },
     {
       "path": "KURULUM.md",
-      "bytes": 6860,
-      "sha256": "cf053610fc82772a49bb333a72ba81280cb1ab080d6b9750ccc2fc61084614f0"
+      "bytes": 8499,
+      "sha256": "a19a231f760c00fb9094dd4284d1364ec92d6bca10d816926ffd6526d88a7be0"
     },
     {
       "path": "README.md",
-      "bytes": 36591,
-      "sha256": "39e6aa3512577554bba8dddd8b2a00a0188c8c9ac37818715e3e37853af929f7"
+      "bytes": 39843,
+      "sha256": "a51883006cbc2df6f49669c64e5097760a8659b89ad3a3dc422387098d604e21"
     },
     {
       "path": "RELEASE_NOTES.md",
@@ -87,6 +92,11 @@
       "path": "SIMULASYON_YOL_HARITASI.md",
       "bytes": 31815,
       "sha256": "38d1335a911368dfaf17d049072a584129a10d2167dd7012223f47fb20796478"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "bytes": 1206,
+      "sha256": "d830b2f38db4b5db9d1dd20c01f7779d17ae8f57106b151e8f731de33a9e2b6a"
     },
     {
       "path": "TRANSFER_SISTEMI.md",
@@ -114,9 +124,69 @@
       "sha256": "5f80bfe24d5f5cc39456ea14fa3a1674ace182657f2c5d29c6c091968475c5bd"
     },
     {
+      "path": "assets/interchange/CREDITS.md",
+      "bytes": 1837,
+      "sha256": "eec91f87e2349ed68dd8733e2712612b79bf1088552ff65ce98c785806f952ee"
+    },
+    {
+      "path": "assets/interchange/LICENSE-CC0.txt",
+      "bytes": 6962,
+      "sha256": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c"
+    },
+    {
+      "path": "assets/interchange/SOURCE-LICENSE.md",
+      "bytes": 3598,
+      "sha256": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1"
+    },
+    {
+      "path": "assets/interchange/editable.blend",
+      "bytes": 1580653,
+      "sha256": "d75c4c9a8b38130c24389619376d823874d05bfdafcd00c8d734bde191750b8a"
+    },
+    {
+      "path": "assets/interchange/footballer.blender.bin",
+      "bytes": 1365116,
+      "sha256": "207eb214e8956ede471349050f85fccd7cf9a3ec0c09449e2f11b024a9bdfc08"
+    },
+    {
+      "path": "assets/interchange/footballer.blender.glb",
+      "bytes": 1509524,
+      "sha256": "953804466a77ddaf4ded627ba21aac880c3da41411412fe62387c3557a0e4e5f"
+    },
+    {
+      "path": "assets/interchange/footballer.blender.gltf",
+      "bytes": 103655,
+      "sha256": "1d053f7e17560c3097b86369698f554b859151447c8a3bfe71e6b98617f1bab4"
+    },
+    {
+      "path": "assets/interchange/khronos-validation.json",
+      "bytes": 1487,
+      "sha256": "f870b1fae6eea14c12766aff2f1c4c8b913fec19ab19ac896c92d7dbdd9e3427"
+    },
+    {
+      "path": "assets/interchange/manifest.json",
+      "bytes": 7069,
+      "sha256": "c3b6e836838092283b9ada59aeb09e13770868804e465803f7d8424b1f49b6d7"
+    },
+    {
+      "path": "assets/interchange/rebuild.json",
+      "bytes": 3061,
+      "sha256": "1f0958ffc2d88ba35e35c543b533fe8cce33dab5af22db96acae102211f5a4cc"
+    },
+    {
+      "path": "assets/interchange/textures/fabric-detail.png",
+      "bytes": 31554,
+      "sha256": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24"
+    },
+    {
+      "path": "assets/interchange/textures/skin-detail.png",
+      "bytes": 41870,
+      "sha256": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae"
+    },
+    {
       "path": "assets/player/CREDITS.md",
-      "bytes": 3812,
-      "sha256": "be327ed318dd08a106ddff77938bb626858a2d85054c28fcbc7fa177dc703602"
+      "bytes": 4242,
+      "sha256": "d867534f082b52ea5b7afb586b195daee19da4709d7ba73854006fbaa3f31dc8"
     },
     {
       "path": "assets/player/LICENSE-CC0.txt",
@@ -130,13 +200,13 @@
     },
     {
       "path": "assets/player/footballer.glb",
-      "bytes": 1385096,
-      "sha256": "b07add00bd67ea7ebd51ca95c979968364f4209452c16e0ac8a5350ee7079d1c"
+      "bytes": 1385268,
+      "sha256": "b9ff19673f0561e405f1c88da5acfee51124651aaa8b3df1798301e35b774ee6"
     },
     {
       "path": "assets/player/manifest.json",
-      "bytes": 6404,
-      "sha256": "2b679cf20fca00b216a68d4bb35df6a619f24660efc8e639648d4205e41e260a"
+      "bytes": 6600,
+      "sha256": "71bbb3fa69153aa9279f97918a3983db0e060eb5c8490266c0ae0641d249f0c4"
     },
     {
       "path": "assets/player/player-model-data.js",
@@ -215,8 +285,8 @@
     },
     {
       "path": "character-viewer.html",
-      "bytes": 10301,
-      "sha256": "efc7ac2bcc97daf39082f43cc87f5f57e0acce5ac3a5864668a646bd875b2726"
+      "bytes": 10328,
+      "sha256": "d94c5eda5174b7bb8c8f37244630b5c3f649910167f0f06cf8e6d8640fd52d72"
     },
     {
       "path": "club-data.js",
@@ -267,6 +337,16 @@
       "path": "docs/CHARACTER_RIG_PHASE8.md",
       "bytes": 4252,
       "sha256": "beed247583508770ae88659a75bd9dfe7c72aae55214cbede9c0886ff5a646db"
+    },
+    {
+      "path": "docs/GLTF_PIPELINE.md",
+      "bytes": 13428,
+      "sha256": "1b0b8c66c21d2801fd97109de68caa1670f60aa56d6b19687e28912d8fc51fcd"
+    },
+    {
+      "path": "docs/GLTF_RENDERER_DECISION.md",
+      "bytes": 14587,
+      "sha256": "6e043df2162b1e0515df0148be853b5d5c3179cbc4769851770748a906d133c9"
     },
     {
       "path": "docs/MATCH_FPS_OPTIMIZATION.md",
@@ -412,6 +492,61 @@
       "path": "docs/previews/character-studio-side-final.png",
       "bytes": 251443,
       "sha256": "bc46a26062300d17a9cd3f3ff119e6a4dae6d35715121e2d55587e2459d3044f"
+    },
+    {
+      "path": "docs/previews/gltf-comparison-idle.png",
+      "bytes": 262424,
+      "sha256": "b532bef46b17abe9bd88a57ccb891dd40b9f06e1288b19f80677ed44aba2c222"
+    },
+    {
+      "path": "docs/previews/gltf-custom-dive-right.png",
+      "bytes": 49834,
+      "sha256": "c1c52b63bfe76a2277b7d33104f837afc3f6e372f106b6bf6c3262ae832b70bf"
+    },
+    {
+      "path": "docs/previews/gltf-custom-idle.png",
+      "bytes": 47368,
+      "sha256": "df70af7e3efc327cfd0be08e16c93e6a5512467afb578759835adb957720a89e"
+    },
+    {
+      "path": "docs/previews/gltf-custom-run.png",
+      "bytes": 47421,
+      "sha256": "6168695992be704c903a864eb76015049c1c338e008608abd3ee491ddc84bd23"
+    },
+    {
+      "path": "docs/previews/gltf-custom-shoot.png",
+      "bytes": 49398,
+      "sha256": "6fd58fbebf36ed101b9a81284062e3e067860ad3be055875294f6248fb5365e9"
+    },
+    {
+      "path": "docs/previews/gltf-three-dive-right.png",
+      "bytes": 50469,
+      "sha256": "9dfa7a6e3fee65190232f142e4df15cc79d86d1a7051218b9c19a0023f122ac7"
+    },
+    {
+      "path": "docs/previews/gltf-three-idle.png",
+      "bytes": 49160,
+      "sha256": "0e4523fe921348a921e71c2c29ff17a90a462187c6ef168e3ce7a7e7e9136680"
+    },
+    {
+      "path": "docs/previews/gltf-three-run.png",
+      "bytes": 49203,
+      "sha256": "6b58b36253f9565b5e26bf7f306ca6ac0f8a518f96bbbcd3e763669ebf9e94ea"
+    },
+    {
+      "path": "docs/previews/gltf-three-shoot.png",
+      "bytes": 50812,
+      "sha256": "2d29a3d37709ea053d5e504ecefb42675947da78685b0faf364ea55f5f97b51f"
+    },
+    {
+      "path": "docs/previews/manager-kick-aim.png",
+      "bytes": 208380,
+      "sha256": "5f522f420615c71af6a833831ddd13053b36b4f5acba9ba60400aeb93005b6ca"
+    },
+    {
+      "path": "docs/previews/manager-kick-contact.png",
+      "bytes": 128771,
+      "sha256": "7b00f2a8d2a60e1cb91b9bf7cb0c65c6e525869175e42b3bd9b71a8668ec2db0"
     },
     {
       "path": "docs/previews/model-match-close.png",
@@ -607,6 +742,36 @@
       "path": "docs/validation/first-control-protect-fork.json",
       "bytes": 59180,
       "sha256": "2c64c0cd2d51eac481ea446c24f619523ebdfe60e6e3b378bb9a66f089a7927c"
+    },
+    {
+      "path": "docs/validation/gltf-comparison.json",
+      "bytes": 887056,
+      "sha256": "e7a5382255917884e9596c10212cb4a173a4372830cd54e3b06de38fdf31aaf7"
+    },
+    {
+      "path": "docs/validation/gltf-legacy-viewer.json",
+      "bytes": 6451,
+      "sha256": "2e3f9d92cb8f7aa78468e4b533885e63c930891a2bec708d43ce494872f90572"
+    },
+    {
+      "path": "docs/validation/gltf-match-regression.json",
+      "bytes": 299713,
+      "sha256": "7c3e17668c6efc0b43816aa52623e4e1564835dd1b8a0036f0242f1e70b955f4"
+    },
+    {
+      "path": "docs/validation/gltf-tests.json",
+      "bytes": 21045,
+      "sha256": "38e013502d0bfbf4108fb74d37822d4d6dda41a25e291f6a6fce85b79c0666c6"
+    },
+    {
+      "path": "docs/validation/gltf-tests.log.gz",
+      "bytes": 19857,
+      "sha256": "35e4d9eae131ae49cb51b045fc90265869596eadc7a35225cae86659f22f16c9"
+    },
+    {
+      "path": "docs/validation/gltf-visual.json",
+      "bytes": 17732,
+      "sha256": "44ff057c166661f800c7eeae29924f69f332e136e9aa201439642c8ac56a92f1"
     },
     {
       "path": "docs/validation/hold-continuation-physics-check.json",
@@ -880,13 +1045,23 @@
     },
     {
       "path": "economy.py",
-      "bytes": 43122,
-      "sha256": "e6efed6ca6d2eca55eebdfbb0eed0e12cb7f3b6cea80fdac4b851d3d40845902"
+      "bytes": 43202,
+      "sha256": "4b58cf0b1ecff0330146e97e8c510289d6defa87e1e9989601ff77b3580be7ca"
     },
     {
       "path": "football-sim.js",
-      "bytes": 199745,
-      "sha256": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd"
+      "bytes": 206176,
+      "sha256": "593d6e80f3d4eadbe85f8969d3778773be617c4b3c0fdf65825125b3c62551ba"
+    },
+    {
+      "path": "gltf-asset-loader.mjs",
+      "bytes": 33707,
+      "sha256": "94eb77ea1443a8b1c22d8806e3288e68ee1f346ca8eb1f7efa1f8cb6ac7bb40c"
+    },
+    {
+      "path": "gltf-runtime-adapter.mjs",
+      "bytes": 18186,
+      "sha256": "b06342f72897b94fe6f60382babc8651ed39e0701967790210ce6c17442e5767"
     },
     {
       "path": "humanoid-rig-procedural.js",
@@ -904,24 +1079,74 @@
       "sha256": "abfd4df772e865a95789cd1ba43afb40211c47d492ea9e923a114bc95f9b9058"
     },
     {
+      "path": "interop-lab.css",
+      "bytes": 8958,
+      "sha256": "4443cb4734368b5b1795cfcb73a0f605520824169fbe86aeecad2fb5a6546e52"
+    },
+    {
+      "path": "interop-lab.html",
+      "bytes": 6447,
+      "sha256": "7c161f13958a20f063095d4190c49ace0b5e5eac4a00493c3f5df043699ab09a"
+    },
+    {
+      "path": "interop-lab.mjs",
+      "bytes": 30496,
+      "sha256": "0a9cd5f3555bc226985551ba3b394529c529bb5c55371519572d746a2ebb035f"
+    },
+    {
       "path": "league.css",
       "bytes": 6070,
       "sha256": "46bc4c5e6743519f30e2f507ba50783298b4c94f2c5b251bb67537a952b67d22"
     },
     {
       "path": "league.html",
-      "bytes": 6813,
-      "sha256": "b5feb27c4fd0d25e7c5caed6b37962b6791271e06153138b66ad5cfb3f35788f"
+      "bytes": 6868,
+      "sha256": "7b8bfc049cabd47f44529addcff9ff629daaa8f5bdc1a31214657a2d70446eb6"
     },
     {
       "path": "league.js",
-      "bytes": 7133,
-      "sha256": "aac4e667c361e81baffc0d92c2aaddf74fb8ec4ef979f20cd64a37271698a69f"
+      "bytes": 7623,
+      "sha256": "a620c7f087c596c405dbed89a9b763c08a9a50ffa25d328bcde9140293285793"
+    },
+    {
+      "path": "live-match-client.js",
+      "bytes": 3870,
+      "sha256": "23a33186a2b846ff371bf75cfe6b307c3c64fa89639b7bba27cf8dceb3f203e8"
+    },
+    {
+      "path": "live-match-view.js",
+      "bytes": 2431,
+      "sha256": "af3729f176283433aab8e37adb0350c497c421e9d1981d83b21f266b9e59e6cd"
+    },
+    {
+      "path": "live-match-worker.cjs",
+      "bytes": 4997,
+      "sha256": "c2a3d5be72197ae6db2b7fc736d8c36bc30326e34ac6c39ba966105389663523"
+    },
+    {
+      "path": "live_match.py",
+      "bytes": 12653,
+      "sha256": "ab7ba2c99b2ae9d6824a2defed5e7c30adede919ce7822fac3e20ce26c94e1e1"
+    },
+    {
+      "path": "manager-kick-aim.js",
+      "bytes": 4867,
+      "sha256": "f01c49499da63bba6cd89505068cc1c2531d6530af23df7c53b40eebd59cdfe8"
+    },
+    {
+      "path": "manager-kick-panel.css",
+      "bytes": 5300,
+      "sha256": "3765559918834f7d48aa510534523fa2dbfe77bd193b4b0281445002e2f232f2"
+    },
+    {
+      "path": "manager-kick-panel.js",
+      "bytes": 12785,
+      "sha256": "be78a716bf7fc5b8bb8e85f3477ccc8a407b05c6b16fee60f16cdc2d3247a284"
     },
     {
       "path": "manager.js",
-      "bytes": 20030,
-      "sha256": "c77552b6e8a8fbbcceba637274befcdfe587afa11b9c7381877915bd12310a74"
+      "bytes": 20324,
+      "sha256": "6b94daedc3a94ea30baf7bb212daddc5698e26fc9b2a01ddd5676d66a6b659bf"
     },
     {
       "path": "match-animation-bridge.js",
@@ -940,28 +1165,28 @@
     },
     {
       "path": "match.html",
-      "bytes": 9668,
-      "sha256": "09ab4eaa01fbceb14500e06fac5522bc68ed9c14190c2f462fcfdf1185b4931d"
+      "bytes": 10128,
+      "sha256": "65da5080a553390bcda6df85bc18521612a01028a992996b8eff7c82083e10a4"
     },
     {
       "path": "match3d.css",
-      "bytes": 15602,
-      "sha256": "97656e445cb8feaeaf0a3fbbcd96945b9d4ebd3f0b5fa511a0d9cb316064f921"
+      "bytes": 16216,
+      "sha256": "5ec5897ef55419604e64f98d992d5f6c561a38637733616abb105fc5438a0457"
     },
     {
       "path": "match3d.js",
-      "bytes": 19321,
-      "sha256": "1b5f4db56f9bfc0104ddfe096ddbb7ca6af2e989b4bd78bfabf1de3c4393f7d8"
+      "bytes": 25820,
+      "sha256": "640461f095c24af6af716cc7e1d9d25dd5f199d086be8adb03691fe7d22a7d5c"
     },
     {
       "path": "package-lock.json",
-      "bytes": 18410,
-      "sha256": "91d52dd691fd076d331cd415b204de1682edab2d3312201cc8ad6db08273033d"
+      "bytes": 21010,
+      "sha256": "3f2ae680c50cbf924d6ce532c2312582039dd9c265cffad03dfd6403d1feaa48"
     },
     {
       "path": "package.json",
-      "bytes": 5685,
-      "sha256": "55aecf43dad6def4c20af61a794e19bf44c96df9a11150fb7482fb2f7a10a7a9"
+      "bytes": 6525,
+      "sha256": "0609d060be64174b906429997becc4a21345c797459f7ec5fe19f4651e62493b"
     },
     {
       "path": "pitch-laws.js",
@@ -985,8 +1210,8 @@
     },
     {
       "path": "player-model.js",
-      "bytes": 5400,
-      "sha256": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02"
+      "bytes": 5693,
+      "sha256": "feaebc2b6c3db3f82fe1e75d6e239b307b8d2b0b3a3f3928443998b4556a5054"
     },
     {
       "path": "player-perception.js",
@@ -1000,8 +1225,8 @@
     },
     {
       "path": "player-renderer.js",
-      "bytes": 21127,
-      "sha256": "634ee69b288e8d51787e9f629cad044b7714c582f3b0b06ebecb6f48fdcc24c7"
+      "bytes": 25059,
+      "sha256": "b885b31fcc997d5eb2117f681335ba792eb2688df156f38d328c385b15563e9e"
     },
     {
       "path": "player-skinning.js",
@@ -1045,18 +1270,18 @@
     },
     {
       "path": "scene3d.js",
-      "bytes": 24853,
-      "sha256": "05462c68125500e076bab60e75f32ff17e4789e249e1e580b7e59a17fc9203be"
+      "bytes": 25535,
+      "sha256": "e58d55ab43d82f19e433ffeb38cec81c3b249b5f8cbeba2bb81351c012530f11"
     },
     {
       "path": "server.py",
-      "bytes": 18747,
-      "sha256": "ba7970ca231c2d60d1546ec08823411c8411408e911e6b2d584a67cad4a86e9d"
+      "bytes": 24320,
+      "sha256": "4239cc61680d1aeb18d3c64851cb211e5373017d0426b909937576828d6dcc84"
     },
     {
       "path": "start.py",
-      "bytes": 3220,
-      "sha256": "2ce2c84570ecc2be729e4c33c50b1cbaa9a9aa13810c63cdfda3405763d8ff88"
+      "bytes": 3494,
+      "sha256": "d0e8e1778564b6bd6d4144ef75b18b774dae04f51d309c0dbb91cbd10210dda2"
     },
     {
       "path": "start_mac_linux.sh",
@@ -1180,13 +1405,43 @@
     },
     {
       "path": "tests/fixture-roster-api.py",
-      "bytes": 5653,
-      "sha256": "09b031f531df8395e1e6c7deb6b6e74297938e360ce1a5e710579bcc24b7feea"
+      "bytes": 5798,
+      "sha256": "0be6e8c3ae109b291efa7474bc3bd7f8f0262028d93012a8db5e835ca4978e67"
     },
     {
       "path": "tests/fixture-roster.test.cjs",
       "bytes": 13160,
       "sha256": "a3d38b5eab5d9974f02968b4666257adb15eaa850a535f68a89046e0451e9398"
+    },
+    {
+      "path": "tests/gltf-blender-fixture.test.cjs",
+      "bytes": 17665,
+      "sha256": "1ac55024f91f001eebaf39ac24d02d0587a053011af088f604fb1cbe57cc62c5"
+    },
+    {
+      "path": "tests/gltf-vendor.test.cjs",
+      "bytes": 1953,
+      "sha256": "5cfefeb978ca5dea2ab9ead7d8e0b8d45036904f7d9231aca7491aa1629790d6"
+    },
+    {
+      "path": "tests/live-match-browser.cjs",
+      "bytes": 13019,
+      "sha256": "dc4feed34d0348ef5eea65fb383cb165b54de6b24882d5be747df98ca3501bea"
+    },
+    {
+      "path": "tests/live-match-worker.test.cjs",
+      "bytes": 6723,
+      "sha256": "03a8a4579e9da48e7b5dcbb01b757e7342bec6cb8af0701621878983ab64ccf7"
+    },
+    {
+      "path": "tests/manager-kick-browser.cjs",
+      "bytes": 10597,
+      "sha256": "7a5fb723267df48e78822b2c55a127bc505a47970dd4fe351d7bfcf835f86984"
+    },
+    {
+      "path": "tests/manager-kick.test.cjs",
+      "bytes": 10228,
+      "sha256": "e37966b31e64a73813756ac6c3505c1bb526c77b7c433f27cdb4357a0ef9499b"
     },
     {
       "path": "tests/match-animation-bridge.test.cjs",
@@ -1235,8 +1490,8 @@
     },
     {
       "path": "tests/player-assets.test.cjs",
-      "bytes": 17297,
-      "sha256": "0bfc239c03a31682eee2855b754da6101ee43ee4cc6b9f5d0780fae63216575e"
+      "bytes": 18141,
+      "sha256": "cb5e0f0b220457858942682a3020f56a79e0d9f1b91a036b54b32e588fc119fe"
     },
     {
       "path": "tests/player-identity-integration.test.cjs",
@@ -1289,6 +1544,11 @@
       "sha256": "b755c6e01d548f1bfdd94e34428a02a5fe2ad472476cf8323eb2d0a45fb233ce"
     },
     {
+      "path": "tests/standard-gltf-loader.test.cjs",
+      "bytes": 19428,
+      "sha256": "7793316022243bf414985a3445c5c84f34774392c57da477ef43d17884624e47"
+    },
+    {
       "path": "tests/support-continuity.test.cjs",
       "bytes": 9398,
       "sha256": "c265f86263a43fd26d48c34dbc5c29aea6701e8981d457f3e3f794da9f4736a2"
@@ -1314,14 +1574,19 @@
       "sha256": "b085ae6fc2eb6e138df5c8b7eb0c8b6bd1311754e1be2b7aa3bada9bbf395d78"
     },
     {
+      "path": "tests/test_live_match.py",
+      "bytes": 8017,
+      "sha256": "0551b6600369d185811d5a7d4c2b6e34c57625e0e6169676a4789e60186cac0b"
+    },
+    {
       "path": "tests/test_player_assets.py",
       "bytes": 10558,
       "sha256": "8903fe7f81629b3457a9f3954eba02edb8dae35bcec3d90d8d300bb6336f1a6a"
     },
     {
       "path": "tests/test_player_model.py",
-      "bytes": 9779,
-      "sha256": "b85522963e44516eeddbf7dcd13de57d0b29365359a3ec58e339d874ac032fa5"
+      "bytes": 9872,
+      "sha256": "9fe25db75526d0035002056f50274adf7cf1ad0192dc7e0c87d6ceb7f2c5d39f"
     },
     {
       "path": "tests/touch-feasibility.test.cjs",
@@ -1329,14 +1594,24 @@
       "sha256": "1ce491ea186c04caa0ab3a63999eb4580d653b1bda3b3e102dd4e39e31606817"
     },
     {
+      "path": "tools/bake-licensed-clips.cjs",
+      "bytes": 9339,
+      "sha256": "65e5ae035eefa3b91604bf6fb11953688d4bac8ae1ff43c75d3fc9e12cfc2122"
+    },
+    {
       "path": "tools/benchmark-match-22-browser.cjs",
       "bytes": 6410,
       "sha256": "bdd4cf1854383676529c9f5c953ceab421f3d3a5225d5d02b7d640b5c7ce07ee"
     },
     {
+      "path": "tools/build-blender-interchange.py",
+      "bytes": 16576,
+      "sha256": "f3f61da9c95fda58e4971e04095a59813d0eb42f64a91350c140233b4be91866"
+    },
+    {
       "path": "tools/build-player-assets.py",
-      "bytes": 40281,
-      "sha256": "4efd1d12ef92d865534c73dcc78deb93b5ed2fe6a0e4239fcb9ca14471148661"
+      "bytes": 41382,
+      "sha256": "f6df3a40b953c4805cb2d1e781c9bd3f5c4f09fdcbd890060581ad92145e76ac"
     },
     {
       "path": "tools/character-animation-baker.cjs",
@@ -1384,14 +1659,24 @@
       "sha256": "de4cd641cd09cced43fce79c2c74e882818028996f025b784b612b8d5727c820"
     },
     {
+      "path": "tools/check-gltf-comparison.cjs",
+      "bytes": 40922,
+      "sha256": "7b2901846956ebd58482b8c8fd3a1e4dcdb67eabd7d3a05c3f30a11db2bda85b"
+    },
+    {
+      "path": "tools/check-gltf-tests.py",
+      "bytes": 2999,
+      "sha256": "6e75822ee35a68cbf29fcd3b30d67818b8e4f2edb1918b9a9f07e807f92b1fa2"
+    },
+    {
       "path": "tools/check-hold-physics.cjs",
       "bytes": 7746,
       "sha256": "19af8b11bbe46faa4b925a1f4bc28390e9c38f3b4749dd5765e616dfae3d7a4a"
     },
     {
       "path": "tools/check-independent-glb-browser.cjs",
-      "bytes": 4600,
-      "sha256": "7d09c62400fcc850802352312c9cbbd5dbd309a2d14d5785fada7876200e2114"
+      "bytes": 4647,
+      "sha256": "fe47e2a6430c84b453d58bcdd2bb823547d8c0c3fef15a591ca0f24d996bc4cc"
     },
     {
       "path": "tools/check-match-laws-browser.py",
@@ -1529,6 +1814,11 @@
       "sha256": "635404c31147f9deea8139bfb9c6d03f11a140cc1c5d49aed4c20fa1f7c9b62c"
     },
     {
+      "path": "tools/vendor-three.cjs",
+      "bytes": 1528,
+      "sha256": "3411896651dc8e4def417ddf0b38a7db4ad1d0e286c8387a275d295129a36286"
+    },
+    {
       "path": "transfer-client.js",
       "bytes": 3930,
       "sha256": "403615be8ca1b51e4c4246ab23c5b9a5b3fc7827b46d8afc9f3f645326e81b44"
@@ -1557,6 +1847,46 @@
       "path": "ui-shell.js",
       "bytes": 6147,
       "sha256": "132213f913ec9c22f66e313016823609c8f2d25d719436c464bad778ba04c4ae"
+    },
+    {
+      "path": "vendor/three/LICENSE",
+      "bytes": 1081,
+      "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
+    },
+    {
+      "path": "vendor/three/build/three.core.min.js",
+      "bytes": 381124,
+      "sha256": "61ba0df005b05991361d040d8ff670e1aadfd0ce7aeebd1fdb0725957a8957de"
+    },
+    {
+      "path": "vendor/three/build/three.module.min.js",
+      "bytes": 338908,
+      "sha256": "e2b5ee6bccd38fd6d8a2428546b83c5f2426d84b152ef82be8055556e3b40eb6"
+    },
+    {
+      "path": "vendor/three/examples/jsm/controls/OrbitControls.js",
+      "bytes": 38703,
+      "sha256": "b97879c748170baadeb3fb84cea1ffdf4674e283dc06042f34e2acb95a76042c"
+    },
+    {
+      "path": "vendor/three/examples/jsm/loaders/GLTFLoader.js",
+      "bytes": 114739,
+      "sha256": "67ac5551fdafa6e349bd80c8f8e5e39c136d6b2fb1ad647db9abb21dc86f9e4a"
+    },
+    {
+      "path": "vendor/three/examples/jsm/utils/BufferGeometryUtils.js",
+      "bytes": 35539,
+      "sha256": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751"
+    },
+    {
+      "path": "vendor/three/examples/jsm/utils/SkeletonUtils.js",
+      "bytes": 11062,
+      "sha256": "0761b1e003917b215d25dd81439d854b36034b5a57ce84c2cfe3b02428d7b253"
+    },
+    {
+      "path": "vendor/three/manifest.json",
+      "bytes": 1519,
+      "sha256": "dad9660ff4f791e23390c88bcee2b885f9cd654922d9e78fc5d166fb27500f42"
     }
   ]
 }

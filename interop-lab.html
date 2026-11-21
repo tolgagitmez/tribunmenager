@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0c151c">
+  <title>glTF karşılaştırma atölyesi · Tribün Manager</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="interop-lab.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
+</head>
+<body>
+  <a class="skip-link" href="#controls">Kontrollere geç</a>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">TM</span><span>TRİBÜN <small>MANAGER / ATÖLYE</small></span></a>
+    <a class="back-link" href="player-studio.html">Oyuncu stüdyosu <span aria-hidden="true">↗</span></a>
+  </header>
+  <main>
+    <div class="intro">
+      <div><p class="eyebrow">TEKNİK PROTOTİP <span>03 / STANDART MODEL</span></p><h1>Aynı model.<br><em>İki çizim motoru.</em></h1></div>
+      <p class="intro-copy">Blender’dan çıkan futbolcuyu aynı hareket, kamera ve çözünürlükte incele. Standart glTF dosyası iki tarafa da aynı yükleme yoluyla gelir.</p>
+    </div>
+    <section class="controls" id="controls" aria-label="Ortak karşılaştırma kontrolleri">
+      <label>MODEL DOSYASI<select id="model-source"><option value="assets/interchange/footballer.blender.glb">Blender · GLB</option><option value="assets/interchange/footballer.blender.gltf">Blender · glTF + harici dosyalar</option></select></label>
+      <label>HAREKET<select id="clip"><option value="idle">Duruş · idle</option><option value="run">Koşu · run</option><option value="shoot">Şut · shoot</option><option value="dive-right">Sağa kurtarış · dive-right</option></select></label>
+      <fieldset><legend>FUTBOLCU SAYISI</legend><div class="segments"><button type="button" data-count="1" aria-pressed="true">1</button><button type="button" data-count="22" aria-pressed="false">22</button></div></fieldset>
+      <fieldset><legend>KAMERA</legend><div class="segments"><button type="button" data-view="full" aria-pressed="true">Tam boy</button><button type="button" data-view="face" aria-pressed="false">Yüz</button><button type="button" data-view="side" aria-pressed="false">Yan</button></div></fieldset>
+      <div class="timeline"><button type="button" id="play-pause" aria-label="Hareketi durdur" aria-pressed="true">Ⅱ <span>Durdur</span></button><label for="time">ORTAK ZAMAN <output id="time-readout" for="time">0.000 s</output></label><input id="time" type="range" min="0" max="2" step="0.001" value="0" aria-label="Hareket zamanı"></div>
+    </section>
+    <section class="comparison" aria-label="Yan yana çizim karşılaştırması">
+      <article class="backend" data-backend="custom">
+        <div class="backend-title"><div><span class="backend-index">A</span><h2>Mevcut WebGL <small>ÖZEL ÇİZİCİ / WEBGL 1</small></h2></div><span class="status" id="custom-status" data-state="idle">Bekliyor</span></div>
+        <div class="viewport"><canvas id="custom-canvas" width="600" height="560" aria-label="Mevcut WebGL çizicisiyle futbolcu önizlemesi"></canvas><div class="canvas-tag">DQS <span>·</span> TAM GEOMETRİ</div><div class="stage-message" id="custom-message" aria-live="polite">Model yükleniyor…</div></div>
+        <div class="backend-metrics"><div><span>TAMAMLANAN KARE</span><strong id="custom-cost">— <small>ms</small></strong></div><div><span>ÇİZİM ÇAĞRISI</span><strong id="custom-draws">—</strong></div><div><span>ÜÇGEN</span><strong id="custom-triangles">—</strong></div></div>
+        <details class="diagnostics"><summary>Yükleme ve çizim bilgisi <span>+</span></summary><pre id="custom-diagnostics">Henüz bir model yüklenmedi.</pre></details>
+      </article>
+      <article class="backend" data-backend="three">
+        <div class="backend-title"><div><span class="backend-index">B</span><h2>Three.js <small>r180 / STANDART PBR</small></h2></div><span class="status" id="three-status" data-state="idle">Bekliyor</span></div>
+        <div class="viewport"><canvas id="three-canvas" width="600" height="560" aria-label="Three.js ile futbolcu önizlemesi"></canvas><div class="canvas-tag">LBS <span>·</span> STANDART MALZEMELER</div><div class="stage-message" id="three-message" aria-live="polite">Model yükleniyor…</div></div>
+        <div class="backend-metrics"><div><span>TAMAMLANAN KARE</span><strong id="three-cost">— <small>ms</small></strong></div><div><span>ÇİZİM ÇAĞRISI</span><strong id="three-draws">—</strong></div><div><span>ÜÇGEN</span><strong id="three-triangles">—</strong></div></div>
+        <details class="diagnostics"><summary>Yükleme ve çizim bilgisi <span>+</span></summary><pre id="three-diagnostics">Henüz bir model yüklenmedi.</pre></details>
+      </article>
+    </section>
+    <section class="comparison-note" aria-label="Karşılaştırmanın kapsamı">
+      <div><p class="eyebrow">NE KARŞILAŞTIRILIYOR?</p><p>Aynı dosya, aynı iskelet, aynı klip zamanı. Mevcut çizici dual quaternion, Three.js doğrusal iskelet dönüşümü kullanır; eklem şekilleri ve malzeme ışığı farklı görünebilir.</p><p class="muted">İki taraf da yerel Three.js GLTFLoader ile çözülür. Yükleme süresi ortak ayrıştırma maliyetini içerir; bağımsız yükleyici hızı ölçümü değildir. Sabit ışıklar ve düz zemin kullanılır. Otomatik kalite ve geometri azaltma kapalıdır.</p></div>
+      <div class="measure"><button id="benchmark" type="button">Kare süresini ölç <span aria-hidden="true">↗</span></button><p id="benchmark-result" aria-live="polite">İsteğe bağlı ölçüm: 12 ısınma + 30 kare / motor. Kareler sırayla tamamlanır; sonuç bu cihaz ve sahne içindir.</p><p class="muted">Canlı sayaçlar gönderim süresini gösterir. Tamamlanan kare ölçümü GPU bitişini bekler; bu, GPU’nun tek başına çalışma süresi değildir.</p></div>
+    </section>
+    <footer><span>TRİBÜN MANAGER <b>/ glTF 2.0</b></span><span id="resolution-label">600 × 560 px · Her çizici için ayrı bağlam</span></footer>
+  </main>
+  <script src="humanoid-rig.js"></script>
+  <script src="player-skinning.js"></script>
+  <script src="character-palette-constraints.js"></script>
+  <script src="player-renderer.js"></script>
+  <script type="module" src="interop-lab.mjs"></script>
+</body>
+</html>

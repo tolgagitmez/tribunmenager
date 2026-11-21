@@ -1,0 +1,45 @@
+name: All league fixtures use one authoritative field engine
+on:
+  push:
+    branches:
+      - feature/unified-league-fixture-engine
+  pull_request:
+    paths:
+      - server.py
+      - live_match.py
+      - live-match-worker.cjs
+      - tests/test_unified_fixtures.py
+      - tests/fixture-watch-parity.test.cjs
+      - .github/workflows/league-engine-parity.yml
+  workflow_dispatch:
+jobs:
+  freeze-and-settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify every kickoff fixture uses real engine and durable replay
+        run: python3 -m unittest discover -s tests -p 'test_unified_fixtures.py' -v
+      - name: Preserve existing HTTP two-client live match behavior
+        run: python3 -m unittest discover -s tests -p 'test_live_match.py' -v
+      - name: Preserve local fixture roster API privacy and projections
+        run: python3 tests/fixture-roster-api.py
+
+  watch-invariance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Zero, one and two watchers never change delegated physics or final score
+        run: node --test tests/fixture-watch-parity.test.cjs
+      - name: Check existing manager-kick parity
+        run: npm run test:manager-kick

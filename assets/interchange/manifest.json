@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "modelId": "tribun-blender-interchange-v1",
+  "license": "CC0-1.0",
+  "sourceModel": "assets/player/footballer.glb",
+  "sourceModelSHA256": "b9ff19673f0561e405f1c88da5acfee51124651aaa8b3df1798301e35b774ee6",
+  "sourceCommit": "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
+  "rigReferenceSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
+  "sourceProvenance": "assets/player/source/provenance.json",
+  "originalPinnedSourceFiles": {
+    "repository": "https://github.com/makehumancommunity/makehuman",
+    "commit": "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
+    "retrievedAt": "2026-11-13T16:04:15.572397+00:00",
+    "assetLicense": "CC0-1.0",
+    "programLogicLicense": "AGPL-3.0-or-later",
+    "scope": "Only graphical data and its license texts are used; no MakeHuman Python/GLSL/program logic was copied.",
+    "evidence": {
+      "baseMeshHeader": "This asset was explicitly released as CC0 in september 2020.",
+      "assetPolicy": "LICENSE.md section C includes the base mesh and proxies, targets/modifiers, textures, clothes, poses and expressions under CC0 1.0 Universal.",
+      "skeletonMetadata": "CC0",
+      "weightsMetadata": "CC0"
+    },
+    "files": [
+      {
+        "local": "work/stage13/source/makehuman-base.obj",
+        "repositoryPath": "makehuman/data/3dobjs/base.obj",
+        "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/3dobjs/base.obj",
+        "bytes": 1749303,
+        "sha256": "8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c"
+      },
+      {
+        "local": "work/stage13/source/makehuman-default.mhskel",
+        "repositoryPath": "makehuman/data/rigs/default.mhskel",
+        "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/rigs/default.mhskel",
+        "bytes": 117790,
+        "sha256": "99f179bce0aa850b45d4191a1d0d234c5851f881c057439470ded3bddf729a24"
+      },
+      {
+        "local": "work/stage13/source/makehuman-default_weights.mhw",
+        "repositoryPath": "makehuman/data/rigs/default_weights.mhw",
+        "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/rigs/default_weights.mhw",
+        "bytes": 897521,
+        "sha256": "0f3641d651ae3d00ad6b4ccee43142edb109d3bd909d27d9e4139ef1beed8625"
+      },
+      {
+        "local": "work/stage13/source/makehuman-LICENSE.md",
+        "repositoryPath": "LICENSE.md",
+        "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/LICENSE.md",
+        "bytes": 3598,
+        "sha256": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1"
+      },
+      {
+        "local": "work/stage13/source/makehuman-LICENSE.ASSETS.md",
+        "repositoryPath": "LICENSE.ASSETS.md",
+        "sourceURL": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/LICENSE.ASSETS.md",
+        "bytes": 6962,
+        "sha256": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c"
+      }
+    ],
+    "textureStatus": "No external skin texture downloaded; any runtime texture must be documented separately as original authored work or independently sourced."
+  },
+  "editable": "assets/interchange/editable.blend",
+  "glb": "assets/interchange/footballer.blender.glb",
+  "gltf": "assets/interchange/footballer.blender.gltf",
+  "bin": "assets/interchange/footballer.blender.bin",
+  "blenderVersion": "4.3.2",
+  "unit": "metre",
+  "upAxis": "+Y",
+  "forwardAxis": "+X",
+  "toolProvenance": {
+    "name": "Blender",
+    "version": "4.3.2",
+    "license": "GPL-3.0-or-later",
+    "scope": "External importer/exporter only; no Blender program code is copied into the CC0 asset package"
+  },
+  "blenderUpAxis": "+Z",
+  "bones": 19,
+  "materials": 10,
+  "textures": 2,
+  "simulationHz": 60,
+  "fps": 30,
+  "clips": [
+    {
+      "name": "idle",
+      "duration": 1
+    },
+    {
+      "name": "run",
+      "duration": 2
+    },
+    {
+      "name": "shoot",
+      "duration": 1.3,
+      "contactTime": 0.38
+    },
+    {
+      "name": "dive-right",
+      "duration": 1.3,
+      "contactTime": 0.34
+    }
+  ],
+  "validationTolerances": {
+    "jointWorldMetres": 2e-05,
+    "skinMatrixElement": 2e-05,
+    "skinnedVertexMetres": 3e-05,
+    "bindGeometryMetres": 2e-06,
+    "uv": 2e-06,
+    "weights": 0.00015,
+    "materialFactor": 2e-06,
+    "normalComponent": 0.0042,
+    "vertexColor": 2e-05
+  },
+  "skinning": "glTF linear blend skinning; runtime custom rendering uses dual quaternions",
+  "sourceConversions": {
+    "vertexColor": "Source standard GLB already clamps authored runtime highlights of 1.05 to required COLOR_0 range [0,1]; restore linear FLOAT_COLOR layer after Blender byte-color import",
+    "normals": "Blender custom-normal quantization; maximum measured component error 0.003819",
+    "weights": "Stock Blender exporter drops influences <=0.0001 and renormalizes retained weights"
+  },
+  "files": [
+    {
+      "path": "assets/interchange/editable.blend",
+      "bytes": 1580653,
+      "sha256": "d75c4c9a8b38130c24389619376d823874d05bfdafcd00c8d734bde191750b8a"
+    },
+    {
+      "path": "assets/interchange/footballer.blender.glb",
+      "bytes": 1509524,
+      "sha256": "953804466a77ddaf4ded627ba21aac880c3da41411412fe62387c3557a0e4e5f"
+    },
+    {
+      "path": "assets/interchange/footballer.blender.gltf",
+      "bytes": 103655,
+      "sha256": "1d053f7e17560c3097b86369698f554b859151447c8a3bfe71e6b98617f1bab4"
+    },
+    {
+      "path": "assets/interchange/footballer.blender.bin",
+      "bytes": 1365116,
+      "sha256": "207eb214e8956ede471349050f85fccd7cf9a3ec0c09449e2f11b024a9bdfc08"
+    },
+    {
+      "path": "assets/interchange/textures/fabric-detail.png",
+      "bytes": 31554,
+      "sha256": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24"
+    },
+    {
+      "path": "assets/interchange/textures/skin-detail.png",
+      "bytes": 41870,
+      "sha256": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae"
+    },
+    {
+      "path": "assets/interchange/CREDITS.md",
+      "bytes": 1837,
+      "sha256": "eec91f87e2349ed68dd8733e2712612b79bf1088552ff65ce98c785806f952ee"
+    },
+    {
+      "path": "assets/interchange/LICENSE-CC0.txt",
+      "bytes": 6962,
+      "sha256": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c"
+    },
+    {
+      "path": "assets/interchange/SOURCE-LICENSE.md",
+      "bytes": 3598,
+      "sha256": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1"
+    },
+    {
+      "path": "assets/interchange/khronos-validation.json",
+      "bytes": 1487,
+      "sha256": "f870b1fae6eea14c12766aff2f1c4c8b913fec19ab19ac896c92d7dbdd9e3427"
+    },
+    {
+      "path": "assets/interchange/rebuild.json",
+      "bytes": 3061,
+      "sha256": "1f0958ffc2d88ba35e35c543b533fe8cce33dab5af22db96acae102211f5a4cc"
+    }
+  ]
+}

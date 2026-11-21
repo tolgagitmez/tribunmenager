@@ -1,0 +1,54 @@
+name: Exact position roles and persistent season rotation
+on:
+  push:
+    branches: [feature/roles-season-rotation]
+  pull_request:
+    paths:
+      - 'player-model.js'
+      - 'football-sim.js'
+      - 'server.py'
+      - 'season_state.py'
+      - 'live_match.py'
+      - 'live-match-worker.cjs'
+      - 'tests/role-behavior-season.test.cjs'
+      - 'tests/league-rotation-ui.test.cjs'
+      - 'league.js'
+      - 'league.html'
+      - 'league.css'
+      - 'tests/test_season_rotation.py'
+      - '.github/workflows/season-rotation.yml'
+  workflow_dispatch:
+jobs:
+  role-behavior:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Exact positions, feet, real tactics and minute persistence
+        run: node --test tests/role-behavior-season.test.cjs
+      - name: Existing real identity and formation contract
+        run: node --test tests/player-model.test.cjs tests/player-identity-integration.test.cjs
+      - name: Season rotation UI and JavaScript syntax
+        run: node --check league.js && node --test tests/league-rotation-ui.test.cjs
+      - name: Live authoritative physics watch invariance
+        run: node --test tests/fixture-watch-parity.test.cjs
+  season-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Cross-fixture fatigue, suspension, replay and atomic SQL commit
+        run: python -m unittest discover -s tests -p 'test_season_rotation.py' -v
+      - name: Existing unified fixtures and HTTP live match regressions
+        run: python -m unittest discover -s tests -p 'test_unified_fixtures.py' -v && python -m unittest discover -s tests -p 'test_live_match.py' -v
+      - name: Existing football-only roster API and privacy contracts
+        run: python tests/fixture-roster-api.py

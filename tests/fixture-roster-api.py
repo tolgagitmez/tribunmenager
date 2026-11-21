@@ -39,6 +39,7 @@ class FixtureRosterAPI(unittest.TestCase):
         players=[{'id':i,'uid':f'catalog:{slot}-{i}','name':f'Rakip {i}','pos':'GK' if i==10 else 'MID',
             'rating':82,'fitness':90,'form':76,'preferredFoot':'left','weakFoot':71,
             'strength':91,'vision':87,'composure':84,'handling':92,'reactions':88,
+            'freeKick':73,'corner':85,'penalty':96,
             'owned':i!=11,'privateNote':'must not cross boundary'} for i in range(12)]
         state={'profileId':'private-profile','revision':17,'players':players,'starters':starters or list(range(11)),
             'wallet':{'cash':999999},'scout':{'results':['secret']},'offer':{'price':1},'auth':'secret'}
@@ -66,6 +67,7 @@ class FixtureRosterAPI(unittest.TestCase):
         self.assertEqual(len(data['opponent']['players']),11,'sold records are not an opponent squad')
         player=data['opponent']['players'][0]
         self.assertEqual((player['preferredFoot'],player['strength'],player['vision']),('left',91,87))
+        self.assertEqual((player['freeKick'],player['corner'],player['penalty']),(73,85,96))
         raw=json.dumps(data)
         for private in ('secret','wallet','scout','offer','profileId','privateNote','owned','auth'):
             self.assertNotIn(private,raw)
