@@ -69,7 +69,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Resolve Playwright Chromium executable
         id: browser
-        run: echo "path=$(node -p \"require('playwright').chromium.executablePath()\")" >> "$GITHUB_OUTPUT"
+        run: echo "path=$(node -p 'require(\"playwright\").chromium.executablePath()')" >> "$GITHUB_OUTPUT"
       - name: Two-step kick UI in real Chromium
         run: npm run test:manager-kick-browser
         env:
