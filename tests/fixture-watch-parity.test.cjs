@@ -34,11 +34,12 @@ async function game(teams){
  try{
   let current=(await client.request({op:'init',config})).state,steps=0,offered=0;
   while(!current.done&&steps<14000){
-   const reply=await client.request({op:'advance',steps:120,teams});
+   const eligible=typeof teams==='function'?teams(steps):teams;
+   const reply=await client.request({op:'advance',steps:120,teams:eligible});
    steps+=reply.steps;
    current=reply.state;
    if(current.pendingManagerKick){
-    assert(teams.length,'unwatched fixtures cannot wait for a spectator');
+    assert(eligible.length,'unwatched fixtures cannot wait for a spectator');
     const id=current.pendingManagerKick.id;
     offered++;
     const result=await client.request({op:'kick',id,input:null});
@@ -51,12 +52,13 @@ async function game(teams){
  }finally{await client.close();}
 }
 test('watching two screens, watching one screen or closing both changes only control rights', {timeout:120000},async()=>{
- const [unwatched,both,homeOnly,awayOnly]=await Promise.all([
-  game([]),game([0,1]),game([0]),game([1])
+ const [unwatched,both,homeOnly,awayOnly,watchedThenClosed]=await Promise.all([
+  game([]),game([0,1]),game([0]),game([1]),
+  game(steps=>steps<3600?[0,1]:[])
  ]);
  assert(both.offered>0,'natural seeded game must present a real vuruş opportunity');
  assert.equal(unwatched.offered,0);
- for(const attended of [both,homeOnly,awayOnly]){
+ for(const attended of [both,homeOnly,awayOnly,watchedThenClosed]){
   assert.equal(attended.steps,unwatched.steps,'all modes run the same number of physics ticks');
   // Includes event order, physical ball and every player position/animation,
   // scores, cards and referee state; no manager command means same world.
