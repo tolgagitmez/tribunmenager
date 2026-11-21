@@ -46,8 +46,10 @@ jobs:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
       - run: python -m pip install -r requirements-player-assets.txt
-      - name: Existing character, rules and match regressions
-        run: npm run test:stage15
+      - name: Existing gameplay, referee and match regressions
+        run: npm run test:stage12
+      - name: Character and animation regressions without optional asset rebuild
+        run: npm run test:character-rig && npm run test:match-animation && npm run test:match-fps && npm run test:character-human && npm run test:gltf
       - name: Manager kicks and shared live league
         run: npm run test:manager-kick && npm run test:live-match
 
