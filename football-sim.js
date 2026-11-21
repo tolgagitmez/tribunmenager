@@ -2363,7 +2363,7 @@ class Match{
   if(this.done||this.pendingManagerKick||!Number.isFinite(dt)||dt<=0)return;
   if(this.lifecycle==='playing'&&!this.restart&&!this.kick?.restartContext&&!this.goalPause&&!this.substitutionPause?.remaining&&(!this.penaltyAttempt||this.penaltyAttempt.state==='settled')){const remaining=MatchRules.clockView(this.matchClock).remaining;if(remaining>1e-8&&remaining<dt)dt=remaining;}
   this.time+=dt;
-  if(this.lifecycle==='playing'&&this.players.length){
+  if(this.cfg.seasonTracking===true&&this.lifecycle==='playing'&&this.players.length){
    // Each physical, active footballer gets credit, not just the 11 slots.
    // This ledger survives a change of occupant at a substitute's index.
    for(const p of this.players){
