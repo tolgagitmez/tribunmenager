@@ -1998,6 +1998,10 @@ class Match{
   const win=candidates[0],p=win.p;
   if(this.penaltyImpact(p)||this.offsideTouch(p))return true;
   const challenged=candidates.find(o=>o.p.team!==p.team&&o.hit.d<.58&&Math.abs(o.score-win.score)<15);
+  // The losing challenger still materially contests the ball. An offside
+  // challenge or early penalty-area entrant cannot evade the referee merely
+  // because the other player marginally won the aerial contact.
+  if(challenged&&(this.penaltyImpact(challenged.p)||this.offsideTouch(challenged.p,'challenge')))return true;
   b.x=previous.x+(b.x-previous.x)*win.hit.u;b.z=previous.z+(b.z-previous.z)*win.hit.u;
   b.y=win.y;
   if(f)f.aerialResolved=true;
