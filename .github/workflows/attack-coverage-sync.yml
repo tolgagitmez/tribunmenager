@@ -22,6 +22,16 @@ jobs:
         run: node --test tests/attacking-coverage.test.cjs
       - name: Real long-pass aerial collision regression
         run: node --test tests/aerial-keeper-law-boundaries.test.cjs
+  real-offer-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Discover actual home and away manager-kick windows without injected restarts
+        run: node tools/probe-live-offers.cjs
   archived-regression:
     runs-on: ubuntu-latest
     timeout-minutes: 20
