@@ -8,7 +8,7 @@ function config(){if(window.MATCH_CFG)return window.MATCH_CFG;let explicit=null,
 function label(id,text,name){const el=$(id);if(window.TribunUI){el.innerHTML=(name?window.TribunUI.icon(name):'')+'<span>'+text+'</span>';el.setAttribute('aria-label',text);}else el.textContent=text;}
 const cfg=config(),scene=new Stadium3D($('stadiumCanvas'));
 const liveRound=new URLSearchParams(location.search).get('live');
-let game,attackObserver,attackView,paused=false,speed=1,accumulator=0,lastMetric=-1,lastMetricWall=0,simOverloadFrames=0,shownFinish=false,overlayTime=0;
+let game,attackObserver,attackView,paused=false,speed=1,accumulator=0,lastMetric=-1,lastMetricWall=0,simOverloadFrames=0,shownFinish=false,overlayTime=0,lastFrameCost=null;
 let kickPanel,kickAim,visibleKick=null,kickStage=0,kickFollow=null;
 let live,liveSide=0,liveKickSending=false;
 const radians=Math.PI/180;
@@ -217,9 +217,12 @@ window.addEventListener('DOMContentLoaded',()=>{
  updateQualityLabel();
  function animate(){let last=performance.now(),lastPauseDraw=0;
   function frame(now){
+   const started=performance.now();
    const dt=Math.max(0,Math.min(.25,(now-last)/1000));last=now;
    if(!game.pendingManagerKick)scene.observeFrame(dt,paused);
+   const simStart=performance.now();
    if(!live)tick(dt);
+   const physicsMs=performance.now()-simStart;
    if(ownKick()?.id!==visibleKick?.id)syncKickControls();
    updateKickCamera();
    // A paused pitch does not need full-rate GPU submissions.
@@ -231,10 +234,14 @@ window.addEventListener('DOMContentLoaded',()=>{
    if(!scene.matchPilot&&window.TribunLiveClipPilot&&new URLSearchParams(location.search).get('pilot')!=='0')
     scene.matchPilot=window.TribunLiveClipPilot.create({playerId:0});
    scene.matchPilot?.observe(game,stopped?0:dt);
+   let drawMs=0;
    if(!stopped||now-lastPauseDraw>=120){
+    const renderStart=performance.now();
     const b=game.visualBall??game.ball;scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},stopped?0:dt);
-    kickAim.draw();lastPauseDraw=now;
+    kickAim.draw();lastPauseDraw=now;drawMs=performance.now()-renderStart;
    }
+   lastFrameCost={physicsMs,drawSubmitMs:drawMs,mainThreadMs:performance.now()-started,
+    gameSeconds:game.time,simOverloadFrames,activePlayers:game.players?.filter(p=>p.active&&!p.referee).length||0};
    if(now-lastGraphicsLabel>=1000){updateQualityLabel();lastGraphicsLabel=now;}
    requestAnimationFrame(frame);
   }requestAnimationFrame(frame);
@@ -274,7 +281,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   window.TribunMatchConfig.prepare(cfg).then(value=>{Object.assign(cfg,value);controls.forEach(b=>b.disabled=false);if(!scene.gl)$('rigButton').disabled=true;start();}).catch(()=>{$('sessionTitle').textContent='KADRO BAĞLANTISI KURULAMADI · SAYFAYI YENİLE';});
  }else start();
 });
-window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||{status:'not-loaded'},ballSeams:()=>scene.ballVisual?.orientation()||null,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
+window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||{status:'not-loaded'},ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
  renderProbe:()=>{const b=game.ball,start=performance.now();scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);if(scene.gl)scene.gl.finish();return {cpuGpuMs:performance.now()-start,active:game.players.filter(p=>p.active&&!p.referee).length,bridge:scene.animationStats(),webgl:!!scene.gl};},
  advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();
