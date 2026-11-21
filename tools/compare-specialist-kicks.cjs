@@ -48,7 +48,7 @@ function evaluate(kind,rating,mode,Engine=Match,forceSameControl=false){
    const speed=Math.hypot(velocity.vx,velocity.vz);
    const expected={...velocity,vx:Math.cos(requested)*speed,vz:Math.sin(requested)*speed};
    const land=drop(velocity),ideal=drop(expected);
-   released={requestedAngle:requested,aim,control,from:before,velocity,skillUsed:control?.kind?this.managerKickSkill(k.p,control.kind,k.p.kickFoot):
+   released={releaseContext:{restartKind:k.restartContext?.kind??null,kickKind:k.kind,takerId:k.p.id,kickFoot:k.p.kickFoot,specialistType:this.specialistKickType?.(k)??null,hadControl:!!control},requestedAngle:requested,aim,control,from:before,velocity,skillUsed:control?.kind?this.managerKickSkill(k.p,control.kind,k.p.kickFoot):
      this.managerKickSkill(k.p,kind,k.p.kickFoot),
     angleError:Math.abs(headingDiff(angle,requested)),landing:land,idealLanding:ideal,
     landingDeviation:land&&ideal?Math.hypot(land.x-ideal.x,land.z-ideal.z):null,
@@ -77,7 +77,7 @@ function evaluate(kind,rating,mode,Engine=Match,forceSameControl=false){
   keeperSet+=gk?.action==='catch-ready'?1:0;
  }
  const after=m.events.slice(beforeEvents);
- return {kind,rating,mode,skill:round(released.skillUsed),
+ return {kind,rating,mode,releaseContext:released.releaseContext,skill:round(released.skillUsed),
   targetAngle:round(released.requestedAngle),aim:{x:round(released.aim.x),z:round(released.aim.z)},
   velocity:{vx:round(released.velocity.vx),vz:round(released.velocity.vz),vy:round(released.velocity.vy),spin:round(released.velocity.spin||0)},
   rawVelocity:released.velocity,seedAtRelease:released.seed,
