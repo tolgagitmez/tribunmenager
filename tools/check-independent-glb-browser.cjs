@@ -19,7 +19,7 @@ async function main(){
  fs.mkdirSync(output,{recursive:true});
  const server=createServer();
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
- const browser=await chromium.launch({headless:true,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-gpu-sandbox']});
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM||undefined,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-gpu-sandbox']});
  const issues=[],report={};
  try{
   const page=await browser.newPage({viewport:{width:1320,height:900},deviceScaleFactor:1});

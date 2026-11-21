@@ -1,0 +1,286 @@
+{
+  "stats": {
+    "ready": true,
+    "clips": [
+      "idle",
+      "walk",
+      "jog",
+      "run",
+      "sprint",
+      "walk-loop",
+      "run-loop",
+      "sprint-loop",
+      "turn",
+      "pass",
+      "shoot",
+      "run-pass",
+      "run-shoot",
+      "dive-left",
+      "dive-right"
+    ],
+    "duration": 2,
+    "paused": false,
+    "hasBone": true,
+    "threeVersion": "180"
+  },
+  "blend": {
+    "midway": {
+      "active": "shoot",
+      "transition": true,
+      "from": "run",
+      "to": "shoot",
+      "progress": 0.5,
+      "fromWeight": 0.5,
+      "toWeight": 0.5,
+      "rootOffset": [
+        12.101838000501072,
+        0.21739622495761818
+      ]
+    },
+    "finished": {
+      "active": "shoot",
+      "transition": false,
+      "from": null,
+      "to": null,
+      "progress": 1,
+      "fromWeight": 0,
+      "toWeight": 1,
+      "rootOffset": [
+        13.143224867586872,
+        0.497906117506216
+      ]
+    }
+  },
+  "captures": {
+    "idle": {
+      "bytes": 57495,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": 0.003000000026077032,
+        "R": 0.003000000026077032,
+        "samples": 378
+      }
+    },
+    "walk": {
+      "bytes": 58359,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": 0.0034252510766448387,
+        "R": 0.022180818373426305,
+        "samples": 378
+      },
+      "differenceFromIdle": 1.4483626483626484
+    },
+    "sprint": {
+      "bytes": 47957,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": 0.24425116823816975,
+        "R": 0.1455035114016051,
+        "samples": 378
+      },
+      "differenceFromIdle": 2.685085085085085
+    },
+    "shoot": {
+      "bytes": 58747,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": 0.002999749157885646,
+        "R": 0.121150031799187,
+        "samples": 378
+      },
+      "differenceFromIdle": 1.771013871013871
+    },
+    "dive-left": {
+      "bytes": 52765,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": -0.01487648694923566,
+        "R": 0.2962643482333174,
+        "samples": 378
+      },
+      "differenceFromIdle": 4.363063063063063
+    },
+    "run-pass": {
+      "bytes": 58751,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": 0.08960458970006174,
+        "R": 0.006047719401240055,
+        "samples": 378
+      },
+      "differenceFromIdle": 3.2766981266981268
+    },
+    "run-shoot": {
+      "bytes": 59101,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": 0.19036630475273913,
+        "R": 0.0036456132209989104,
+        "samples": 378
+      },
+      "differenceFromIdle": 3.4167310167310165
+    },
+    "walk-loop": {
+      "bytes": 56530,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": 0.1069662194365758,
+        "R": 0.0027439112726036262,
+        "samples": 378
+      },
+      "differenceFromIdle": 2.5366580866580866
+    },
+    "run-loop": {
+      "bytes": 57453,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": 0.0030000076609372054,
+        "R": 0.003090806613965622,
+        "samples": 378
+      },
+      "differenceFromIdle": 1.7274488774488774
+    },
+    "sprint-loop": {
+      "bytes": 55207,
+      "feet": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "sole": {
+        "L": 0.2411183676918339,
+        "R": 0.31462687400295586,
+        "samples": 378
+      },
+      "differenceFromIdle": 3.1615043615043614
+    }
+  },
+  "errors": [],
+  "generatedAt": "2026-11-21T11:38:40.521299+00:00",
+  "verified": true,
+  "command": "CHROMIUM=/usr/bin/chromium node tools/check-independent-glb-browser.cjs",
+  "sources": {
+    "character-viewer.html": "d94c5eda5174b7bb8c8f37244630b5c3f649910167f0f06cf8e6d8640fd52d72",
+    "character-blend-controller.js": "bcca12819dccb1906f31a2bccc0462ffbf42d3ecd3872afcf06987e3cf6ca191",
+    "tools/check-independent-glb-browser.cjs": "fe47e2a6430c84b453d58bcdd2bb823547d8c0c3fef15a591ca0f24d996bc4cc",
+    "tools/serve-character-viewer.cjs": "c7abb2685dc6078124bdc8803d2f9eb1b16d21a0c07e6d5558545fe2fd2bc619",
+    "assets/player/tribun-base-footballer-animated.glb": "d0af80e4c8334d88bd821b598c4488e783fdcfdf485ddf83a3181a8fd6cf5fc6",
+    "vendor/three/LICENSE": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601",
+    "vendor/three/build/three.core.min.js": "61ba0df005b05991361d040d8ff670e1aadfd0ce7aeebd1fdb0725957a8957de",
+    "vendor/three/build/three.module.min.js": "e2b5ee6bccd38fd6d8a2428546b83c5f2426d84b152ef82be8055556e3b40eb6",
+    "vendor/three/examples/jsm/controls/OrbitControls.js": "b97879c748170baadeb3fb84cea1ffdf4674e283dc06042f34e2acb95a76042c",
+    "vendor/three/examples/jsm/loaders/GLTFLoader.js": "67ac5551fdafa6e349bd80c8f8e5e39c136d6b2fb1ad647db9abb21dc86f9e4a",
+    "vendor/three/examples/jsm/utils/BufferGeometryUtils.js": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751",
+    "vendor/three/examples/jsm/utils/SkeletonUtils.js": "0761b1e003917b215d25dd81439d854b36034b5a57ce84c2cfe3b02428d7b253",
+    "vendor/three/manifest.json": "dad9660ff4f791e23390c88bcee2b885f9cd654922d9e78fc5d166fb27500f42"
+  },
+  "method": "Actual legacy standalone GLB viewer in Chromium/SwiftShader using local pinned Three modules. Fifteen clips loaded; ten UI-selected poses, deformed boot soles and actual framebuffer screenshots checked. No scene or animation replacements.",
+  "logSHA256": "f4ea5472f6322333a4191df941b0585da99fb5665abed817a314bc3711c02285"
+}

@@ -1,0 +1,61 @@
+name: Standard glTF interchange
+
+on:
+  pull_request:
+    paths:
+      - '**/*.mjs'
+      - 'interop-lab.*'
+      - 'player-renderer.js'
+      - 'character-viewer.html'
+      - 'assets/interchange/**'
+      - 'assets/player/**'
+      - 'vendor/three/**'
+      - 'tests/**'
+      - 'tools/*gltf*'
+      - 'tools/bake-licensed-clips.cjs'
+      - 'tools/build-blender-interchange.py'
+      - 'tools/build-player-assets.py'
+      - 'tools/vendor-three.cjs'
+      - 'package*.json'
+      - '.github/workflows/gltf-interop.yml'
+  workflow_dispatch:
+
+jobs:
+  regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install -r requirements-player-assets.txt
+      - run: npm run test:stage15
+
+  browser-comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: Measure completed frames with readback fences
+        run: |
+          export CHROMIUM="$(node -p "require('playwright').chromium.executablePath()")"
+          node tools/check-gltf-comparison.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gltf-interchange-evidence
+          path: |
+            docs/validation/gltf-comparison.json
+            docs/previews/gltf-*.png
+          if-no-files-found: error
+          retention-days: 14

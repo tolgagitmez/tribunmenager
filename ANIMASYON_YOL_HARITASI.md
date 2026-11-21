@@ -1,5 +1,9 @@
 # Ticari 3D animasyon üretim yolu
 
+## Güncel durum — standart aktarım, v1.34.0
+
+Üçüncü adımın prototipi hazırdır: gerçek Blender GLB/glTF çıktısı, iskelet/materyal/dört klip doğrulaması, yerel resmi GLTFLoader ve aynı dosyayı iki çizicide açan [karşılaştırma atölyesi](interop-lab.html). Standart dosya inceleme/yükleme yolu Three.js olarak seçilir; maçın DQS yolu, eklem biçimi eşdeğerliği ve gerçek cihazda tam maç ölçümü tamamlanana kadar korunur. [Üretim rehberi](docs/GLTF_PIPELINE.md) ve [ölçülen karar](docs/GLTF_RENDERER_DECISION.md) sonraki entegrasyon kapılarını açıklar. Önceki durumlar aşağıda tarihsel kayıttır.
+
 ## Güncel durum — v1.33.0
 
 İkinci kalite adımı, lisanslı insan gövdesinin oranlarını ve deformasyon temelini üretim maçına bağlar. MakeHuman CC0 modeli, maç/stüdyo/atölyede aynı 1,88 m kanonik rig'i, sabit uzuv uzunluklarını ve oyun amaçlı eklem sınırlarını kullanır. Üretici ve çizici aynı 19 kemik çerçevesini paylaşır; normalize rijit dual quaternion skinning dönüş kaynaklı LBS çökmesini azaltır. Kapsam ve kalan yüzey sorunları [karakter modeli sözleşmesinde](docs/CHARACTER_MODEL.md), kaynak ve çevrimdışı üretim [oyuncu varlıkları sözleşmesindedir](docs/PLAYER_ASSETS.md).

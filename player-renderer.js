@@ -9,11 +9,11 @@ const matmul=(a,b)=>{const out=new Float32Array(16);for(let c=0;c<4;c++)for(let 
 const decode=s=>{const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a.buffer;};
 const VS=`precision highp float;
 attribute vec3 aPosition;attribute vec3 aNormal;attribute vec2 aUV;attribute vec4 aJoints;attribute vec4 aWeights;attribute float aMaterial;attribute vec3 aColor;
-uniform mat4 uVP;uniform vec4 uBoneReal[19];uniform vec4 uBoneDual[19];uniform vec3 uVariant;uniform float uGoalie;
+uniform mat4 uVP;uniform vec4 uBoneReal[19];uniform vec4 uBoneDual[19];uniform vec3 uVariant;uniform float uGoalie;uniform float uStandardAsset;
 varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying vec2 vUV;varying float vMaterial;varying float vHand;
 vec3 rotateUnit(vec4 q,vec3 p){return p+2.*cross(q.xyz,cross(q.xyz,p)+q.w*p);}
-void main(){vec3 p=aPosition;float head=smoothstep(1.59,1.68,p.y);p.z*=mix(1.,uVariant.x,head);p.x+=head*max(0.,p.x-.035)*uVariant.y;
-vec4 hands=1.-step(vec4(.1),min(abs(aJoints-vec4(8.)),abs(aJoints-vec4(15.))));vHand=dot(aWeights,hands);if(aMaterial<.5){p.z+=sign(p.z)*.005*uGoalie*vHand;p.x+=.003*uGoalie*vHand;}
+void main(){vec3 p=aPosition;float head=smoothstep(1.59,1.68,p.y);if(uStandardAsset<.5){p.z*=mix(1.,uVariant.x,head);p.x+=head*max(0.,p.x-.035)*uVariant.y;}
+vec4 hands=1.-step(vec4(.1),min(abs(aJoints-vec4(8.)),abs(aJoints-vec4(15.))));vHand=dot(aWeights,hands);if(aMaterial<.5&&uStandardAsset<.5){p.z+=sign(p.z)*.005*uGoalie*vHand;p.x+=.003*uGoalie*vHand;}
 vec4 r0=uBoneReal[int(aJoints.x)],r1=uBoneReal[int(aJoints.y)],r2=uBoneReal[int(aJoints.z)],r3=uBoneReal[int(aJoints.w)];
 vec4 reference=r0;float largest=aWeights.x;
 if(aWeights.y>largest){reference=r1;largest=aWeights.y;}if(aWeights.z>largest){reference=r2;largest=aWeights.z;}if(aWeights.w>largest)reference=r3;
@@ -26,6 +26,10 @@ vec4 w=vec4(rotateUnit(r,p)+translation,1.);vWorld=w.xyz;vNormal=normalize(rotat
 const FS=`precision highp float;
 varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying vec2 vUV;varying float vMaterial;varying float vHand;
 uniform sampler2D uSkinTexture;uniform sampler2D uFabricTexture;
+uniform float uStandardAsset;
+#ifdef STANDARD_ASSET
+uniform vec3 uMaterialBase[10];uniform float uMaterialRoughness[10];
+#endif
 uniform vec3 uEye;uniform vec3 uSkin;uniform vec3 uShirt;uniform vec3 uShorts;uniform vec3 uHair;uniform vec3 uBoots;uniform vec3 uIris;uniform float uNumber;uniform float uBeard;uniform float uStudio;uniform float uGoalie;uniform float uFast;
 const float PI=3.14159265359;
 float hash(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}
@@ -36,7 +40,28 @@ float ggx(float nh,float rough){float a=rough*rough,a2=a*a,d=nh*nh*(a2-1.)+1.;re
 float smith(float nv,float rough){float k=rough+1.;k=k*k/8.;return nv/(nv*(1.-k)+k);}
 vec3 lightPBR(vec3 N,vec3 V,vec3 L,vec3 radiance,vec3 base,float rough,float wrap,float f0){vec3 H=normalize(V+L);float nl=max(0.,dot(N,L)),nv=max(.001,dot(N,V)),nh=max(0.,dot(N,H)),vh=max(0.,dot(V,H));vec3 F=vec3(f0)+(1.-f0)*pow(1.-vh,5.);vec3 spec=ggx(nh,rough)*smith(nv,rough)*smith(max(.001,nl),rough)*F/max(.004,4.*nv*max(.001,nl));return ((1.-F)*base/PI*max(0.,(nl+wrap)/(1.+wrap))+spec*nl)*radiance;}
 vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
+#ifdef STANDARD_ASSET
+vec4 standardMaterial(float id){
+ if(id<.5)return vec4(uMaterialBase[0],uMaterialRoughness[0]);if(id<1.5)return vec4(uMaterialBase[1],uMaterialRoughness[1]);
+ if(id<2.5)return vec4(uMaterialBase[2],uMaterialRoughness[2]);if(id<3.5)return vec4(uMaterialBase[3],uMaterialRoughness[3]);
+ if(id<4.5)return vec4(uMaterialBase[4],uMaterialRoughness[4]);if(id<5.5)return vec4(uMaterialBase[5],uMaterialRoughness[5]);
+ if(id<6.5)return vec4(uMaterialBase[6],uMaterialRoughness[6]);if(id<7.5)return vec4(uMaterialBase[7],uMaterialRoughness[7]);
+ if(id<8.5)return vec4(uMaterialBase[8],uMaterialRoughness[8]);return vec4(uMaterialBase[9],uMaterialRoughness[9]);
+}
+#endif
 void main(){float id=floor(vMaterial+.5),rough=.72,wrap=0.,f0=.035;vec3 base=vec3(.5),N=normalize(vNormal),V=normalize(uEye-vWorld),p=vBind;
+#ifdef STANDARD_ASSET
+ if(uStandardAsset>.5){
+  vec4 material=standardMaterial(id);base=material.rgb*vColor;rough=material.a;
+  vec3 texel=id<.5?texture2D(uSkinTexture,vUV).rgb:texture2D(uFabricTexture,vUV).rgb;
+  vec3 linearTexel=mix(texel/12.92,pow((texel+.055)/1.055,vec3(2.4)),step(vec3(.04045),texel));base*=linearTexel;
+  vec3 color=base*vec3(.72,.81,1.)*(.12+.22*(N.y*.5+.5));
+  color+=lightPBR(N,V,normalize(vec3(3.5,5.,4.)),vec3(3.2,3.05,2.85),base,rough,0.,.04);
+  color+=lightPBR(N,V,normalize(vec3(-4.,2.,2.)),vec3(.65,.82,1.10),base,rough,0.,.04);
+  color+=lightPBR(N,V,normalize(vec3(-2.,3.,-4.)),vec3(.70,.82,1.05),base,rough,0.,.04);
+  gl_FragColor=vec4(pow(aces(color),vec3(1./2.2)),1.);return;
+ }
+#endif
  // Match broadcast mode skips three expensive GGX/Smith lights, hash and procedural digits.
  // Full licensed material remains available for studio/portrait and explicit detailed mode.
  if(uFast>.5){
@@ -140,15 +165,15 @@ function simplifyLOD(sourceVertices,sourceIndices,cell){
  return {vertices,indices:new Uint16Array(indices),indexType:'H',vertexCount:vertices.length/stride,indexCount:indices.length,cell};
 }
 class PlayerRenderer{
- constructor(gl,assets=root.TribunPlayerAssets){
+ constructor(gl,assets=root.TribunPlayerAssets,options={}){
   if(!assets)throw Error('Oyuncu modeli yüklenmedi');
   if(!Skinning)throw Error('Oyuncu deri çizim modülü yüklenemedi: player-skinning.js');
   if(!Constraints)throw Error('Oyuncu eklem sınırı modülü yüklenemedi: character-palette-constraints.js');
   this.validation=root.TribunPlayerAssetStatus?.validate(assets);if(this.validation&&!this.validation.ok){const error=Error(this.validation.errors.map(e=>e.code+' '+e.path+': '+e.message).join('; '));error.validation=this.validation;throw error;}
-  this.gl=gl;this.assets=assets;this.studio=false;this.visualQuality='auto';this.lastRenderStats={players:0,fast:0,detailed:0,triangles:0};
+  this.gl=gl;this.assets=assets;this.options=options;this.studio=false;this.visualQuality='auto';this.lastRenderStats={players:0,fast:0,detailed:0,triangles:0};
   const shader=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;};
-  const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,VS));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));this.program=program;
-  this.loc={};for(const n of ['uVP','uBoneReal[0]','uBoneDual[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uFast','uSkinTexture','uFabricTexture'])this.loc[n]=gl.getUniformLocation(program,n);
+  const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,VS));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,options.standardMaterials?'#define STANDARD_ASSET\n'+FS:FS));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));this.program=program;
+  this.loc={};for(const n of ['uVP','uBoneReal[0]','uBoneDual[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uFast','uSkinTexture','uFabricTexture','uStandardAsset','uMaterialBase[0]','uMaterialRoughness[0]'])this.loc[n]=gl.getUniformLocation(program,n);
   this.attributes=[['aPosition',3,0],['aNormal',3,3],['aUV',2,6],['aJoints',4,8],['aWeights',4,12],['aMaterial',1,16],['aColor',3,17]].map(([n,size,off])=>({location:gl.getAttribLocation(program,n),size,off}));
   const uint32=assets.lods.some(a=>a.indexType==='I')?gl.getExtension('OES_element_index_uint'):true;
   const original=assets.lods.map(a=>({vertices:new Float32Array(decode(a.vertices)),
@@ -168,23 +193,35 @@ class PlayerRenderer{
   if(!this.lods.some(Boolean))throw Error('Bu tarayıcı modelin üçgen indis türünü desteklemiyor.');
   this.textures={};this.textureState={state:'loading',loaded:[],error:null};
   for(const name of ['skin','fabric'])if(typeof assets.textures?.[name]!=='string'||!assets.textures[name])throw Error('Doku dosyası kaydı eksik: '+name);
+  const upload=(name,unit,texture,img)=>{
+   const width=img.naturalWidth||img.width,height=img.naturalHeight||img.height,file=assets.textures[name];
+   if(!width||!height)throw Error('Doku görüntüsü boş: '+file);if(Math.max(width,height)>gl.getParameter(gl.MAX_TEXTURE_SIZE))throw Error('Doku boyutu grafik sınırını aşıyor: '+file);
+   gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,options.textureFlipY??true);
+   if(img.data)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.UNSIGNED_BYTE,img.data);
+   else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+   const pot=n=>(n&(n-1))===0,isPOT=pot(width)&&pot(height),settings=options.textureSettings?.[name],wrap={1000:gl.REPEAT,1001:gl.CLAMP_TO_EDGE,1002:gl.MIRRORED_REPEAT},filter={1003:gl.NEAREST,1004:gl.NEAREST_MIPMAP_NEAREST,1005:gl.NEAREST_MIPMAP_LINEAR,1006:gl.LINEAR,1007:gl.LINEAR_MIPMAP_NEAREST,1008:gl.LINEAR_MIPMAP_LINEAR};
+   if(settings){
+    if(!(settings.wrapS in wrap)||!(settings.wrapT in wrap)||!(settings.minFilter in filter)||![1003,1006].includes(settings.magFilter))throw Error('Desteklenmeyen doku örnekleyicisi: '+file);
+    const mip=![1003,1006].includes(settings.minFilter);if(!isPOT&&(mip||settings.wrapS!==1001||settings.wrapT!==1001))throw Error('Bu doku örnekleyicisi WebGL1 boyut sınırına uymuyor: '+file);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,wrap[settings.wrapS]);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,wrap[settings.wrapT]);if(mip)gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,filter[settings.minFilter]);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,filter[settings.magFilter]);
+   }else{if(isPOT){gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);}else{gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);}gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);}
+   this.textureState.loaded.push(file);
+  };
   const jobs=['skin','fabric'].map((name,unit)=>{
    const file=assets.textures?.[name];if(typeof file!=='string'||!file)throw Error('Doku dosyası kaydı eksik: '+name);
    const texture=gl.createTexture();this.textures[name]=texture;gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([255,255,255,255]));gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+   if(options.textureImages?.[name]){try{upload(name,unit,texture,options.textureImages[name]);return Promise.resolve();}catch(error){return Promise.reject(error);}}
    return new Promise((resolve,reject)=>{const img=new root.Image();let settled=false;
     const finish=error=>{if(settled)return;settled=true;root.clearTimeout(timer);if(error)reject(error);else resolve();};
     const timer=root.setTimeout(()=>finish(Error('Doku yükleme zaman aşımı: '+file)),12000);
-    img.onload=()=>{try{if(!img.naturalWidth||!img.naturalHeight)throw Error('Doku görüntüsü boş: '+file);if(Math.max(img.naturalWidth,img.naturalHeight)>gl.getParameter(gl.MAX_TEXTURE_SIZE))throw Error('Doku boyutu grafik sınırını aşıyor: '+file);
-     gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
-     const pot=n=>(n&(n-1))===0;if(pot(img.naturalWidth)&&pot(img.naturalHeight)){gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);}else{gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);}
-     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);this.textureState.loaded.push(file);finish();
-    }catch(error){finish(error);}};img.onerror=()=>finish(Error('Doku dosyası açılamadı: '+file));img.src=file;
+    img.onload=()=>{try{upload(name,unit,texture,img);finish();}catch(error){finish(error);}};img.onerror=()=>finish(Error('Doku dosyası açılamadı: '+file));img.src=file;
    });
   });
   this.ready=Promise.all(jobs).then(()=>{this.textureState.state='ready';return this;}).catch(error=>{this.textureState.state='error';this.textureState.error=error.message;throw error;});
  }
- draw(players,vp,eye,camera='tv',dt=1/60,matchBridge=null){
+ draw(players,vp,eye,camera='tv',dt=1/60,matchBridge=null,frameOptions={}){
   const gl=this.gl;gl.useProgram(this.program);gl.uniformMatrix4fv(this.loc.uVP,false,new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
+  const standard=this.options.standardMaterials;gl.uniform1f(this.loc.uStandardAsset,standard?1:0);if(standard){gl.uniform3fv(this.loc['uMaterialBase[0]'],standard.baseColors);gl.uniform1fv(this.loc['uMaterialRoughness[0]'],standard.roughness);}
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.textures.skin);gl.uniform1i(this.loc.uSkinTexture,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.textures.fabric);gl.uniform1i(this.loc.uFabricTexture,1);
   const renderStats={players:0,fast:0,detailed:0,triangles:0};
   for(const p of players){if(!p.active)continue;const d=Math.hypot(p.x-eye[0],p.z-eye[2]),lod=this.lods[this.visualQuality==='detailed'||this.studio||camera==='portrait'?0:camera==='close'&&d<22?1:2]||this.lods[1]||this.lods[2]||this.lods[0],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
@@ -193,16 +230,16 @@ class PlayerRenderer{
    renderStats.players++;renderStats[detailed?'detailed':'fast']++;renderStats.triangles+=lod.count/3;
    const shirt=v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts=v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]);
    const set=(name,value)=>gl.uniform3fv(this.loc[name],value);set('uSkin',v.skin||p.skin||[.69,.48,.34]);set('uShirt',shirt);set('uShorts',shorts);set('uHair',v.hair||p.hair||[.10,.065,.043]);set('uBoots',v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3]);set('uIris',v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3]);set('uVariant',v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0]);
-   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));const pose=Rig.getPose(p);
-   const rawPalette=v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose);
-   const skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;
-   const connected=renderPalette(rawPalette,skinPalette,this.assets);
+   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));let connected;
+   if(frameOptions.paletteForPlayer)connected=frameOptions.paletteForPlayer(p);
+   else{const pose=Rig.getPose(p),rawPalette=v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose),skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;connected=renderPalette(rawPalette,skinPalette,this.assets);}
    const dual=Skinning.fromMatrices(connected);
    gl.uniform4fv(this.loc['uBoneReal[0]'],dual.real);gl.uniform4fv(this.loc['uBoneDual[0]'],dual.dual);
    gl.bindBuffer(gl.ARRAY_BUFFER,lod.vertex);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lod.index);for(const a of this.attributes){if(a.location<0)continue;gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,80,a.off*4);}gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);for(const a of this.attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);
   }
   this.lastRenderStats=renderStats;
  }
+ dispose(){if(this.disposed)return;this.disposed=true;const gl=this.gl;for(const lod of this.lods||[])if(lod){gl.deleteBuffer(lod.vertex);gl.deleteBuffer(lod.index);}for(const texture of Object.values(this.textures||{}))gl.deleteTexture(texture);if(this.program){for(const shader of gl.getAttachedShaders(this.program)||[])gl.deleteShader(shader);gl.deleteProgram(this.program);}}
 }
 PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
 })(typeof window!=='undefined'?window:globalThis);

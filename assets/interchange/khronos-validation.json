@@ -1,0 +1,58 @@
+{
+  "validator": "Khronos glTF Validator",
+  "version": "2.0.0-dev.3.10",
+  "reports": [
+    {
+      "path": "canonical animated intermediate GLB",
+      "bytes": 1513964,
+      "sha256": "4c5ede8e07791d4e7a0495fc65a0cdf03c2c3b8124f08fd59a51c5a2545bcb08",
+      "issues": {
+        "numErrors": 0,
+        "numWarnings": 0,
+        "numInfos": 0,
+        "numHints": 0,
+        "messages": [],
+        "truncated": false
+      }
+    },
+    {
+      "path": "assets/player/footballer.glb",
+      "bytes": 1385268,
+      "sha256": "b9ff19673f0561e405f1c88da5acfee51124651aaa8b3df1798301e35b774ee6",
+      "issues": {
+        "numErrors": 0,
+        "numWarnings": 0,
+        "numInfos": 0,
+        "numHints": 0,
+        "messages": [],
+        "truncated": false
+      }
+    },
+    {
+      "path": "assets/interchange/footballer.blender.glb",
+      "bytes": 1509524,
+      "sha256": "953804466a77ddaf4ded627ba21aac880c3da41411412fe62387c3557a0e4e5f",
+      "issues": {
+        "numErrors": 0,
+        "numWarnings": 0,
+        "numInfos": 0,
+        "numHints": 0,
+        "messages": [],
+        "truncated": false
+      }
+    },
+    {
+      "path": "assets/interchange/footballer.blender.gltf",
+      "bytes": 103655,
+      "sha256": "1d053f7e17560c3097b86369698f554b859151447c8a3bfe71e6b98617f1bab4",
+      "issues": {
+        "numErrors": 0,
+        "numWarnings": 0,
+        "numInfos": 0,
+        "numHints": 0,
+        "messages": [],
+        "truncated": false
+      }
+    }
+  ]
+}

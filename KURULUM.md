@@ -4,17 +4,17 @@ Yerel futbol simülasyonu için **Python 3.10 veya üzeri** ve güncel Chrome, E
 
 ## 1. Oyunu indir
 
-İnsan modeli geliştirmesini içeren sürüm `codex/licensed-character-volume` dalındadır:
+İnsan modeli geliştirmesini içeren sürüm `codex/gltf-import-comparison` dalındadır:
 
-- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/licensed-character-volume.zip), ZIP'i çıkar ve içindeki klasörü aç.
+- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/gltf-import-comparison.zip), ZIP'i çıkar ve içindeki klasörü aç.
 - Git kullanıyorsan:
 
 ```sh
-git clone --branch codex/licensed-character-volume https://github.com/tolgagitmez/tribunmenager.git
+git clone --branch codex/gltf-import-comparison https://github.com/tolgagitmez/tribunmenager.git
 cd tribunmenager
 ```
 
-`main` önceki geliştirme aşamalarını içerir; yeni insan modeli değişikliklerini [dal karşılaştırmasından](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/licensed-character-volume) inceleyebilirsin. Aşağıdaki doğrulama komutları bu dal içindir.
+`main` önceki geliştirme aşamalarını içerir; yeni insan modeli değişikliklerini [dal karşılaştırmasından](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/gltf-import-comparison) inceleyebilirsin. Aşağıdaki doğrulama komutları bu dal içindir.
 
 ## 2. Python'u kontrol et
 
@@ -90,6 +90,10 @@ Windows'ta aynı komutun başında `py -3` kullanabilirsin. Tam modun geliştirm
 | Doku veya shader hatası görünüyor | Paneldeki teknik ayrıntıyı kaydet. Doku hatasında belirtilen PNG'nin pakette olduğunu, grafik hatasında tarayıcı/WebGL desteğini kontrol et. Maç yedek çizimle sürebilir. |
 | Eski transfer hesabı yerel maç başlangıcını engelliyor | Önce aynı tarayıcıdaki veriyi dışa aktar/yedekle; deneme için ayrı bir tarayıcı profili aç. Kayıtlarını silmek zorunda değilsin. |
 
+## Standart model aktarımı
+
+Yerel sunucu açıkken `http://localhost:8000/interop-lab.html` adresinden aynı Blender GLB/glTF dosyasını iki çizicide karşılaştır. Model türü, klip, zaman, kamera ve 1/22 oyuncu seçenekleri ortak çalışır. Three.js ve yardımcı modüller yerel `vendor/` klasöründedir; bu ekran için Node.js veya CDN gerekmez. Düzenlenebilir Blender kaynağı ve yeniden üretim adımları [GLTF_PIPELINE.md](docs/GLTF_PIPELINE.md), ölçülen karar [GLTF_RENDERER_DECISION.md](docs/GLTF_RENDERER_DECISION.md) içindedir.
+
 ## Geliştirici doğrulaması
 
 Oynamak için gerekli değildir. Testler için `package.json` içindeki sürüm aralığına uyan Node.js gerekir; **Node.js 24.15 veya üzerindeki 24.x** uygun bir seçimdir. Başlatıcı ve maç/ekonomi testleri Python standart kütüphanesini kullanır. Modelin yeniden üretimi ve varlık testleri ayrıca **Python 3.11+** ile [requirements-player-assets.txt](requirements-player-assets.txt) içindeki NumPy/Pillow sürümlerini gerektirir; bunları ayrı bir Python sanal ortamına kurabilirsin.
@@ -99,7 +103,7 @@ npm ci
 python3 -m venv .venv
 . .venv/bin/activate
 python3 -m pip install -r requirements-player-assets.txt
-npm run test:stage14
+npm run test:stage15
 ```
 
 Windows'ta sanal ortamı `.venv\Scripts\activate` ile etkinleştir; Python komutlarında `py -3` veya etkin ortamın `python` komutunu kullan.
