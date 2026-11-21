@@ -57,7 +57,13 @@ function render(){
  $('standings').innerHTML=data.standings.map((team,i)=>`<tr class="${team.slot===data.my_slot?'is-own':''}"><td>${i+1}</td><td>${escapeHtml(team.club)}${team.slot===data.my_slot?'<span class="own-label">SENİN TAKIMIN</span>':''}</td><td>${team.played}</td><td>${team.w}</td><td>${team.d}</td><td>${team.l}</td><td>${team.gf-team.ga}</td><td><b>${team.points}</b></td></tr>`).join('');
  $('clubs').innerHTML=data.teams.map(team=>`<div class="clubtile">${escapeHtml(team.name)}<small>${escapeHtml(team.manager)} · ${team.claimed?'Menajer':'Bilgisayar'}</small></div>`).join('');
  $('results').innerHTML=data.recent.length?data.recent.slice(-8).reverse().map(f=>`<div class="result-row"><span>${escapeHtml(f.home_name)}</span><b>${f.home_score} – ${f.away_score}</b><span>${escapeHtml(f.away_name)}</span></div>`).join(''):'<p>İlk düdük henüz çalmadı. Sonuçlar maçlar tamamlanınca burada.</p>';
- $('tacticInfo').textContent=`Kayıtlı plan: ${data.my_formation} · Pres ${data.my_tactics.press} · Sertlik ${data.my_tactics.aggression}`;
+ const rotation=Array.isArray(data.my_rotation)?data.my_rotation:[];
+ const suspended=rotation.filter(p=>p.suspended).length;
+ const average=rotation.length?Math.round(rotation.reduce((total,p)=>total+(Number(p.fitness)||0),0)/rotation.length):null;
+ $('tacticInfo').textContent=`Kayıtlı plan: ${data.my_formation} · Pres ${data.my_tactics.press} · Sertlik ${data.my_tactics.aggression}`+
+  (average===null?'':` · Ortalama kondisyon %${average} · Cezalı ${suspended}`);
+ const panel=$('rotationList');
+ if(panel)panel.innerHTML=rotation.length?rotation.map(p=>`<div class="rotation-row" data-suspended="${!!p.suspended}"><strong title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</strong><small>${escapeHtml(p.position||'—')}</small><span>${Math.round(Number(p.fitness)||0)}% · ${Math.round(Number(p.minutes)||0)} dk${p.suspended?' · CEZALI':''}${(p.yellows||p.reds)?` · ${p.yellows||0}S/${p.reds||0}K`:''}</span></div>`).join(''):'<p>Henüz sezon oyuncu kaydı yok.</p>';
  timer();
 }
 async function refresh(){
