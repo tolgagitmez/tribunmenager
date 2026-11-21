@@ -142,6 +142,14 @@ def settle_due(now=None):
             if due and not shutil.which('node'):
                 raise LiveMatchError('Lig fikstürlerini oynatmak için sunucuda Node.js gerekli.')
             for fixture in due:
+                # If a server missed more than one matchday, freeze only the
+                # earliest unfinished round. A later round must NOT capture
+                # yesterday's fitness or suspensions before the previous real
+                # workers have settled their authoritative results.
+                prior=c.execute('''SELECT 1 FROM fixtures WHERE league=?
+                    AND round<? AND home_score IS NULL LIMIT 1''',
+                    (fixture['league'],fixture['round'])).fetchone()
+                if prior:continue
                 key=tuple(fixture[field] for field in ('league','round','home','away'))
                 kickoff=fixture['kickoff']
                 config=live_config(c,key,now,kickoff)
