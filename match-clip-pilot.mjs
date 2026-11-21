@@ -41,6 +41,13 @@ function create({playerId=0}={}){
  }
  function observe(match,dt){
   const step=contact.observe(match,dt);
+  if(step?.release&&match.flight?.age<=1e-8&&match.ball){
+   // Exact release frame only: Match.release() did not teleport the ball.
+   const boot=window.TribunHumanoidRig.kickContact(step.player),ball=match.ball;
+   const gap=Math.hypot(boot[0]-ball.x,boot[1]-ball.y,boot[2]-ball.z);
+   stats.maxContactGap=Math.max(stats.maxContactGap,gap);
+   stats.contactReleaseSamples=(stats.contactReleaseSamples||0)+1;
+  }
   if(step?.visual&&dt>0){
    const point=step.visual;
    if(lastPoint){
@@ -85,7 +92,7 @@ function create({playerId=0}={}){
     // The shared rigid crossfader preserves calibrated joint lengths. The
     // lower-body palette is overwritten with the exact procedural IK again.
     const mixed=new Float32Array(raw.length);
-    window.TribunMatchAnimationBridge.mixRigid(raw,aligned,mixed,weight);
+    window.TribunMatchAnimationBridge.mixRigid(raw,aligned,mixed,weight*(1-.35*c.turn));
     for(let i=0;i<assets.bones.length;i++)if(keepProcedural(assets.bones[i].name))
      mixed.set(raw.subarray(i*16,i*16+16),i*16);
     result=mixed;stats.blenderSamples++;stats.clip=name;
@@ -103,7 +110,7 @@ function create({playerId=0}={}){
  }
  function reset(){
   contact.reset();travel=0;lastPoint=null;selected=null;stats.samples=0;stats.blenderSamples=0;
-  stats.contactFrames=0;stats.maxSupportHeightError=0;stats.maxContactGap=0;
+  stats.contactFrames=0;stats.maxSupportHeightError=0;stats.maxContactGap=0;stats.contactReleaseSamples=0;
  }
  function info(){return {...stats,status,reason,playerId,clips:clips?[...clips.keys()]:[],
   ...contact.state(),visual:undefined};}
