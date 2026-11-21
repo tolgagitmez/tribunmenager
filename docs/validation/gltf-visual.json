@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-21T11:38:32.991Z",
+  "verified": true,
+  "verificationScope": "Source-bound direct assistant inspection of the nine public prototype PNGs and their correspondence to the same measured Blender-exported asset. Verification does not certify visual perfection, photorealism, motion quality or watertight geometry.",
+  "inspection": {
+    "method": "Direct assistant viewing of each final PNG with the image viewer, separate from automated pixel, pose, GL and timing checks.",
+    "reviewers": [
+      "interop_browser_final assistant: all nine final public PNGs directly viewed and their current bytes hashed",
+      "root assistant: idle pair, dive pair and whole-page preview viewed",
+      "documentation assistant: all eight pose PNGs viewed"
+    ],
+    "externalHumanSignoff": false,
+    "artistSignoff": false,
+    "photorealismCertified": false,
+    "animationRealismCertified": false,
+    "watertightnessCertified": false
+  },
+  "browserEvidence": {
+    "path": "docs/validation/gltf-comparison.json",
+    "sha256": "e7a5382255917884e9596c10212cb4a173a4372830cd54e3b06de38fdf31aaf7",
+    "bytes": 887056,
+    "hashedSourcesUnchangedAtVisualReportCreation": true,
+    "hashedSourceCount": 32,
+    "sameBlenderFixtureInBothBackends": true,
+    "fixture": {
+      "path": "assets/interchange/footballer.blender.glb",
+      "sha256": "953804466a77ddaf4ded627ba21aac880c3da41411412fe62387c3557a0e4e5f",
+      "bytes": 1509524,
+      "trianglesPerActor": 28946,
+      "joints": 19,
+      "materials": 10,
+      "clips": [
+        "dive-right",
+        "shoot",
+        "run",
+        "idle"
+      ]
+    },
+    "independentPoseChecks": 16,
+    "maximumAbsoluteBoneMatrixError": 6.725740541724257e-7,
+    "matchedDrawingBuffer": [
+      600,
+      560
+    ],
+    "pixelRatio": 1,
+    "normalJavaScriptErrors": [],
+    "normalConsoleErrors": [],
+    "shaderFailures": []
+  },
+  "performanceEvidence": {
+    "path": "docs/validation/gltf-comparison.json",
+    "sha256": "e7a5382255917884e9596c10212cb4a173a4372830cd54e3b06de38fdf31aaf7",
+    "bytes": 887056,
+    "timedSamples": 720,
+    "measurement": "cpuUpdateMs measures animation/pose update; submitMs measures GL submission; completedFrameMs includes update + submit + gl.finish + synchronous 1x1 RGBA8 readPixels. A separate identical readback drains the previous frame before the timer. First frame and load are separate from warmed samples.",
+    "completionFence": "Synchronous 1x1 RGBA8 readPixels: 4 bytes timed after the current frame, plus a separate 4-byte previous-frame drain outside the timer.",
+    "scope": "Software SwiftShader readback-inclusive serial completed-frame latency. This is not real-device FPS, a GPU-only timer, or a pure engine-speed comparison."
+  },
+  "visualComparison": [
+    {
+      "area": "Materials and lighting",
+      "observation": "Three.js standard PBR produces stronger local contrast around the neck, shoulders, shirt and bent limbs. The custom renderer is lighter and softer in these captures; a global photorealism winner is not established."
+    },
+    {
+      "area": "Skinning and dive volume",
+      "observation": "The custom DQS dive retains a fuller shoulder/underarm contour; the Three LBS sample appears tighter in that region. Different BRDF and lighting responses also affect the appearance, so these stills do not isolate skinning as the sole cause."
+    },
+    {
+      "area": "Imported asset correspondence",
+      "observation": "Both backends show the same recognizable face, cap-like hair, blue kit, articulated body and source clip poses. The comparison report independently verifies matching authored bone matrices and matched camera matrices."
+    },
+    {
+      "area": "Source-detail limits",
+      "observation": "Hair shape, facial detail and boots remain visibly simplified in both backends. Changing the renderer alone does not establish a new level of realism."
+    }
+  ],
+  "limitations": [
+    "Four frozen source-clip times do not prove natural full-length running, shooting or diving motion.",
+    "These images do not certify watertight meshes, freedom from all interpenetration, or artist approval.",
+    "The same source inputs do not make the render pipelines identical: DQS versus LBS, WebGL 1 versus WebGL 2, material batching and BRDF/tone response differ.",
+    "No hardware throughput or device-FPS conclusion follows from the SwiftShader measurements."
+  ],
+  "sources": {
+    "assets/interchange/CREDITS.md": "eec91f87e2349ed68dd8733e2712612b79bf1088552ff65ce98c785806f952ee",
+    "assets/interchange/LICENSE-CC0.txt": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c",
+    "assets/interchange/SOURCE-LICENSE.md": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1",
+    "assets/interchange/editable.blend": "d75c4c9a8b38130c24389619376d823874d05bfdafcd00c8d734bde191750b8a",
+    "assets/interchange/footballer.blender.bin": "207eb214e8956ede471349050f85fccd7cf9a3ec0c09449e2f11b024a9bdfc08",
+    "assets/interchange/footballer.blender.glb": "953804466a77ddaf4ded627ba21aac880c3da41411412fe62387c3557a0e4e5f",
+    "assets/interchange/footballer.blender.gltf": "1d053f7e17560c3097b86369698f554b859151447c8a3bfe71e6b98617f1bab4",
+    "assets/interchange/khronos-validation.json": "f870b1fae6eea14c12766aff2f1c4c8b913fec19ab19ac896c92d7dbdd9e3427",
+    "assets/interchange/manifest.json": "c3b6e836838092283b9ada59aeb09e13770868804e465803f7d8424b1f49b6d7",
+    "assets/interchange/rebuild.json": "1f0958ffc2d88ba35e35c543b533fe8cce33dab5af22db96acae102211f5a4cc",
+    "assets/interchange/textures/fabric-detail.png": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24",
+    "assets/interchange/textures/skin-detail.png": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae",
+    "character-palette-constraints.js": "a50f99971e2c8b0769709da80e9baa8ee267812f92ae6a1209c021f3ce759f42",
+    "gltf-asset-loader.mjs": "94eb77ea1443a8b1c22d8806e3288e68ee1f346ca8eb1f7efa1f8cb6ac7bb40c",
+    "gltf-runtime-adapter.mjs": "b06342f72897b94fe6f60382babc8651ed39e0701967790210ce6c17442e5767",
+    "humanoid-rig.js": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
+    "interop-lab.css": "4443cb4734368b5b1795cfcb73a0f605520824169fbe86aeecad2fb5a6546e52",
+    "interop-lab.html": "7c161f13958a20f063095d4190c49ace0b5e5eac4a00493c3f5df043699ab09a",
+    "interop-lab.mjs": "0a9cd5f3555bc226985551ba3b394529c529bb5c55371519572d746a2ebb035f",
+    "player-asset-status.js": "6cfe7ca44cb3100530c1cffbc5641b6e10a5d887862f2bf9a3f62ef674f175ec",
+    "player-renderer.js": "b885b31fcc997d5eb2117f681335ba792eb2688df156f38d328c385b15563e9e",
+    "player-skinning.js": "394c0ab07fb723b3cc9f90227c9f67642e7647ee7cdb86a4b20e9b82d6c0d017",
+    "tools/check-gltf-comparison.cjs": "7b2901846956ebd58482b8c8fd3a1e4dcdb67eabd7d3a05c3f30a11db2bda85b",
+    "tools/serve-character-viewer.cjs": "c7abb2685dc6078124bdc8803d2f9eb1b16d21a0c07e6d5558545fe2fd2bc619",
+    "vendor/three/LICENSE": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601",
+    "vendor/three/build/three.core.min.js": "61ba0df005b05991361d040d8ff670e1aadfd0ce7aeebd1fdb0725957a8957de",
+    "vendor/three/build/three.module.min.js": "e2b5ee6bccd38fd6d8a2428546b83c5f2426d84b152ef82be8055556e3b40eb6",
+    "vendor/three/examples/jsm/controls/OrbitControls.js": "b97879c748170baadeb3fb84cea1ffdf4674e283dc06042f34e2acb95a76042c",
+    "vendor/three/examples/jsm/loaders/GLTFLoader.js": "67ac5551fdafa6e349bd80c8f8e5e39c136d6b2fb1ad647db9abb21dc86f9e4a",
+    "vendor/three/examples/jsm/utils/BufferGeometryUtils.js": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751",
+    "vendor/three/examples/jsm/utils/SkeletonUtils.js": "0761b1e003917b215d25dd81439d854b36034b5a57ce84c2cfe3b02428d7b253",
+    "vendor/three/manifest.json": "dad9660ff4f791e23390c88bcee2b885f9cd654922d9e78fc5d166fb27500f42"
+  },
+  "sourceArtifacts": [
+    {
+      "path": "assets/interchange/CREDITS.md",
+      "sha256": "eec91f87e2349ed68dd8733e2712612b79bf1088552ff65ce98c785806f952ee",
+      "bytes": 1837
+    },
+    {
+      "path": "assets/interchange/LICENSE-CC0.txt",
+      "sha256": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c",
+      "bytes": 6962
+    },
+    {
+      "path": "assets/interchange/SOURCE-LICENSE.md",
+      "sha256": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1",
+      "bytes": 3598
+    },
+    {
+      "path": "assets/interchange/editable.blend",
+      "sha256": "d75c4c9a8b38130c24389619376d823874d05bfdafcd00c8d734bde191750b8a",
+      "bytes": 1580653
+    },
+    {
+      "path": "assets/interchange/footballer.blender.bin",
+      "sha256": "207eb214e8956ede471349050f85fccd7cf9a3ec0c09449e2f11b024a9bdfc08",
+      "bytes": 1365116
+    },
+    {
+      "path": "assets/interchange/footballer.blender.glb",
+      "sha256": "953804466a77ddaf4ded627ba21aac880c3da41411412fe62387c3557a0e4e5f",
+      "bytes": 1509524
+    },
+    {
+      "path": "assets/interchange/footballer.blender.gltf",
+      "sha256": "1d053f7e17560c3097b86369698f554b859151447c8a3bfe71e6b98617f1bab4",
+      "bytes": 103655
+    },
+    {
+      "path": "assets/interchange/khronos-validation.json",
+      "sha256": "f870b1fae6eea14c12766aff2f1c4c8b913fec19ab19ac896c92d7dbdd9e3427",
+      "bytes": 1487
+    },
+    {
+      "path": "assets/interchange/manifest.json",
+      "sha256": "c3b6e836838092283b9ada59aeb09e13770868804e465803f7d8424b1f49b6d7",
+      "bytes": 7069
+    },
+    {
+      "path": "assets/interchange/rebuild.json",
+      "sha256": "1f0958ffc2d88ba35e35c543b533fe8cce33dab5af22db96acae102211f5a4cc",
+      "bytes": 3061
+    },
+    {
+      "path": "assets/interchange/textures/fabric-detail.png",
+      "sha256": "c82da7ee93941aeb3c8617cf3935c2a3d72bda752331451d3ce0ff44e9533f24",
+      "bytes": 31554
+    },
+    {
+      "path": "assets/interchange/textures/skin-detail.png",
+      "sha256": "c6fb430cd181067266a6115b5bd4ded86266c1ed123312d5837bc66cee7408ae",
+      "bytes": 41870
+    },
+    {
+      "path": "character-palette-constraints.js",
+      "sha256": "a50f99971e2c8b0769709da80e9baa8ee267812f92ae6a1209c021f3ce759f42",
+      "bytes": 6150
+    },
+    {
+      "path": "gltf-asset-loader.mjs",
+      "sha256": "94eb77ea1443a8b1c22d8806e3288e68ee1f346ca8eb1f7efa1f8cb6ac7bb40c",
+      "bytes": 33707
+    },
+    {
+      "path": "gltf-runtime-adapter.mjs",
+      "sha256": "b06342f72897b94fe6f60382babc8651ed39e0701967790210ce6c17442e5767",
+      "bytes": 18186
+    },
+    {
+      "path": "humanoid-rig.js",
+      "sha256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
+      "bytes": 22569
+    },
+    {
+      "path": "interop-lab.css",
+      "sha256": "4443cb4734368b5b1795cfcb73a0f605520824169fbe86aeecad2fb5a6546e52",
+      "bytes": 8958
+    },
+    {
+      "path": "interop-lab.html",
+      "sha256": "7c161f13958a20f063095d4190c49ace0b5e5eac4a00493c3f5df043699ab09a",
+      "bytes": 6447
+    },
+    {
+      "path": "interop-lab.mjs",
+      "sha256": "0a9cd5f3555bc226985551ba3b394529c529bb5c55371519572d746a2ebb035f",
+      "bytes": 30496
+    },
+    {
+      "path": "player-asset-status.js",
+      "sha256": "6cfe7ca44cb3100530c1cffbc5641b6e10a5d887862f2bf9a3f62ef674f175ec",
+      "bytes": 10414
+    },
+    {
+      "path": "player-renderer.js",
+      "sha256": "b885b31fcc997d5eb2117f681335ba792eb2688df156f38d328c385b15563e9e",
+      "bytes": 25059
+    },
+    {
+      "path": "player-skinning.js",
+      "sha256": "394c0ab07fb723b3cc9f90227c9f67642e7647ee7cdb86a4b20e9b82d6c0d017",
+      "bytes": 4545
+    },
+    {
+      "path": "tools/check-gltf-comparison.cjs",
+      "sha256": "7b2901846956ebd58482b8c8fd3a1e4dcdb67eabd7d3a05c3f30a11db2bda85b",
+      "bytes": 40922
+    },
+    {
+      "path": "tools/serve-character-viewer.cjs",
+      "sha256": "c7abb2685dc6078124bdc8803d2f9eb1b16d21a0c07e6d5558545fe2fd2bc619",
+      "bytes": 1562
+    },
+    {
+      "path": "vendor/three/LICENSE",
+      "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601",
+      "bytes": 1081
+    },
+    {
+      "path": "vendor/three/build/three.core.min.js",
+      "sha256": "61ba0df005b05991361d040d8ff670e1aadfd0ce7aeebd1fdb0725957a8957de",
+      "bytes": 381124
+    },
+    {
+      "path": "vendor/three/build/three.module.min.js",
+      "sha256": "e2b5ee6bccd38fd6d8a2428546b83c5f2426d84b152ef82be8055556e3b40eb6",
+      "bytes": 338908
+    },
+    {
+      "path": "vendor/three/examples/jsm/controls/OrbitControls.js",
+      "sha256": "b97879c748170baadeb3fb84cea1ffdf4674e283dc06042f34e2acb95a76042c",
+      "bytes": 38703
+    },
+    {
+      "path": "vendor/three/examples/jsm/loaders/GLTFLoader.js",
+      "sha256": "67ac5551fdafa6e349bd80c8f8e5e39c136d6b2fb1ad647db9abb21dc86f9e4a",
+      "bytes": 114739
+    },
+    {
+      "path": "vendor/three/examples/jsm/utils/BufferGeometryUtils.js",
+      "sha256": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751",
+      "bytes": 35539
+    },
+    {
+      "path": "vendor/three/examples/jsm/utils/SkeletonUtils.js",
+      "sha256": "0761b1e003917b215d25dd81439d854b36034b5a57ce84c2cfe3b02428d7b253",
+      "bytes": 11062
+    },
+    {
+      "path": "vendor/three/manifest.json",
+      "sha256": "dad9660ff4f791e23390c88bcee2b885f9cd654922d9e78fc5d166fb27500f42",
+      "bytes": 1519
+    }
+  ],
+  "images": [
+    {
+      "path": "docs/previews/gltf-custom-idle.png",
+      "sha256": "df70af7e3efc327cfd0be08e16c93e6a5512467afb578759835adb957720a89e",
+      "bytes": 47368,
+      "width": 610,
+      "height": 568,
+      "backend": "custom",
+      "clip": "idle",
+      "timeSeconds": 0.15,
+      "directlyInspected": true,
+      "observation": "Full-body idle sample shows the imported face, blue kit, hands and boots with a lighter, softer material response."
+    },
+    {
+      "path": "docs/previews/gltf-custom-run.png",
+      "sha256": "6168695992be704c903a864eb76015049c1c338e008608abd3ee491ddc84bd23",
+      "bytes": 47421,
+      "width": 610,
+      "height": 568,
+      "backend": "custom",
+      "clip": "run",
+      "timeSeconds": 0.4,
+      "directlyInspected": true,
+      "observation": "The run-clip sample shows an articulated leg and arm pose while preserving the same imported kit and body; skin and shirt shading remain relatively bright."
+    },
+    {
+      "path": "docs/previews/gltf-custom-shoot.png",
+      "sha256": "6fd58fbebf36ed101b9a81284062e3e067860ad3be055875294f6248fb5365e9",
+      "bytes": 49398,
+      "width": 610,
+      "height": 568,
+      "backend": "custom",
+      "clip": "shoot",
+      "timeSeconds": 0.26,
+      "directlyInspected": true,
+      "observation": "The shoot-clip sample shows bent knees and separated arms with continuous imported body and kit surfaces; this is one frozen point in the source clip."
+    },
+    {
+      "path": "docs/previews/gltf-custom-dive-right.png",
+      "sha256": "c1c52b63bfe76a2277b7d33104f837afc3f6e372f106b6bf6c3262ae832b70bf",
+      "bytes": 49834,
+      "width": 610,
+      "height": 568,
+      "backend": "custom",
+      "clip": "dive-right",
+      "timeSeconds": 0.27,
+      "directlyInspected": true,
+      "observation": "The sideways dive sample shows the raised arms and extended body; the DQS result appears fuller around the raised shoulder and underarm."
+    },
+    {
+      "path": "docs/previews/gltf-three-idle.png",
+      "sha256": "0e4523fe921348a921e71c2c29ff17a90a462187c6ef168e3ce7a7e7e9136680",
+      "bytes": 49160,
+      "width": 610,
+      "height": 568,
+      "backend": "three",
+      "clip": "idle",
+      "timeSeconds": 0.15,
+      "directlyInspected": true,
+      "observation": "The matched idle sample shows stronger shoulder, neck and shirt contrast with the standard PBR material path."
+    },
+    {
+      "path": "docs/previews/gltf-three-run.png",
+      "sha256": "6b58b36253f9565b5e26bf7f306ca6ac0f8a518f96bbbcd3e763669ebf9e94ea",
+      "bytes": 49203,
+      "width": 610,
+      "height": 568,
+      "backend": "three",
+      "clip": "run",
+      "timeSeconds": 0.4,
+      "directlyInspected": true,
+      "observation": "The same run-clip sample preserves the matched silhouette and source materials with darker shoulder and torso shading."
+    },
+    {
+      "path": "docs/previews/gltf-three-shoot.png",
+      "sha256": "2d29a3d37709ea053d5e504ecefb42675947da78685b0faf364ea55f5f97b51f",
+      "bytes": 50812,
+      "width": 610,
+      "height": 568,
+      "backend": "three",
+      "clip": "shoot",
+      "timeSeconds": 0.26,
+      "directlyInspected": true,
+      "observation": "The matched shoot-clip sample retains the same joint pose and shows stronger neck, shoulder and knee shading."
+    },
+    {
+      "path": "docs/previews/gltf-three-dive-right.png",
+      "sha256": "9dfa7a6e3fee65190232f142e4df15cc79d86d1a7051218b9c19a0023f122ac7",
+      "bytes": 50469,
+      "width": 610,
+      "height": 568,
+      "backend": "three",
+      "clip": "dive-right",
+      "timeSeconds": 0.27,
+      "directlyInspected": true,
+      "observation": "The matched sideways dive sample shows a tighter shoulder and underarm contour with stronger shadows. LBS and the different material response both contribute to the visible difference."
+    },
+    {
+      "path": "docs/previews/gltf-comparison-idle.png",
+      "sha256": "b532bef46b17abe9bd88a57ccb891dd40b9f06e1288b19f80677ed44aba2c222",
+      "bytes": 262424,
+      "width": 1320,
+      "height": 1592,
+      "backend": "both",
+      "clip": "idle",
+      "directlyInspected": true,
+      "observation": "Both ready panels show the same imported idle character, source controls and renderer diagnostics. Visible counters are individual snapshot values; aggregate performance measurements are in the comparison report."
+    }
+  ]
+}

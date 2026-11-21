@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "blenderVersion": "4.3.2",
+  "command": "blender --background --factory-startup --python-exit-code 1 --python tools/build-blender-interchange.py",
+  "prerequisites": [
+    "Blender 4.3.2 with bundled io_scene_gltf2",
+    "Node.js 24 or supported project version",
+    "npm ci (pinned Khronos gltf-validator)"
+  ],
+  "network": "none",
+  "simulationHz": 60,
+  "fps": 30,
+  "animationConstruction": "worldJoint = rendererSkinPalette * fullBindMatrix; local = inverse(parentWorldJoint) * worldJoint; baked translation + normalized quaternion LINEAR channels",
+  "roundTrip": [
+    "canonical standard animated GLB",
+    "Blender glTF import",
+    "packed editable.blend",
+    "Blender GLB and GLTF_SEPARATE export"
+  ],
+  "canonicalInput": {
+    "bytes": 1513964,
+    "sha256": "4c5ede8e07791d4e7a0495fc65a0cdf03c2c3b8124f08fd59a51c5a2545bcb08"
+  },
+  "exportOptions": {
+    "export_animations": true,
+    "export_animation_mode": "NLA_TRACKS",
+    "export_force_sampling": true,
+    "export_frame_range": false,
+    "export_frame_step": 1,
+    "export_optimize_animation_size": false,
+    "export_skins": true,
+    "export_yup": true,
+    "export_extras": true,
+    "export_texcoords": true,
+    "export_normals": true,
+    "export_image_format": "AUTO",
+    "export_materials": "EXPORT"
+  },
+  "sources": [
+    {
+      "path": "tools/bake-licensed-clips.cjs",
+      "bytes": 9339,
+      "sha256": "65e5ae035eefa3b91604bf6fb11953688d4bac8ae1ff43c75d3fc9e12cfc2122"
+    },
+    {
+      "path": "tools/build-blender-interchange.py",
+      "bytes": 16576,
+      "sha256": "f3f61da9c95fda58e4971e04095a59813d0eb42f64a91350c140233b4be91866"
+    },
+    {
+      "path": "humanoid-rig.js",
+      "bytes": 22569,
+      "sha256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480"
+    },
+    {
+      "path": "player-renderer.js",
+      "bytes": 25059,
+      "sha256": "b885b31fcc997d5eb2117f681335ba792eb2688df156f38d328c385b15563e9e"
+    },
+    {
+      "path": "animation-scenarios.js",
+      "bytes": 3731,
+      "sha256": "5f80bfe24d5f5cc39456ea14fa3a1674ace182657f2c5d29c6c091968475c5bd"
+    },
+    {
+      "path": "tools/build-player-assets.py",
+      "bytes": 41382,
+      "sha256": "f6df3a40b953c4805cb2d1e781c9bd3f5c4f09fdcbd890060581ad92145e76ac"
+    },
+    {
+      "path": "assets/player/manifest.json",
+      "bytes": 6600,
+      "sha256": "71bbb3fa69153aa9279f97918a3983db0e060eb5c8490266c0ae0641d249f0c4"
+    },
+    {
+      "path": "assets/player/footballer.glb",
+      "bytes": 1385268,
+      "sha256": "b9ff19673f0561e405f1c88da5acfee51124651aaa8b3df1798301e35b774ee6"
+    },
+    {
+      "path": "assets/player/player-model-data.js",
+      "bytes": 2010998,
+      "sha256": "2e85609fab846a229000981a8dbc0cb5bd10bb356e59c0b27e6003d6be6ad401"
+    }
+  ],
+  "determinism": "Canonical animation GLB is byte deterministic. Blender geometry, textures and sampled poses are checked numerically. editable.blend embeds Blender session metadata and is verified by its packaged hash, not required to rebuild byte identically."
+}
