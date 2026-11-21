@@ -232,7 +232,7 @@ class PlayerRenderer{
    const set=(name,value)=>gl.uniform3fv(this.loc[name],value);set('uSkin',v.skin||p.skin||[.69,.48,.34]);set('uShirt',shirt);set('uShorts',shorts);set('uHair',v.hair||p.hair||[.10,.065,.043]);set('uBoots',v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3]);set('uIris',v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3]);set('uVariant',v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0]);
    gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));let connected;
    if(frameOptions.paletteForPlayer)connected=frameOptions.paletteForPlayer(p);
-   else{const pose=Rig.getPose(p),rawPalette=v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose),skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;connected=renderPalette(rawPalette,skinPalette,this.assets);}
+   if(!connected){const pose=Rig.getPose(p),rawPalette=v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose),skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;connected=renderPalette(rawPalette,skinPalette,this.assets);}
    const dual=Skinning.fromMatrices(connected);
    gl.uniform4fv(this.loc['uBoneReal[0]'],dual.real);gl.uniform4fv(this.loc['uBoneDual[0]'],dual.dual);
    gl.bindBuffer(gl.ARRAY_BUFFER,lod.vertex);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lod.index);for(const a of this.attributes){if(a.location<0)continue;gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,80,a.off*4);}gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);for(const a of this.attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);
