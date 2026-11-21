@@ -7,6 +7,11 @@
   "rigReferenceSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
   "runtime": "assets/player/player-model-data.js",
   "standardModel": "assets/player/footballer.glb",
+  "standardNormalization": {
+    "vertexColor": "COLOR_0 clamped to [0,1]",
+    "unusedJoints": "zero-weight JOINTS_0 slots set to 0",
+    "skinnedMesh": "identity mesh node is a scene root"
+  },
   "textures": {
     "skin": "assets/player/textures/skin-detail.png",
     "fabric": "assets/player/textures/fabric-detail.png"
@@ -111,8 +116,8 @@
   "files": [
     {
       "path": "assets/player/CREDITS.md",
-      "bytes": 3812,
-      "sha256": "be327ed318dd08a106ddff77938bb626858a2d85054c28fcbc7fa177dc703602"
+      "bytes": 4242,
+      "sha256": "d867534f082b52ea5b7afb586b195daee19da4709d7ba73854006fbaa3f31dc8"
     },
     {
       "path": "assets/player/LICENSE-CC0.txt",
@@ -126,8 +131,8 @@
     },
     {
       "path": "assets/player/footballer.glb",
-      "bytes": 1385096,
-      "sha256": "b07add00bd67ea7ebd51ca95c979968364f4209452c16e0ac8a5350ee7079d1c"
+      "bytes": 1385268,
+      "sha256": "b9ff19673f0561e405f1c88da5acfee51124651aaa8b3df1798301e35b774ee6"
     },
     {
       "path": "assets/player/player-model-data.js",

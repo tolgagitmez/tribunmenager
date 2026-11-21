@@ -1,5 +1,11 @@
 # Görsel kaynakları
 
+## Standart Blender aktarımı ve yerel kütüphaneler — v1.34.0
+
+`assets/interchange/` lisanslı MakeHuman türevinin gerçek Blender gidiş-dönüş paketidir: düzenlenebilir `.blend`, animasyonlu GLB, harici glTF/BIN/PNG, kaynak manifesti ve Khronos raporları. Dört klip mevcut kanonik rig'den 60 Hz örneklenip 30 FPS anahtarlara aktarılır; mocap değildir. Kaynak, üretim ayarları, çıktı hash'leri ve Blender'ın küçük normal/ağırlık değişim toleransları pakette kayıtlıdır. [Aktarım rehberi](docs/GLTF_PIPELINE.md).
+
+Kanonik taşınabilir `footballer.glb` standart renk aralığı, etkisiz joint slotları ve kök mesh düzeni için normalleştirilir; runtime model verisi ve özgün CC0 kaynaklar korunur. `vendor/three/` resmi Three.js 0.180.0 MIT paketinden değişmeden kopyalanan yedi dosyayı içerir. Lisans ve dosya bütünlük bilgisi [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) içindedir. Karşılaştırma görüntüleri gerçek tarayıcı kayıtlarıdır; üretilmiş kavram görseli kullanılmaz.
+
 ## Güncel oyuncu paketi — v1.32.0
 
 `assets/player/` bu sürümde kaynağı doğrulanmış **MakeHuman Community hm08** insan modelinden yeniden üretildi. Kaynak sürüm [`a8bc2d54ff0ac92e78ff71431b1023eda42bf482`](https://github.com/makehumancommunity/makehuman/tree/a8bc2d54ff0ac92e78ff71431b1023eda42bf482) olarak sabittir. Kaynak OBJ'nin başlığı, varsayılan iskelet ve deri ağırlıkları CC0 bildirir. Resmî lisans politikasındaki CC0 grafik varlıkları kullanıldı; AGPL program kodu alınmadı.
