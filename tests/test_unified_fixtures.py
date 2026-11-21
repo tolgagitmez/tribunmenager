@@ -74,6 +74,43 @@ class AllFixturesOneEngine(unittest.TestCase):
         with self.assertRaises(ValueError):
             server.update_tactics(self.league["token"], {"press": 10}, "5-3-2")
 
+    def test_linked_roster_and_preview_remain_frozen_after_kickoff(self):
+        # A linked squad can be edited in the transfer service independently
+        # of the match process. Neither late spectators nor preview reloads
+        # may silently substitute these newer players into a running fixture.
+        lineup = [{"id": i, "name": f"Kickoff Player {i}", "rating": 75 + i,
+                   "pos": "MID", "preferredFoot": "right"} for i in range(11)]
+        original = {"players": lineup, "starters": list(range(11)), "revision": 14}
+        with server.db() as db:
+            db.executescript("""CREATE TABLE transfer_profiles(
+                id TEXT PRIMARY KEY, auth TEXT NOT NULL, state TEXT NOT NULL);
+                CREATE TABLE transfer_league_links(
+                profile TEXT PRIMARY KEY, league TEXT NOT NULL, slot INT NOT NULL);""")
+            db.execute("INSERT INTO transfer_profiles VALUES(?,?,?)",
+                       ("linked", "unused", json.dumps(original)))
+            db.execute("INSERT INTO transfer_league_links VALUES(?,?,?)",
+                       ("linked", self.league["code"], 0))
+        self.assertEqual(self.provision(), 3)
+        first = server.local_match(self.league["token"], self.kickoff + .15)
+        self.assertEqual(first["ownTeam"]["source"], "linked-roster")
+        self.assertEqual(first["ownTeam"]["revision"], 14)
+        self.assertEqual(first["ownTeam"]["starters"], list(range(11)))
+        self.assertEqual(first["ownTeam"]["players"][0]["name"], "Kickoff Player 0")
+        later = {"players": [{**player, "name": "Edited after kickoff"}
+                             for player in lineup],
+                 "starters": list(reversed(range(11))), "revision": 15}
+        with server.db() as db:
+            db.execute("UPDATE transfer_profiles SET state=? WHERE id=?",
+                       (json.dumps(later), "linked"))
+        refreshed = server.local_match(self.league["token"], self.kickoff + .15)
+        self.assertEqual(refreshed["ownTeam"], first["ownTeam"])
+        with server.db() as db:
+            config = db.execute("""SELECT config FROM live_matches
+                WHERE league=? AND round=0 AND home=0""",
+                (self.league["code"],)).fetchone()
+        self.assertEqual(json.loads(config["config"])["players"], first["ownTeam"]["players"])
+        self.assertEqual(json.loads(config["config"])["starters"], list(range(11)))
+
     def test_unwatched_fixture_completes_with_true_score_and_replay_log(self):
         self.assertEqual(self.provision(), 3)
         with server.db() as db:
