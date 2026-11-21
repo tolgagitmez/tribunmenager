@@ -1003,7 +1003,7 @@ class Match{
    if(k.restartContext.layout?.wall.size)this.activeWall={team:1-p.team,points:k.restartContext.layout.wall,until:this.time+.7};
   }
   this.afterPass(p,k,d);
-  this.flight={id:++this.releaseSerial,kind:k.kind,from:p,target:k.target,point:{...k.point},age:0,giveGoReturn:k.giveGoReturn??null,onTarget:false,keepersTried:false,aerialResolved:false,offsidePlayers:(!['throw'].includes(k.kind)&&!['corner','goal-kick','throw'].includes(k.restartContext?.kind))?this.field(p.team).filter(q=>q!==p&&q.x*this.direction(p.team)>Math.max(this.ball.x*this.direction(p.team),this.defenceLine(p.team))+.10&&q.x*this.direction(p.team)>0).map(q=>q.id):[]};
+  this.flight={id:++this.releaseSerial,kind:k.kind,from:p,target:k.target,point:{...k.point},age:0,giveGoReturn:k.giveGoReturn??null,onTarget:false,keepersTried:false,aerialResolved:false,offsidePlayers:[]};
   if(managerKick)this.flight.managerKick=managerKick;
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
@@ -1196,7 +1196,11 @@ class Match{
  passSpeed(kind,d,t){return kind==='through'?21:kind==='cutback'?18:kind==='long-pass'?clamp(24+d*.13,25,33):clamp(14.5+d*.12+(t.tempo-55)*.025,13,24);}
  passTime(kind,d,speed){return ['cross','long-pass','clearance','throw'].includes(kind)?BallPhysics.airTime(d,speed):BallPhysics.groundTime(d,speed);}
  threat(p,team){const x=52-p.x*this.direction(team);return Math.exp(-Math.max(0,x-6)/28)*Math.max(.15,1-Math.abs(p.z)/45);}
- captureOffside(p){const side=this.direction(p.team),line=Math.max(this.ball.x*side,this.defenceLine(p.team));return {team:p.team,fromId:p.id,releasedAt:this.time,playerIds:this.field(p.team).filter(q=>q!==p&&q.x*side>line+1e-8&&q.x*side>0).map(q=>q.id)};}
+ captureOffside(p){
+  const side=this.direction(p.team),defenders=this.team(1-p.team),line=Math.max(this.ball.x*side,RefereeLaws.offsideLineOfDefenders(defenders,side));
+  return {team:p.team,fromId:p.id,releasedAt:this.time,legalBodyLine:line,
+   playerIds:this.field(p.team).filter(q=>q!==p&&RefereeLaws.offsideBodyPoint(q,side)>line+1e-8&&RefereeLaws.offsideBodyPoint(q,side)>0).map(q=>q.id)};
+ }
  offsideTouch(p,reason='touch'){
   const phase=this.offsidePhase||(this.flight?{team:this.flight.from?.team,playerIds:this.flight.offsidePlayers||[]}:null);
   if(!phase||phase.team!==p.team||!phase.playerIds.includes(p.id))return false;
