@@ -955,17 +955,40 @@ class Match{
   return true;
  }
  contactPoint(p,kind){if(kind==='throw')return [p.x+Math.cos(p.face)*.40,1.95,p.z+Math.sin(p.face)*.40];return this.motion?.kickContact(p)||[p.x+Math.cos(p.face)*.88-Math.sin(p.face)*(p.kickFoot===0?-.18:.18),.11,p.z+Math.sin(p.face)*.88+Math.cos(p.face)*(p.kickFoot===0?-.18:.18)];}
- managerKickVelocity(k){
-  const {kind,angle:heading,power,contactX,contactY}=k.managerControl,p=k.p;
+ specialistKickType(k){
+  // A restart uses its actual set-piece specialist regardless of whether
+  // the AI chooses a shot, cross or short pass. An open-play cross uses crossing.
+  return managerKickTypes[k.restartContext?.kind]?k.restartContext.kind:
+   k.managerControl?.kind||(k.kind==='cross'?'cross':null);
+ }
+ automaticSpecialistControl(k,kind=this.specialistKickType(k)){
+  const {min,max}=managerKickTypes[kind],p=k.p,d=dist(this.ball,k.point)||1;
+  const pressure=Math.min(10,...this.field(1-p.team).map(q=>dist(q,p)));
+  const speed=k.powerOverride??(k.kind==='shot'?(21+p.shooting*.085)*(1-Math.max(0,3-pressure)*.025):
+   k.kind==='cross'?clamp(d/1.35,15,25):this.passSpeed(k.kind,d,this.t[p.team]));
+  // The AI owns the intention (heading, power, contact). The same striker
+  // kernel executes it as a manually chosen intention at the real foot.
+  const contactY=k.kind==='shot'?(kind==='penalty'?.12:
+   Number.isFinite(k.heightTarget)?clamp((1.75-k.heightTarget)*.16,-.45,.45):0):0;
+  return {kind,angle:Math.atan2(k.point.z-this.ball.z,k.point.x-this.ball.x),
+   power:clamp((speed-min)/(max-min),0,1),contactX:0,contactY};
+ }
+ specialistKickVelocity(k,control){
+  const {kind,angle:heading,power,contactX,contactY}=control,p=k.p;
   const {min,max,spread}=managerKickTypes[kind],skill=this.managerKickSkill(p,kind,p.kickFoot);
-  const edge=Math.hypot(contactX,contactY),difficulty=(1-skill/100)*(1+.5*edge+.35*power);
+  const edge=Math.hypot(contactX,contactY);
+  // Technique includes the kicking foot, while body balance and movement
+  // affect execution rather than the AI's/manager's intended direction.
+  const stability=clamp((p.balance??75)/80-Math.max(0,Math.hypot(p.vx,p.vz)-2)*.025-
+   Math.abs(angle(heading,p.face))*.05,.55,1.10);
+  const difficulty=(1-skill/100)*(1+.5*edge+.35*power)+Math.max(0,1-stability)*.10;
   const pressure=kind==='cross'?Math.max(0,3-Math.min(3,...this.field(1-p.team).map(q=>dist(q,p)))):0;
   const actualHeading=heading+(this.random()*2-1)*spread*(.08+difficulty+.15*pressure);
   const speed=(min+(max-min)*power)*(1-.07*edge+(this.random()*2-1)*difficulty*.13);
-  const loft=kind==='penalty'?.16:k.kind==='shot'?.33:k.kind==='cutback'?.07:.42;
-  const lift=loft-contactY*.44+(this.random()*2-1)*(.015+difficulty*.09);
+  const loft=k.kind==='pass'||k.kind==='through'?0:kind==='penalty'?.16:k.kind==='shot'?.33:k.kind==='cutback'?.07:.42;
+  const lift=loft===0?0:loft-contactY*.44+(this.random()*2-1)*(.015+difficulty*.09);
   const spin=-contactX*(.28+skill*.002)*(.4+.6*power);
-  return {vx:Math.cos(actualHeading)*speed,vz:Math.sin(actualHeading)*speed,vy:clamp(speed*lift,0,15),spin,skill};
+  return {vx:Math.cos(actualHeading)*speed,vz:Math.sin(actualHeading)*speed,vy:clamp(speed*lift,0,15),spin,skill,stability};
  }
  release(){
   const k=this.kick,p=k.p;if(k.restartContext&&!this.restartReady(k.restartContext))return false;const point=this.contactPoint(p,k.kind);if(k.restartContext?.kind==='kickoff'){if(!this.kickoffReady(k.restartContext))return false;point[0]=0;point[2]=0;}this.kick=null;this.owner=null;this.phase='open';
@@ -975,12 +998,16 @@ class Match{
   if(k.kind==='shot'){this.shots[p.team]++;this.xg[p.team]+=this.shotQuality(p);this.telemetry.shotsAfterPasses+=this.chain>=2?1:0;}
   let managerKick=null;
   delete this.ball.spin;
-  if(k.managerControl){
-   const {vx,vy,vz,spin,skill}=this.managerKickVelocity(k);
+  const specialist=this.specialistKickType(k);
+  if(specialist){
+   const control=k.managerControl||this.automaticSpecialistControl(k,specialist);
+   const {vx,vy,vz,spin,skill}=this.specialistKickVelocity(k,control);
    Object.assign(this.ball,{vx,vy,vz});
    if(spin&&vy>0)this.ball.spin=spin;
-   managerKick={...k.managerControl,skill};
-   this.telemetry.managerKicks=(this.telemetry.managerKicks||0)+1;
+   if(k.managerControl){
+    managerKick={...control,skill};
+    this.telemetry.managerKicks=(this.telemetry.managerKicks||0)+1;
+   }else this.telemetry.automaticSpecialistKicks=(this.telemetry.automaticSpecialistKicks||0)+1;
   }else{
    const power=k.powerOverride||(k.kind==='shot'?(21+p.shooting*.085)*(1-Math.max(0,3-shotPressure)*.025):k.kind==='cross'?clamp(d/1.35,15,25):k.kind==='clearance'?29:this.passSpeed(k.kind,d,this.t[p.team]));
    const technique=k.kind==='cross'?(p.crossing??p.passing):p.passing;
