@@ -1,7 +1,7 @@
 name: Licensed CC0 reproducible geometry and provenance
 on:
   push:
-    branches: [fix/licensed-asset-cross-platform-rebuild]
+    branches: [main, fix/licensed-asset-cross-platform-rebuild]
   pull_request:
     paths:
       - 'tools/verify-player-asset-rebuild.py'
