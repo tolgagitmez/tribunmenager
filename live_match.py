@@ -8,6 +8,7 @@ from pathlib import Path
 from queue import Empty, Queue
 import shutil
 import sqlite3
+import season_state
 import subprocess
 import threading
 import time
@@ -199,10 +200,16 @@ class LiveMatch:
                     home, away = state["score"]
                     hy, ay = state["cards"]
                     hr, ar = state["reds"]
-                    database.execute(f"""UPDATE fixtures SET home_score=?,away_score=?,
+                    updated = database.execute(f"""UPDATE fixtures SET home_score=?,away_score=?,
                         home_yellows=?,away_yellows=?,home_reds=?,away_reds=?
                         WHERE {FIXTURE_KEY} AND home_score IS NULL""",
                         (home, away, hy, ay, hr, ar, *self.key))
+                    if updated.rowcount:
+                        # Appearances, fitness and disciplinary bans commit in
+                        # the SAME transaction as the authoritative result.
+                        # Crashes cause replay; UNIQUE fixture-player keys
+                        # prevent duplicate minutes and yellow/red cards.
+                        season_state.apply_fixture(database, self.key, state.get("appearances", []))
                     database.execute(f"UPDATE live_matches SET final_state=? WHERE {FIXTURE_KEY}",
                                      (encode(state), *self.key))
                 if state["done"] or operation["op"] == "kick" or new_index - self.last_frame_step >= 120:
