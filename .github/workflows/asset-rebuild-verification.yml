@@ -1,0 +1,42 @@
+name: Licensed CC0 reproducible geometry and provenance
+on:
+  push:
+    branches: [fix/licensed-asset-cross-platform-rebuild]
+  pull_request:
+    paths:
+      - 'tools/verify-player-asset-rebuild.py'
+      - 'tests/test_player_assets.py'
+      - '.github/workflows/asset-rebuild-verification.yml'
+  workflow_dispatch:
+jobs:
+  rebuild-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-player-assets.txt
+      - name: Derivative geometry equivalence, pinned SHA256 and adversarial tampering
+        run: python -m unittest discover -s tests -p 'test_player_assets.py' -v
+      - name: Existing licensed player source and glTF manifest checks
+        run: node --test tests/player-assets.test.cjs tests/player-asset-status.test.cjs tests/character-licensed-rig.test.cjs
+  complete-legacy-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install -r requirements-player-assets.txt
+      - name: All historic game, character and glTF tests
+        run: npm run test:stage15
