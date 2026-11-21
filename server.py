@@ -311,7 +311,7 @@ def live_config(database, key, now, kickoff):
     seed = int.from_bytes(hashlib.sha256(':'.join(map(str, key)).encode()).digest()[:4], 'big')
     # No attendance-dependent catchup or data lookup after this durable commit.
     # Recovery derives elapsed ticks from kickoff and replays stored operations.
-    return {'seed':seed,'matchMinutes':5,'snapshotAt':kickoff,'capturedAt':now,
+    return {'seed':seed,'matchMinutes':5,'snapshotAt':kickoff,'capturedAt':now,'seasonTracking':True,
             'engineSHA256':hashlib.sha256((ROOT/'football-sim.js').read_bytes()).hexdigest(),
             'workerSHA256':hashlib.sha256((ROOT/'live-match-worker.cjs').read_bytes()).hexdigest(),
             'homeName':home['name'],'awayName':away['name'],'formation':home['formation'],
