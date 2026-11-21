@@ -128,6 +128,10 @@ def settle_due(now=None):
     created=[]
     with LOCK:
         with db() as c:
+            # Acquire the SQLite write lock before reading any squad. Linked
+            # transfer profiles use independent database connections, so this
+            # makes all three fixture snapshots an atomic kickoff boundary.
+            c.execute('BEGIN IMMEDIATE')
             due=c.execute('''SELECT f.league,f.round,f.home,f.away,f.kickoff FROM fixtures f
                 WHERE f.kickoff<=? AND f.home_score IS NULL
                 AND NOT EXISTS (SELECT 1 FROM live_matches l
