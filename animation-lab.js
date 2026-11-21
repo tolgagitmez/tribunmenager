@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
 const $=id=>document.getElementById(id),Rig=window.TribunHumanoidRig,Scenarios=window.TribunAnimationScenarios;
-const scene=new Stadium3D($('animationCanvas'));scene.camera='portrait';scene.cameraSmoothing=[4.4,3.5,5.5];scene.cameraTarget=[0,.9,0];
+const scene=new Stadium3D($('animationCanvas'));scene.camera='portrait';scene.portraitScale=.55;scene.cameraSmoothing=[4.4,3.5,5.5];scene.cameraTarget=[0,.9,0];
 const notes={run:['Koşu','Adım uzunluğu hızla değişir. Zemine basan ayağı ve diğer ayağın öne geçişini incele.'],turn:['Fren ve dönüş','Oyuncu yavaşlar, durur ve dönüş sırasında küçük yerleştirme adımları atar.'],pass:['Pas','Destek ayağı zeminde kalır. Vuruş ayağı topa ulaşır, ardından takip hareketi yapar.'],shoot:['Şut','Hazırlık, temas ve takip hareketini zaman çizgisinden ayrı ayrı incele.'],'dive-left':['Sola kurtarış','Kaleci gövdesini yana yatırır, iki eldivenini topa uzatır ve tekrar doğrulur.'],'dive-right':['Sağa kurtarış','Aynı kurtarışın ters yönünü ve eldivenlerin topa erişimini incele.']};
 let state=Scenarios.create(),time=0,paused=false,speed=1,accumulator=0;
 function update(dt){Scenarios.sample(state,time,Rig);Rig.update(state.p,dt);}

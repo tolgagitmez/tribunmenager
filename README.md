@@ -2,6 +2,22 @@
 
 **[Oyunu kurmak ve çalıştırmak için adım adım KURULUM.md rehberini aç.](KURULUM.md)** Python 3.10+ yeterlidir: Windows’ta `BASLAT.bat`, macOS/Linux’ta `sh BASLAT.sh`. Varsayılan yerel maç modu eksik ekonomi kataloğuna ihtiyaç duymaz.
 
+## On dördüncü aşama: tek insan modeli, sabit kemikler ve eklem sınırları — v1.33.0
+
+Maç, **[Oyuncu Stüdyosu](player-studio.html)** ve **[Hareket Atölyesi](animation-lab.html)** aynı lisanslı MakeHuman gövdesini ve düzeltilmiş 1,88 m insan iskeletini kullanır. Üretim modeli, bağlama verisi ve GPU çizicisi artık aynı 19 kemik çerçevesinden beslenir. Uyluk/baldır ile üstkol/önkol uzunlukları poz boyunca sabittir; diz, dirsek, kalça, omuz ve gövde için oyun amaçlı açı sınırları uygulanır. Uzak hedefler kemiği uzatmak yerine erişilebilir konuma yansıtılır.
+
+Normalize edilmiş rijit dual quaternion skinning, ağırlıklı matris karışımının dönüş sırasında oluşturduğu eklem çökmesini azaltır. Bu, sanatçı üretimi corrective shape key, mocap veya bütün biyolojik doku hacminin korunması iddiası değildir. Oranlar, sınırlar, görünür temasın kapsamı ve kalan görsel işler **[karakter modeli sözleşmesinde](docs/CHARACTER_MODEL.md)** açıklanır; güncel test ve görüntü kanıtları **[DOGRULAMA.md](DOGRULAMA.md)** içindedir.
+
+**526/526 test geçti.** Üç doğal kısa maçta eski/yeni hareket modülüyle 495 tam fizik durumu karşılaştırması eşleşti. Gerçek tarayıcı görüntüleri: [ön](docs/previews/character-studio-front-final.png), [yan](docs/previews/character-studio-side-final.png), [koşu](docs/previews/character-studio-run-final.png), [şut](docs/previews/character-stress-shoot-final.png). Uç kaleci pozlarında omuz katlanmaları geliştirmeye açıktır.
+
+GitHub `main` üzerindeki güncel karakter çalışmaları bu sürüme dahil edilmiştir. Maçın FPS profilleri, çalışma anında üretilen LOD'ları, hızlı shader yolu ve hareket geçiş köprüsü korunur. Ayrı **[prosedürel stüdyo](player-studio-procedural.html)** ile **[15 klipli GLB görüntüleyici](character-viewer.html)** de kullanılabilir; bu deney varlıkları maçtaki lisanslı insan paketinden ayrıdır. Maç, GLB animasyon kanallarını doğrudan oynatmaz.
+
+MakeHuman kaynağının beş sabitlenmiş dosyası, CC0 belgeleri ve çevrimdışı yeniden üretim sözleşmesi korunur. Lisanslı manifest, paralel prosedürel laboratuvar dosyalarını kapsamaz. Maç fiziği, top temas otoritesi ve kalecinin fiziksel el hedefleri bu görünüm çalışmasıyla değiştirilmez.
+
+Aşağıdaki sürüm notları tarihsel kayıttır. Eski test toplamları, rig hash'leri, eksik varlık açıklamaları ve tek/üç LOD ifadeleri kendi sürümlerine aittir; güncel sözleşmenin yerine geçmez.
+
+---
+
 ## On üçüncü aşama: lisanslı insan modelini maçta doğrulama — v1.32.0
 
 Maç ve **[Oyuncu Stüdyosu](player-studio.html)** artık paketlenmiş MakeHuman Community insan modelini, 19 kemikli iskeleti ve iki yerel doku dosyasını kullanır. Kaynak OBJ, iskelet ve deri ağırlıkları; kaynak adresleri, lisans metinleri ve SHA-256 kayıtlarıyla pakettedir. Temel varlıklar ve projeye ait türev eklemeler **CC0-1.0** kapsamındadır. Oyunu açarken dış bir model sunucusuna bağlanılmaz.

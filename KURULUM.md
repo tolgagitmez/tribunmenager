@@ -4,17 +4,17 @@ Yerel futbol simülasyonu için **Python 3.10 veya üzeri** ve güncel Chrome, E
 
 ## 1. Oyunu indir
 
-İnsan modeli geliştirmesini içeren sürüm `codex/licensed-player-assets` dalındadır:
+İnsan modeli geliştirmesini içeren sürüm `codex/licensed-character-volume` dalındadır:
 
-- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/licensed-player-assets.zip), ZIP'i çıkar ve içindeki klasörü aç.
+- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/licensed-character-volume.zip), ZIP'i çıkar ve içindeki klasörü aç.
 - Git kullanıyorsan:
 
 ```sh
-git clone --branch codex/licensed-player-assets https://github.com/tolgagitmez/tribunmenager.git
+git clone --branch codex/licensed-character-volume https://github.com/tolgagitmez/tribunmenager.git
 cd tribunmenager
 ```
 
-`main` önceki geliştirme aşamalarını içerir; yeni insan modeli değişikliklerini [dal karşılaştırmasından](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/licensed-player-assets) inceleyebilirsin. Aşağıdaki doğrulama komutları bu dal içindir.
+`main` önceki geliştirme aşamalarını içerir; yeni insan modeli değişikliklerini [dal karşılaştırmasından](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/licensed-character-volume) inceleyebilirsin. Aşağıdaki doğrulama komutları bu dal içindir.
 
 ## 2. Python'u kontrol et
 
@@ -99,7 +99,7 @@ npm ci
 python3 -m venv .venv
 . .venv/bin/activate
 python3 -m pip install -r requirements-player-assets.txt
-npm run test:stage13
+npm run test:stage14
 ```
 
 Windows'ta sanal ortamı `.venv\Scripts\activate` ile etkinleştir; Python komutlarında `py -3` veya etkin ortamın `python` komutunu kullan.
