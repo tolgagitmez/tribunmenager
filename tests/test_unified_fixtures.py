@@ -23,6 +23,7 @@ class AllFixturesOneEngine(unittest.TestCase):
         patched.start()
         self.addCleanup(patched.stop)
         server.init_db()
+        self.original_live_config = server.live_config
         self.league = server.new_league("Owner")
         self.kickoff = time.time() - .2
         with server.db() as db:
@@ -32,7 +33,7 @@ class AllFixturesOneEngine(unittest.TestCase):
                        (server.serialize_tactics({"press": 87, "tempo": 66}), self.league["code"]))
 
     def short_config(self, database, key, now, kickoff):
-        original = server.live_config(database, key, now, kickoff)
+        original = self.original_live_config(database, key, now, kickoff)
         # Short real Match clock for a quick, fully physical integration test.
         return {**original, "rules": {"periodSeconds": 3, "halftimeSeconds": 0,
                                       "addedTime": False}}
