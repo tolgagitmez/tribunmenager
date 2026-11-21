@@ -179,11 +179,20 @@ def status(token, now=None):
                 home=t['slot']==f['home'];gf=f['home_score'] if home else f['away_score'];ga=f['away_score'] if home else f['home_score'];item['played']+=1;item['gf']+=gf;item['ga']+=ga;item['w']+=gf>ga;item['d']+=gf==ga;item['l']+=gf<ga;item['points']+=3 if gf>ga else 1 if gf==ga else 0
             standings.append(item)
         standings.sort(key=lambda a:(-a['points'],-(a['gf']-a['ga']),-a['gf'],a['slot']))
+        # The league screen displays *its own* roster, including currently
+        # benched players, not stale or other-manager wallet data.
+        roster=football_team_snapshot(c,person,current_round)
+        own_players=roster['players'] if roster['players'] else [
+            season_state.status(c,code,person['slot'],p,current_round)
+            for p in season_state.demo_roster(person['formation'])]
+        rotation=[{'name':p.get('name','Oyuncu'),'position':p.get('subposition') or p.get('pos'),
+                   'rating':p.get('rating',80),'fitness':p.get('fitness',95),
+                   **p.get('season',{})} for p in own_players]
         match=next((f for f in fix if f['round']==current_round and person['slot'] in (f['home'],f['away'])),None)
         if not match:match=next((f for f in fix if f['round']==9 and person['slot'] in (f['home'],f['away'])),None)
         return {'server_time':now,'code':code,'manager':person['manager'],'my_slot':person['slot'],'my_club':person['name'],'my_formation':person['formation'],'my_tactics':json.loads(person['tactics']),
             'next_kickoff':next_time,'first_kickoff':fix[0]['kickoff'],'day':min(10,current_round+1),'active':active,'my_match':match,'standings':standings,
-            'my_rotation':season_state.summary(c,code,person['slot'],current_round),
+            'my_rotation':rotation,'my_rotation_source':roster['source'],
             'teams':[{'slot':t['slot'],'name':t['name'],'manager':t['manager'],'claimed':bool(t['token'])} for t in teams],
             'recent':[{**f,'home_name':TEAMS[f['home']],'away_name':TEAMS[f['away']]} for f in fix if f['home_score'] is not None][-12:]}
 
