@@ -719,6 +719,15 @@ class Match{
   const progress=best?(best.point.x-p.x)*this.direction(p.team):0,gain=best?this.threat(best.point,p.team)-this.threat(p,p.team):0;
   const readTime=clamp(2.1-t.tempo*.016,.65,2.1)+(t.passing==='short'?.25:0),readyOutlet=best&&this.targets.get(best.q)?.state==='support'&&dist(best.q,this.targets.get(best.q))<3;
   if(!counter&&pressure>4.2&&!readyOutlet&&p.carryTime<readTime&&goalDist>23&&(!best||gain<.15&&progress<12)){
+   // Do not turn a waiting-for-support pause into a lost, already-playable
+   // forward pass. Try only real, short, onside, low-risk options that the
+   // ordinary physical wind-up can complete before pressure closes.
+   const immediate=options.filter(o=>o.kind==='pass'&&o.score>0&&o.risk<.34&&o.arrivalRisk<.60&&o.space>2.4&&o.distance<24&&
+    (o.point.x-p.x)*this.direction(p.team)>3&&Math.abs(angle(Math.atan2(o.point.z-p.z,o.point.x-p.x),p.face))<2.5);
+   for(const option of immediate.slice(0,2))if(this.passPreparation(p,option).feasible){
+    this.telemetry.safeForwardBeforeHold=(this.telemetry.safeForwardBeforeHold||0)+1;
+    return {...option,safeForwardBeforeHold:true};
+   }
    const outlet=best&&best.risk<.35?best:null,a=outlet?Math.atan2(outlet.point.z-p.z,outlet.point.x-p.x):p.face;
    return {kind:'carry',point:{x:clamp(p.x+Math.cos(a)*2,-49,49),z:clamp(p.z+Math.sin(a)*2,-31,31)},hold:true};
   }

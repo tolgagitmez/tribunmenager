@@ -1,0 +1,82 @@
+name: Attack-chain targeted replay
+on:
+  push:
+    branches:
+      - fix/attack-chain-one-cause
+  pull_request:
+    paths:
+      - 'football-sim.js'
+      - 'tests/attack-breakpoint.test.cjs'
+      - 'tools/profile-current-attack-chain.cjs'
+      - '.github/workflows/attack-chain.yml'
+  workflow_dispatch:
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Four natural 120-second games
+        run: node tools/profile-current-attack-chain.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: attack-chain-current-120s
+          path: docs/validation/current-attack-120s.json
+          retention-days: 30
+      - name: Targeted mechanical regression
+        run: |
+          if [ -f tests/attack-breakpoint.test.cjs ]; then
+            node --test tests/attack-breakpoint.test.cjs
+          fi
+
+  broader-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install -r requirements-player-assets.txt
+      - name: Existing gameplay, referee and match regressions
+        run: npm run test:stage12
+      - name: Character and animation regressions without optional asset rebuild
+        run: npm run test:character-rig && npm run test:match-animation && npm run test:match-fps && npm run test:character-human && npm run test:gltf
+      - name: Manager kicks and shared live league
+        run: npm run test:manager-kick && npm run test:live-match
+
+  presentation-physics-invariance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Old and new animation rig on the updated single-cause engine
+        run: npm run test:engine-invariance
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: attack-fixed-motor-rig-invariance
+          path: docs/validation/character-physics.json
+          retention-days: 30
+
+  find-live-match-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Find organic two-manager kick windows after engine change
+        run: node tools/find-live-match-fixture.cjs
