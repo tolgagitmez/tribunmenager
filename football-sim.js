@@ -2171,10 +2171,14 @@ class Match{
   if(visible&&read.visibleAt===null)read.visibleAt=this.time;
   const crossing=this.ballCrossing(gk.x,2.5),arrival=crossing?.t??-1,reaction=clamp(.23-((gk.reactions??gk.skill)-60)*.003,.12,.23);
   if(f?.kind==='shot'&&!f.keeperReachabilityMarked&&f.from.team!==team){
+   // Do not permanently mark a temporarily screened or too-far attempt
+   // unreachable: the keeper can move laterally before the next frame.
    const possible=this.keeperReachability(gk,crossing,reaction,visible);
-   f.keeperReachabilityMarked=true;f.keeperReachable=possible.reachable;
-   f.keeperReachability=possible;
-   if(possible.reachable)this.telemetry.keeperReachableShots=(this.telemetry.keeperReachableShots||0)+1;
+   if(possible.reachable){
+    f.keeperReachabilityMarked=true;f.keeperReachable=true;
+    f.keeperReachability=possible;
+    this.telemetry.keeperReachableShots=(this.telemetry.keeperReachableShots||0)+1;
+   }
   }
   const reacted=read.visibleAt!==null&&this.time-read.visibleAt>=reaction,catchCapacity=17+(gk.handling??gk.skill)*.13;
   const lateral=arrival>0?Math.abs(crossing.z-gk.z):0,diveWindow=clamp(.20+lateral*.11,.28,.56);
