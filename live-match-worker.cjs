@@ -60,6 +60,9 @@ function snapshot(game) {
       perception: {headYaw: player.perception?.headYaw ?? 0},
       selected: player === owner
     })),
+    // Recorded only at final whistle; one physical Match owns these values,
+    // not a separate league scorer or an attendance-dependent approximation.
+    ...(game.done ? {appearances:game.appearanceReport()} : {}),
     eventSerial: game.events.length,
     events: game.events.slice(-RECENT_EVENTS)
   };
