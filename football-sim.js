@@ -975,10 +975,14 @@ class Match{
  }
  contactPoint(p,kind){if(kind==='throw')return [p.x+Math.cos(p.face)*.40,1.95,p.z+Math.sin(p.face)*.40];return this.motion?.kickContact(p)||[p.x+Math.cos(p.face)*.88-Math.sin(p.face)*(p.kickFoot===0?-.18:.18),.11,p.z+Math.sin(p.face)*.88+Math.cos(p.face)*(p.kickFoot===0?-.18:.18)];}
  specialistKickType(k){
-  // A restart uses its actual set-piece specialist regardless of whether
-  // the AI chooses a shot, cross or short pass. An open-play cross uses crossing.
-  return managerKickTypes[k.restartContext?.kind]?k.restartContext.kind:
-   k.managerControl?.kind||(k.kind==='cross'?'cross':null);
+  // Preserve the current open-play AI cross flight and its validated aerial
+  // header/clearance timing. Its existing footSkill(crossing) still applies.
+  // Only dead-ball penalty, free-kick and corner releases are brought onto
+  // the new unified automatic/manual impulse. A manual open-play cross
+  // continues to use the specialist control chosen by its manager.
+  if(['penalty','free-kick','corner'].includes(k.restartContext?.kind))
+   return k.restartContext.kind;
+  return managerKickTypes[k.managerControl?.kind]?k.managerControl.kind:null;
  }
  automaticSpecialistControl(k,kind=this.specialistKickType(k)){
   const {min,max}=managerKickTypes[kind],p=k.p,d=dist(this.ball,k.point)||1;
