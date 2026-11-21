@@ -27,7 +27,7 @@ function run(s){
  const eligible=d.episodes.filter(e=>e.origin==='gain'&&e.confirmedControl&&!e.startedBeyond?.finalThird&&!e.startedBeyond?.box);
  const cohorts={},endReasons={};
  for(const e of eligible){const key=(e.pressureRequired?'pressed':'unpressed')+'-'+(e.eligibility?.lineBreak?'screen':'no-screen');const group=cohorts[key]??={count:0,escape:0,line:0,finalThird:0,box:0,shot:0};group.count++;for(const [from,to]of [['pressureEscape','escape'],['lineBreak','line'],['finalThird','finalThird'],['box','box'],['shot','shot']])if(e.stages?.[from])group[to]++;const reason=e.endReason||e.status;endReasons[reason]=(endReasons[reason]||0)+1;}
- return {id:s.id,seed:s.seed,elapsed:m.time,inPlay:d.clock.inPlaySeconds,score:m.score,shots:m.shots,passes:m.passes,completed:m.completed,turnovers:m.telemetry.turnovers,telemetry:m.telemetry,samples,losses,gains,cohorts,endReasons,episodes:eligible.map(e=>({id:e.id,team:e.team,reason:e.endReason,status:e.status,pressure:e.pressureRequired,stages:e.stages,last:e.lastStage}))};
+ return {id:s.id,seed:s.seed,elapsed:m.time,inPlay:d.clock.inPlaySeconds,score:m.score,shots:m.shots,passes:m.passes,completed:m.completed,turnovers:m.telemetry.turnovers,telemetry:m.telemetry,samples,losses,gains,cohorts,endReasons,episodes:eligible.map(e=>({id:e.id,team:e.team,reason:e.endReason,status:e.status,pressure:e.pressureRequired,stages:e.stages,last:e.lastStage,endPosition:e.endPosition,startPosition:e.startPosition,evidence:e.evidence,observations:e.observations}))};
 }
 const results=scenarios.map(s=>{process.stderr.write('SCENARIO '+s.id+'\n');return run(s);});
 const overall={inPlay:0,shots:0,cohort:0,cohorts:{},losses:{},endReasons:{}};
