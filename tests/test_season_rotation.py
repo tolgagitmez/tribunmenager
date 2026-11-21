@@ -97,6 +97,38 @@ class RotationState(unittest.TestCase):
             self.assertFalse(season_state.status(db,self.code,0,{"id":0,"uid":"unique:0"},4)["season"]["suspended"])
 
     @unittest.skipUnless(shutil.which("node"),"Node required")
+    def test_overdue_rounds_wait_for_prior_results_before_freezing_fitness(self):
+        # Catching up two past matchdays in one call used to freeze both
+        # before the first round's recovery/discipline was committed.
+        kickoff=time.time()-.3
+        with server.db() as db:
+            db.execute("UPDATE fixtures SET kickoff=? WHERE league=? AND round IN (0,1)",
+                       (kickoff,self.code))
+        original=server.live_config
+        def short(db,key,now,kickoff):
+            return {**original(db,key,now,kickoff),
+                    "rules":{"periodSeconds":2,"halftimeSeconds":0,"addedTime":False}}
+        with patch.object(server,"live_config",side_effect=short):
+            self.assertEqual(server.settle_due(kickoff+.1),3)
+            with server.db() as db:
+                self.assertEqual(set(r["round"] for r in db.execute("SELECT round FROM live_matches")),{0})
+            for session in list(self.registry.matches.values()):
+                for _ in range(150):
+                    session.next_step=time.monotonic()-2.1
+                    if session.tick():break
+                self.assertTrue(session.state["done"])
+            self.assertEqual(server.settle_due(kickoff+.2),3)
+            with server.db() as db:
+                self.assertEqual(set(r["round"] for r in db.execute("SELECT round FROM live_matches")),{0,1})
+                row=db.execute("""SELECT config FROM live_matches WHERE league=? AND round=1
+                      AND (home=0 OR away=0)""",(self.code,)).fetchone()
+                game=json.loads(row["config"])
+                own=game["players"] if game["homeName"]==server.TEAMS[0] else game["awayPlayers"]
+                player=next(p for p in own if p["id"]==0)
+                self.assertGreater(player["season"]["appearances"],0)
+                self.assertLess(player["fitness"],95)
+
+    @unittest.skipUnless(shutil.which("node"),"Node required")
     def test_real_unwatched_match_seals_score_and_player_season_in_one_transaction(self):
         f=self.team0[0]
         kickoff=time.time()-.2
