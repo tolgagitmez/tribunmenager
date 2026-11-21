@@ -1,3 +1,22 @@
+## Güncel lisanslı futbolcu paketi — çapraz platform yeniden üretim doğrulaması
+
+`python3 tools/build-player-assets.py --from-package --output /tmp/tribun-player-rebuild`
+komutu çevrimdışı olarak beş resmî MakeHuman CC0 kaynak/lisans dosyasının SHA-256
+ve kaynak adreslerini denetler. `python3 tools/verify-player-asset-rebuild.py --package assets/player --rebuilt /tmp/tribun-player-rebuild`
+komutu ise **iki paketin kendi manifest dosyalarını tam SHA-256** ile doğrular.
+Özgün kaynaklar, sıkıştırılmış arşiv, lisanslar, dokular ve bütün indeks/joint
+akışları tam bayt eşitliğinde kalır. Türetilmiş glTF ve runtime geometriyi
+float32 düzeyinde 2 × 10⁻⁶; JSON ondalık bind/istatistik değerlerini 10⁻¹⁰
+mutlak fark sınırıyla kıyaslar. Bu sonuç bayt düzeyinde farklı işletim
+sistemlerinde özdeş dosya üretimi iddiası **değildir**; orijinal varlık
+bütünlüğü ile yeniden türetme sayısal eşdeğerliği birbirinden ayrılır.
+
+Geçmiş sürüm raporlarındaki “birebir/bayt eşit” ifadeleri o sürümün
+ortamına ve yayımlanmış kanıtına aittir; yeniden üretilen farklı BLAS
+derlemeleri için bu sözleşme geçerlidir. Manifeste yeni dosya katılırsa,
+geometri, materyal, topoloji, iskelet veya kaynak lisansı değişirse
+doğrulama başarısız olur. Kaynak pimi asla otomatik güncellenmez.
+
 ## Güncel motor — animasyon / maç determinizmi (v1.35.0)
 
 Önceki karakter fiziği raporu artık [tarihsel Aşama 14 referansı](docs/validation/baselines/character-physics-stage14.json) olarak arşivlenmiştir. Eski rapordaki motor özeti yeni menajer vuruşlarını içermiyordu; eski özet **güncel motora şart koşulmaz**. Eski hareket modülünün arşiv bütünlüğü yine SHA-256 ile doğrulanır.
