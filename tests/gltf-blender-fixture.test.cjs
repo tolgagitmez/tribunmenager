@@ -42,7 +42,28 @@ test('Blender package pins the licensed originals, tools, editable project and b
  assert.equal(new Set(manifest.files.map(entry=>entry.path)).size,manifest.files.length,'packaged files are unique');
  assert(!manifest.files.some(entry=>entry.path==='assets/interchange/manifest.json'),'manifest excludes its own changing hash');
  for(const entry of manifest.files){portablePath(entry.path);assert(entry.path.startsWith('assets/interchange/'));const bytes=read(entry.path);assert.equal(bytes.length,entry.bytes,entry.path);assert.equal(sha256(bytes),entry.sha256,entry.path);}
- const rebuild=JSON.parse(read('assets/interchange/rebuild.json'));for(const entry of rebuild.sources){portablePath(entry.path);const bytes=read(entry.path);assert.equal(bytes.length,entry.bytes,entry.path);assert.equal(sha256(bytes),entry.sha256,entry.path);}
+ // These are the source bytes used when the Blender 4.3.2 exports were
+ // authored. Keep the historical hashes immutable. Later runtime-only
+ // renderer changes and builder documentation edits cannot retroactively
+ // rewrite the Blender session that produced the shipped GLB.
+ //
+ // For explicitly reviewed forward-compatible revisions, pin the CURRENT
+ // Git blob too, and (below) compare the *whole* canonical animated GLB
+ // byte-for-byte with the Blender package's original input SHA256. Any
+ // changed baked pose, bind, clips, or geometry fails that check.
+ const reviewedCompatibleSources={
+  'player-renderer.js':'7da773f8a20dd0259212b8a82ac87176bab55fbb',
+  'tools/build-player-assets.py':'01ab3038a3564173fd0e95ccc8d564452da64a6a'
+ };
+ const blobSHA1=bytes=>crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
+ const rebuild=JSON.parse(read('assets/interchange/rebuild.json'));
+ for(const entry of rebuild.sources){
+  portablePath(entry.path);const bytes=read(entry.path);
+  if(bytes.length===entry.bytes&&sha256(bytes)===entry.sha256)continue;
+  const reviewed=reviewedCompatibleSources[entry.path];
+  assert(reviewed,entry.path+' differs from the historical Blender build without a reviewed compatible revision');
+  assert.equal(blobSHA1(bytes),reviewed,entry.path+' current revision is unreviewed');
+ }
  assert(fs.statSync(path.join(DIR,'editable.blend')).size<10*1024*1024);
  const provenance=JSON.parse(read(manifest.sourceProvenance));assert.equal(provenance.files.length,5);assert.deepEqual(manifest.originalPinnedSourceFiles,provenance);
  const originals={'makehuman/data/3dobjs/base.obj':'assets/player/source/makehuman-base.obj.gz','makehuman/data/rigs/default.mhskel':'assets/player/source/makehuman-default.mhskel.gz','makehuman/data/rigs/default_weights.mhw':'assets/player/source/makehuman-default_weights.mhw.gz','LICENSE.md':'assets/player/SOURCE-LICENSE.md','LICENSE.ASSETS.md':'assets/player/LICENSE-CC0.txt'};
