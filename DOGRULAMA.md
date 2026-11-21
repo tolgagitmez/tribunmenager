@@ -1,3 +1,11 @@
+## Güncel motor — animasyon / maç determinizmi (v1.35.0)
+
+Önceki karakter fiziği raporu artık [tarihsel Aşama 14 referansı](docs/validation/baselines/character-physics-stage14.json) olarak arşivlenmiştir. Eski rapordaki motor özeti yeni menajer vuruşlarını içermiyordu; eski özet **güncel motora şart koşulmaz**. Eski hareket modülünün arşiv bütünlüğü yine SHA-256 ile doğrulanır.
+
+`npm run test:engine-invariance` aynı **güncel** `football-sim.js` sürümünde, aynı maçları eski ve yeni hareket modülleriyle ayrı çalıştırır. Her fizik adımında top, skor, kartlar, hakem, olaylar ve RNG; her 120 adımda ve bitişte ise tüm maç durumu karşılaştırılır. Güncel kaynak özetleri ve top/hakem izleri `docs/validation/character-physics.json` dosyasına üretilir; GitHub Actions sonucu `current-engine-physics` artefaktı olarak yayımlar. Bu dosya tarihsel bir sayı gibi depoya sabitlenmez; her denetimde yeniden üretilir. Vuruş ve canlı lig testleri `.github/workflows/match-invariance.yml` kapsamında Node, Python/SQLite/HTTP ve iki Chromium istemcisiyle koşar. Testlerin sonucu GitHub Actions tarafından belirlenir.
+
+---
+
 ## Aşama 15 — standart Blender aktarımı, v1.34.0
 
 **548/548 test geçti: 519 JavaScript + 29 Python; hata, atlanan veya iptal edilen test yok.** Tekrar: `npm run test:stage15`; kaynak hash'leri ve ham günlük için `python3 tools/check-gltf-tests.py`. [Test raporu](docs/validation/gltf-tests.json) ve [tam günlük](docs/validation/gltf-tests.log.gz) yayımlanır. Bu paket önceki maç/anatomi/GLB/LOD kontrollerini, resmi yükleyici ve Blender çıktı testlerini, çevrimdışı kütüphane bütünlüğünü kapsar.
@@ -29,7 +37,7 @@ Görüntüler: [karşılaştırma sayfası](docs/previews/gltf-comparison-idle.p
 
 Deri ağırlıkları, omuz/dirsek/diz çevresindeki 1.296 kaynak köşede yerel olarak düzeltilir; 3.556 el/bilek köşesi korunur. Orijinal CC0 ağırlık arşivi değişmez; runtime ağırlıkları açıkça türev üretim olarak kaydedilir. Sıradan futbol pozlarında ölçülen sıkı yüzey kesişimine dahil bölge alanı en çok **%2,72** olur; uç dalışta omuz için **%18,18** kalır. Bind omzunda da yaklaşık %0,26 başlangıç kesişimi bulunur. Yöntem sınır/teğet/koplanar temasları dışladığı için sayılar kesişimlerin alt sınırıdır. Sanatçı üretimi omuz düzeltmeleri ve kürek kemiği hareketi hâlâ gereklidir.
 
-[Fizik karşılaştırması](docs/validation/character-physics.json): üç doğal beş dakikalık yapılandırma, eski ve yeni hareket modülüyle çalıştırılır. Her sabit adımda aktif oyuncuların rig'i de güncellenir. İki saniyede bir ve maç sonunda **495 tam durum karşılaştırmasının tamamı eşittir**. Yalnız değişmez hareket modülü nesnesi karşılaştırmadan ayrılır; oyuncu, top, RNG, karar, algı, hakem, olay veya saat alanı atılmaz. `football-sim.js` SHA-256 değeri `315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd` olarak korunur.
+[Tarihsel fizik karşılaştırması](docs/validation/baselines/character-physics-stage14.json): üç doğal beş dakikalık yapılandırma, eski ve yeni hareket modülüyle çalıştırılır. Her sabit adımda aktif oyuncuların rig'i de güncellenir. İki saniyede bir ve maç sonunda **495 tam durum karşılaştırmasının tamamı eşittir**. Yalnız değişmez hareket modülü nesnesi karşılaştırmadan ayrılır; oyuncu, top, RNG, karar, algı, hakem, olay veya saat alanı atılmaz. `football-sim.js` SHA-256 değeri `315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd` olarak korunur.
 
 [Gerçek tarayıcı raporu](docs/validation/character-browser.json) ve [görüntü incelemesi](docs/validation/character-visual.json), maç/stüdyo/atölyedeki DQS çizimini, gerçek PNG yüklemelerini, altı donmuş hareket pozunu, durum kontrollerini ve model/çizim arızalarını belgeler. Görüntüler: [ön](docs/previews/character-studio-front-final.png), [yan](docs/previews/character-studio-side-final.png), [koşu](docs/previews/character-studio-run-final.png), [şut](docs/previews/character-stress-shoot-final.png), [kaleci](docs/previews/character-stress-dive-right-final.png). SwiftShader kontrolü gerçek cihaz FPS veya fotogerçekçilik kabulü değildir.
 

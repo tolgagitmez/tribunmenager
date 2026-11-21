@@ -3,6 +3,7 @@
   "version": "1.35.0",
   "private": true,
   "scripts": {
+    "test:engine-invariance": "node tools/check-character-physics.cjs",
     "test:manager-kick": "node --test tests/manager-kick.test.cjs",
     "test:manager-kick-browser": "node tests/manager-kick-browser.cjs",
     "test:live-match": "node --test tests/live-match-worker.test.cjs && python3 -m unittest discover -s tests -p test_live_match.py -v",
