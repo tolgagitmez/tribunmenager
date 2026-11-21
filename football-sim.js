@@ -281,7 +281,7 @@ class Match{
   this.lastTeam=team;
   const preparation={kickoff:18,throw:10,corner:18,'goal-kick':15,'free-kick':14,penalty:8};
   this.restart={id:++this.stoppageSerial,kind,team,spot:{...spot},taker,clock:initial?.6:(preparation[kind]??4.5)};this.telemetry.restarts++;
-  this.penaltyAttempt=kind==='penalty'?{state:'pending',team,takerId:taker?.id}:null;
+  if(kind==='penalty')this.penaltyAttempt={state:'pending',team,takerId:taker?.id};
  }
  // Conservative lane interception estimate: defenders must have time to reach a pass.
  laneRisk(p,point,power=17,kind='pass',rivals=null){
