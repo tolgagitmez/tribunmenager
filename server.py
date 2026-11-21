@@ -217,10 +217,15 @@ def local_match(token, now=None):
             AND l.round=f.round AND l.home=f.home AND l.away=f.away) AS watched
             FROM fixtures f WHERE league=? AND (home=? OR away=?)
             ORDER BY round''',(person['league'],person['slot'],person['slot'])).fetchall()
-        # Prefer the active or next fixture. A completed season uses its last
-        # fixture as a labelled preview, rather than inventing another opponent.
-        fixture=next((f for f in fixtures if (f['watched'] or now<f['kickoff']+300) and f['home_score'] is None),None)
-        fixture=fixture or (fixtures[-1] if fixtures else None)
+        # All due fixtures have authoritative records now. 'Watched' is no
+        # longer a proxy for the current round: prefer the newest started
+        # unfinished fixture, then the next future match.
+        unfinished=[f for f in fixtures if f['home_score'] is None]
+        started=[f for f in unfinished if f['kickoff']<=now]
+        upcoming=[f for f in unfinished if f['kickoff']>now]
+        fixture=max(started,key=lambda f:(f['kickoff'],f['round'])) if started else (
+            min(upcoming,key=lambda f:(f['kickoff'],f['round'])) if upcoming else (
+                fixtures[-1] if fixtures else None))
         if fixture is None:raise ValueError('Kulübün için fikstür bulunamadı.')
         enemy_slot=fixture['away'] if fixture['home']==person['slot'] else fixture['home']
         enemy=c.execute('SELECT * FROM teams WHERE league=? AND slot=?',(person['league'],enemy_slot)).fetchone()
