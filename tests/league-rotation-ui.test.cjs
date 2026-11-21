@@ -10,7 +10,7 @@ test('league screen exposes a usable, escaped and mobile-readable rotation list'
  assert.match(css,/max-width:650px/);assert.match(css,/\.rotation-row/);
  const elements=new Map(),get=id=>{
   if(!elements.has(id))elements.set(id,{id,hidden:false,disabled:false,
-    textContent:'',innerHTML:'',dataset:{},setAttribute:()=>{},focus:()=>{}});
+    textContent:'',innerHTML:'',dataset:{},firstChild:{textContent:''},setAttribute:()=>{},focus:()=>{}});
   return elements.get(id);
  };
  const context={document:{
