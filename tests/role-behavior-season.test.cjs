@@ -71,3 +71,24 @@ test('the same stored slot ID keeps original identity while bench sub earns sepa
  assert.equal(m.players[0].rosterId,99);
  assert.equal(rows.filter(a=>a.team===0&&[old,99].includes(a.rosterId)).length,2);
 });
+
+test('equal-rating DM and AM choose different pass priorities from identical locations',()=>{
+ const squad=Model.demoTeam(0,'4-2-3-1');
+ squad[2]=raw('AM',2);squad[4]=raw('DM',4);
+ const m=new Match({seed:23,formation:'4-2-3-1',players:squad,starters:squad.map(p=>p.id)});
+ m.restart=null;m.kick=null;m.flight=null;m.owner=null;m._perceptionActive=false;
+ for(const p of m.team(0)){p.x=35;p.z=30;p.vx=p.vz=0;p.face=0;}
+ for(const p of m.team(1)){p.x=35;p.z=-28;p.vx=p.vz=0;p.face=Math.PI;}
+ const dm=m.players[4],am=m.players[2],short=m.players[1],long=m.players[0];
+ dm.x=am.x=0;dm.z=am.z=0;dm.face=am.face=0;
+ short.x=-8;short.z=3;long.x=19;long.z=0;
+ m.ball.x=0;m.ball.z=0;m.ball.vx=m.ball.vz=0;
+ const options=p=>m.passOptions(p);
+ const amForward=options(am).find(o=>o.q===long&&o.kind==='pass'),
+  dmForward=options(dm).find(o=>o.q===long&&o.kind==='pass'),
+  amShort=options(am).find(o=>o.q===short&&o.kind==='pass'),
+  dmShort=options(dm).find(o=>o.q===short&&o.kind==='pass');
+ assert(amForward&&dmForward&&amShort&&dmShort,'identical lane opportunities must exist for each role');
+ assert(amForward.score>dmForward.score,'AM must value the forward pass');
+ assert(dmShort.score>amShort.score,'DM must value the conservative short outlet');
+});
