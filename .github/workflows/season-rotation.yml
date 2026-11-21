@@ -11,6 +11,10 @@ on:
       - 'live_match.py'
       - 'live-match-worker.cjs'
       - 'tests/role-behavior-season.test.cjs'
+      - 'tests/league-rotation-ui.test.cjs'
+      - 'league.js'
+      - 'league.html'
+      - 'league.css'
       - 'tests/test_season_rotation.py'
       - '.github/workflows/season-rotation.yml'
   workflow_dispatch:
@@ -27,6 +31,8 @@ jobs:
         run: node --test tests/role-behavior-season.test.cjs
       - name: Existing real identity and formation contract
         run: node --test tests/player-model.test.cjs tests/player-identity-integration.test.cjs
+      - name: Season rotation UI and JavaScript syntax
+        run: node --check league.js && node --test tests/league-rotation-ui.test.cjs
       - name: Live authoritative physics watch invariance
         run: node --test tests/fixture-watch-parity.test.cjs
   season-persistence:
