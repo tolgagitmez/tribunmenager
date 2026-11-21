@@ -1,0 +1,45 @@
+name: Aerial duels, keeper reach and critical Laws 11/14
+on:
+  push:
+    branches:
+      - feature/aerial-keeper-penalty-offside
+  pull_request:
+    paths:
+      - 'football-sim.js'
+      - 'referee-laws.js'
+      - 'tests/aerial-keeper-law-boundaries.test.cjs'
+      - 'tools/profile-aerial-keeper-rules.cjs'
+      - '.github/workflows/aerial-keeper-laws.yml'
+  workflow_dispatch:
+jobs:
+  critical-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Jump, chest, second balls, goalkeeper and penalty/offside
+        run: node --test tests/aerial-keeper-law-boundaries.test.cjs
+      - name: Existing referee, match laws and first-control regressions
+        run: node --test tests/match-laws-integration.test.cjs tests/referee-laws.test.cjs tests/match-rules.test.cjs tests/first-control.test.cjs tests/pitch-laws.test.cjs
+      - name: Existing manager restart and live league worker
+        run: npm run test:manager-kick && npm run test:live-match
+  engine-rig-invariance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Physics remains presentation independent
+        run: npm run test:engine-invariance
+      - name: Physics invariance report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aerial-keeper-engine-invariance
+          path: docs/validation/character-physics.json
+          retention-days: 30
