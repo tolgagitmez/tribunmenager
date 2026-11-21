@@ -5,7 +5,7 @@ The server alone decides daily match start/finish/results; clients cannot advanc
 """
 from __future__ import annotations
 from contextlib import closing
-import hashlib, json, os, random, secrets, shutil, sqlite3, threading, time
+import hashlib, json, os, secrets, shutil, sqlite3, threading, time
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -117,43 +117,38 @@ def update_tactics(token, tactics, formation=None):
         c.execute('UPDATE teams SET formation=?,tactics=? WHERE token=?',(formation,serialize_tactics(tactics),token))
         return {'ok':True,'formation':formation}
 
-def outcome(league,r,h,a,home,away):
-    # Reproducible server-authoritative approximation, tactical choices are snapshotted at settle time.
-    seed=int.from_bytes(hashlib.sha256(f'{league}:{r}:{h}:{a}'.encode()).digest()[:8],'big');rng=random.Random(seed)
-    ht=json.loads(home['tactics']);at=json.loads(away['tactics'])
-    def expectancy(team,enemy,t,et,home_adv):
-        power=(team['quality']-enemy['quality'])*.025+home_adv
-        style=.17 if t['playstyle']=='counter' and et['press']>68 else 0
-        pressing=(t['press']-50)*.0032
-        attack=.15 if t['mentality']=='attacking' else -.17 if t['mentality']=='defensive' else 0
-        stamina=-max(0,t['tempo']+t['press']-145)*.009
-        return max(.25,min(3.7,1.10+power+style+pressing+attack+stamina))
-    def poisson(lam):
-        import math
-        p=math.exp(-lam);k=0;u=rng.random();s=p
-        while u>s and k<9:k+=1;p*=lam/k;s+=p
-        return k
-    goal_h=poisson(expectancy(home,away,ht,at,.18));goal_a=poisson(expectancy(away,home,at,ht,0))
-    def discipline(t):
-        aggression=max(0,min(100,int(t['aggression'])));press=int(t['press']);
-        yellow=sum(rng.random()<.18+aggression*.005+press*.0013 for _ in range(6))
-        red=int(yellow>=2 and rng.random()<(aggression/160))
-        return yellow,red
-    yh,rh=discipline(ht);ya,ra=discipline(at)
-    return goal_h,goal_a,yh,ya,rh,ra
-
 def settle_due(now=None):
+    """Freeze EVERY due fixture once; results come only from the real Match worker.
+
+    Configuration is persisted before a worker is made visible. A watcher and
+    the scheduler race safely under LOCK; neither can choose different squads
+    nor create a second match. No Python approximation is permitted here.
+    """
     now=time.time() if now is None else now
-    with LOCK,db() as c:
-        due=c.execute('''SELECT league,round,home,away FROM fixtures f WHERE kickoff+300<=? AND home_score IS NULL
-            AND NOT EXISTS (SELECT 1 FROM live_matches l WHERE l.league=f.league AND l.round=f.round
-            AND l.home=f.home AND l.away=f.away)''',(now,)).fetchall()
-        for fixture in due:
-            teams=c.execute('SELECT * FROM teams WHERE league=? ORDER BY slot',(fixture['league'],)).fetchall()
-            result=outcome(fixture['league'],fixture['round'],fixture['home'],fixture['away'],teams[fixture['home']],teams[fixture['away']])
-            c.execute('''UPDATE fixtures SET home_score=?,away_score=?,home_yellows=?,away_yellows=?,home_reds=?,away_reds=?
-            WHERE league=? AND round=? AND home=? AND away=? AND home_score IS NULL''',(*result,fixture['league'],fixture['round'],fixture['home'],fixture['away']))
-        return len(due)
+    created=[]
+    with LOCK:
+        with db() as c:
+            due=c.execute('''SELECT f.league,f.round,f.home,f.away,f.kickoff FROM fixtures f
+                WHERE f.kickoff<=? AND f.home_score IS NULL
+                AND NOT EXISTS (SELECT 1 FROM live_matches l
+                WHERE l.league=f.league AND l.round=f.round
+                AND l.home=f.home AND l.away=f.away)
+                ORDER BY f.kickoff,f.league,f.round,f.home,f.away''',(now,)).fetchall()
+            if due and not shutil.which('node'):
+                raise LiveMatchError('Lig fikstürlerini oynatmak için sunucuda Node.js gerekli.')
+            for fixture in due:
+                key=tuple(fixture[field] for field in ('league','round','home','away'))
+                kickoff=fixture['kickoff']
+                config=live_config(c,key,now,kickoff)
+                c.execute('''INSERT INTO live_matches
+                    (league,round,home,away,kickoff,config) VALUES(?,?,?,?,?,?)''',
+                    (*key,kickoff,json.dumps(config,ensure_ascii=False)))
+                created.append((key,kickoff,config))
+        # Register only after the committed, immutable kickoff configurations
+        # exist; an absent manager simply leaves the same engine on autopilot.
+        for key,kickoff,config in created:
+            LIVE_MATCHES.get(Path(DATA).resolve(),key,kickoff,config)
+    return len(created)
 
 def status(token, now=None):
     now=time.time() if now is None else now
@@ -214,6 +209,7 @@ def football_team_snapshot(c, team):
 def local_match(token, now=None):
     """Read a single football-only fixture snapshot; local play never settles it."""
     now=time.time() if now is None else now
+    settle_due(now)
     with db() as c:
         c.execute('BEGIN')
         person=identified(c,token)
@@ -241,7 +237,9 @@ def live_config(database, key, now, kickoff):
              for slot in key[2:]]
     home, away = (football_team_snapshot(database, team) for team in teams)
     seed = int.from_bytes(hashlib.sha256(':'.join(map(str, key)).encode()).digest()[:4], 'big')
-    return {'seed':seed,'matchMinutes':5,'catchupSteps':int(max(0, now-kickoff)*60),
+    # No attendance-dependent catchup or data lookup after this durable commit.
+    # Recovery derives elapsed ticks from kickoff and replays stored operations.
+    return {'seed':seed,'matchMinutes':5,'snapshotAt':kickoff,
             'homeName':home['name'],'awayName':away['name'],'formation':home['formation'],
             'awayFormation':away['formation'],'tactics':home['tactics'],'awayTactics':away['tactics'],
             'players':home['players'],'awayPlayers':away['players'],'starters':home['starters'],
@@ -250,8 +248,11 @@ def live_config(database, key, now, kickoff):
 def live_session(token, round_number, *, watch, now=None):
     if type(round_number) is not int or not 0 <= round_number < 10:
         raise LiveMatchError('Maç günü geçersiz.',400)
+    now = time.time() if now is None else now
+    # Provisioning is independent of the viewer. On the usual background
+    # scheduler path the record already exists before a page is opened.
+    settle_due(now)
     with LOCK, closing(db()) as c, c:
-        now = time.time() if now is None else now
         try:
             person = identified(c,token)
         except ValueError as exc:
@@ -264,16 +265,9 @@ def live_session(token, round_number, *, watch, now=None):
         kickoff = fixture['kickoff']
         stored = c.execute('SELECT config FROM live_matches WHERE league=? AND round=? AND home=? AND away=?',
                            key).fetchone()
-        if stored is None:
-            if not watch or not kickoff <= now < kickoff+300 or fixture['home_score'] is not None:
-                raise LiveMatchError('Bu karşılaşma şu anda canlı izlenemiyor.',409)
-            if not shutil.which('node'):
-                raise LiveMatchError('Canlı lig maçı için sunucuda Node.js gerekli.')
-            config = live_config(c,key,now,kickoff)
-            c.execute('INSERT INTO live_matches(league,round,home,away,kickoff,config) VALUES(?,?,?,?,?,?)',
-                      (*key,kickoff,json.dumps(config,ensure_ascii=False)))
-        else:
-            config = json.loads(stored['config'])
+        if stored is None or (watch and now < kickoff):
+            raise LiveMatchError('Bu karşılaşma şu anda canlı izlenemiyor.',409)
+        config = json.loads(stored['config'])
         side = 0 if person['slot']==fixture['home'] else 1
     return LIVE_MATCHES.get(Path(DATA).resolve(),key,kickoff,config), side
 
@@ -363,12 +357,17 @@ def run(host='127.0.0.1', port=None, *, with_transfers=True):
     print(f'Tribün Manager 3D development server: http://{host}:{port} | database: {DATA}',flush=True)
     stop=threading.Event()
     def worker():
+        next_transfers=0
         while not stop.is_set():
             try:
+                # Create all three immutable round fixtures at kickoff, even
+                # with zero connected viewers. Do not wait for kickoff +300.
                 settle_due()
-                if with_transfers:transfer_service().settle_all()
+                if with_transfers and time.monotonic()>=next_transfers:
+                    transfer_service().settle_all()
+                    next_transfers=time.monotonic()+10
             except Exception as e:print('scheduler:',repr(e),flush=True)
-            stop.wait(10)
+            stop.wait(.5)
     def live_worker():
         while not stop.is_set():
             LIVE_MATCHES.tick()
