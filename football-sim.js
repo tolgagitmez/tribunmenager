@@ -2077,6 +2077,19 @@ class Match{
   }
   return true;
  }
+ keeperReachability(gk,crossing,reaction,visible=true){
+  if(!crossing||!visible)return {reachable:false,reason:!visible?'screened':'no-arrival'};
+  const arrival=crossing.t,lateral=Math.abs(crossing.z-gk.z),lead=arrival-reaction;
+  const radius=clamp(.78+Math.max(0,lead)*4.8,.78,3.15);
+  return {reachable:lead>.05&&lateral<=radius&&crossing.y>=.11&&crossing.y<2.75,
+   arrival,lead,lateral,radius,height:crossing.y};
+ }
+ keeperSummary(){
+  const t=this.telemetry,n=t.keeperReachableShots||0;
+  return {reachableShots:n,catches:t.keeperReachableCatches||0,parries:t.keeperReachableParries||0,
+   catchRate:n?(t.keeperReachableCatches||0)/n:null,
+   parryRate:n?(t.keeperReachableParries||0)/n:null};
+ }
  keeper(previous,dt){
   const f=this.flight,b=this.ball,team=this.direction(0)*b.vx>0?1:0;
   if(!this.goalThreat(team))return;
@@ -2089,6 +2102,12 @@ class Match{
   if(!visible&&!read.screened){read.screened=true;this.telemetry.screenedReads++;}
   if(visible&&read.visibleAt===null)read.visibleAt=this.time;
   const crossing=this.ballCrossing(gk.x,2.5),arrival=crossing?.t??-1,reaction=clamp(.23-((gk.reactions??gk.skill)-60)*.003,.12,.23);
+  if(f?.kind==='shot'&&!f.keeperReachabilityMarked&&f.from.team!==team){
+   const possible=this.keeperReachability(gk,crossing,reaction,visible);
+   f.keeperReachabilityMarked=true;f.keeperReachable=possible.reachable;
+   f.keeperReachability=possible;
+   if(possible.reachable)this.telemetry.keeperReachableShots=(this.telemetry.keeperReachableShots||0)+1;
+  }
   const reacted=read.visibleAt!==null&&this.time-read.visibleAt>=reaction,catchCapacity=17+(gk.handling??gk.skill)*.13;
   const lateral=arrival>0?Math.abs(crossing.z-gk.z):0,diveWindow=clamp(.20+lateral*.11,.28,.56);
   // Raising both hands for a central catch can begin before the narrower
@@ -2107,14 +2126,26 @@ class Match{
    return {s,h,hit:Math.hypot(s.d,h.y-(previous.y+(b.y-previous.y)*s.u))<.25};
   }).filter(c=>c.hit).sort((a,c)=>a.s.u-c.s.u),handHits=handContacts.length;
   if(handHits){
+   // The goalkeeper may make a physical save but a Law 14 line violation at
+   // the instant of the penalty means the original attempt must be retaken.
+   if(f?.penalty&&this.penaltyAttempt?.state==='released'&&
+     RefereeLaws.penaltyDecision({keeperOffLine:this.penaltyAttempt.position?.keeperOffLine,keeperSaved:true}).kind==='retake'){
+    this.penaltyRetake('keeper-line');return;
+   }
    const u=handContacts[0].s.u;b.x=previous.x+(b.x-previous.x)*u;b.y=previous.y+(b.y-previous.y)*u;b.z=previous.z+(b.z-previous.z)*u;
    const speed=Math.hypot(b.vx,b.vz),pressure=Math.min(15,...this.field(1-team).map(p=>dist(p,gk))),inside=gk.x*this.direction(gk.team)<-35.5&&Math.abs(gk.z)<20,backpass=this.lastTouch?.team===team&&['pass','throw','through','cutback','long-pass'].includes(f?.kind);
    if(gk.action==='catch-ready'&&inside&&!backpass&&speed<catchCapacity&&(speed<22||handHits>=2)&&Math.abs(b.z-gk.z)<.9&&b.y>.08&&b.y<2.05&&pressure>2){
     const gatherStart=clamp(gk.actionElapsed/.22,0,1);
     if(f?.kind==='shot')this.onTarget[f.from.team]++;this.acquire(gk);gk.holdingBall=true;gk.holdClock=.75;gk.catchPoint={x:b.x,y:b.y,z:b.z};gk.gatherLift=b.y<.75?{height:b.y}:null;gk.gatherStart=gatherStart;gk.receiveClock=.75;gk.decision=.8;this.action(gk,'catch',.75);b.vx=b.vy=b.vz=0;
-    this.telemetry.keeperCatches++;if(speed>=22)this.telemetry.fastCatches++;this.emit('save','Kaleci kontrol etti',`${gk.name} topu tuttu; takımının yerleşmesini bekliyor.`,gk);return;
+    this.telemetry.keeperCatches++;
+    if(f?.kind==='shot'&&f.keeperReachable)this.telemetry.keeperReachableCatches=(this.telemetry.keeperReachableCatches||0)+1;
+    if(speed>=22)this.telemetry.fastCatches++;this.emit('save','Kaleci kontrol etti',`${gk.name} topu tuttu; takımının yerleşmesini bekliyor.`,gk);return;
    }
-   if(f?.kind==='shot')this.onTarget[f.from.team]++;this.emit('save','Kaleciden kurtarış',`${gk.name} topu çeldi; seken top hâlâ oyunda!`,gk);
+   if(f?.kind==='shot'){
+    this.onTarget[f.from.team]++;
+    if(f.keeperReachable)this.telemetry.keeperReachableParries=(this.telemetry.keeperReachableParries||0)+1;
+   }
+   this.emit('save','Kaleciden kurtarış',`${gk.name} topu çeldi; seken top hâlâ oyunda!`,gk);
    b.vx=this.direction(team)*(4+this.random()*4);b.vz=(gk.diveSide||1)*(4+this.random()*4);b.vy=2+this.random();this.lastTouch=gk;this.owner=null;this.flight=null;this.phase='open';gk.touchClock=.8;this.telemetry.looseBalls++;this.planClock=0;
   }
  }
