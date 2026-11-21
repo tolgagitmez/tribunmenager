@@ -281,7 +281,7 @@ class Match{
   this.lastTeam=team;
   const preparation={kickoff:18,throw:10,corner:18,'goal-kick':15,'free-kick':14,penalty:8};
   this.restart={id:++this.stoppageSerial,kind,team,spot:{...spot},taker,clock:initial?.6:(preparation[kind]??4.5)};this.telemetry.restarts++;
-  if(kind==='penalty')this.penaltyAttempt={state:'pending',team,takerId:taker?.id};
+  this.penaltyAttempt=kind==='penalty'?{state:'pending',team,takerId:taker?.id}:null;
  }
  // Conservative lane interception estimate: defenders must have time to reach a pass.
  laneRisk(p,point,power=17,kind='pass',rivals=null){
@@ -1047,6 +1047,7 @@ class Match{
  }
  acquire(p){
   if(this.owner===p||p.duelRecovery>0)return false;
+  if(this.penaltyImpact(p))return false;
   if(this.offsideTouch(p))return false;
   if(this.penaltyAttempt?.state==='released'&&this.penaltyAttempt.takerId===p.id&&this.lastTouch===p){this.penaltyAttempt.state='settled';this.setRestart('free-kick',1-p.team,{x:p.x,z:p.z});this.restart.indirect=true;this.emit('double-touch','Çift dokunuş','Penaltıyı kullanan oyuncu başka bir oyuncu dokunmadan topa yeniden dokundu.',p,1-p.team);return false;}
   if(this.offsidePhase&&p.team!==this.offsidePhase.team)this.offsidePhase=null;
@@ -1170,7 +1171,48 @@ class Match{
   if(this.offerManagerKick(r.taker,'penalty',aim,23,{restart:r,choice:{kind:'shot'}}))return;
   if(this.startKick(r.taker,'shot',null,r.shotAim,23,r)){this.restart=null;this.phase='windup';}
  }
- penaltyReleased(k,flight){if(k.restartContext?.kind==='penalty'){this.penaltyAttempt={state:'released',team:k.p.team,takerId:k.p.id,releaseId:flight.id};flight.penalty=true;}}
+ penaltyReleased(k,flight){
+  if(k.restartContext?.kind!=='penalty')return;
+  const position=RefereeLaws.penaltyPositionSnapshot({players:this.players,team:k.p.team,
+   side:this.direction(k.p.team),takerId:k.p.id,spot:k.restartContext.spot});
+  this.penaltyAttempt={state:'released',team:k.p.team,takerId:k.p.id,releaseId:flight.id,position};
+  flight.penalty=true;
+  if(position.keeperOffLine)this.telemetry.penaltyKeeperLineOffences=(this.telemetry.penaltyKeeperLineOffences||0)+1;
+  this.telemetry.penaltyEarlyEntrants=(this.telemetry.penaltyEarlyEntrants||0)+position.attacking.length+position.defending.length;
+  this.referee.decisions.push({kind:'penalty-release',at:this.time,releaseId:flight.id,
+   keeperOffLine:position.keeperOffLine,attacking:position.attacking.slice(),defending:position.defending.slice()});
+ }
+ penaltyRetake(reason){
+  const attempt=this.penaltyAttempt;
+  if(attempt?.state!=='released')return false;
+  this.telemetry.penaltyRetakes=(this.telemetry.penaltyRetakes||0)+1;
+  const taker=this.players[attempt.takerId],team=attempt.team;
+  this.setRestart('penalty',team,{x:this.direction(team)*41,z:0},taker);
+  this.emit('penalty-retake','Penaltı tekrarlanacak','Hakem ihlalin etkisini değerlendirdi: '+reason+'.',taker,team);
+  return true;
+ }
+ penaltyImpact(p){
+  const attempt=this.penaltyAttempt;
+  if(attempt?.state!=='released'||!p||p.id===attempt.takerId)return false;
+  const pos=attempt.position||{},attacker=pos.attacking?.includes(p.id),defender=pos.defending?.includes(p.id);
+  if(!attacker&&!defender)return false;
+  // A first touch/challenge on the rebound is material impact. Standing inside
+  // the penalty area without influence is not automatically punishable.
+  const others=this.players.filter(q=>q.active&&q!==p&&q.role!=='GK'&&
+   (attacker?pos.defending:pos.attacking)?.includes(q.id)&&dist(q,this.ball)<1);
+  const result=RefereeLaws.penaltyDecision({attackingImpact:attacker||defender&&others.length>0,
+   defendingImpact:defender||attacker&&others.length>0});
+  if(result.kind==='retake')return this.penaltyRetake(result.reason);
+  if(result.kind==='indirect-free-kick'){
+   const team=1-attempt.team,spot={x:clamp(p.x,-52,52),z:clamp(p.z,-34,34)};
+   this.telemetry.penaltyEncroachmentIFK=(this.telemetry.penaltyEncroachmentIFK||0)+1;
+   this.setRestart('free-kick',team,spot);
+   if(this.restart)this.restart.indirect=true;
+   this.emit('penalty-encroachment','Penaltıda erken giriş','Erken giren hücum oyuncusu dönen topa müdahale etti.',p,team);
+   return true;
+  }
+  return false;
+ }
  doTackle(p,carrier){
   const access=this.tackleAccess(p,carrier);if(!access.attempt){if(access.retry)p.tackleClock=access.retry;return;}
   const gap=dist(p,this.ball);
@@ -2012,7 +2054,7 @@ class Match{
    const candidates=this.players.filter(p=>p.active&&!p.referee&&p.touchClock<=0&&!(p.duelRecovery>0)&&p.action!=='dive'&&!(p.role==='GK'&&this.flight?.kind==='shot'&&this.flight.from.team!==p.team)).map(p=>({p,hit:segment(p,previous,b)})).filter(o=>{const h=previous.y+(b.y-previous.y)*o.hit.u,radius=h>1.65?.28:h>1.05?.43:(o.p.role==='GK'?1.05:this.flight?.target===o.p?1.10:this.flight?.from.team===o.p.team?.92:.72);return h<1.90&&o.hit.d<radius;});
    candidates.sort((a,c)=>a.hit.u-c.hit.u||a.hit.d-c.hit.d);
    for(const {p,hit} of candidates){
-    if(p===this.owner)continue;if(this.offsideTouch(p))return;
+    if(p===this.owner)continue;if(this.penaltyImpact(p)||this.offsideTouch(p))return;
     const speed=Math.hypot(b.vx-p.vx,b.vz-p.vz);
     if(this.flight?.kind==='shot'&&p.team!==this.flight.from.team&&p.role!=='GK'){
      b.x=previous.x+(b.x-previous.x)*hit.u;b.y=previous.y+(b.y-previous.y)*hit.u;b.z=previous.z+(b.z-previous.z)*hit.u;
