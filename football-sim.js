@@ -366,11 +366,11 @@ class Match{
    score+=Math.max(0,this.threat(point,p.team)-this.threat(p,p.team))*10;
    // Equal overall ratings can yield different actual passing choices.
    // DM reads the safe local outlet; AM seeks productive forward links.
-   if(p.position==='DM')score+=(18-d)*.22-risk*4.5;
-   if(p.position==='AM')score+=Math.max(0,advance)*.22-Math.max(0,-advance)*.18;
+   if(p.detailedRole&&p.position==='DM')score+=(18-d)*.22-risk*4.5;
+   if(p.detailedRole&&p.position==='AM')score+=Math.max(0,advance)*.22-Math.max(0,-advance)*.18;
    // A wide defender favours the ball-side lane only if the preferred
    // foot can actually open that passing angle.
-   if(['LB','RB','LWB','RWB'].includes(p.position)){
+   if(p.detailedRole&&['LB','RB','LWB','RWB'].includes(p.position)){
     const foot=p.footPreference,wide=Math.sign(p.homeZ||1)===Math.sign(point.z||1);
     score+=wide?2*(foot==='both'||foot==='unknown'||foot===(p.homeZ<0?'left':'right')?1:.55):-.8;
    }
@@ -1299,10 +1299,10 @@ class Match{
  }
  teamRole(p){
   if(p.role==='GK')return 'keeper';
-  if(p.position==='CB')return 'centre-back';
-  if(['LB','RB','LWB','RWB'].includes(p.position))return 'fullback';
-  if(p.position==='DM')return 'anchor';
-  if(p.position==='AM')return 'playmaker';
+  if(p.detailedRole&&p.position==='CB')return 'centre-back';
+  if(p.detailedRole&&['LB','RB','LWB','RWB'].includes(p.position))return 'fullback';
+  if(p.detailedRole&&p.position==='DM')return 'anchor';
+  if(p.detailedRole&&p.position==='AM')return 'playmaker';
   if(p.role==='DEF')return Math.abs(p.homeZ)>20?'fullback':'centre-back';
   if(p.role==='ATT')return Math.abs(p.homeZ)>14?'winger':'striker';
   if(Math.abs(p.homeZ)>20)return 'wide-midfielder';
@@ -1660,7 +1660,7 @@ class Match{
    const trap=!has&&t.offside==='on'&&!this.flight&&opponents.find(q=>q.id===owner?.id)?.receiveClock>0&&aBall>-30?2.8:0;
    const width=t.width==='wide'?1.14:t.width==='narrow'?.73:.94,offsideLine=Math.max(this.teamRivals(team,true).map(q=>q.x*side).sort((a,b)=>b-a)[1]??49,aBall);
    let {presser,cover}=this.selectPress(team,owner,pool);
-   const defenders=pool.filter(p=>p.role==='DEF'),holding=pool.filter(p=>p.position==='DM').sort((a,b)=>a.homeX*side-b.homeX*side)[0]||
+   const defenders=pool.filter(p=>p.role==='DEF'),holding=pool.filter(p=>p.detailedRole&&p.position==='DM').sort((a,b)=>a.homeX*side-b.homeX*side)[0]||
     pool.filter(p=>p.role==='MID').sort((a,b)=>a.homeX*side-b.homeX*side)[0];
    const build=has?this.buildOutSupport(team,owner):null,pattern=has?this.coordinatedAttack(team,owner,offsideLine):null,flank=has?this.flankSupport(team,owner,offsideLine):null;
    const box=has?this.boxAttack(team,owner):null;
@@ -1699,8 +1699,8 @@ class Match{
     else if(!owner&&!this.flight){if(p===presser){const q=this.interceptPoint(p);x=q.x;z=q.z;pace=1.12;state='loose-ball';}else if(p===cover){x=ball.x-side*7;z=ball.z*.55+p.homeZ*.45;state='screen';}}
     else if(has){
      if(p.role==='MID'){x=side*(baseLine+(p===holding?15:24)+(counter&&p!==holding?5:0));if(p===holding&&aBall>2)x=Math.min(x*side,aBall-7)*side;
-      if(p.position==='DM')x=side*Math.min(x*side,baseLine+15,aBall-7);
-      if(p.position==='AM')x=side*Math.max(x*side,Math.min(offsideLine-2,baseLine+29));}
+      if(p.detailedRole&&p.position==='DM')x=side*Math.min(x*side,baseLine+15,aBall-7);
+      if(p.detailedRole&&p.position==='AM')x=side*Math.max(x*side,Math.min(offsideLine-2,baseLine+29));}
      if(p.role==='ATT'){x=side*Math.min(offsideLine-.9,baseLine+(counter?47:40));z=clamp(p.homeZ*width*(t.playstyle==='wing'?1.04:1)+ball.z*.10,-30,30);}
      if(supports.has(p.id)&&p!==this.flight?.target){
       const point=supports.get(p.id);x=point.x;z=point.z;state='support';pace=.94;
@@ -1712,8 +1712,8 @@ class Match{
      if(!supports.has(p.id)&&t.fullbacks==='overlap'&&owner&&Math.abs(owner.z)>12&&p.homeZ*owner.z>0&&['winger','wide-midfielder'].includes(p.duty)&&p!==owner&&p.id!==pattern?.runner?.id){z=Math.sign(p.homeZ)*12.5;x=side*Math.min(offsideLine-1,Math.max(aBall+4,x*side));state='inside-support';}
      if(!supports.has(p.id)&&p.duty==='fullback'&&p.homeZ*ball.z<0&&aBall>0){x=side*Math.min(baseLine+2,aBall-15);z=p.homeZ*.80;state='rest-defence';}
      if(p===holding&&aBall>0){x=side*Math.min(x*side,aBall-10,baseLine+10);state='anchor';}
-     if(p.position==='CB'&&p!==owner&&aBall>0){x=side*Math.min(x*side,baseLine+3);state='rest-defence';}
-     if(p.position==='AM'&&!supports.has(p.id)&&p!==owner&&aBall>0&&x*side<baseLine+25){x=side*Math.min(offsideLine-1,baseLine+32);state='between-lines';}
+     if(p.detailedRole&&p.position==='CB'&&p!==owner&&aBall>0){x=side*Math.min(x*side,baseLine+3);state='rest-defence';}
+     if(p.detailedRole&&p.position==='AM'&&!supports.has(p.id)&&p!==owner&&aBall>0&&x*side<baseLine+25){x=side*Math.min(offsideLine-1,baseLine+32);state='between-lines';}
      if(build?.id===p.id){x=build.point.x;z=build.point.z;state='build-support';pace=.98;}
      if(box?.points.has(p.id)){const q=box.points.get(p.id);x=q.x;z=q.z;state=q.state;pace=q.role==='edge'?.96:1.06;p.boxRole=q.role;}
      if(this.flight?.target===p){const q=['through','cross','long-pass'].includes(this.flight.kind)&&dist(p,ball)>3?this.flight.point:meeting||this.interceptPoint(p);x=q.x;z=q.z;state='receive-run';pace=1.13;}
@@ -1723,9 +1723,9 @@ class Match{
      if(p.role!=='DEF'&&!['receive-run'].includes(state)&&!this.flight&&x*side>offsideLine-.6)x=side*(offsideLine-.6);
     }else{
      x=side*(unit.line+trap+(p.role==='DEF'?0:p.role==='MID'?unit.midGap:unit.recovering?18:25));z=clamp(p.homeZ*(t.width==='narrow'?.66:.80)+ball.z*.24,-28,28);
-     if(p.position==='DM')x=side*(unit.line+trap+Math.max(3,unit.midGap-3));
-     if(p.position==='AM')x=side*(unit.line+trap+unit.midGap+8);
-     if(p.position==='CB')z=clamp(z,-16,16);
+     if(p.detailedRole&&p.position==='DM')x=side*(unit.line+trap+Math.max(3,unit.midGap-3));
+     if(p.detailedRole&&p.position==='AM')x=side*(unit.line+trap+unit.midGap+8);
+     if(p.detailedRole&&p.position==='CB')z=clamp(z,-16,16);
      const distance=dist(p,ball),engage=pressurePlan.engage??0;
      if(p===presser&&pressurePlan.active){const q=this.flight?this.interceptPoint(p):pressingUnit?.pressPoint||{x:ball.x-side*.65,z:ball.z};x=q.x;z=q.z;state=this.flight?'intercept':'press';pace=1.06;this.tacticalStats[team].pressSamples++;}
      else if(pressurePlan.active&&p===cover&&(distance<engage+7||t.press>=75&&presser&&dist(presser,ball)<engage)){const q=pressingUnit?.coverPoint||{x:ball.x-side*4.3,z:ball.z*.70};x=q.x;z=q.z;state='cover';pace=.98;}
