@@ -2369,8 +2369,8 @@ class Match{
    for(const p of this.players){
     if(p.referee||p.team>1||p.rosterId===undefined)continue;
     const key=p.team+':'+String(p.rosterId),entry=this.appearances.get(key)||
-      {team:p.team,rosterId:p.rosterId,rosterUid:p.rosterUid??null,seconds:0,yellow:0,red:0};
-    if(p.active)entry.seconds+=dt;
+      {team:p.team,rosterId:p.rosterId,rosterUid:p.rosterUid??null,seconds:0,sprintSeconds:0,startFitness:p.fitness??95,yellow:0,red:0};
+    if(p.active){entry.seconds+=dt;if(p.speed>4.3)entry.sprintSeconds+=dt;}
     entry.yellow=Math.max(entry.yellow,p.yellow||0);
     if(p.sentOff)entry.red=1;
     this.appearances.set(key,entry);
@@ -2429,8 +2429,11 @@ class Match{
  }
  appearanceReport(){
   const duration=Math.max(1,2*this.rules.periodSeconds);
-  return [...this.appearances.values()].filter(p=>p.seconds>0).map(p=>({...p,
-   minutes:Math.round(p.seconds/duration*90*100)/100})).sort((a,b)=>a.team-b.team||String(a.rosterId).localeCompare(String(b.rosterId)));
+  return [...this.appearances.values()].filter(p=>p.seconds>0).map(p=>{
+   const active=this.players.find(q=>q.team===p.team&&q.rosterId===p.rosterId);
+   return {...p,yellow:Math.max(p.yellow,active?.yellow||0),red:p.red||active?.sentOff?1:0,
+    minutes:Math.round(p.seconds/duration*90*100)/100};
+  }).sort((a,b)=>a.team-b.team||String(a.rosterId).localeCompare(String(b.rosterId)));
  }
  advance(seconds){const n=Math.round(seconds*60);for(let i=0;i<n&&!this.done&&!this.pendingManagerKick;i++)this.step();}
  canSubstitute(){const r=this.restart,decision=MatchRules.substitutionAllowance(this.rules,this.substitutionState,{phase:this.lifecycle,deadBall:!!r||!!this.goalPause,stoppageId:r?.id??(this.goalPause?'goal-'+this.releaseSerial:null)});return {...decision,reason:decision.error,remaining:decision.remainingSubstitutions,windowsRemaining:decision.remainingWindows};}
