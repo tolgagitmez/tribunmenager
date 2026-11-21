@@ -34,7 +34,7 @@ asenkron yükler. Klipler: `idle`, `run`, `shoot`, `dive-right`.
   dönüşüne uygular. Topu, hızını veya falso katsayısını değiştirmez.
 - Kaynak yüklenemezse maç **mevcut lisanslı GPU animasyonuna**
   döner. Pilotun durumu `TRIBUN_MATCH_TEST.pilotStats()` ile
-  görülebilir. `match.html?pilot=0` pilotu devre dışı bırakır.
+  görülebilir. `match.html?pilot=1` pilotu açıkça etkinleştirir; varsayılan maçta pilot kapalıdır.
 
 ## Testler
 
