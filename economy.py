@@ -27,6 +27,7 @@ POSITIONS = {"GK": {"GK"}, "DEF": {"CB", "LB", "RB", "LWB", "RWB"},
 PLAYER_ATTRIBUTES = ("passing", "shooting", "tackling", "dribbling", "pace", "agility", "heading", "crossing",
                      "weakFoot", "strength", "balance", "acceleration", "endurance", "vision", "composure",
                      "goalkeeping", "reactions", "handling")
+SET_PIECE_ATTRIBUTES = ("freeKick", "corner", "penalty")
 PLAYER_FEET = ("left", "right", "both", "unknown")
 PLAYER_ARCHETYPES = ("goalkeeper", "stopper", "fullback", "playmaker", "ballWinner", "winger", "poacher", "targetForward")
 BOT_CLUBS = ("Altınşehir SK", "Kuzey 1907", "Fırtına FK", "Anadolu Yıldızları", "Estrela Amadora", "Güneyspor")
@@ -171,7 +172,7 @@ def validate_catalog_player(raw):
         raise EconomyError("Uyruk iki harfli kod olmalı.")
     for key, low, high in (("age", 16, 50), ("rating", 1, 99), ("value", 100000, 2000000000)):
         p[key] = integer(raw.get(key), low, high, key)
-    for key in PLAYER_ATTRIBUTES:
+    for key in PLAYER_ATTRIBUTES + SET_PIECE_ATTRIBUTES:
         if key in raw:
             p[key] = integer(raw[key], 1, 99, key)
     # Unknown foot and absent attributes are data gaps, not measurements derived

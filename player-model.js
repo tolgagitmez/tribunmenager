@@ -3,7 +3,12 @@
 (function(root){
 const profiles=typeof module!=='undefined'&&module.exports?require('./player-model-profiles.json'):root.TribunPlayerProfiles;
 if(!profiles)throw Error('Oyuncu profil verileri yüklenemedi.');
-const attributes=Object.freeze(Object.keys(profiles.playmaker));
+const deliverySkills={
+ freeKick:p=>.40*p.shooting+.35*p.passing+.25*p.composure,
+ corner:p=>.75*p.crossing+.15*p.passing+.10*p.composure,
+ penalty:p=>.65*p.shooting+.35*p.composure
+};
+const attributes=Object.freeze([...Object.keys(profiles.playmaker),...Object.keys(deliverySkills)]);
 const groups={GK:['GK'],DEF:['CB','LB','RB','LWB','RWB'],MID:['DM','CM','AM','LM','RM'],ATT:['ST','CF','LW','RW']};
 const slots={
  '4-3-3':['LW','ST','RW','CM','DM','CM','LB','CB','CB','RB','GK'],
@@ -31,7 +36,11 @@ function normalize(raw={}){
  p.subposition=groups[pos].includes(source.subposition)?source.subposition:null;
  p.positions=Array.isArray(source.positions)?[...new Set(source.positions.filter(s=>group(s)))]:p.subposition?[p.subposition]:[];
  p.archetype=archetypeFor(p);const inferred=[],prior=source.profileProvenance,priorInferred=new Set(Array.isArray(prior?.inferredAttributes)?prior.inferredAttributes:[]);
- for(const key of attributes){p[key]=number(source[key],profiles[p.archetype][key]);if(typeof source[key]!=='number'||!Number.isFinite(source[key])||priorInferred.has(key)&&source[key]===(key==='weakFoot'&&source.preferredFoot==='both'?99:profiles[p.archetype][key]))inferred.push(key);}
+ for(const key of attributes){
+  const fallback=deliverySkills[key]?Math.round(deliverySkills[key](p)):profiles[p.archetype][key];
+  p[key]=number(source[key],fallback);
+  if(typeof source[key]!=='number'||!Number.isFinite(source[key])||priorInferred.has(key)&&source[key]===(key==='weakFoot'&&source.preferredFoot==='both'?99:fallback))inferred.push(key);
+ }
  p.preferredFoot=['left','right','both'].includes(source.preferredFoot)?source.preferredFoot:'unknown';
  if(p.preferredFoot==='both')p.weakFoot=99;
  p.profileProvenance={inferredAttributes:inferred,preferredFootSource:p.preferredFoot==='unknown'?'unknown':'provided',archetypeSource:Object.hasOwn(profiles,source.archetype)&&!(prior?.archetypeSource==='position-default'&&source.archetype===archetypeFor({...p,archetype:undefined}))?'provided':'position-default'};

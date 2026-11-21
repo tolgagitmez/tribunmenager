@@ -4,12 +4,14 @@ Serves static game and an SQLite-backed synchronized 6-club league.
 The server alone decides daily match start/finish/results; clients cannot advance days.
 """
 from __future__ import annotations
-import hashlib, json, os, random, secrets, sqlite3, threading, time
+from contextlib import closing
+import hashlib, json, os, random, secrets, shutil, sqlite3, threading, time
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
-from economy import TransferService, EconomyError
+from economy import TransferService, EconomyError, SET_PIECE_ATTRIBUTES
+from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_control
 
 ROOT=Path(__file__).resolve().parent
 DATA=Path(os.environ.get('TRIBUN_DB',str(ROOT/'tribun-dev.sqlite3')))
@@ -19,6 +21,8 @@ DEFAULT={'formation':'4-3-3','mentality':'balanced','press':58,'tempo':61,'aggre
 ENUMS={'mentality':('balanced','attacking','defensive'),'playstyle':('possession','wing','counter','direct'),'marking':('zone','man'),'line':('low','normal','high'),'offside':('off','on'),'passing':('short','mixed','direct'),'width':('narrow','balanced','wide'),'onLoss':('regroup','counterpress'),'onWin':('retain','counter'),'fullbacks':('hold','support','overlap'),'crossing':('mixed','low','early'),'shooting':('patient','balanced','early')}
 LOCK=threading.RLock()
 ECONOMY = None
+TRANSFERS_ENABLED = True
+LIVE_MATCHES = Registry()
 
 def transfer_service():
     global ECONOMY
@@ -43,7 +47,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS fixtures(
         league TEXT NOT NULL,round INT NOT NULL,home INT NOT NULL,away INT NOT NULL,
         kickoff REAL NOT NULL,home_score INT,away_score INT,home_yellows INT,away_yellows INT,
-        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''')
+        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA)
 
 def rounds():
     # 6-team double round robin: 5 rounds each leg, 3 matches per day.
@@ -107,7 +111,7 @@ def update_tactics(token, tactics, formation=None):
     settle_due()  # finalize old days before accepting edits
     with LOCK,db() as c:
         person=identified(c,token)
-        active=c.execute('SELECT 1 FROM fixtures WHERE league=? AND kickoff<=? AND kickoff+300>? LIMIT 1',(person['league'],time.time(),time.time())).fetchone()
+        active=c.execute('SELECT 1 FROM fixtures WHERE league=? AND kickoff<=? AND home_score IS NULL LIMIT 1',(person['league'],time.time())).fetchone()
         if active:raise ValueError('Maç oynanırken taktikler kilitlidir; maç bitince değiştirebilirsin.')
         formation=formation if formation in ('4-3-3','4-2-3-1','4-4-2','3-5-2','5-3-2','4-5-1') else person['formation']
         c.execute('UPDATE teams SET formation=?,tactics=? WHERE token=?',(formation,serialize_tactics(tactics),token))
@@ -141,7 +145,9 @@ def outcome(league,r,h,a,home,away):
 def settle_due(now=None):
     now=time.time() if now is None else now
     with LOCK,db() as c:
-        due=c.execute('SELECT league,round,home,away FROM fixtures WHERE kickoff+300<=? AND home_score IS NULL',(now,)).fetchall()
+        due=c.execute('''SELECT league,round,home,away FROM fixtures f WHERE kickoff+300<=? AND home_score IS NULL
+            AND NOT EXISTS (SELECT 1 FROM live_matches l WHERE l.league=f.league AND l.round=f.round
+            AND l.home=f.home AND l.away=f.away)''',(now,)).fetchall()
         for fixture in due:
             teams=c.execute('SELECT * FROM teams WHERE league=? ORDER BY slot',(fixture['league'],)).fetchall()
             result=outcome(fixture['league'],fixture['round'],fixture['home'],fixture['away'],teams[fixture['home']],teams[fixture['away']])
@@ -158,7 +164,7 @@ def status(token, now=None):
         fix=[dict(f) for f in c.execute('SELECT * FROM fixtures WHERE league=? ORDER BY round,home',(code,))]
         current_round=max(0,min(9,int((now-fix[0]['kickoff'])//86400))) if now>=fix[0]['kickoff'] else 0
         next_time=min((f['kickoff'] for f in fix if f['kickoff']>now),default=None)
-        active=[f for f in fix if f['kickoff']<=now<f['kickoff']+300]
+        active=[f for f in fix if f['kickoff']<=now and f['home_score'] is None]
         standings=[]
         for t in teams:
             item={'slot':t['slot'],'club':t['name'],'manager':t['manager'],'played':0,'w':0,'d':0,'l':0,'gf':0,'ga':0,'points':0}
@@ -182,7 +188,7 @@ FOOTBALL_FIELDS = ('id','uid','name','number','face','pos','subposition','positi
     'tackling','dribbling','pace','agility','heading','crossing','strength','vision',
     'composure','acceleration','balance','endurance','anticipation','decisions',
     'workRate','goalkeeping','reactions','handling','keeperHandling','reflexes','dataKind',
-    'providerId','updatedAt')
+    'providerId','updatedAt', *SET_PIECE_ATTRIBUTES)
 
 def football_team_snapshot(c, team):
     result={'slot':team['slot'],'name':team['name'],'formation':team['formation'],
@@ -211,21 +217,65 @@ def local_match(token, now=None):
     with db() as c:
         c.execute('BEGIN')
         person=identified(c,token)
-        fixtures=c.execute('''SELECT * FROM fixtures WHERE league=? AND (home=? OR away=?)
+        fixtures=c.execute('''SELECT f.*, EXISTS(SELECT 1 FROM live_matches l WHERE l.league=f.league
+            AND l.round=f.round AND l.home=f.home AND l.away=f.away) AS watched
+            FROM fixtures f WHERE league=? AND (home=? OR away=?)
             ORDER BY round''',(person['league'],person['slot'],person['slot'])).fetchall()
         # Prefer the active or next fixture. A completed season uses its last
         # fixture as a labelled preview, rather than inventing another opponent.
-        fixture=next((f for f in fixtures if now<f['kickoff']+300 and f['home_score'] is None),None)
+        fixture=next((f for f in fixtures if (f['watched'] or now<f['kickoff']+300) and f['home_score'] is None),None)
         fixture=fixture or (fixtures[-1] if fixtures else None)
         if fixture is None:raise ValueError('Kulübün için fikstür bulunamadı.')
         enemy_slot=fixture['away'] if fixture['home']==person['slot'] else fixture['home']
         enemy=c.execute('SELECT * FROM teams WHERE league=? AND slot=?',(person['league'],enemy_slot)).fetchone()
         if enemy is None:raise ValueError('Fikstürün rakip kulübü bulunamadı.')
-        phase='completed' if fixture['home_score'] is not None else 'live' if fixture['kickoff']<=now<fixture['kickoff']+300 else 'scheduled'
+        active=fixture['kickoff']<=now and (fixture['watched'] or now<fixture['kickoff']+300)
+        phase='completed' if fixture['home_score'] is not None else 'live' if active else 'scheduled'
         return {'version':1,'snapshotAt':now,'competitionRules':{'maxSubstitutions':5,'substitutionWindows':3,'minPlayers':7},
             'fixture':{key:fixture[key] for key in ('league','round','home','away','kickoff')} |
                 {'isHome':fixture['home']==person['slot'],'state':phase},
             'ownTeam':football_team_snapshot(c,person),'opponent':football_team_snapshot(c,enemy)}
+
+def live_config(database, key, now, kickoff):
+    teams = [database.execute('SELECT * FROM teams WHERE league=? AND slot=?', (key[0], slot)).fetchone()
+             for slot in key[2:]]
+    home, away = (football_team_snapshot(database, team) for team in teams)
+    seed = int.from_bytes(hashlib.sha256(':'.join(map(str, key)).encode()).digest()[:4], 'big')
+    return {'seed':seed,'matchMinutes':5,'catchupSteps':int(max(0, now-kickoff)*60),
+            'homeName':home['name'],'awayName':away['name'],'formation':home['formation'],
+            'awayFormation':away['formation'],'tactics':home['tactics'],'awayTactics':away['tactics'],
+            'players':home['players'],'awayPlayers':away['players'],'starters':home['starters'],
+            'awayStarters':away['starters']}
+
+def live_session(token, round_number, *, watch, now=None):
+    if type(round_number) is not int or not 0 <= round_number < 10:
+        raise LiveMatchError('Maç günü geçersiz.',400)
+    with LOCK, closing(db()) as c, c:
+        now = time.time() if now is None else now
+        try:
+            person = identified(c,token)
+        except ValueError as exc:
+            raise LiveMatchError(str(exc),403) from exc
+        fixture = c.execute('SELECT * FROM fixtures WHERE league=? AND round=? AND (home=? OR away=?)',
+                            (person['league'],round_number,person['slot'],person['slot'])).fetchone()
+        if fixture is None:
+            raise LiveMatchError('Bu maç için izleyici yetkin yok.',403)
+        key = tuple(fixture[field] for field in ('league','round','home','away'))
+        kickoff = fixture['kickoff']
+        stored = c.execute('SELECT config FROM live_matches WHERE league=? AND round=? AND home=? AND away=?',
+                           key).fetchone()
+        if stored is None:
+            if not watch or not kickoff <= now < kickoff+300 or fixture['home_score'] is not None:
+                raise LiveMatchError('Bu karşılaşma şu anda canlı izlenemiyor.',409)
+            if not shutil.which('node'):
+                raise LiveMatchError('Canlı lig maçı için sunucuda Node.js gerekli.')
+            config = live_config(c,key,now,kickoff)
+            c.execute('INSERT INTO live_matches(league,round,home,away,kickoff,config) VALUES(?,?,?,?,?,?)',
+                      (*key,kickoff,json.dumps(config,ensure_ascii=False)))
+        else:
+            config = json.loads(stored['config'])
+        side = 0 if person['slot']==fixture['home'] else 1
+    return LIVE_MATCHES.get(Path(DATA).resolve(),key,kickoff,config), side
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs):super().__init__(*args,directory=str(ROOT),**kwargs)
@@ -235,19 +285,28 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         p=urlsplit(self.path)
         if p.path=='/api/transfers/state':
+            if not TRANSFERS_ENABLED:return self.json_response({'error':'Lig modunda transfer hizmeti kapalı.'},503)
             try:return self.json_response(transfer_service().status(self.transfer_token()))
             except EconomyError as e:return self.json_response({'error':str(e)},403)
-        if p.path=='/api/health':return self.json_response({'ok':True,'mode':'development','daily_match_seconds':300})
+        if p.path=='/api/health':return self.json_response({'ok':True,'mode':'development' if TRANSFERS_ENABLED else 'league','daily_match_seconds':300,'dailyLeague':True,'transfers':TRANSFERS_ENABLED})
         if p.path=='/api/league/status':
             try:return self.json_response(status(parse_qs(p.query).get('token',[''])[0]))
             except ValueError as e:return self.json_response({'error':str(e)},403)
         if p.path=='/api/league/local-match':
             try:return self.json_response(local_match(self.transfer_token()))
             except ValueError as e:return self.json_response({'error':str(e)},403)
+        if p.path=='/api/league/live-match':
+            try:
+                value=parse_qs(p.query).get('round',[''])[0]
+                round_number=int(value) if len(value)==1 and value in '0123456789' else None
+                match,side=live_session(self.transfer_token(),round_number,watch=True)
+                return self.json_response(match.read(side))
+            except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
+            except sqlite3.Error:return self.json_response({'error':'Canlı maç kaydına ulaşılamadı.'},503)
         if p.path.startswith('/api/'):return self.json_response({'error':'API yolu bulunamadı.'},404)
         # Development data and server code must never be downloadable as assets.
         parts=Path(p.path).parts
-        if any(x.startswith('.') for x in parts if x not in ('/','')) or p.path.endswith(('.py','.sqlite','.sqlite3','.db','-wal','-shm')):
+        if any(x.startswith('.') or x in ('work','node_modules','__pycache__') for x in parts if x not in ('/','')) or p.path.endswith(('.py','.sqlite','.sqlite3','.db','-wal','-shm')):
             return self.json_response({'error':'Dosya erişime kapalı.'},403)
         return super().do_GET()
     def transfer_token(self):
@@ -255,7 +314,19 @@ class Handler(SimpleHTTPRequestHandler):
         return auth[7:] if auth.startswith('Bearer ') else ''
     def do_POST(self):
         p=urlsplit(self.path).path
+        if p=='/api/league/live-match/kick':
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0<length<=1024:raise LiveMatchError('Geçersiz istek boyutu.',400)
+                body=json.loads(self.rfile.read(length))
+                id_,control=kick_control(body)
+                match,side=live_session(self.transfer_token(),body.get('round'),watch=False)
+                return self.json_response(match.kick(side,id_,control))
+            except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
+            except sqlite3.Error:return self.json_response({'error':'Vuruş kaydedilemedi. Maça yeniden bağlanmayı dene.'},503)
+            except (ValueError,UnicodeError):return self.json_response({'error':'Vuruş isteği okunamadı.'},400)
         if p.startswith('/api/transfers/') or p=='/api/commerce/verified-event':
+            if not TRANSFERS_ENABLED:return self.json_response({'error':'Lig modunda transfer hizmeti kapalı.'},503)
             try:
                 length=int(self.headers.get('Content-Length','0'))
                 if not 0<length<=32000:raise EconomyError('Geçersiz istek boyutu.')
@@ -281,15 +352,37 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError,json.JSONDecodeError) as e:return self.json_response({'error':str(e)},400)
     def log_message(self,format,*args):pass
 
-def run(host='127.0.0.1', port=None):
+def run(host='127.0.0.1', port=None, *, with_transfers=True):
+    global TRANSFERS_ENABLED
     port=PORT if port is None else port
-    init_db();transfer_service().import_catalog(json.loads((ROOT/'data/player-catalog.json').read_text()))
+    TRANSFERS_ENABLED=with_transfers
+    init_db()
+    if with_transfers:
+        transfer_service().import_catalog(json.loads((ROOT/'data/player-catalog.json').read_text()))
+    LIVE_MATCHES.restore(Path(DATA).resolve())
     print(f'Tribün Manager 3D development server: http://{host}:{port} | database: {DATA}',flush=True)
+    stop=threading.Event()
     def worker():
-        while True:
-            try:settle_due();transfer_service().settle_all()
+        while not stop.is_set():
+            try:
+                settle_due()
+                if with_transfers:transfer_service().settle_all()
             except Exception as e:print('scheduler:',repr(e),flush=True)
-            time.sleep(10)
+            stop.wait(10)
+    def live_worker():
+        while not stop.is_set():
+            LIVE_MATCHES.tick()
+            stop.wait(.1)
     threading.Thread(target=worker,daemon=True).start()
-    ThreadingHTTPServer((host,port),Handler).serve_forever()
+    ticker=threading.Thread(target=live_worker,daemon=True)
+    ticker.start()
+    try:
+        with ThreadingHTTPServer((host,port),Handler) as service:
+            service.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop.set()
+        ticker.join()
+        LIVE_MATCHES.close()
 if __name__=='__main__':run()

@@ -1,12 +1,12 @@
 {
-  "version": "1.34.0",
-  "simulationStage": 15,
-  "upstreamCommit": "6033ebc62b03cd0084731f72d4223d01c38872cc",
-  "simulationSHA256": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd",
+  "version": "1.35.0",
+  "simulationStage": 16,
+  "upstreamCommit": "0e11b9485162bfb347483189689e3e29f5bf7d50",
+  "simulationSHA256": "593d6e80f3d4eadbe85f8969d3778773be617c4b3c0fdf65825125b3c62551ba",
   "rigSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
   "playerAssetManifestSHA256": "71bbb3fa69153aa9279f97918a3983db0e060eb5c8490266c0ae0641d249f0c4",
   "interchangeManifestSHA256": "c3b6e836838092283b9ada59aeb09e13770868804e465803f7d8424b1f49b6d7",
-  "description": "All distributed files except this manifest. Actual editable Blender asset plus validated GLB and external glTF, four baked clips, pinned local official loader, explicit renderer adapter capabilities, and a same-input current-WebGL/Three.js prototype. Source-bound unit/regression tests and actual software-browser measurements include synchronous pixel-readback latency and visual tradeoffs. Match physics, canonical rig, original runtime geometry, FPS/LOD and procedural labs are retained. Dependencies, Git metadata, caches, local databases and generated scratch output are excluded.",
+  "description": "Distributed game files. Two-stage manager control for crosses, corners, free kicks and penalties, with player-dependent ball contact and flight. Watched league fixtures use one server simulation, authenticated team controls, automatic kicks for absent viewers and an official SQLite result. Dependencies and local work files are excluded.",
   "files": [
     {
       "path": ".github/workflows/character-rig.yml",
@@ -75,13 +75,13 @@
     },
     {
       "path": "KURULUM.md",
-      "bytes": 7405,
-      "sha256": "9b3f97dacb29a48a391df5f4022b11c623d826de611b576382b90252cf5697a2"
+      "bytes": 8499,
+      "sha256": "a19a231f760c00fb9094dd4284d1364ec92d6bca10d816926ffd6526d88a7be0"
     },
     {
       "path": "README.md",
-      "bytes": 38383,
-      "sha256": "3bb81d45c20bf6be39634dc50f6cb4ec907eb429ac5ca839eeb3eedc3045bb83"
+      "bytes": 39843,
+      "sha256": "a51883006cbc2df6f49669c64e5097760a8659b89ad3a3dc422387098d604e21"
     },
     {
       "path": "RELEASE_NOTES.md",
@@ -537,6 +537,16 @@
       "path": "docs/previews/gltf-three-shoot.png",
       "bytes": 50812,
       "sha256": "2d29a3d37709ea053d5e504ecefb42675947da78685b0faf364ea55f5f97b51f"
+    },
+    {
+      "path": "docs/previews/manager-kick-aim.png",
+      "bytes": 208380,
+      "sha256": "5f522f420615c71af6a833831ddd13053b36b4f5acba9ba60400aeb93005b6ca"
+    },
+    {
+      "path": "docs/previews/manager-kick-contact.png",
+      "bytes": 128771,
+      "sha256": "7b00f2a8d2a60e1cb91b9bf7cb0c65c6e525869175e42b3bd9b71a8668ec2db0"
     },
     {
       "path": "docs/previews/model-match-close.png",
@@ -1035,13 +1045,13 @@
     },
     {
       "path": "economy.py",
-      "bytes": 43122,
-      "sha256": "e6efed6ca6d2eca55eebdfbb0eed0e12cb7f3b6cea80fdac4b851d3d40845902"
+      "bytes": 43202,
+      "sha256": "4b58cf0b1ecff0330146e97e8c510289d6defa87e1e9989601ff77b3580be7ca"
     },
     {
       "path": "football-sim.js",
-      "bytes": 199745,
-      "sha256": "315a732ed12eae6537f8790bd0095aad0e523e76aa8734303eacb48faeb017dd"
+      "bytes": 206176,
+      "sha256": "593d6e80f3d4eadbe85f8969d3778773be617c4b3c0fdf65825125b3c62551ba"
     },
     {
       "path": "gltf-asset-loader.mjs",
@@ -1090,18 +1100,53 @@
     },
     {
       "path": "league.html",
-      "bytes": 6813,
-      "sha256": "b5feb27c4fd0d25e7c5caed6b37962b6791271e06153138b66ad5cfb3f35788f"
+      "bytes": 6868,
+      "sha256": "7b8bfc049cabd47f44529addcff9ff629daaa8f5bdc1a31214657a2d70446eb6"
     },
     {
       "path": "league.js",
-      "bytes": 7133,
-      "sha256": "aac4e667c361e81baffc0d92c2aaddf74fb8ec4ef979f20cd64a37271698a69f"
+      "bytes": 7623,
+      "sha256": "a620c7f087c596c405dbed89a9b763c08a9a50ffa25d328bcde9140293285793"
+    },
+    {
+      "path": "live-match-client.js",
+      "bytes": 3870,
+      "sha256": "23a33186a2b846ff371bf75cfe6b307c3c64fa89639b7bba27cf8dceb3f203e8"
+    },
+    {
+      "path": "live-match-view.js",
+      "bytes": 2431,
+      "sha256": "af3729f176283433aab8e37adb0350c497c421e9d1981d83b21f266b9e59e6cd"
+    },
+    {
+      "path": "live-match-worker.cjs",
+      "bytes": 4997,
+      "sha256": "c2a3d5be72197ae6db2b7fc736d8c36bc30326e34ac6c39ba966105389663523"
+    },
+    {
+      "path": "live_match.py",
+      "bytes": 12653,
+      "sha256": "ab7ba2c99b2ae9d6824a2defed5e7c30adede919ce7822fac3e20ce26c94e1e1"
+    },
+    {
+      "path": "manager-kick-aim.js",
+      "bytes": 4867,
+      "sha256": "f01c49499da63bba6cd89505068cc1c2531d6530af23df7c53b40eebd59cdfe8"
+    },
+    {
+      "path": "manager-kick-panel.css",
+      "bytes": 5300,
+      "sha256": "3765559918834f7d48aa510534523fa2dbfe77bd193b4b0281445002e2f232f2"
+    },
+    {
+      "path": "manager-kick-panel.js",
+      "bytes": 12785,
+      "sha256": "be78a716bf7fc5b8bb8e85f3477ccc8a407b05c6b16fee60f16cdc2d3247a284"
     },
     {
       "path": "manager.js",
-      "bytes": 20030,
-      "sha256": "c77552b6e8a8fbbcceba637274befcdfe587afa11b9c7381877915bd12310a74"
+      "bytes": 20324,
+      "sha256": "6b94daedc3a94ea30baf7bb212daddc5698e26fc9b2a01ddd5676d66a6b659bf"
     },
     {
       "path": "match-animation-bridge.js",
@@ -1120,28 +1165,28 @@
     },
     {
       "path": "match.html",
-      "bytes": 9668,
-      "sha256": "09ab4eaa01fbceb14500e06fac5522bc68ed9c14190c2f462fcfdf1185b4931d"
+      "bytes": 10128,
+      "sha256": "65da5080a553390bcda6df85bc18521612a01028a992996b8eff7c82083e10a4"
     },
     {
       "path": "match3d.css",
-      "bytes": 15602,
-      "sha256": "97656e445cb8feaeaf0a3fbbcd96945b9d4ebd3f0b5fa511a0d9cb316064f921"
+      "bytes": 16216,
+      "sha256": "5ec5897ef55419604e64f98d992d5f6c561a38637733616abb105fc5438a0457"
     },
     {
       "path": "match3d.js",
-      "bytes": 19321,
-      "sha256": "1b5f4db56f9bfc0104ddfe096ddbb7ca6af2e989b4bd78bfabf1de3c4393f7d8"
+      "bytes": 25820,
+      "sha256": "640461f095c24af6af716cc7e1d9d25dd5f199d086be8adb03691fe7d22a7d5c"
     },
     {
       "path": "package-lock.json",
       "bytes": 21010,
-      "sha256": "ceb252a1cc07a0936519949c1e5d787a32e78d8551137028f56aca0563c57b65"
+      "sha256": "3f2ae680c50cbf924d6ce532c2312582039dd9c265cffad03dfd6403d1feaa48"
     },
     {
       "path": "package.json",
-      "bytes": 6180,
-      "sha256": "a3261528d5092953e65cd6e8d45ad49c7450987e2de1edc6fd4526acdc03064b"
+      "bytes": 6525,
+      "sha256": "0609d060be64174b906429997becc4a21345c797459f7ec5fe19f4651e62493b"
     },
     {
       "path": "pitch-laws.js",
@@ -1165,8 +1210,8 @@
     },
     {
       "path": "player-model.js",
-      "bytes": 5400,
-      "sha256": "04c680613c43b2839e83efb22c3b064dec6c9a6756b3f2a084c634864a2b9d02"
+      "bytes": 5693,
+      "sha256": "feaebc2b6c3db3f82fe1e75d6e239b307b8d2b0b3a3f3928443998b4556a5054"
     },
     {
       "path": "player-perception.js",
@@ -1225,18 +1270,18 @@
     },
     {
       "path": "scene3d.js",
-      "bytes": 24853,
-      "sha256": "05462c68125500e076bab60e75f32ff17e4789e249e1e580b7e59a17fc9203be"
+      "bytes": 25535,
+      "sha256": "e58d55ab43d82f19e433ffeb38cec81c3b249b5f8cbeba2bb81351c012530f11"
     },
     {
       "path": "server.py",
-      "bytes": 18747,
-      "sha256": "ba7970ca231c2d60d1546ec08823411c8411408e911e6b2d584a67cad4a86e9d"
+      "bytes": 24320,
+      "sha256": "4239cc61680d1aeb18d3c64851cb211e5373017d0426b909937576828d6dcc84"
     },
     {
       "path": "start.py",
-      "bytes": 3220,
-      "sha256": "2ce2c84570ecc2be729e4c33c50b1cbaa9a9aa13810c63cdfda3405763d8ff88"
+      "bytes": 3494,
+      "sha256": "d0e8e1778564b6bd6d4144ef75b18b774dae04f51d309c0dbb91cbd10210dda2"
     },
     {
       "path": "start_mac_linux.sh",
@@ -1360,8 +1405,8 @@
     },
     {
       "path": "tests/fixture-roster-api.py",
-      "bytes": 5653,
-      "sha256": "09b031f531df8395e1e6c7deb6b6e74297938e360ce1a5e710579bcc24b7feea"
+      "bytes": 5798,
+      "sha256": "0be6e8c3ae109b291efa7474bc3bd7f8f0262028d93012a8db5e835ca4978e67"
     },
     {
       "path": "tests/fixture-roster.test.cjs",
@@ -1377,6 +1422,26 @@
       "path": "tests/gltf-vendor.test.cjs",
       "bytes": 1953,
       "sha256": "5cfefeb978ca5dea2ab9ead7d8e0b8d45036904f7d9231aca7491aa1629790d6"
+    },
+    {
+      "path": "tests/live-match-browser.cjs",
+      "bytes": 13019,
+      "sha256": "dc4feed34d0348ef5eea65fb383cb165b54de6b24882d5be747df98ca3501bea"
+    },
+    {
+      "path": "tests/live-match-worker.test.cjs",
+      "bytes": 6723,
+      "sha256": "03a8a4579e9da48e7b5dcbb01b757e7342bec6cb8af0701621878983ab64ccf7"
+    },
+    {
+      "path": "tests/manager-kick-browser.cjs",
+      "bytes": 10597,
+      "sha256": "7a5fb723267df48e78822b2c55a127bc505a47970dd4fe351d7bfcf835f86984"
+    },
+    {
+      "path": "tests/manager-kick.test.cjs",
+      "bytes": 10228,
+      "sha256": "e37966b31e64a73813756ac6c3505c1bb526c77b7c433f27cdb4357a0ef9499b"
     },
     {
       "path": "tests/match-animation-bridge.test.cjs",
@@ -1509,14 +1574,19 @@
       "sha256": "b085ae6fc2eb6e138df5c8b7eb0c8b6bd1311754e1be2b7aa3bada9bbf395d78"
     },
     {
+      "path": "tests/test_live_match.py",
+      "bytes": 8017,
+      "sha256": "0551b6600369d185811d5a7d4c2b6e34c57625e0e6169676a4789e60186cac0b"
+    },
+    {
       "path": "tests/test_player_assets.py",
       "bytes": 10558,
       "sha256": "8903fe7f81629b3457a9f3954eba02edb8dae35bcec3d90d8d300bb6336f1a6a"
     },
     {
       "path": "tests/test_player_model.py",
-      "bytes": 9779,
-      "sha256": "b85522963e44516eeddbf7dcd13de57d0b29365359a3ec58e339d874ac032fa5"
+      "bytes": 9872,
+      "sha256": "9fe25db75526d0035002056f50274adf7cf1ad0192dc7e0c87d6ceb7f2c5d39f"
     },
     {
       "path": "tests/touch-feasibility.test.cjs",
