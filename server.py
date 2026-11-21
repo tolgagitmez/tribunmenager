@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
 from economy import TransferService, EconomyError, SET_PIECE_ATTRIBUTES
 from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_control
+import season_state
 
 ROOT=Path(__file__).resolve().parent
 DATA=Path(os.environ.get('TRIBUN_DB',str(ROOT/'tribun-dev.sqlite3')))
@@ -47,7 +48,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS fixtures(
         league TEXT NOT NULL,round INT NOT NULL,home INT NOT NULL,away INT NOT NULL,
         kickoff REAL NOT NULL,home_score INT,away_score INT,home_yellows INT,away_yellows INT,
-        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA)
+        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA + season_state.SCHEMA)
 
 def rounds():
     # 6-team double round robin: 5 rounds each leg, 3 matches per day.
@@ -182,6 +183,7 @@ def status(token, now=None):
         if not match:match=next((f for f in fix if f['round']==9 and person['slot'] in (f['home'],f['away'])),None)
         return {'server_time':now,'code':code,'manager':person['manager'],'my_slot':person['slot'],'my_club':person['name'],'my_formation':person['formation'],'my_tactics':json.loads(person['tactics']),
             'next_kickoff':next_time,'first_kickoff':fix[0]['kickoff'],'day':min(10,current_round+1),'active':active,'my_match':match,'standings':standings,
+            'my_rotation':season_state.summary(c,code,person['slot'],current_round),
             'teams':[{'slot':t['slot'],'name':t['name'],'manager':t['manager'],'claimed':bool(t['token'])} for t in teams],
             'recent':[{**f,'home_name':TEAMS[f['home']],'away_name':TEAMS[f['away']]} for f in fix if f['home_score'] is not None][-12:]}
 
@@ -195,16 +197,16 @@ FOOTBALL_FIELDS = ('id','uid','name','number','face','pos','subposition','positi
     'workRate','goalkeeping','reactions','handling','keeperHandling','reflexes','dataKind',
     'providerId','updatedAt', *SET_PIECE_ATTRIBUTES)
 
-def football_team_snapshot(c, team):
+def football_team_snapshot(c, team, round_number=None, *, fixture_ready=False):
     result={'slot':team['slot'],'name':team['name'],'formation':team['formation'],
             'tactics':json.loads(team['tactics']),'source':'missing-roster',
             'players':[],'starters':[],'revision':None}
     exists=c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='transfer_league_links'").fetchone()
-    if not exists:return result
+    if not exists:return eligible_team_snapshot(c,team,result,round_number,fixture_ready)
     row=c.execute('''SELECT p.state FROM transfer_league_links l
         JOIN transfer_profiles p ON p.id=l.profile WHERE l.league=? AND l.slot=?''',
         (team['league'],team['slot'])).fetchone()
-    if not row:return result
+    if not row:return eligible_team_snapshot(c,team,result,round_number,fixture_ready)
     state=json.loads(row['state'])
     players=[{key:p[key] for key in FOOTBALL_FIELDS if key in p}
              for p in state.get('players',[]) if isinstance(p,dict) and p.get('owned',True)]
@@ -214,6 +216,23 @@ def football_team_snapshot(c, team):
         result['source']='invalid-roster'
         return result
     result.update(source='linked-roster',players=players,starters=starters[:],revision=state.get('revision'))
+    return eligible_team_snapshot(c,team,result,round_number,fixture_ready)
+
+def eligible_team_snapshot(c,team,result,round_number,fixture_ready):
+    if round_number is None:return result
+    if fixture_ready and result['source']=='missing-roster':
+        result={**result,'players':season_state.demo_roster(team['formation']),
+                'starters':list(range(11)),'source':'league-demo'}
+    if not result['players']:return result
+    projected=[season_state.status(c,team['league'],team['slot'],p,round_number) for p in result['players']]
+    result={**result,'players':projected}
+    try:
+        result['starters'],replacements=season_state.check_lineup(projected,result['starters'])
+    except ValueError as exc:
+        if fixture_ready:raise LiveMatchError(str(exc),409) from exc
+        result['lineupError']=str(exc)
+        return result
+    result['automaticReplacements']=replacements
     return result
 
 def local_match(token, now=None):
@@ -261,8 +280,8 @@ def local_match(token, now=None):
             own=frozen_team(0 if fixture['home']==person['slot'] else 1,person['slot'])
             opponent=frozen_team(0 if fixture['home']==enemy_slot else 1,enemy_slot)
         else:
-            own=football_team_snapshot(c,person)
-            opponent=football_team_snapshot(c,enemy)
+            own=football_team_snapshot(c,person,fixture['round'])
+            opponent=football_team_snapshot(c,enemy,fixture['round'])
         return {'version':1,'snapshotAt':now,'competitionRules':{'maxSubstitutions':5,'substitutionWindows':3,'minPlayers':7},
             'fixture':{key:fixture[key] for key in ('league','round','home','away','kickoff')} |
                 {'isHome':fixture['home']==person['slot'],'state':phase},
@@ -271,7 +290,7 @@ def local_match(token, now=None):
 def live_config(database, key, now, kickoff):
     teams = [database.execute('SELECT * FROM teams WHERE league=? AND slot=?', (key[0], slot)).fetchone()
              for slot in key[2:]]
-    home, away = (football_team_snapshot(database, team) for team in teams)
+    home, away = (football_team_snapshot(database, team, key[1],fixture_ready=True) for team in teams)
     seed = int.from_bytes(hashlib.sha256(':'.join(map(str, key)).encode()).digest()[:4], 'big')
     # No attendance-dependent catchup or data lookup after this durable commit.
     # Recovery derives elapsed ticks from kickoff and replays stored operations.
@@ -282,6 +301,8 @@ def live_config(database, key, now, kickoff):
             'awayFormation':away['formation'],'tactics':home['tactics'],'awayTactics':away['tactics'],
             'players':home['players'],'awayPlayers':away['players'],'starters':home['starters'],
             'awayStarters':away['starters'],
+            'homeAutomaticReplacements':home.get('automaticReplacements',[]),
+            'awayAutomaticReplacements':away.get('automaticReplacements',[]),
             'homeRosterSource':home['source'],'awayRosterSource':away['source'],
             'homeRosterRevision':home['revision'],'awayRosterRevision':away['revision']}
 
