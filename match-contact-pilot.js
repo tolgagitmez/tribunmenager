@@ -51,7 +51,21 @@ function create({playerId=0}={}){
    proxy.kickMoving=false;
   }
   const rig=root.TribunHumanoidRig;
-  if(rig&&dt>0)rig.update(proxy,clamp(dt,0,.1));
+  if(rig&&dt>0){
+   const pose=rig.update(proxy,clamp(dt,0,.1));
+   if(proxy.pilotPlant&&pose?.legs&&rig.solveLimb){
+    // The licensing SHA pins humanoid-rig.js. Correct ONLY the cloned
+    // presentation pose; never modify shared bone math or Match state.
+    const index=1-(proxy.kickFoot===0?0:1),leg=pose.legs[index],hip=leg.hip;
+    const face=proxy.face||0,forward=[Math.cos(face),0,Math.sin(face)];
+    const anchor=[hip[0]+forward[0]*.08,.13,hip[2]+forward[2]*.08];
+    const ik=rig.solveLimb(hip,anchor,rig.ANATOMY.thigh,rig.ANATOMY.shin,forward);
+    const delta=leg.toe.map((v,i)=>v-leg.ankle[i]);
+    leg.knee=ik.joint;leg.ankle=ik.end;
+    leg.toe=ik.end.map((v,i)=>v+delta[i]);leg.target=anchor;
+    leg.stance=ik.error<.003;leg.targetError=ik.error;leg.footLift=ik.end[1]-.13;
+   }
+  }
   return {player:p,visual:proxy,release:inRecovery,releaseSerial:contactSerial,
    contactCount,brake,turn,clip:inRecovery||shot&&p.actionClock>0?'shoot':
     (p.speed||0)<.4?'idle':'run'};
