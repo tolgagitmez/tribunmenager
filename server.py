@@ -227,10 +227,31 @@ def local_match(token, now=None):
         if enemy is None:raise ValueError('Fikstürün rakip kulübü bulunamadı.')
         active=fixture['kickoff']<=now and (fixture['watched'] or now<fixture['kickoff']+300)
         phase='completed' if fixture['home_score'] is not None else 'live' if active else 'scheduled'
+        config_row=c.execute('''SELECT config FROM live_matches
+            WHERE league=? AND round=? AND home=? AND away=?''',
+            tuple(fixture[field] for field in ('league','round','home','away'))).fetchone()
+        if config_row:
+            # The football-only local preview must display the SAME immutable
+            # XI and tactics that the server worker actually started with.
+            config=json.loads(config_row['config'])
+            def frozen_team(side,slot):
+                home=side==0
+                return {'slot':slot,'name':config['homeName' if home else 'awayName'],
+                    'formation':config['formation' if home else 'awayFormation'],
+                    'tactics':config['tactics' if home else 'awayTactics'],
+                    'players':config['players' if home else 'awayPlayers'],
+                    'starters':config['starters' if home else 'awayStarters'],
+                    'source':config.get('homeRosterSource' if home else 'awayRosterSource','kickoff-snapshot'),
+                    'revision':config.get('homeRosterRevision' if home else 'awayRosterRevision')}
+            own=frozen_team(0 if fixture['home']==person['slot'] else 1,person['slot'])
+            opponent=frozen_team(0 if fixture['home']==enemy_slot else 1,enemy_slot)
+        else:
+            own=football_team_snapshot(c,person)
+            opponent=football_team_snapshot(c,enemy)
         return {'version':1,'snapshotAt':now,'competitionRules':{'maxSubstitutions':5,'substitutionWindows':3,'minPlayers':7},
             'fixture':{key:fixture[key] for key in ('league','round','home','away','kickoff')} |
                 {'isHome':fixture['home']==person['slot'],'state':phase},
-            'ownTeam':football_team_snapshot(c,person),'opponent':football_team_snapshot(c,enemy)}
+            'ownTeam':own,'opponent':opponent}
 
 def live_config(database, key, now, kickoff):
     teams = [database.execute('SELECT * FROM teams WHERE league=? AND slot=?', (key[0], slot)).fetchone()
@@ -239,11 +260,13 @@ def live_config(database, key, now, kickoff):
     seed = int.from_bytes(hashlib.sha256(':'.join(map(str, key)).encode()).digest()[:4], 'big')
     # No attendance-dependent catchup or data lookup after this durable commit.
     # Recovery derives elapsed ticks from kickoff and replays stored operations.
-    return {'seed':seed,'matchMinutes':5,'snapshotAt':kickoff,
+    return {'seed':seed,'matchMinutes':5,'snapshotAt':kickoff,'capturedAt':now,
             'homeName':home['name'],'awayName':away['name'],'formation':home['formation'],
             'awayFormation':away['formation'],'tactics':home['tactics'],'awayTactics':away['tactics'],
             'players':home['players'],'awayPlayers':away['players'],'starters':home['starters'],
-            'awayStarters':away['starters']}
+            'awayStarters':away['starters'],
+            'homeRosterSource':home['source'],'awayRosterSource':away['source'],
+            'homeRosterRevision':home['revision'],'awayRosterRevision':away['revision']}
 
 def live_session(token, round_number, *, watch, now=None):
     if type(round_number) is not int or not 0 <= round_number < 10:
