@@ -188,6 +188,16 @@ function pose(p,dt=1/60){
    }
    footFace=p.face;f.pos=foot.slice();f.stance=stance;f.face=footFace;
   }
+  if(kicking&&p.pilotPlant&&i!==(p.kickFoot===0?0:1)){
+   // One-player presentation pilot: keep the outsole on the pitch while
+   // the body brakes into a shot. Clamp a previous running-step anchor into
+   // the leg's reach instead of stretching/raising the shin.
+   const near=world(p,-.035,side*.15,GROUND);
+   if(!st.support||Math.hypot(st.support[0]-near[0],st.support[2]-near[2])>.20)
+    st.support=near.slice();
+   st.support[1]=GROUND;foot=st.support.slice();footFace=p.face;stance=true;
+   f.adjust=0;f.pos=foot.slice();f.stance=true;f.face=footFace;
+  }
   if(!kicking&&act!=='receive'&&p.footTouch>0&&p.touchPosition&&i===p.dribbleFoot){const w=Math.sin(clamp(p.footTouch/.14,0,1)*Math.PI/2)*.72;const target=[p.touchPosition.x-facing[0]*.24,GROUND,p.touchPosition.z-facing[2]*.24];foot=blend(foot,target,w);footFace=p.face;stance=false;}
   if(tackle>.01){foot=blend(foot,world(p,.50+side*.12,side*.33,.12),tackle);stance=false;}
   if(act==='receive'&&i===(p.kickFoot===0?0:1)){const cushion=Math.sin(Math.PI*clamp((p.actionElapsed||0)/Math.max(.01,p.actionDuration||.25),0,1));foot=blend(foot,world(p,.26,side*.18,.17),cushion*.65);stance=false;}
