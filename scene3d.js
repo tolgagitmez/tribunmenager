@@ -159,7 +159,7 @@ observeFrame(dt,paused=false){
  if(p.lowFrames>=10){p.scale=Math.max(.55,Math.round((p.scale-(ms>85?.22:.12))*100)/100);p.lowFrames=0;}
  if(p.goodFrames>=210){p.scale=Math.min(1,Math.round((p.scale+.06)*100)/100);p.goodFrames=0;}
 }
-resetAnimation(){this.matchAnimation?.reset();}
+resetAnimation(){this.matchAnimation?.reset();this.matchPilot?.reset();this.ballVisual?.reset();}
 animationStats(){return this.matchAnimation?.stats()||{players:0,transitions:0,blendedFrames:0,enabled:false};}
 resize(){const c=this.canvas,rect=c.getBoundingClientRect(),profile=this.performance,
  cap=profile.mode==='performance'?.8:profile.mode==='quality'?1.6:1.1,
@@ -169,11 +169,11 @@ const kickCamera=this.managerKickView?this.managerKickCamera(this.canvas.width/t
 let vp=kickCamera?.matrix||matmul(perspective((this.camera==='portrait'?43:this.camera==='close'?48:54)*Math.PI/180,this.canvas.width/this.canvas.height,.2,400),lookAt(this.cameraSmoothing,this.cameraTarget));gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));const draw=(buffer,count)=>{gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.enableVertexAttribArray(this.aPos);gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(this.aColor);gl.vertexAttribPointer(this.aColor,3,gl.FLOAT,false,24,12);gl.drawArrays(gl.TRIANGLES,0,count)};draw(this.staticBuffer,this.staticCount);
 let m=new Mesh();
 if(this.playerRenderer){
- gl.disableVertexAttribArray(this.aPos);gl.disableVertexAttribArray(this.aColor);this.playerRenderer.draw(players,vp,kickCamera?.eye||this.cameraSmoothing,kickCamera?'close':this.camera,dt,this.matchAnimation);gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));
+ gl.disableVertexAttribArray(this.aPos);gl.disableVertexAttribArray(this.aColor);this.playerRenderer.draw(players,vp,kickCamera?.eye||this.cameraSmoothing,kickCamera?'close':this.camera,dt,this.matchAnimation,{paletteForPlayer:p=>this.matchPilot?.paletteForPlayer(p,dt,this.matchAnimation,this.playerRenderer.assets)||null});gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));
  for(const p of players){if(!p.active)continue;m.sphere(p.x,.035,p.z,.37,.018,.27,[.025,.11,.065],3,10);if(p.selected)m.sphere(p.x,.025,p.z,.48,.012,.44,p.team===0?[.12,.42,.60]:[.55,.16,.12],3,16);
  if(this.debugRig){const pose=window.TribunHumanoidRig.getPose(p),gold=[1,.72,.15];for(const l of pose.legs){m.segment(...l.hip,...l.knee,.014,gold);m.segment(...l.knee,...l.ankle,.014,gold);}for(const a of pose.arms){m.segment(...a.shoulder,...a.elbow,.012,gold);m.segment(...a.elbow,...a.wrist,.012,gold);}}}
 }else for(const p of players)this.figure(m,p,dt);
-if(ball){m.sphere(ball.x,.06,ball.z,.21,.015,.21,[.035,.18,.13],4,8);m.sphere(ball.x,ball.y,ball.z,.11,.11,.11,[.98,.98,.94],6,9);m.sphere(ball.x+.045,ball.y+.065,ball.z+.045,.030,.025,.030,[.07,.07,.08],4,6)}if(events?.flash){let pp=events.flash;m.sphere(pp.x,.07,pp.z,2.05,.027,2.05,[.58,.50,.09],3,12)}
+if(ball){m.sphere(ball.x,.06,ball.z,.21,.015,.21,[.035,.18,.13],4,8);m.sphere(ball.x,ball.y,ball.z,.11,.11,.11,[.98,.98,.94],6,9);(()=>{const visual=this.ballVisual||(this.ballVisual=window.TribunBallVisual?.create());const normals=visual?.sample(ball,dt)||[[.45,.76,.46]];for(const n of normals)m.sphere(ball.x+n[0]*.107,ball.y+n[1]*.107,ball.z+n[2]*.107,.029,.026,.029,[.07,.07,.08],4,6);})()}if(events?.flash){let pp=events.flash;m.sphere(pp.x,.07,pp.z,2.05,.027,2.05,[.58,.50,.09],3,12)}
 gl.bindBuffer(gl.ARRAY_BUFFER,this.dynamicBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(m.v),gl.DYNAMIC_DRAW);draw(this.dynamicBuffer,m.ct)}
 }
 window.Stadium3D=Stadium3D;
