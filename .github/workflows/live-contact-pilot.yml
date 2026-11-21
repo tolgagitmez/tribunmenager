@@ -1,0 +1,53 @@
+name: One footballer live Blender contact pilot and 22-player frame budgets
+on:
+  push:
+    branches:
+      - feature/live-contact-animation-pilot
+  pull_request:
+    paths:
+      - match-contact-pilot.js
+      - match-clip-pilot.mjs
+      - ball-visual.js
+      - match.html
+      - match3d.js
+      - player-renderer.js
+      - scene3d.js
+      - tests/live-contact-animation-pilot.test.cjs
+      - tools/benchmark-live-contact-pilot.cjs
+      - .github/workflows/live-contact-pilot.yml
+  workflow_dispatch:
+jobs:
+  physics-and-footlock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Release/contact event, planted boot, ball spin and read-only match
+        run: node --test tests/live-contact-animation-pilot.test.cjs
+      - name: Existing contact and licensed skeleton invariants
+        run: node --test tests/character-footlock.test.cjs tests/character-licensed-rig.test.cjs tests/character-kick-transition.test.cjs tests/match-animation-bridge.test.cjs tests/match-fps-profiles.test.cjs
+      - name: Existing live match fixture
+        run: npm run test:live-match
+  reference-frame-profiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Install Chromium for hardware-agnostic software reference
+        run: npx playwright install --with-deps chromium
+      - name: Real match 22-players desktop and emulated mobile 95th percentile
+        run: node tools/benchmark-live-contact-pilot.cjs
+      - name: Upload frame profile and real match screenshot evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-contact-match-desktop-mobile-profile
+          path: dist/live-contact-pilot/
+          retention-days: 30
