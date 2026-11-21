@@ -88,7 +88,8 @@ class RotationState(unittest.TestCase):
         with server.db() as db:
             for rnd in range(3):
                 f=self.team0[rnd];key=tuple(f[k] for k in ("league","round","home","away"))
-                season_state.apply_fixture(db,key,[self.appearance(0,yellow=2 if rnd<2 else 1)])
+                side=0 if f["home"]==0 else 1
+                season_state.apply_fixture(db,key,[self.appearance(0,team=side,yellow=2 if rnd<2 else 1)])
             d=season_state.status(db,self.code,0,{"id":0,"uid":"unique:0","fitness":95},3)
             self.assertTrue(d["season"]["suspended"])
             self.assertEqual(d["season"]["yellows"],5)
