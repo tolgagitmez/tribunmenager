@@ -103,7 +103,8 @@ function forSlot(raw,slot){
  }
  const skill=Math.round(p.rating*position*condition*form);
  const roleHabits=habitsFor(p,slot);
- return {...effective,baseRating:p.rating,skill,fitness:p.fitness,stamina:p.fitness,form:p.form,roleFit:position,roleHabits,
+ const detailedRole=p.dataKind!=='demo'&&p.dataKind!=='league-demo'&&!!(p.subposition||p.positions.length);
+ return {...effective,baseRating:p.rating,skill,fitness:p.fitness,stamina:p.fitness,form:p.form,roleFit:position,roleHabits,detailedRole,
   preferredFoot:p.preferredFoot==='left'?0:1,footPreference:p.preferredFoot,archetype:p.archetype,
   model:{version:1,slot:typeof slot==='object'?{...slot}:{role:group(slot)||p.pos},baseRating:p.rating,effectiveRating:skill,factors:{position,form,condition},...p.profileProvenance}};
 }
