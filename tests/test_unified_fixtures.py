@@ -77,6 +77,19 @@ class AllFixturesOneEngine(unittest.TestCase):
         with self.assertRaises(ValueError):
             server.update_tactics(self.league["token"], {"press": 10}, "5-3-2")
 
+    def test_missing_node_preserves_unsettled_fixtures_instead_of_guessing_scores(self):
+        with patch.object(server.shutil, "which", return_value=None):
+            with self.assertRaises(live_match.LiveMatchError):
+                server.settle_due(self.kickoff + .15)
+        with server.db() as db:
+            created, = db.execute("SELECT COUNT(*) FROM live_matches").fetchone()
+            self.assertEqual(created, 0)
+            scores = db.execute("""SELECT home_score,away_score FROM fixtures
+                WHERE league=? AND round=0""", (self.league["code"],)).fetchall()
+            self.assertEqual(len(scores), 3)
+            self.assertTrue(all(row["home_score"] is None and row["away_score"] is None
+                                for row in scores))
+
     def test_linked_roster_and_preview_remain_frozen_after_kickoff(self):
         # A linked squad can be edited in the transfer service independently
         # of the match process. Neither late spectators nor preview reloads
