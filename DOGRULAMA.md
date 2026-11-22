@@ -25,6 +25,12 @@ doğrulama başarısız olur. Kaynak pimi asla otomatik güncellenmez.
 
 ---
 
+22 Kasım 2026 denetiminde düzeltilen motor üç tam maçta eski ve güncel
+hareket modülleriyle karşılaştırıldı. **63.840 fizik adımı ve 534 tam durum
+kontrolü eşleşti.** Kaynak özetleri ve maç başına top/hakem izleri yeniden
+üretilebilir ölçüm kaydındadır. Aynı denetimde `bash test_all.sh` toplam
+615 testi geçti. [Güncel motor ölçümü](docs/validation/measurements/engine-baseline-2026-11-22.json)
+
 ## Aşama 15 — standart Blender aktarımı, v1.34.0
 
 **548/548 test geçti: 519 JavaScript + 29 Python; hata, atlanan veya iptal edilen test yok.** Tekrar: `npm run test:stage15`; kaynak hash'leri ve ham günlük için `python3 tools/check-gltf-tests.py`. [Test raporu](docs/validation/gltf-tests.json) ve [tam günlük](docs/validation/gltf-tests.log.gz) yayımlanır. Bu paket önceki maç/anatomi/GLB/LOD kontrollerini, resmi yükleyici ve Blender çıktı testlerini, çevrimdışı kütüphane bütünlüğünü kapsar.

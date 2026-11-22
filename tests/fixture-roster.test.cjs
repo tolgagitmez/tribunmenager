@@ -15,10 +15,16 @@ function snapshot(isHome=true){
   ownTeam:{name:'Benim Kulübüm',source:'linked-roster'},opponent:{name:'Gerçek Rakip FK',source:'linked-roster',players,
    starters:C.starters.map(id=>id+100),formation:'4-4-2',tactics:{press:81,passing:'direct'},revision:19}};
 }
-function harness({token='',transfers,reply=snapshot(),fail=false}={}){
+function harness({token='',transfers,reply=snapshot(),fail=false,health}={}){
  let requests=0;const session=new Map();
  const root={TribunClubData:C,TribunTransfers:transfers,localStorage:{getItem:()=>token},sessionStorage:{getItem:key=>session.get(key)||null,setItem:(key,value)=>session.set(key,value)},AbortController,setTimeout,clearTimeout,
-  fetch:async(url,options)=>{requests++;assert.equal(url,'/api/league/local-match');assert.equal(options.headers.Authorization,'Bearer '+token);if(fail)throw Error('offline');return {ok:true,json:async()=>copy(reply)};}};
+  fetch:async(url,options)=>{
+   requests++;
+   if(url==='/api/health'&&health)return {ok:true,json:async()=>health};
+   assert.equal(url,'/api/league/local-match');assert.equal(options.headers.Authorization,'Bearer '+token);
+   if(fail)throw Error('offline');
+   return {ok:true,json:async()=>copy(reply)};
+  }};
  vm.runInNewContext(code,{window:root});
  return {api:root.TribunMatchConfig,requests:()=>requests,setToken:value=>{token=value;},setReply:value=>{reply=value;},session};
 }
@@ -56,6 +62,20 @@ test('newer own revision replaces stale starters while preserving selected forma
 test('failed own authoritative refresh rejects the launch instead of passing stale players',async()=>{
  const h=harness({transfers:{hasSession:()=>true,sync:async()=>{throw Error('own offline');}}});
  await assert.rejects(h.api.prepare(input()),/own offline/);
+});
+
+test('a saved transfer session can open practice when the server explicitly disables transfers',async()=>{
+ const saved=input();
+ saved.players[0].name='Kayıtlı kaleci';
+ const unavailable=Object.assign(Error('Transfer hizmeti kapalı.'),{status:503});
+ const transfers={hasSession:()=>true,sync:async()=>{throw unavailable;},cached:()=>saved};
+ const local=harness({transfers,health:{mode:'local',transfers:false}});
+ const cfg=await local.api.prepare();
+ assert.equal(cfg.players[0].name,'Kayıtlı kaleci');
+ assert.equal(cfg.transferRevision,undefined);
+ assert.match(cfg.rosterNotice,/yerel kadro kullanılıyor/);
+ const server=harness({transfers,health:{mode:'development',transfers:true}});
+ await assert.rejects(server.api.prepare(saved),error=>error===unavailable);
 });
 
 test('a late older refresh cannot overwrite a newer already accepted roster revision',async()=>{

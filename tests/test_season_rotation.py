@@ -1,4 +1,5 @@
 """Real league rotation state: atomic minutes, match bans and next kickoff eligibility."""
+import hashlib
 from pathlib import Path
 import json
 import shutil
@@ -7,6 +8,7 @@ import time
 import unittest
 from unittest.mock import patch
 import live_match
+from economy import EconomyError, TransferService
 import season_state
 import server
 
@@ -50,11 +52,16 @@ class RotationState(unittest.TestCase):
 
     def test_suspension_and_fatigue_change_next_fixture_XI_not_past_snapshot(self):
         self.linked_squad()
+        with server.db() as db:
+            state=json.loads(db.execute("SELECT state FROM transfer_profiles WHERE id='link'").fetchone()[0])
+            state["players"][5]["fitness"]=0
+            db.execute("UPDATE transfer_profiles SET state=? WHERE id='link'",(json.dumps(state),))
         first=self.team0[0]
         key=(self.code,0,first["home"],first["away"])
         with server.db() as db:
             before=server.live_config(db,key,first["kickoff"]-1,first["kickoff"])
         self.assertEqual(before["players"][6]["fitness"],95)
+        self.assertEqual(before["players"][5]["fitness"],0)
         self.assertEqual(before["starters"],list(range(11)))
         with server.db() as db:
             season_state.apply_fixture(db,key,[self.appearance(6,red=1),
@@ -97,6 +104,64 @@ class RotationState(unittest.TestCase):
             self.assertFalse(season_state.status(db,self.code,0,{"id":0,"uid":"unique:0"},4)["season"]["suspended"])
 
     @unittest.skipUnless(shutil.which("node"),"Node required")
+    def test_blocked_lineup_can_buy_cover_and_other_fixtures_still_start(self):
+        self.linked_squad()
+        kickoff=time.time()-.2
+        key=tuple(self.team0[1][k] for k in ("league","round","home","away"))
+        first=tuple(self.team0[0][k] for k in ("league","round","home","away"))
+        now=kickoff+.3
+        service=TransferService(self.path,clock=lambda:now,rules={"maxSquad":25,"marketSize":0})
+        with server.db() as db:
+            season_state.apply_fixture(db,first,[self.appearance(7,red=1)])
+            db.execute("UPDATE fixtures SET home_score=0,away_score=0 WHERE league=? AND round=0",(self.code,))
+            db.execute("UPDATE fixtures SET kickoff=? WHERE league=? AND round=1",(kickoff,self.code))
+            state=json.loads(db.execute("SELECT state FROM transfer_profiles WHERE id='link'").fetchone()[0])
+            cover={**state["players"][11],"club":"Kuzey 1907"}
+            state["players"]=[{**p,"number":p["id"]+1} for p in state["players"][:11]]
+            state.update(profileId="link",wallet={"cash":10000,"tokens":0},listings=[],history=[],
+                         market=[{"id":"cover","player":cover,"price":5000,"available":True}],
+                         scout=None,offer=None,nextOfferAt=now+1000,sequence=0,rng=1,lastTime=now,
+                         trainingDate="",trainingUsed=0)
+            db.execute("UPDATE transfer_profiles SET state=?,auth=? WHERE id='link'",
+                       (json.dumps(state),hashlib.sha256(b"repair-token").hexdigest()))
+        self.assertEqual(server.settle_due(now),2)
+        report=server.status(self.league["token"],now)
+        self.assertEqual(len(report["active"]),2)
+        self.assertIn("uygun yedek yok",report["my_match"]["watch_blocked"])
+        with self.assertRaisesRegex(live_match.LiveMatchError,"uygun yedek yok"):
+            server.live_session(self.league["token"],1,watch=True,now=now)
+        self.assertFalse(service.status("repair-token")["rosterLocked"])
+        repaired=service.command("repair-token","sign-cover","buy",{"listingId":"cover","expectedCash":5000})
+        self.assertEqual(repaired["wallet"]["cash"],5000)
+
+        original=server.live_config
+        def short(db,key,now,kickoff):
+            return {**original(db,key,now,kickoff),
+                    "rules":{"periodSeconds":2,"halftimeSeconds":0,"addedTime":False}}
+        with patch.object(server,"live_config",side_effect=short):
+            self.assertEqual(server.settle_due(now),1)
+        self.assertEqual(server.status(self.league["token"],now)["my_match"].get("watch_blocked"),None)
+        session,side=server.live_session(self.league["token"],1,watch=True,now=now)
+        self.assertNotIn(7,session.config[("starters","awayStarters")[side]])
+        self.assertIn(11,session.config[("starters","awayStarters")[side]])
+        self.assertEqual(server.settle_due(now),0)
+
+        # Additional time and a manager choice can keep the authoritative
+        # match running after the original five-minute timer. Only the
+        # persisted result may release the roster lock in that case.
+        now=kickoff+301
+        locked=service.status("repair-token")
+        self.assertTrue(locked["rosterLocked"])
+        self.assertIsNone(locked["rosterLockedUntil"])
+        with self.assertRaisesRegex(EconomyError,"kadro değişiklikleri kilitlidir"):
+            service.command("repair-token","set-xi","lineup",{"starters":list(range(11))})
+        for _ in range(25):
+            session.next_step=time.monotonic()-2.1
+            if session.tick():break
+        self.assertTrue(session.state["done"])
+        self.assertFalse(service.status("repair-token")["rosterLocked"])
+
+    @unittest.skipUnless(shutil.which("node"),"Node required")
     def test_overdue_rounds_wait_for_prior_results_before_freezing_fitness(self):
         # Catching up two past matchdays in one call used to freeze both
         # before the first round's recovery/discipline was committed.
@@ -110,6 +175,9 @@ class RotationState(unittest.TestCase):
                     "rules":{"periodSeconds":2,"halftimeSeconds":0,"addedTime":False}}
         with patch.object(server,"live_config",side_effect=short):
             self.assertEqual(server.settle_due(kickoff+.1),3)
+            view=server.status(self.league["token"],self.team0[1]["kickoff"]+.1)
+            self.assertEqual(view["my_match"]["round"],0)
+            self.assertEqual({fixture["round"] for fixture in view["active"]},{0})
             with server.db() as db:
                 self.assertEqual(set(r["round"] for r in db.execute("SELECT round FROM live_matches")),{0})
             for session in list(self.registry.matches.values()):

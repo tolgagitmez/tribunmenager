@@ -7,6 +7,7 @@ on:
       - 'player-model.js'
       - 'football-sim.js'
       - 'server.py'
+      - 'economy.py'
       - 'season_state.py'
       - 'live_match.py'
       - 'live-match-worker.cjs'
@@ -16,6 +17,9 @@ on:
       - 'league.html'
       - 'league.css'
       - 'tests/test_season_rotation.py'
+      - 'tests/test_unified_fixtures.py'
+      - 'tests/test_live_match.py'
+      - 'tests/fixture-roster-api.py'
       - '.github/workflows/season-rotation.yml'
   workflow_dispatch:
 jobs:

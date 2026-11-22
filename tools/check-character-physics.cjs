@@ -12,6 +12,10 @@ const zlib = require('node:zlib');
 const Module = require('node:module');
 
 const root = path.resolve(__dirname, '..');
+const target = path.join(root, 'docs/validation/character-physics.json');
+// A failing rerun must not leave a previous measurement as its result.
+// The archived historical report is a separate file.
+fs.rmSync(target, {force: true});
 const digest = value => crypto.createHash('sha256').update(value).digest('hex');
 const oldRigPath = 'docs/validation/baselines/licensed-character-rig-6ddd4f1.js.gz';
 const oldRigBytes = zlib.gunzipSync(fs.readFileSync(path.join(root, oldRigPath)));
@@ -122,7 +126,6 @@ const report = {
   },
   verified: true
 };
-const target = path.join(root, 'docs/validation/character-physics.json');
 fs.mkdirSync(path.dirname(target), {recursive: true});
 fs.writeFileSync(target, JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify({

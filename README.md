@@ -13,6 +13,8 @@ Yerel maçta takımın bir penaltı, frikik, korner veya açık oyun ortası kul
 
 Günlük ligde maç saati geldiğinde **Lig → Canlı maçı izle** yolunu kullan. İki menajer bağlandığında herkes kendi takımının vuruşlarını kullanır. Botlar ve maçı izlemeyen menajerlerin oyuncuları otomatik vurur. Canlı seçim için 12 saniye verilir. Sunucu iki tarafa aynı maç saatini, skoru ve olayları gönderir ve maçın sonucunu lig tablosuna işler. [Canlı lig kurulumu](KURULUM.md#canlı-lig).
 
+Hiç izlenmeyen lig fikstürleri de aynı saha motoruyla tamamlanır. Maç bitince oyuncuların dakikaları, kondisyonu ve cezaları lig ekranındaki rotasyon bölümüne yansır.
+
 [Sahada yön ve güç seçimi](docs/previews/manager-kick-aim.png) · [Mobilde temas noktası seçimi](docs/previews/manager-kick-contact.png)
 
 ## On beşinci aşama: standart Blender aktarımı ve çizici karşılaştırması — v1.34.0
@@ -344,22 +346,12 @@ Kurallar ve gelecek veri/gelir bağlantıları: **TRANSFER_SISTEMI.md**. Test ka
 ## Geliştirici kontrolleri
 
 ```sh
-bash test_all.sh
 npm ci
+python3 -m pip install -r requirements-player-assets.txt
+bash test_all.sh
 npm run test:ui
-node tests/transfers-ui.test.cjs
-node tests/ball-physics.test.cjs
-node tests/press-support.test.cjs
-node tests/pressure-exits.test.cjs
-node tests/keeper-gather.test.cjs
-node tests/defensive-connection.test.cjs
-node tests/pass-lane-read.test.cjs
-node tests/pass-review.test.cjs
-node tests/pass-release-read.test.cjs
-node tests/receiver-forecast.test.cjs
-python3 tools/profile-transfer-market.py
 ```
 
-Günlük lig ayrı sonuç hesabını kullanır; yerel 3D maç bunun kaydı değildir. Kontrollü hareketler, aynı durumdan karar karşılaştırması, doğal maçlar ve açık sınırlar **DOGRULAMA.md** içinde açıklanır. Doğru hedef tahmini, başarılı pas veya topu koruma garantisi değildir.
+Yerel hazırlık maçları lig tablosunu etkilemez. Günlük lig, kendi fikstürünü aynı saha motoruyla sunucuda çalıştırır. Doğrulama yöntemleri ve tarayıcı komutları kurulum rehberinde yer alır. [Kurulum](KURULUM.md#geliştirici-doğrulaması) · [Doğrulama](DOGRULAMA.md)
 
 Güncel motorun doğal örneği **previews/ALICI_HAREKETI_v127.mp4** içinde. Gerçek sahnenin yerel 3D çizimidir; tarayıcı/telefon performans testi değildir. Son iki sürümün videoları pakettedir. Referans **FIFA_REFERANSI.md**, sonraki geliştirmeler **SIMULASYON_YOL_HARITASI.md** içinde.

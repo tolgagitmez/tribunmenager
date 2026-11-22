@@ -24,7 +24,8 @@ async function request(path,body){
  try{
   const response=await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',signal:controller.signal});
   let data;try{data=await response.json();}catch{throw Error('Transfer sunucusundan geçerli yanıt alınamadı.');}
-  if(!response.ok)throw Error(data.error||'Transfer işlemi tamamlanamadı.');return data;
+  if(!response.ok)throw Object.assign(new Error(data.error||'Transfer işlemi tamamlanamadı.'),{status:response.status});
+  return data;
  }catch(e){if(e.name==='AbortError')throw Error('Transfer bağlantısı zaman aşımına uğradı. Aynı işlemi güvenle yeniden deneyebilirsin.');throw e;}
  finally{clearTimeout(timer);pending--;}
 }
