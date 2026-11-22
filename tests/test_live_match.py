@@ -113,7 +113,8 @@ class LiveMatchTest(unittest.TestCase):
                    "contactX": .4, "contactY": -.55}
         accepted = self.kick(self.away, away_offer["id"], control)
         self.assertIsNone(accepted["state"]["pendingManagerKick"])
-        self.assertEqual(accepted["state"], self.get(self.home)["state"])
+        with patch.object(server, "settle_due", side_effect=AssertionError("already running")):
+            self.assertEqual(accepted["state"], self.get(self.home)["state"])
         self.assert_http(409, self.kick, self.away, away_offer["id"], control)
         self.session.discard_worker()
         self.assertEqual(accepted["state"], self.get(self.home)["state"])
@@ -135,10 +136,13 @@ class LiveMatchTest(unittest.TestCase):
 
     def test_authoritative_fixture_kicks_disconnect_and_table(self):
         self.original_config = server.live_config
-        with patch.object(server, "live_config", self.scenario):
+        # Invalid requests and kicks for a fixture that has not started must
+        # not run kickoff scheduling before the request is authorized.
+        with patch.object(server, "settle_due", side_effect=AssertionError("cannot schedule")):
             self.assert_http(403, self.get, "not-a-token")
             self.assert_http(409, self.get, self.home, 1)
             self.assert_http(409, self.kick, self.home, 1, None)
+        with patch.object(server, "live_config", self.scenario):
             home = self.get(self.home)
             away = self.get(self.away)
         self.session = self.registry.matches[(self.path, self.key)]

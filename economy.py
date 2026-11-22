@@ -37,6 +37,22 @@ class EconomyError(ValueError):
     pass
 
 
+def active_fixture_kickoff(db, league, slot, at):
+    # During kickoff provisioning, use the existing grace window as a lock.
+    # Once a real worker is registered, only its result releases the lock.
+    tables = {row[0] for row in db.execute("""SELECT name FROM sqlite_master WHERE type='table'
+        AND name IN ('live_matches','live_match_lineup_issues')""")}
+    worker_pending = """OR EXISTS (SELECT 1 FROM live_matches l
+        WHERE l.league=f.league AND l.round=f.round AND l.home=f.home AND l.away=f.away)""" if "live_matches" in tables else ""
+    can_prepare = """AND NOT EXISTS (SELECT 1 FROM live_match_lineup_issues issue WHERE issue.league=f.league
+        AND issue.round=f.round AND issue.home=f.home AND issue.away=f.away)""" if "live_match_lineup_issues" in tables else ""
+    row = db.execute(f"""SELECT f.kickoff FROM fixtures f WHERE f.league=?
+        AND (f.home=? OR f.away=?) AND f.kickoff<=? AND f.home_score IS NULL
+        AND ((f.kickoff+300>? {can_prepare}) {worker_pending}) ORDER BY f.kickoff DESC LIMIT 1""",
+        (league, slot, slot, at, at)).fetchone()
+    return row[0] if row is not None else None
+
+
 def integer(value, low, high, label):
     if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
         raise EconomyError(f"{label}: {low}–{high} arasında tam sayı gerekli.")
@@ -397,9 +413,13 @@ class TransferService:
                           (link["league"], link["slot"], link["slot"], at, at)).fetchone()
         return match[0] if match else None
 
+    def _active_league_fixture(self, c, s, at):
+        link = c.execute("SELECT league,slot FROM transfer_league_links WHERE profile=?", (s["profileId"],)).fetchone()
+        return active_fixture_kickoff(c, link["league"], link["slot"], at) if link else None
+
     def _update_league_strength(self, c, s, now):
         link = c.execute("SELECT league,slot FROM transfer_league_links WHERE profile=?", (s["profileId"],)).fetchone()
-        if not link or self._league_lock_until(c, s, now):
+        if not link or active_fixture_kickoff(c, link["league"], link["slot"], now) is not None:
             return
         team = c.execute("SELECT formation FROM teams WHERE league=? AND slot=?", (link["league"], link["slot"])).fetchone()
         if not team:
@@ -419,6 +439,7 @@ class TransferService:
     def _advance(self, c, s, now):
         now = max(now, s["lastTime"])
         changed = False
+        live_kickoff = self._active_league_fixture(c, s, now)
         # Chronological market visits, including while the tab is closed. The
         # persisted RNG and next-check time prevent rerolls on refresh/repricing.
         for _ in range(4096):
@@ -427,7 +448,10 @@ class TransferService:
                 break
             l = min(active, key=lambda x: (x["nextCheckAt"], x["id"]))
             at = l["nextCheckAt"]
-            lock_until = self._league_lock_until(c, s, at)
+            if live_kickoff is not None:
+                lock_until = max(now, live_kickoff + 300)
+            else:
+                lock_until = self._league_lock_until(c, s, at)
             if lock_until:
                 l["nextCheckAt"] = lock_until + self._interval(s)
                 changed = True
@@ -499,7 +523,9 @@ class TransferService:
         view["catalogCount"] = c.execute("SELECT count(*) FROM transfer_catalog").fetchone()[0]
         link = c.execute("SELECT league,slot FROM transfer_league_links WHERE profile=?", (s["profileId"],)).fetchone()
         view["linkedLeague"] = dict(link) if link else None
-        view["rosterLockedUntil"] = self._league_lock_until(c, s, now)
+        live_kickoff = self._active_league_fixture(c, s, now)
+        view["rosterLocked"] = live_kickoff is not None
+        view["rosterLockedUntil"] = live_kickoff + 300 if live_kickoff is not None and now < live_kickoff + 300 else None
         view["ledger"] = [dict(l) for l in c.execute("SELECT at,kind,currency,delta,balance,reference FROM transfer_ledger WHERE profile=? ORDER BY id DESC LIMIT 100", (s["profileId"],))]
         view["capabilities"] = {"payments": False, "rewardedAds": False, "verifiedCommerceBridge": bool(os.environ.get("TRIBUN_COMMERCE_SECRET"))}
         return view
@@ -529,7 +555,7 @@ class TransferService:
                     raise EconomyError("İşlem kimliği başka bir istek için kullanılmış.")
                 result = json.loads(duplicate["result"])
             else:
-                if action in ("buy", "quick-sell", "scout-buy", "offer-buy", "lineup", "train") and self._league_lock_until(c, s, now):
+                if action in ("buy", "quick-sell", "scout-buy", "offer-buy", "lineup", "train") and self._active_league_fixture(c, s, now) is not None:
                     raise EconomyError("Günlük maç oynanırken kadro değişiklikleri kilitlidir. Maç bitince yeniden dene.")
                 result = self._command(c, s, action, payload, now)
                 s["revision"] += 1
@@ -581,8 +607,7 @@ class TransferService:
                 unfinished = c.execute("SELECT 1 FROM fixtures WHERE league=? AND home_score IS NULL LIMIT 1", (old["league"],)).fetchone()
                 if unfinished:
                     raise EconomyError("Transfer profili devam eden başka bir lige bağlı.")
-            active = c.execute("SELECT 1 FROM fixtures WHERE league=? AND kickoff<=? AND kickoff+300>? LIMIT 1", (person["league"], now, now)).fetchone()
-            if active and not target:
+            if not target and active_fixture_kickoff(c, person["league"], person["slot"], now) is not None:
                 raise EconomyError("Transfer profili maç sırasında lige bağlanamaz.")
             c.execute("INSERT INTO transfer_league_links VALUES(?,?,?) ON CONFLICT(profile) DO UPDATE SET league=excluded.league,slot=excluded.slot", (s["profileId"], person["league"], person["slot"]))
             return {"message": "Transfer kadron günlük lige bağlandı."}

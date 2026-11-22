@@ -39,12 +39,13 @@ async function lobby(action){
 function timer(){
  if(!data)return;
  const now=Date.now()/1000+serverOffset,next=data.next_kickoff,match=data.my_match;
- const active=data.active?.some(f=>f.round===match?.round&&f.home===match.home&&f.away===match.away);
- const canWatch=match?.home_score===null&&now>=match.kickoff&&(now<match.kickoff+300||active);
+ const active=match&&data.active?.some(f=>f.round===match.round&&f.home===match.home&&f.away===match.away);
+ const canWatch=match?.home_score===null&&!match.watch_blocked&&now>=match.kickoff&&(now<match.kickoff+300||active);
  const watch=$('watchLive');
  watch.hidden=!canWatch;
  if(canWatch)watch.href='match.html?live='+encodeURIComponent(match.round);
- if(canWatch){$('countdown').textContent='CANLI';$('matchInfo').textContent='Maç başladı. İzlerken kendi takımının vuruşlarını kullanabilirsin.';}
+ if(match?.watch_blocked){$('countdown').textContent='MAÇ BEKLENİYOR';$('matchInfo').textContent=match.watch_blocked;}
+ else if(canWatch){$('countdown').textContent='CANLI';$('matchInfo').textContent='Maç başladı. İzlerken kendi takımının vuruşlarını kullanabilirsin.';}
  else if(data.active?.length){$('countdown').textContent='MAÇ GÜNÜ';$('matchInfo').textContent='Günlük maçların sonuçları tamamlandıkça lig tablosuna işlenir.';}
  else if(next){const seconds=Math.max(0,Math.ceil(next-now)),days=Math.floor(seconds/86400);$('countdown').textContent=`${days?days+'g ':''}${String(Math.floor(seconds%86400/3600)).padStart(2,'0')}:${String(Math.floor(seconds%3600/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;$('matchInfo').textContent=`Sıradaki maç günü: ${data.day}/10 · ${new Date(next*1000).toLocaleString('tr-TR')}`;}
  else{$('countdown').textContent='SEZON TAMAMLANDI';$('matchInfo').textContent='10. maç gününün sonuçlarını tabloda inceleyebilirsin.';}
@@ -63,6 +64,9 @@ function render(){
  $('tacticInfo').textContent=`Kayıtlı plan: ${data.my_formation} · Pres ${data.my_tactics.press} · Sertlik ${data.my_tactics.aggression}`+
   (average===null?'':` · Ortalama kondisyon %${average} · Cezalı ${suspended}`);
  const panel=$('rotationList');
+ const caption=$('rotationCaption');
+ if(caption)caption.textContent='Maç bitince kondisyon güncellenir. Cezalı oyuncu bir sonraki maçta forma giyemez. '+
+  (data.my_rotation_source==='linked-roster'?'Sonraki ilk 11’ini bağlı kadro ekranında düzenleyebilirsin.':'Lig kadrosu otomatik hazırlanır.');
  if(panel)panel.innerHTML=rotation.length?rotation.map(p=>`<div class="rotation-row" data-suspended="${!!p.suspended}"><strong title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</strong><small>${escapeHtml(p.position||'—')}</small><span>${Math.round(Number(p.fitness)||0)}% · ${Math.round(Number(p.minutes)||0)} dk${p.suspended?' · CEZALI':''}${(p.yellows||p.reds)?` · ${p.yellows||0}S/${p.reds||0}K`:''}</span></div>`).join(''):'<p>Henüz sezon oyuncu kaydı yok.</p>';
  timer();
 }

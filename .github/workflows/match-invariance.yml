@@ -6,14 +6,33 @@ on:
       - 'football-sim.js'
       - 'humanoid-rig.js'
       - 'match-animation-bridge.js'
-      - 'live-match-worker.cjs'
+      - 'match-clip-pilot.mjs'
+      - 'match-contact-pilot.js'
+      - 'ball-visual.js'
+      - 'manager-kick-*'
+      - 'live-match-*'
       - 'live_match.py'
       - 'server.py'
+      - 'start.py'
+      - 'economy.py'
+      - 'season_state.py'
       - 'match.html'
-      - 'match3d.js'
-      - 'league.js'
+      - 'match-config.js'
+      - 'match3d.*'
+      - 'scene3d.js'
+      - 'league.*'
+      - 'club-data.js'
+      - 'transfer-client.js'
+      - 'tactics.js'
+      - 'player-model*'
+      - 'player-perception.js'
+      - 'team-intent.js'
+      - 'match-rules.js'
+      - 'pitch-laws.js'
+      - 'referee-laws.js'
       - 'tests/**'
       - 'tools/check-character-physics.cjs'
+      - 'tools/serve-character-viewer.cjs'
       - 'docs/validation/baselines/**'
       - 'package*.json'
       - '.github/workflows/match-invariance.yml'
@@ -35,11 +54,10 @@ jobs:
         run: npm run test:engine-invariance
       - name: Publish generated current-engine measurement
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: current-engine-physics
           path: docs/validation/character-physics.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
   kick-and-live-regressions:
@@ -67,14 +85,7 @@ jobs:
           node-version: '24'
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
-      - name: Resolve Playwright Chromium executable
-        id: browser
-        run: echo "path=$(node -p 'require(\"playwright\").chromium.executablePath()')" >> "$GITHUB_OUTPUT"
       - name: Two-step kick UI in real Chromium
         run: npm run test:manager-kick-browser
-        env:
-          CHROMIUM: ${{ steps.browser.outputs.path }}
       - name: Shared league match in two independent Chromium contexts
         run: npm run test:live-match-browser
-        env:
-          CHROMIUM: ${{ steps.browser.outputs.path }}

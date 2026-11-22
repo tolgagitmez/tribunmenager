@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS live_matches(
     kickoff REAL NOT NULL, config TEXT NOT NULL, final_state TEXT,
     PRIMARY KEY(league, round, home, away)
 );
+CREATE TABLE IF NOT EXISTS live_match_lineup_issues(
+    league TEXT NOT NULL, round INT NOT NULL, home INT NOT NULL, away INT NOT NULL,
+    message TEXT NOT NULL,
+    PRIMARY KEY(league, round, home, away)
+);
 CREATE TABLE IF NOT EXISTS live_match_operations(
     seq INTEGER PRIMARY KEY, league TEXT NOT NULL, round INT NOT NULL,
     home INT NOT NULL, away INT NOT NULL, operation TEXT NOT NULL

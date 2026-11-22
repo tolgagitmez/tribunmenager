@@ -16,6 +16,24 @@ for(const side of [-1,1]){
 }
 test('a body block before whole-ball crossing prevents a goal in the same swept step',()=>{const {m,p,d}=isolated();p.active=false;Object.assign(d,{x:51.95,z:0,touchClock:0});m.lastTouch=p;m.ball={x:51.5,y:.5,z:0,vx:50,vy:0,vz:0};m.flight={kind:'shot',id:1,from:p,age:0,offsidePlayers:[]};m.ballStep(dt);assert.equal(m.score[0],0);assert.equal(m.lastTouch,d);assert(m.events.some(e=>e.type==='block'));assert(m.ball.vx<0);});
 test('serious foul is a direct red and uses the matching restart',()=>{const {m,p,d}=isolated();m.players[21].active=true;p.x=40;p.z=0;m.adjudicateFoul(d,p,{serious:true,advantage:false});assert.equal(d.active,false);assert.equal(m.reds[1],1);assert.equal(m.cards[1],0);assert.equal(m.restart.kind,'penalty');assert(m.events.some(e=>e.type==='red'&&e.title==='Doğrudan kırmızı kart'));});
+test('a dismissed goalkeeper is replaced by an outfielder and a last-second penalty can finish',()=>{
+ const m=game({periodSeconds:.1,halftimeSeconds:10,addedTime:false}),striker=m.players[0],dismissed=m.players[21];
+ Object.assign(striker,{x:39,z:0});
+ m.adjudicateFoul(dismissed,striker,{serious:true,advantage:false});
+ assert.equal(dismissed.active,false);
+ const keeper=m.team(1).find(p=>p.role==='GK');
+ assert(keeper&&keeper!==dismissed);
+ assert.equal(m.team(1).length,10,'an emergency goalkeeper does not restore the dismissed player');
+ assert.equal(m.restart.kind,'penalty');
+ let defendingKeeperId;
+ for(let n=0;n<30/dt&&m.lifecycle==='playing';n++){
+  m.step(dt);
+  defendingKeeperId??=m.penaltyAttempt?.position?.keeperId;
+ }
+ assert.equal(m.releaseSerial,1);
+ assert.equal(defendingKeeperId,keeper.id);
+ assert.equal(m.lifecycle,'halftime');
+});
 test('falling below the competition minimum abandons the match without a new restart',()=>{const m=game(),p=m.players[0],d=m.players[11];for(const q of m.team(1).slice(1,5))q.active=false;m.adjudicateFoul(d,p,{serious:true,advantage:false});assert.equal(m.done,true);assert.equal(m.finishReason,'minimum-players');assert.equal(m.restart,null);});
 test('failed advantage recalls the original foul and applies its deferred card',()=>{const {m,p,d}=isolated();Object.assign(p,{x:5,z:0});m.owner=p;m.ball={x:5.5,y:.11,z:0,vx:3,vy:0,vz:0};m.adjudicateFoul(d,p,{advantage:true,reckless:true});assert.equal(m.restart,null);assert.equal(m.cards[1],0);assert(m.referee.pendingAdvantage);m.owner=d;m.updateReferee();assert.equal(m.restart.kind,'free-kick');assert.deepEqual(m.restart.spot,{x:5,z:0});assert.equal(m.cards[1],1);assert.equal(m.referee.decisions[0].status,'recalled');});
 test('successful advantage keeps play live and delays discipline until a stoppage',()=>{const {m,p,d}=isolated();p.x=5;p.z=0;m.owner=p;m.ball={x:5.5,y:.11,z:0,vx:3,vy:0,vz:0};m.adjudicateFoul(d,p,{advantage:true,reckless:true});m.ball.x=12;p.x=11.5;m.updateReferee();assert.equal(m.referee.pendingAdvantage,null);assert.equal(m.restart,null);assert.equal(m.cards[1],0);m.setRestart('throw',0,{x:12,z:34});assert.equal(m.cards[1],1);assert.equal(m.restart.kind,'throw');});
@@ -51,6 +69,28 @@ test('five configured changes can include the goalkeeper within one stoppage',()
 });
 test('extended penalty play ends on a field player touch while a keeper parry stays live',()=>{
  for(const keeper of [false,true]){const {m,p,d}=isolated();m.penaltyAttempt={state:'released',team:0,takerId:p.id};Object.assign(d,{role:keeper?'GK':'DEF'});m.lastTouch=d;m.owner=null;m.ball={x:48,y:.5,z:0,vx:4,vy:1,vz:0};m.flight=null;m.updateReferee();assert.equal(m.penaltyAttempt.state,keeper?'released':'settled');}
+});
+test('a fast penalty rebound cannot ricochet off its taker before another player touches it',()=>{
+ for(const teammateTouched of [false,true]){
+  const {m,p,d}=isolated();
+  d.active=false;
+  Object.assign(p,{x:43,z:0});
+  m.ball={x:43.6,y:.11,z:0,vx:-25,vy:0,vz:0};
+  m.lastTouch=teammateTouched?m.players[1]:p;
+  m.flight={kind:'shot',from:p,id:1,age:0,penalty:true};
+  m.penaltyAttempt={state:'released',takerId:p.id,releaseId:1,team:p.team};
+  m.ballStep(dt);
+  if(teammateTouched){
+   assert.equal(m.restart,null);
+   assert(m.ball.vy>0,'a lawful fast rebound stays in play');
+  }else{
+   assert.equal(m.restart?.kind,'free-kick');
+   assert.equal(m.restart.team,1-p.team);
+   assert.equal(m.restart.indirect,true);
+   assert.equal(m.penaltyAttempt.state,'settled');
+   assert(m.events.some(e=>e.type==='double-touch'));
+  }
+ }
 });
 test('direct indirect-free-kick and throw-in goals use the legal defending restart',()=>{
  for(const kind of ['throw','free-kick']){const {m,p,d}=isolated();p.active=d.active=false;m.lastTouch=p;m.ball={x:51.99,y:.11,z:0,vx:12,vy:0,vz:0};m.flight={from:p,kind:'pass',id:1,age:0,restartKind:kind,restartIndirect:kind==='free-kick'};m.ballStep(dt);assert.equal(m.score[0],0);assert.equal(m.restart.kind,'goal-kick');}

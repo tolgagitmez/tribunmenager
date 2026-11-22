@@ -130,6 +130,24 @@ test('real penalty launch records keeper off-line and early entrant; illegally s
  assert.equal(m.telemetry.penaltyRetakes,1);
  assert(m.events.some(e=>e.type==='penalty-retake'));
 });
+test('a keeper retake ends the old ball sweep before anyone can collect the newly placed ball',()=>{
+ const {m,taker,keeper}=penaltyFixture(),outfielder=m.players[1];
+ m.penaltyReleased({p:taker,restartContext:m.restart},{id:84});
+ m.restart=null;
+ Object.assign(outfielder,{x:46,z:0});
+ m.ball={x:51.1,y:1,z:0,vx:13,vy:0,vz:0};
+ m.flight={id:84,kind:'shot',from:taker,penalty:true,age:0,offsidePlayers:[]};
+ m.lastTouch=taker;
+ keeper.action='dive';
+ keeper.actionClock=.6;
+ m.motion={saveHands:()=>[{x:51.22,y:1,z:0}]};
+ m.ballStep(1/60);
+ assert.equal(m.telemetry.penaltyRetakes,1);
+ assert.equal(m.restart?.kind,'penalty');
+ assert.equal(m.phase,'restart');
+ assert.equal(m.owner,null);
+ assert.deepEqual(m.ball,{x:41,y:.11,z:0,vx:0,vy:0,vz:0});
+});
 test('early attacker touching rebound means IFK; early defender intervention means retake',()=>{
  for(const team of [0,1]){
   const {m,taker,keeper}=penaltyFixture(),p=m.players[team?12:2];

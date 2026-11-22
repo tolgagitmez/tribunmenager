@@ -1,13 +1,33 @@
 {
   "version": "1.35.0",
   "simulationStage": 16,
-  "upstreamCommit": "0e11b9485162bfb347483189689e3e29f5bf7d50",
-  "simulationSHA256": "593d6e80f3d4eadbe85f8969d3778773be617c4b3c0fdf65825125b3c62551ba",
+  "upstreamCommit": "3c940a2a961dc163d7357f716961c3f062a6134e",
+  "simulationSHA256": "f076b3cb26b09a0bf47d55861e8ab1119a2ace24ec73f92e02991a90531f08d5",
   "rigSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
   "playerAssetManifestSHA256": "71bbb3fa69153aa9279f97918a3983db0e060eb5c8490266c0ae0641d249f0c4",
   "interchangeManifestSHA256": "c3b6e836838092283b9ada59aeb09e13770868804e465803f7d8424b1f49b6d7",
-  "description": "Distributed game files. Two-stage manager control for crosses, corners, free kicks and penalties, with player-dependent ball contact and flight. Watched league fixtures use one server simulation, authenticated team controls, automatic kicks for absent viewers and an official SQLite result. Dependencies and local work files are excluded.",
+  "description": "Distribution file inventory. Includes the current match engine, shared specialist kicks, authoritative live fixtures, season rotation, licensed character and Blender assets, plus install, fixture and physics regression fixes. Dependencies and local workspace output are excluded.",
   "files": [
+    {
+      "path": ".github/workflows/aerial-keeper-laws.yml",
+      "bytes": 2267,
+      "sha256": "dbaae057c6e7f5ab0d540b6efeb81a6290dbeded31de22acbcffe7108a84b075"
+    },
+    {
+      "path": ".github/workflows/asset-rebuild-verification.yml",
+      "bytes": 1571,
+      "sha256": "9c15afe7dd34db5b4f170150e718852da2c36b222bfb638ef20b63e18f50d44c"
+    },
+    {
+      "path": ".github/workflows/attack-chain.yml",
+      "bytes": 3082,
+      "sha256": "cffb3aa555fe9d29ab2aa352d369d8e8eb0c6cb47cb3f68784f9c60f00667239"
+    },
+    {
+      "path": ".github/workflows/attack-coverage-sync.yml",
+      "bytes": 1977,
+      "sha256": "53231cf708b591867e8357b99dee3fe342cdd7af686e5f9e186e6397594043e0"
+    },
     {
       "path": ".github/workflows/character-rig.yml",
       "bytes": 3848,
@@ -24,9 +44,34 @@
       "sha256": "f3f0d28756aa5e45628a8fab71da2e8c2085206b101975f264d0b2d5857fa2ef"
     },
     {
+      "path": ".github/workflows/league-engine-parity.yml",
+      "bytes": 1534,
+      "sha256": "e2e86743e770a243a7913e74dcae7beb9187aec8c63171993e782d6a05a3b96b"
+    },
+    {
       "path": ".github/workflows/licensed-character.yml",
-      "bytes": 1765,
-      "sha256": "2f3b6845946a1d6bd81d113d3e68e7e4ba95b9141ab65b3ace4221184d8d1713"
+      "bytes": 2044,
+      "sha256": "d4f3723508e72a12f9fcb46d78507edbaf986319d08ba871998c534a983dc375"
+    },
+    {
+      "path": ".github/workflows/live-contact-pilot.yml",
+      "bytes": 1981,
+      "sha256": "07e1964294b42de6e141cd508ee8daec0939188b68eb2a2793c3ec44f248deff"
+    },
+    {
+      "path": ".github/workflows/match-invariance.yml",
+      "bytes": 2599,
+      "sha256": "025ab7411d0748dd37a0c2ca2cac0d2b8a34e524ab04e433451435cb20c68a64"
+    },
+    {
+      "path": ".github/workflows/season-rotation.yml",
+      "bytes": 2223,
+      "sha256": "b6d2ffad7a085d4cabad8da1d124715d10c390bff8b743f1cac0d2566b5754a6"
+    },
+    {
+      "path": ".github/workflows/specialist-kick-current.yml",
+      "bytes": 2997,
+      "sha256": "337b47a5897f152c1bf67883a3b16b8a8c15dde47105172776f5c6b757918669"
     },
     {
       "path": ".gitignore",
@@ -65,8 +110,8 @@
     },
     {
       "path": "DOGRULAMA.md",
-      "bytes": 137831,
-      "sha256": "97bb50907bcddc67f4181fa33ea3e7236fabcc093baac68aac84d73b488c64a8"
+      "bytes": 141093,
+      "sha256": "ea8cba25d8dab7e8578f9fb3d5eb84c7d7abad53a43b7a28936747e472b63a5a"
     },
     {
       "path": "FIFA_REFERANSI.md",
@@ -75,13 +120,13 @@
     },
     {
       "path": "KURULUM.md",
-      "bytes": 8499,
-      "sha256": "a19a231f760c00fb9094dd4284d1364ec92d6bca10d816926ffd6526d88a7be0"
+      "bytes": 8246,
+      "sha256": "0b6aa9dc2cbf6ef74d95cebe53858c4e5ce35e18b029d20bfbe8d318322a61d9"
     },
     {
       "path": "README.md",
-      "bytes": 39843,
-      "sha256": "a51883006cbc2df6f49669c64e5097760a8659b89ad3a3dc422387098d604e21"
+      "bytes": 39674,
+      "sha256": "309b3fb7b0a4545a4a12faea102c2fc9f6c1f88a46e7c69c4f4248ef3f43286b"
     },
     {
       "path": "RELEASE_NOTES.md",
@@ -274,6 +319,11 @@
       "sha256": "9176b438e591ad7fb411ab1b89cde25d6a4cf602288485798be3c031901c9ebb"
     },
     {
+      "path": "ball-visual.js",
+      "bytes": 1908,
+      "sha256": "3a2e51c20e543b4081bb3b0ee9b3c495fb4af409fd98dedddb74a883741f6929"
+    },
+    {
       "path": "character-blend-controller.js",
       "bytes": 3784,
       "sha256": "bcca12819dccb1906f31a2bccc0462ffbf42d3ecd3872afcf06987e3cf6ca191"
@@ -292,6 +342,16 @@
       "path": "club-data.js",
       "bytes": 4274,
       "sha256": "73c9d01c12262497f0d266203b4f7143750732ef1bde8c289d80841bf2efcfca"
+    },
+    {
+      "path": "docs/AERIAL_KEEPER_LAWS_2026-11-21.md",
+      "bytes": 5352,
+      "sha256": "d66f7c7cb6fd042e023236ae563b57fc44e7c3e1863f2159cb4c4a00f0a0b3e1"
+    },
+    {
+      "path": "docs/ATTACK_CHAIN_CAUSE_2026-11-21.md",
+      "bytes": 5219,
+      "sha256": "5e8df0b462b93dbde0373dfc32f9b294b2f0c06eeb8659ecf789e0b4d0022c49"
     },
     {
       "path": "docs/CHARACTER_MODEL.md",
@@ -340,13 +400,18 @@
     },
     {
       "path": "docs/GLTF_PIPELINE.md",
-      "bytes": 13428,
-      "sha256": "1b0b8c66c21d2801fd97109de68caa1670f60aa56d6b19687e28912d8fc51fcd"
+      "bytes": 14173,
+      "sha256": "d9afdbf74e8b85e5ae7e8f6155b70ee78c806085bbf349b9c851ad40e0871674"
     },
     {
       "path": "docs/GLTF_RENDERER_DECISION.md",
       "bytes": 14587,
       "sha256": "6e043df2162b1e0515df0148be853b5d5c3179cbc4769851770748a906d133c9"
+    },
+    {
+      "path": "docs/LIVE_CONTACT_ANIMATION_PILOT.md",
+      "bytes": 4498,
+      "sha256": "231b2e2fe936ebc1f509a06a65f4564bb7a03b51c91fa4598d45f1702253b254"
     },
     {
       "path": "docs/MATCH_FPS_OPTIMIZATION.md",
@@ -360,13 +425,28 @@
     },
     {
       "path": "docs/PLAYER_ASSETS.md",
-      "bytes": 11583,
-      "sha256": "3c5b0d5b9bb380b16d2a58f2c5317c6e479e62f996c86354d213ec710d241541"
+      "bytes": 12247,
+      "sha256": "a5d91c608b0f956e0349b4954c9d202f0ec588c9d1c6a2c982cce34df62c4af3"
     },
     {
       "path": "docs/PLAYER_MODEL.md",
       "bytes": 7677,
       "sha256": "1587b1bbc183156f35ca96bd72b0ca2a23ec528ddbdd51e05fdf5c3c6f5bb9db"
+    },
+    {
+      "path": "docs/ROLE_SEASON_ROTATION.md",
+      "bytes": 7178,
+      "sha256": "9bf417f708461466faeed48ab8d56f567bf39fd37779a57181cfbe86f301f2ba"
+    },
+    {
+      "path": "docs/SPECIALIST_KICK_PHYSICS.md",
+      "bytes": 3776,
+      "sha256": "f1ccb6d2c7beba908ab68497d5155e87793d2a0a01c75b378b0fdb10bcec9e43"
+    },
+    {
+      "path": "docs/UNIFIED_LEAGUE_FIXTURES.md",
+      "bytes": 4990,
+      "sha256": "967bb34e4835e54b62addf6f7bafa97338f14db0926978a9d4d539d5eaa0b210"
     },
     {
       "path": "docs/previews/character-failure-match-invalid-final.png",
@@ -599,6 +679,11 @@
       "sha256": "bbcd74425fc5d668b24532260938e78b192b1988ef768b707764dde02a72fb2c"
     },
     {
+      "path": "docs/validation/baselines/character-physics-stage14.json",
+      "bytes": 2779,
+      "sha256": "c57568971f7fb906760cbb47b3627233cc6af2afb8bd8df7928351f9093d7807"
+    },
+    {
       "path": "docs/validation/baselines/licensed-character-rig-6ddd4f1.js.gz",
       "bytes": 5214,
       "sha256": "9e221162abc872cef1c4dbc0f41c2fdbadc2ac9350b89a8fdb43e6d7c866f370"
@@ -667,11 +752,6 @@
       "path": "docs/validation/character-deformation.json",
       "bytes": 1371790,
       "sha256": "7610c0ea6a23e0596a3231300d20804715d9d82573c8191c179df75e28afa4ca"
-    },
-    {
-      "path": "docs/validation/character-physics.json",
-      "bytes": 2779,
-      "sha256": "c57568971f7fb906760cbb47b3627233cc6af2afb8bd8df7928351f9093d7807"
     },
     {
       "path": "docs/validation/character-tests.json",
@@ -797,6 +877,16 @@
       "path": "docs/validation/match-laws-tests.json",
       "bytes": 5317,
       "sha256": "65547a083ad1f99b418c459cf3d2eda986ac5b6dacaced510d8feb2ff06b4504"
+    },
+    {
+      "path": "docs/validation/measurements/engine-baseline-2026-11-21.json",
+      "bytes": 2840,
+      "sha256": "df45a46019602ef44323d7a98c58b07618f81ebf383abdd4cdb3b10714b45fd3"
+    },
+    {
+      "path": "docs/validation/measurements/engine-baseline-2026-11-22.json",
+      "bytes": 4693,
+      "sha256": "364eea9fd21717629e38d8eaaf8c0e63776371010ec23a1ea7377bbf39bb7ac1"
     },
     {
       "path": "docs/validation/pass-arrival-browser.json",
@@ -1045,13 +1135,13 @@
     },
     {
       "path": "economy.py",
-      "bytes": 43202,
-      "sha256": "4b58cf0b1ecff0330146e97e8c510289d6defa87e1e9989601ff77b3580be7ca"
+      "bytes": 44931,
+      "sha256": "61a4ebf8724a5782cb6ea5273e85a3e4159284696bee571b3ca3965ec982c816"
     },
     {
       "path": "football-sim.js",
-      "bytes": 206176,
-      "sha256": "593d6e80f3d4eadbe85f8969d3778773be617c4b3c0fdf65825125b3c62551ba"
+      "bytes": 220681,
+      "sha256": "f076b3cb26b09a0bf47d55861e8ab1119a2ace24ec73f92e02991a90531f08d5"
     },
     {
       "path": "gltf-asset-loader.mjs",
@@ -1095,18 +1185,18 @@
     },
     {
       "path": "league.css",
-      "bytes": 6070,
-      "sha256": "46bc4c5e6743519f30e2f507ba50783298b4c94f2c5b251bb67537a952b67d22"
+      "bytes": 7052,
+      "sha256": "ba19f4aeb54ca5b4e32e4454ed761a16299157b35bf03831b530b8299570ca8d"
     },
     {
       "path": "league.html",
-      "bytes": 6868,
-      "sha256": "7b8bfc049cabd47f44529addcff9ff629daaa8f5bdc1a31214657a2d70446eb6"
+      "bytes": 7172,
+      "sha256": "a81005d46351db62733c53a09606b0e628969a93cf2c3501769e2397da765acf"
     },
     {
       "path": "league.js",
-      "bytes": 7623,
-      "sha256": "a620c7f087c596c405dbed89a9b763c08a9a50ffa25d328bcde9140293285793"
+      "bytes": 8931,
+      "sha256": "72f4bc4d8431b635eacbffc7bd8769405f7310bbb3440988437d444afd0d1aa9"
     },
     {
       "path": "live-match-client.js",
@@ -1120,13 +1210,13 @@
     },
     {
       "path": "live-match-worker.cjs",
-      "bytes": 4997,
-      "sha256": "c2a3d5be72197ae6db2b7fc736d8c36bc30326e34ac6c39ba966105389663523"
+      "bytes": 5217,
+      "sha256": "a9e5b3265bd0172d89118933620d8ae2a464e60de442d9b926377df84cc78001"
     },
     {
       "path": "live_match.py",
-      "bytes": 12653,
-      "sha256": "ab7ba2c99b2ae9d6824a2defed5e7c30adede919ce7822fac3e20ce26c94e1e1"
+      "bytes": 15528,
+      "sha256": "6e129d60dafb396182dc13e78867819df8cc243939c958f82fbc5cf6610f02ff"
     },
     {
       "path": "manager-kick-aim.js",
@@ -1154,9 +1244,19 @@
       "sha256": "27ca9afe75a798482a5c3fa7b814e31d456e901726a061674f0a15e3710d4fec"
     },
     {
+      "path": "match-clip-pilot.mjs",
+      "bytes": 6149,
+      "sha256": "4125dfe3efa8471b722bd0b5804b46b004974e37862a6c1df45922434b6b8050"
+    },
+    {
       "path": "match-config.js",
-      "bytes": 6524,
-      "sha256": "00039cebe0666754c96ec2573f9254c577a0a57354b79f689788232794b36a72"
+      "bytes": 7603,
+      "sha256": "3baacb65663518834bfbb1078b04eb090bbda00c31941ec208e167050f41bb70"
+    },
+    {
+      "path": "match-contact-pilot.js",
+      "bytes": 4127,
+      "sha256": "2dbd8b0f989ca83f83e18a1d8114533060534fe763252e6772b2ac311d3f84a7"
     },
     {
       "path": "match-rules.js",
@@ -1165,8 +1265,8 @@
     },
     {
       "path": "match.html",
-      "bytes": 10128,
-      "sha256": "65da5080a553390bcda6df85bc18521612a01028a992996b8eff7c82083e10a4"
+      "bytes": 10357,
+      "sha256": "95c35717b67c3309d73b670bea2711ddfb76982cffba84e078bef3e539e5300d"
     },
     {
       "path": "match3d.css",
@@ -1175,8 +1275,8 @@
     },
     {
       "path": "match3d.js",
-      "bytes": 25820,
-      "sha256": "640461f095c24af6af716cc7e1d9d25dd5f199d086be8adb03691fe7d22a7d5c"
+      "bytes": 26874,
+      "sha256": "ecfb27adc58041b3f9d138828d9f5c1c962e4625d09c2e81aa7c2dbfe58b5a12"
     },
     {
       "path": "package-lock.json",
@@ -1185,8 +1285,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 6525,
-      "sha256": "0609d060be64174b906429997becc4a21345c797459f7ec5fe19f4651e62493b"
+      "bytes": 5947,
+      "sha256": "903f1017be58726620f19bbd2c12e606582f49c8ba20682b9b448170928e26c3"
     },
     {
       "path": "pitch-laws.js",
@@ -1210,8 +1310,8 @@
     },
     {
       "path": "player-model.js",
-      "bytes": 5693,
-      "sha256": "feaebc2b6c3db3f82fe1e75d6e239b307b8d2b0b3a3f3928443998b4556a5054"
+      "bytes": 8203,
+      "sha256": "31099cc9bab2218387f1e2d4781e74a9254334ea66a86cedc610cd5087d8e643"
     },
     {
       "path": "player-perception.js",
@@ -1225,8 +1325,8 @@
     },
     {
       "path": "player-renderer.js",
-      "bytes": 25059,
-      "sha256": "b885b31fcc997d5eb2117f681335ba792eb2688df156f38d328c385b15563e9e"
+      "bytes": 25069,
+      "sha256": "7379e5dfa41193835a0c4ec5c511a9fe02f53e2b1f9e9d7754874577ac54e55a"
     },
     {
       "path": "player-skinning.js",
@@ -1260,8 +1360,8 @@
     },
     {
       "path": "referee-laws.js",
-      "bytes": 1239,
-      "sha256": "e5e5d3694f9da9f65054f07030a0beb06149d33c16abf25b8a51616ffe31ab87"
+      "bytes": 4451,
+      "sha256": "685cfe3248cbfdb6f50949a1241673a6e0ef6d6aac029f66ac72228264453b8e"
     },
     {
       "path": "requirements-player-assets.txt",
@@ -1270,13 +1370,18 @@
     },
     {
       "path": "scene3d.js",
-      "bytes": 25535,
-      "sha256": "e58d55ab43d82f19e433ffeb38cec81c3b249b5f8cbeba2bb81351c012530f11"
+      "bytes": 25886,
+      "sha256": "766b84104a1a770cf6f22336ec29b71174d6d95b00cdc58038354788619f0753"
+    },
+    {
+      "path": "season_state.py",
+      "bytes": 7948,
+      "sha256": "2f89218296db69b7e3315d90720aecebb63efdb5879711883675f6d5f8df670d"
     },
     {
       "path": "server.py",
-      "bytes": 24320,
-      "sha256": "4239cc61680d1aeb18d3c64851cb211e5373017d0426b909937576828d6dcc84"
+      "bytes": 31587,
+      "sha256": "143b77853a03803f48dab6ea4ac222a13f189c348af2e65d4c3123f7b0631467"
     },
     {
       "path": "start.py",
@@ -1325,13 +1430,23 @@
     },
     {
       "path": "test_all.sh",
-      "bytes": 1142,
-      "sha256": "d7c90b76a7ef5c91976de1eef1b791acc06e795fe6400f34be8f9df14bfcbdf9"
+      "bytes": 193,
+      "sha256": "b0717e407005ecbf8977ce072bba2a8169e271c0ac40fbd51fe47beb08d04df4"
+    },
+    {
+      "path": "tests/aerial-keeper-law-boundaries.test.cjs",
+      "bytes": 10623,
+      "sha256": "76fd32d933f4cbd7bf3a0c7d5e1a9a8b7ca6dd7eb21a8155a3af839df2dc9800"
     },
     {
       "path": "tests/attack-analysis-ui.test.cjs",
       "bytes": 5190,
       "sha256": "ec044ad43f3ec4a3114f41e57a5b3d4211f067dae5ba5485c7573e48d5beaf68"
+    },
+    {
+      "path": "tests/attack-breakpoint.test.cjs",
+      "bytes": 2638,
+      "sha256": "19a59ee17193115020ac9b8d075c866b1e3b0fe995adcb5169e65901d54c33a6"
     },
     {
       "path": "tests/attack-diagnostics-integration.test.cjs",
@@ -1410,18 +1525,38 @@
     },
     {
       "path": "tests/fixture-roster.test.cjs",
-      "bytes": 13160,
-      "sha256": "a3d38b5eab5d9974f02968b4666257adb15eaa850a535f68a89046e0451e9398"
+      "bytes": 14042,
+      "sha256": "4825b132ae3d1e8b601073d24658ab8eb2d9a0d9b6244a61bc14a6e8d9350480"
+    },
+    {
+      "path": "tests/fixture-watch-parity.test.cjs",
+      "bytes": 3140,
+      "sha256": "69c3448db6a8779889889fff358a5b1c268f6783d745c18f22f728ce0ffc1286"
     },
     {
       "path": "tests/gltf-blender-fixture.test.cjs",
-      "bytes": 17665,
-      "sha256": "1ac55024f91f001eebaf39ac24d02d0587a053011af088f604fb1cbe57cc62c5"
+      "bytes": 18764,
+      "sha256": "69f8f067363c0307bae5e767c70a772bfa94a6833dbae2ffaec89da3f28c4c3e"
     },
     {
       "path": "tests/gltf-vendor.test.cjs",
       "bytes": 1953,
       "sha256": "5cfefeb978ca5dea2ab9ead7d8e0b8d45036904f7d9231aca7491aa1629790d6"
+    },
+    {
+      "path": "tests/kick-skill-parity.test.cjs",
+      "bytes": 2372,
+      "sha256": "27c77d7e5d8c58eac146df3275e0f6a384c8e9c34a708c7267d9f81551908c52"
+    },
+    {
+      "path": "tests/league-rotation-ui.test.cjs",
+      "bytes": 3158,
+      "sha256": "d16cda388a64548a819068b5dbf55e233d00a1dcaa168fcce4b5838fac2d08e5"
+    },
+    {
+      "path": "tests/live-contact-animation-pilot.test.cjs",
+      "bytes": 5177,
+      "sha256": "2dca8f5d2628e3dea7740862b99dc0c74c9df5d1a6293e7a7682d480ea690d2c"
     },
     {
       "path": "tests/live-match-browser.cjs",
@@ -1430,8 +1565,8 @@
     },
     {
       "path": "tests/live-match-worker.test.cjs",
-      "bytes": 6723,
-      "sha256": "03a8a4579e9da48e7b5dcbb01b757e7342bec6cb8af0701621878983ab64ccf7"
+      "bytes": 7124,
+      "sha256": "bca16ddc5743b3bb305adbf9e70d83172dba5205553f398344403ed66dc39c08"
     },
     {
       "path": "tests/manager-kick-browser.cjs",
@@ -1455,8 +1590,8 @@
     },
     {
       "path": "tests/match-laws-integration.test.cjs",
-      "bytes": 11710,
-      "sha256": "451280e55e578e37af6299759b95d4b7c31389f8576c1f53687a05207f9d6395"
+      "bytes": 13408,
+      "sha256": "72dac944c621e1f2887b45ad165afea1c3f061854b34131ea6f18e2d1119bea7"
     },
     {
       "path": "tests/match-rules.test.cjs",
@@ -1539,6 +1674,11 @@
       "sha256": "fe0cd711214bcc159637fb6849eede992878bc583b72b75e7d53c7d460d864b6"
     },
     {
+      "path": "tests/role-behavior-season.test.cjs",
+      "bytes": 5741,
+      "sha256": "5a55118416739df08691244ca0f6c54685cd55e4dc75c66ac647042a3a16f4b9"
+    },
+    {
       "path": "tests/scan-presentation.test.cjs",
       "bytes": 4305,
       "sha256": "b755c6e01d548f1bfdd94e34428a02a5fe2ad472476cf8323eb2d0a45fb233ce"
@@ -1575,18 +1715,28 @@
     },
     {
       "path": "tests/test_live_match.py",
-      "bytes": 8017,
-      "sha256": "0551b6600369d185811d5a7d4c2b6e34c57625e0e6169676a4789e60186cac0b"
+      "bytes": 9631,
+      "sha256": "6d4667f07e33edcfb3d134a6a37ec8ea26fd859738dce15f3e09d1aeaa31a181"
     },
     {
       "path": "tests/test_player_assets.py",
-      "bytes": 10558,
-      "sha256": "8903fe7f81629b3457a9f3954eba02edb8dae35bcec3d90d8d300bb6336f1a6a"
+      "bytes": 12657,
+      "sha256": "34795afc70360a9219cc518e826b6aa5d8c7ff28e0e2648b949e8da48cef61f7"
     },
     {
       "path": "tests/test_player_model.py",
       "bytes": 9872,
       "sha256": "9fe25db75526d0035002056f50274adf7cf1ad0192dc7e0c87d6ceb7f2c5d39f"
+    },
+    {
+      "path": "tests/test_season_rotation.py",
+      "bytes": 13880,
+      "sha256": "ec757bb71598dc3312d5d2d4d5b995c1b55d73f8ce059c1c586b47f1196cd1fd"
+    },
+    {
+      "path": "tests/test_unified_fixtures.py",
+      "bytes": 11042,
+      "sha256": "4c4e48ece78481779b5f1985fd37356324c62e7f145bfcd028f630351d2f7b0a"
     },
     {
       "path": "tests/touch-feasibility.test.cjs",
@@ -1597,6 +1747,11 @@
       "path": "tools/bake-licensed-clips.cjs",
       "bytes": 9339,
       "sha256": "65e5ae035eefa3b91604bf6fb11953688d4bac8ae1ff43c75d3fc9e12cfc2122"
+    },
+    {
+      "path": "tools/benchmark-live-contact-pilot.cjs",
+      "bytes": 5681,
+      "sha256": "ae2543508f4a862dd5cfa8dd35a483f6e8d8ffa5fff13de453c3a4106061840f"
     },
     {
       "path": "tools/benchmark-match-22-browser.cjs",
@@ -1610,8 +1765,8 @@
     },
     {
       "path": "tools/build-player-assets.py",
-      "bytes": 41382,
-      "sha256": "f6df3a40b953c4805cb2d1e781c9bd3f5c4f09fdcbd890060581ad92145e76ac"
+      "bytes": 41649,
+      "sha256": "168db701bdef65555799ec18ad933ba448bc5d4d134786e4a88ac013332f3048"
     },
     {
       "path": "tools/character-animation-baker.cjs",
@@ -1625,8 +1780,8 @@
     },
     {
       "path": "tools/check-attacking-coverage.cjs",
-      "bytes": 16242,
-      "sha256": "34d03f781cb7986688a208e1f820f85b49294fa3d3063b5e2188ef40134d9eab"
+      "bytes": 16796,
+      "sha256": "051f5c7195dd58dd1f75e82674d19949d365ac203836c5d69da90a7a5c4ea184"
     },
     {
       "path": "tools/check-character-browser.cjs",
@@ -1645,8 +1800,8 @@
     },
     {
       "path": "tools/check-character-physics.cjs",
-      "bytes": 3426,
-      "sha256": "69700dc8f808e1a693104a31115246d8d8b7c7ee10545bf8bcc36c07010538b9"
+      "bytes": 6771,
+      "sha256": "bb460826c3729f2111f879ed33f05c2f5ddf2915ec97aeb1ba6c5289635f08db"
     },
     {
       "path": "tools/check-character-tests.py",
@@ -1739,9 +1894,29 @@
       "sha256": "2081d35d195b86ee1526d7dee154cb5fb6ccd0d570287cbf845ba1cf8783d088"
     },
     {
+      "path": "tools/compare-specialist-kicks.cjs",
+      "bytes": 8027,
+      "sha256": "5019f0d012219b2fbd70137a2e83f7d76bf52dc616454368fc71fbb947acf266"
+    },
+    {
       "path": "tools/export-character-glb.cjs",
       "bytes": 9175,
       "sha256": "c49cefe7030186cd2672ac5da9108fad07d4d8243c9a30bb8a0c569d90e3e2b5"
+    },
+    {
+      "path": "tools/find-live-match-fixture.cjs",
+      "bytes": 1901,
+      "sha256": "1bbe47871d787a9af958d4d9892ae76d0b293d7a0c7297763d36819ea7085c9f"
+    },
+    {
+      "path": "tools/probe-live-offers.cjs",
+      "bytes": 1007,
+      "sha256": "3dbec8edd3bba38dbdf21d82caa2887985e3012b2da30113fc26790394e5dc5c"
+    },
+    {
+      "path": "tools/profile-aerial-keeper-rules.cjs",
+      "bytes": 2941,
+      "sha256": "0a0af6646e78a8d318f2eb60fa1af335a0335bce8266026b9eacb6c69fb26b33"
     },
     {
       "path": "tools/profile-attack-chain.cjs",
@@ -1752,6 +1927,11 @@
       "path": "tools/profile-control-exit.cjs",
       "bytes": 27729,
       "sha256": "13bf3af5ecf7f6cfa852a813633a12871be850433b51098fd1374fb973d16d4a"
+    },
+    {
+      "path": "tools/profile-current-attack-chain.cjs",
+      "bytes": 6479,
+      "sha256": "bf87d3e25ec38ffa39e79f6d02bb5ac2702365903a841c22d1aca3ca93ff3b85"
     },
     {
       "path": "tools/profile-first-control.cjs",
@@ -1819,14 +1999,19 @@
       "sha256": "3411896651dc8e4def417ddf0b38a7db4ad1d0e286c8387a275d295129a36286"
     },
     {
+      "path": "tools/verify-player-asset-rebuild.py",
+      "bytes": 8669,
+      "sha256": "e45b2cb1033c96f51ac2bf6d8b9802b792cd3b21d5a271d1dac06fb1d62c3b3b"
+    },
+    {
       "path": "transfer-client.js",
-      "bytes": 3930,
-      "sha256": "403615be8ca1b51e4c4246ab23c5b9a5b3fc7827b46d8afc9f3f645326e81b44"
+      "bytes": 3977,
+      "sha256": "adff4d5f36d281d4a610da1b59408ed2103f8717cb9b61994a45d6da79e232a0"
     },
     {
       "path": "transfers-page.js",
-      "bytes": 19925,
-      "sha256": "6be31b426e8b5b5eecc6ca05710a2f9b9176f5dfff6ebe61bca79453d52248c8"
+      "bytes": 19916,
+      "sha256": "385692f1ba60de6609daa66579616e3d73c776f72911c5abc54488fbb34c0111"
     },
     {
       "path": "transfers.css",

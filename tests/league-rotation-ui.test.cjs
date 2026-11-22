@@ -26,7 +26,7 @@ test('league screen exposes a usable, escaped and mobile-readable rotation list'
  vm.createContext(context);vm.runInContext(code,context,{filename:'league.js'});
  const data={code:'ABC123',my_club:'Kulüp',manager:'Menajer',my_slot:0,
   my_formation:'4-3-3',my_tactics:{press:60,aggression:50},
-  standings:[],teams:[],recent:[],active:[],next_kickoff:null,
+  standings:[],teams:[],recent:[],active:[],next_kickoff:null,my_rotation_source:'league-demo',
   my_rotation:[{name:'<script>bad</script>',position:'DM',fitness:68,minutes:180,
     yellows:5,reds:1,suspended:true},{name:'Benç',position:'AM',
     fitness:97,minutes:0,suspended:false}]};
@@ -43,4 +43,10 @@ test('league screen exposes a usable, escaped and mobile-readable rotation list'
  assert.match(htmlRows,/97%/);
  assert.match(get('tacticInfo').textContent,/Cezalı 1/);
  assert.match(get('tacticInfo').textContent,/Ortalama kondisyon %83/);
+ assert.match(get('rotationCaption').textContent,/otomatik hazırlanır/);
+ vm.runInContext(`data.my_rotation_source='linked-roster';render();`,context);
+ assert.match(get('rotationCaption').textContent,/ilk 11’ini bağlı kadro ekranında/);
+ vm.runInContext(`data.my_match={round:0,kickoff:0,home_score:null,watch_blocked:'Önceki maç tamamlanıyor.'};timer();`,context);
+ assert.equal(get('watchLive').hidden,true);
+ assert.equal(get('matchInfo').textContent,'Önceki maç tamamlanıyor.');
 });

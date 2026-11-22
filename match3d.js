@@ -7,7 +7,9 @@ function config(){if(window.MATCH_CFG)return window.MATCH_CFG;let explicit=null,
 
 function label(id,text,name){const el=$(id);if(window.TribunUI){el.innerHTML=(name?window.TribunUI.icon(name):'')+'<span>'+text+'</span>';el.setAttribute('aria-label',text);}else el.textContent=text;}
 const cfg=config(),scene=new Stadium3D($('stadiumCanvas'));
-const liveRound=new URLSearchParams(location.search).get('live');
+const query=new URLSearchParams(location.search),liveRound=query.get('live');
+const pilotRequested=query.get('pilot')==='1';
+let pilotError=null;
 let game,attackObserver,attackView,paused=false,speed=1,accumulator=0,lastMetric=-1,lastMetricWall=0,simOverloadFrames=0,shownFinish=false,overlayTime=0,lastFrameCost=null;
 let kickPanel,kickAim,visibleKick=null,kickStage=0,kickFollow=null;
 let live,liveSide=0,liveKickSending=false;
@@ -183,6 +185,13 @@ const crowd={ctx:null,gain:null,enabled:false,ready(){
 },toggle(){this.ready();if(!this.ctx)return false;this.enabled=!this.enabled;this.ctx.resume();this.gain.gain.setTargetAtTime(this.enabled?.12:0,this.ctx.currentTime,.2);return this.enabled;},react(type){if(!this.enabled)return;const t=this.ctx.currentTime,g=this.gain.gain;g.cancelScheduledValues(t);g.setTargetAtTime(type==='goal'?.5:type==='save'?.3:.23,t,.12);g.setTargetAtTime(.12,t+(type==='goal'?2.7:1.0),.7);},whistle(){if(!this.enabled)return;const c=this.ctx,o=c.createOscillator(),g=c.createGain(),t=c.currentTime;o.frequency.value=2350;o.connect(g);g.connect(c.destination);g.gain.setValueAtTime(.018,t);g.gain.exponentialRampToValueAtTime(.0001,t+.16);o.start(t);o.stop(t+.18);}
 };
 window.addEventListener('DOMContentLoaded',()=>{
+ if(pilotRequested){
+  if(scene.gl){
+   import('./match-clip-pilot.mjs')
+    .then(()=>{scene.matchPilot=window.TribunLiveClipPilot.create({playerId:0});})
+    .catch(error=>{pilotError=String(error.message||error);});
+  }else pilotError='WebGL kullanılamıyor.';
+ }
  kickPanel=new window.TribunManagerKickPanel($('managerKickPanel'),{
   onChange(opportunity,input,stage){
    if(opportunity.id!==visibleKick?.id)return;
@@ -231,8 +240,6 @@ window.addEventListener('DOMContentLoaded',()=>{
     game.sample(now,stopped?0:dt);
     if(overlayTime>0&&(overlayTime-=dt)<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}
    }
-   if(!scene.matchPilot&&window.TribunLiveClipPilot&&new URLSearchParams(location.search).get('pilot')==='1')
-    scene.matchPilot=window.TribunLiveClipPilot.create({playerId:0});
    scene.matchPilot?.observe(game,stopped?0:dt);
    let drawMs=0;
    if(!stopped||now-lastPauseDraw>=120){
@@ -281,7 +288,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   window.TribunMatchConfig.prepare(cfg).then(value=>{Object.assign(cfg,value);controls.forEach(b=>b.disabled=false);if(!scene.gl)$('rigButton').disabled=true;start();}).catch(()=>{$('sessionTitle').textContent='KADRO BAĞLANTISI KURULAMADI · SAYFAYI YENİLE';});
  }else start();
 });
-window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||{status:'not-loaded'},ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
+window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||(pilotError?{status:'fallback',reason:pilotError}:{status:pilotRequested?'loading':'not-loaded'}),ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
  renderProbe:()=>{const b=game.ball,start=performance.now();scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);if(scene.gl)scene.gl.finish();return {cpuGpuMs:performance.now()-start,active:game.players.filter(p=>p.active&&!p.referee).length,bridge:scene.animationStats(),webgl:!!scene.gl};},
  advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();

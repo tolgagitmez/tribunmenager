@@ -4,17 +4,15 @@ Yerel futbol simülasyonu için **Python 3.10 veya üzeri** ve güncel Chrome, E
 
 ## 1. Oyunu indir
 
-Menajer vuruşlarını ve canlı ligi içeren sürüm `codex/manager-kick-control` dalındadır.
+Güncel oyun `main` dalındadır.
 
-- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/manager-kick-control.zip), ZIP'i çıkar ve içindeki klasörü aç.
+- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/main.zip), ZIP'i çıkar ve içindeki klasörü aç.
 - Git kullanıyorsan:
 
 ```sh
-git clone --branch codex/manager-kick-control https://github.com/tolgagitmez/tribunmenager.git
+git clone https://github.com/tolgagitmez/tribunmenager.git
 cd tribunmenager
 ```
-
-`main` önceki geliştirme aşamalarını içerir. [Dal karşılaştırması](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/manager-kick-control).
 
 ## 2. Python'u kontrol et
 
@@ -100,7 +98,7 @@ Maç sunucuda devam eder. İzlerken kendi takımının vuruşlarını seçebilir
 | Görüntü 2D açılıyor | Tarayıcının donanım hızlandırmasını/WebGL desteğini kontrol et. 2D yedek görünümle maç devam edebilir. |
 | Model paneli yedek veya geçersiz model gösteriyor | Ayrıntıları aç; eksik dosya yolunu veya veri alanını kontrol et. ZIP'i tamamen çıkartıp `assets/player/` klasörüyle birlikte başlat. Model dosyasını tek başına başka sürümden kopyalama. |
 | Doku veya shader hatası görünüyor | Paneldeki teknik ayrıntıyı kaydet. Doku hatasında belirtilen PNG'nin pakette olduğunu, grafik hatasında tarayıcı/WebGL desteğini kontrol et. Maç yedek çizimle sürebilir. |
-| Eski transfer hesabı yerel maç başlangıcını engelliyor | Önce aynı tarayıcıdaki veriyi dışa aktar/yedekle; deneme için ayrı bir tarayıcı profili aç. Kayıtlarını silmek zorunda değilsin. |
+| Transfer sunucusu tam modda geçici olarak kapalı | Tam modda kadro yenilemesi başarısızsa bağlantıyı kontrol et. Hazırlık maçı için `python3 start.py --mode local` ile yerel kadroyu kullanabilirsin. |
 
 ## Standart model aktarımı
 
@@ -116,6 +114,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 python3 -m pip install -r requirements-player-assets.txt
 npm run test:stage15
+npm run test:engine-invariance
 npm run test:manager-kick
 npm run test:live-match
 ```
