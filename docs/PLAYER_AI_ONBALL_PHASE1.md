@@ -16,6 +16,10 @@ Maç motorunda daha önce dripling, çalım, top saklama ve ara pas fonksiyonlar
 
 Çalım, dikine dripling ve sırtı dönük oyun kararları maç olaylarına bağlandı. Dikine sürüş ve top saklamada oyuncu başına altı saniyelik anlatım aralığı uygulanır. Telemetride signatureDrives ve holdUpPlays yalnızca karar sayacı; başarıyla adam geçildiği anlamına gelmez. Mevcut top hareketi ve animasyon korunur; bu adım yeni motion-capture klipleri, tam fiziksel sırt dayama veya FIFA kalitesinde animasyon sunmaz.
 
+## Etkinleştirme ve eski maçlarla uyumluluk
+
+Oyuncu bazlı kararlar verilen (gerçek/dışarıdan hazırlanan) kadrolarda otomatik etkindir. Yerel 3D maç arayüzü özelliği varsayılan olarak açar. Önceki örnek oyuncularla hiçbir kadro belirtilmeden çalışan düşük seviye fizik/otoriter canlı maç testleri için eski deterministik karar sırası korunur; `individualAI:true` açıkça bunu değiştirebilir. Sunucu tarafı gerçek kadrolar da otomatik dahil edilir. `individualAI:false` geçici uyumluluk seçeneğidir.
+
 ## Test ve doğrulama
 
 Player-brain testleri oyuncu profilleri arası karar farkını, fiziksel durum ve güvenli pas önceliğini, iki gerçek Match.choose() senaryosunu ve kısa pas taktiğinde hazırlanmış ara koşuyu doğrular. Pull request iş akışında JavaScript sözdizimi ve mevcut kadro/pas/takım niyeti testleri de çalışır. Henüz çok tohumlu uzun maç dengesi, WebGL piksel gözlemi veya performans profili doğrulanmış sayılmaz.
