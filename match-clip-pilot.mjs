@@ -66,7 +66,7 @@ function create({playerId=0}={}){
   let result=raw;
   // Keep the procedural shoulder fake and shield pose on the selected pilot.
   // A generic imported run clip would otherwise overwrite those upper joints.
-  if(status==='ready'&&!(proxy.feintClock>0||proxy.brainRole==='shield')){
+  if(status==='ready'&&!(proxy.feintClock>0||proxy.brainRole==='shield'||proxy.feintResponseClock>0||proxy.wallPassClock>0)){
    try{
     const name=proxy.actionClock>0&&['shoot','pass'].includes(proxy.action)?'shoot':(proxy.speed||0)>.45?'run':'idle';
     const clip=select(name);
