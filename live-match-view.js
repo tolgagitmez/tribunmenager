@@ -53,7 +53,7 @@ class LiveMatchView {
    // Server skill clocks are sampled at network intervals. Extrapolate for
    // presentation only between packets; authoritative snapshot is unchanged.
    const age=clamp((now-this.arrived)/1000,0,.4);
-   for(const clock of ['feintClock','footTouch']){
+   for(const clock of ['feintClock','footTouch','feintResponseClock','wallPassClock']){
     if(Number.isFinite(target[clock]))display[clock]=Math.max(0,target[clock]-age);
    }
    if(display.active)window.TribunHumanoidRig.update(display,dt);
