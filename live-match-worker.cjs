@@ -17,7 +17,8 @@ const playerFields = [
   'kickFoot', 'kickMoving', 'contactTime', 'footTouch', 'touchPosition',
   'dribbleFoot', 'diveSide', 'diveForward', 'diveContactTime', 'saveTarget',
   'catchPoint', 'gatherStart', 'headerHeight', 'personality', 'feintClock',
-  'feintSign', 'receiveClock', 'receiveMode', 'holdingBall'
+  'feintSign', 'receiveClock', 'receiveMode', 'holdingBall',
+  'brainRole', 'touchMode', 'shieldFace'
 ];
 const matchFields = [
   'time', 'duration', 'score', 'cards', 'reds', 'shots', 'onTarget', 'fouls',
