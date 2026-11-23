@@ -828,7 +828,7 @@ class Match{
   const moving=!this.restart&&!restartContext&&kind!=='throw'&&turn<1.45&&Math.hypot(p.vx,p.vz)>.8;
   const wallPass=this.playerBrainEnabled(p)&&oneTouch&&!!target&&!!this.giveGoLink(p,target);
   this.kick={p,kind,target,point:{...aim},clock:0,duration,powerOverride,moving,oneTouch,wallPass,restartContext,approach:{vx:p.vx,vz:p.vz},setupImpulse:false};
-  if(wallPass){p.wallPassClock=duration+.22;p.wallPassFoot=p.kickFoot;}if(target&&['through','cross','cutback'].includes(kind)){target.runIntent={...(target.runIntent?.until>this.time?target.runIntent:{}),point:{...aim},until:this.time+3};}this.phase='windup';this.owner=p;
+  p.wallPassClock=wallPass?duration+.22:0;if(wallPass)p.wallPassFoot=p.kickFoot;if(target&&['through','cross','cutback'].includes(kind)){target.runIntent={...(target.runIntent?.until>this.time?target.runIntent:{}),point:{...aim},until:this.time+3};}this.phase='windup';this.owner=p;
   if(managerControl)this.kick.managerControl=managerControl;
   if(kind==='pass'&&target&&!restartContext&&!oneTouch&&duration>=.30&&(p.passReviewUntil||0)<=this.time){const speed=this.passSpeed(kind,dist(this.ball,aim),this.t[p.team]);this.kick.passRead={base:this.laneRisk(p,aim,speed,kind),next:.04,badSince:null,motionAt:this.time,motion:new Map(this.rivals(p).map(d=>[d.id,{vx:d.vx,vz:d.vz,ax:0,az:0,seenAt:d.seenAt??this.time}]))};}
   this.action(p,kind==='throw'?'throw':kind==='shot'?'shoot':'pass',duration+.22);p.contactTime=duration;p.kickMoving=moving;return true;
