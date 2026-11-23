@@ -38,7 +38,7 @@ function shouldDrive(p,carry,pass,{forward=1,pressure=10,carryTime=0,goalDistanc
  if(p?.role==='DEF'&&!['LWB','RWB','LB','RB'].includes(p.position))return false;
  const control=.46*stat(p,'dribbling')+.30*stat(p,'agility')+.24*stat(p,'acceleration');
  const gain=advance(p,carry.point,forward),bestGain=pass?.point?advance(p,pass.point,forward):0;
- if(control<83||stat(p,'dribbling')<81||stat(p,'energy',100)<.45*100)return false;
+ if(control<83||stat(p,'dribbling')<81||(Number.isFinite(p.energy)?p.energy:1)<.45)return false;
  if(pressure<2.4||pressure>9.5||carry.clearance<2.1||gain<2.6||goalDistance<13||carryTime>1.35)return false;
  if(pass?.kind==='through'&&pass.risk<.55)return false;
  // Do not overlook a clearly available, useful and physically safe pass.
@@ -47,14 +47,14 @@ function shouldDrive(p,carry,pass,{forward=1,pressure=10,carryTime=0,goalDistanc
 }
 function canFeint(p,defender,{pressure=10}={}){
  if(!defender||p?.role==='GK'||pressure<1.25||pressure>3.35)return false;
- if(stat(p,'dribbling')<82||stat(p,'agility')<78||stat(p,'energy',100)<43)return false;
+ if(stat(p,'dribbling')<82||stat(p,'agility')<78||(Number.isFinite(p.energy)?p.energy:1)<.43)return false;
  const technique=.60*stat(p,'dribbling')+.40*stat(p,'agility');
  const defensiveRead=.65*stat(defender,'tackling')+.35*stat(defender,'composure');
  return technique-defensiveRead>=-13;
 }
 function canHoldUp(p,defender,pass,{forward=1,pressure=10}={}){
  if(!defender||p?.role!=='ATT'||!['ST','CF'].includes(p.position)&&p.archetype!=='targetForward')return false;
- if(stat(p,'strength')<80||stat(p,'balance')<76||stat(p,'composure')<71||stat(p,'energy',100)<38)return false;
+ if(stat(p,'strength')<80||stat(p,'balance')<76||stat(p,'composure')<71||(Number.isFinite(p.energy)?p.energy:1)<.38)return false;
  if(pressure<1.15||pressure>3.25)return false;
  // Body points towards midfield while a real defender protects the goal side.
  if(Math.cos(p.face)*forward>-.20||(defender.x-p.x)*forward<-.7)return false;
