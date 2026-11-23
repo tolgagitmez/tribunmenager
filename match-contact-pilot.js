@@ -6,6 +6,33 @@ const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 const wrap=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 const supportHeight=.13,stepSeconds=.14,stepLift=.10;
 const releaseKinds=new Set(['shot','pass','through','cutback','cross','long-pass']);
+const groundPasses=new Set(['pass','through','cutback']);
+const receptionRadius=1.10,preparationTime=.18,recoveryTime=.16;
+const smooth=t=>t*t*(3-2*t);
+
+function prepareReceive(match,p){
+ const {ball,flight}=match;
+ if(!ball||!flight||!groundPasses.has(flight.kind)||(flight.target?.id??flight.targetId)!==p.id||p.role==='GK')return null;
+ const passer=flight.from??match.players.find(x=>x.id===flight.fromId);
+ if(!passer||passer.team!==p.team||passer.id===p.id)return null;
+ if(p.actionClock>0&&p.action!=='idle'&&p.action!=='run')return null;
+ if(ball.y>.12+1e-8||Math.abs(ball.vy)>1e-6)return null;
+ const dx=ball.x-p.x,dz=ball.z-p.z,vx=ball.vx-p.vx,vz=ball.vz-p.vz;
+ const speedSquared=vx*vx+vz*vz,closing=dx*vx+dz*vz;
+ if(!Number.isFinite(closing)||!(speedSquared>.25&&speedSquared<=21*21)||closing>=0)return null;
+ const outside=dx*dx+dz*dz-receptionRadius**2;
+ const discriminant=closing*closing-speedSquared*outside;
+ if(discriminant<0)return null;
+ const eta=Math.max(0,(-closing-Math.sqrt(discriminant))/speedSquared);
+ if(eta>=preparationTime)return null;
+ const x=dx+vx*eta,z=dz+vz*eta,co=Math.cos(p.face),si=Math.sin(p.face);
+ const forward=x*co+z*si,lateral=-x*si+z*co;
+ if(forward<-.18||Math.abs(lateral)>1)return null;
+ const foot=Math.abs(lateral)>.12?(lateral>0?1:0):(p.preferredFoot??p.kickFoot);
+ if(foot!==0&&foot!==1)return null;
+ return {foot,ball:{x:p.x+x,y:ball.y,z:p.z+z},weight:smooth(1-eta/preparationTime),flightId:flight.id,preparing:true};
+}
+
 function supportPose(rig,pose,p,current,dt){
  const index=1-(p.kickFoot===0?0:1),leg=pose.legs[index],hip=leg.hip,face=p.face||0;
  const forward=[Math.cos(face),0,Math.sin(face)];
@@ -57,13 +84,13 @@ function supportPose(rig,pose,p,current,dt){
 }
 function create({playerId=0}={}){
  let proxy=null,tracked=null,releaseSerial=null,releaseAt=-Infinity,contactSerial=null;
- let cueSerial=0,releaseCue=null,releaseKind=null;
+ let cueSerial=0,releaseCue=null,releaseKind=null,receiveSerial=0,receiveCue=null;
  let previousTime=null,previousSpeed=0,previousFace=0,brake=0,turn=0,contactCount=0;
  let support=null;
  function reset(){
   if(proxy&&root.TribunHumanoidRig)root.TribunHumanoidRig.reset(proxy);
   proxy=null;tracked=null;releaseSerial=null;releaseAt=-Infinity;contactSerial=null;
-  cueSerial=0;releaseCue=null;releaseKind=null;
+  cueSerial=0;releaseCue=null;releaseKind=null;receiveSerial=0;receiveCue=null;
   previousTime=null;previousSpeed=0;previousFace=0;brake=0;turn=0;contactCount=0;
   support=null;
  }
@@ -93,6 +120,9 @@ function create({playerId=0}={}){
      releaseAt=cue.time;contactSerial=cue.flightId;releaseCue=cue;releaseKind=cue.kickKind;contactCount++;
     }
    }
+   const groundControl=match.contacts.findLast(c=>c.id>receiveSerial&&c.kind==='receive'&&c.playerId===playerId&&
+    c.control&&Number.isFinite(c.time)&&c.time<=now+1e-8);
+   if(groundControl){receiveSerial=groundControl.id;receiveCue=groundControl;}
   }else if(releaseSerial!==match.releaseSerial){
    const flight=match.flight,fromId=flight?.from?.id??flight?.fromId;
    releaseSerial=match.releaseSerial;
@@ -100,7 +130,14 @@ function create({playerId=0}={}){
     releaseAt=now;contactSerial=releaseSerial;releaseCue=null;releaseKind=flight.kind;contactCount++;
    }
   }
-  const shot=p.action==='shoot'||p.action==='pass',inRecovery=now>=releaseAt&&now-releaseAt<.30&&contactSerial!==null;
+  const shot=p.action==='shoot'||p.action==='pass';
+  const receiveAge=receiveCue?Math.max(0,now-receiveCue.time):Infinity;
+  const receiving=p.action==='receive'&&p.actionClock>0&&receiveAge<recoveryTime&&receiveCue.time>=releaseAt&&
+   p.receiveMode===receiveCue.control.mode&&p.kickFoot===receiveCue.control.foot&&Math.abs(p.actionElapsed-receiveAge)<1/30;
+  const inRecovery=!receiving&&now>=releaseAt&&now-releaseAt<.30&&contactSerial!==null;
+  const control=receiving?{foot:receiveCue.control.foot,ball:receiveCue.ball,
+   weight:smooth(1-receiveAge/recoveryTime),flightId:receiveCue.flightId,preparing:false}:
+   inRecovery||shot?null:prepareReceive(match,p);
   // Reuse a stable visual-only actor so foot lock survives consecutive frames.
   const keys=Object.keys(proxy);for(const key of keys)if(!(key in p))delete proxy[key];
   Object.assign(proxy,p);
@@ -124,6 +161,7 @@ function create({playerId=0}={}){
    support=proxy.pilotPlant&&pose?.legs&&rig.solveLimb?supportPose(rig,pose,proxy,support,elapsed):null;
   }
   return {player:p,visual:proxy,release:inRecovery,releaseSerial:contactSerial,releaseCue:inRecovery?releaseCue:null,
+   receiveCue:receiving?receiveCue:null,control,
    contactCount,brake,turn,clip:inRecovery||shot&&p.actionClock>0?'shoot':
     (p.speed||0)<.4?'idle':'run'};
  }

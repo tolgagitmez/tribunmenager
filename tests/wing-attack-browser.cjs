@@ -33,7 +33,13 @@ function authoritativeFrames(options) {
     assert.ok(result.trace.some(row => row.key === stage), `Fixture lacks ${stage}`);
   }
   assert.ok(result.summary.save || result.summary.score[0] > 0, 'The shot must produce a real save or goal');
-  return { frames, summary: result.summary, trace: result.trace };
+  const isWingControl = cue => cue.kind === 'receive' && cue.playerId === result.summary.wing && cue.control;
+  const firstControl = frames.find(frame => frame.contacts.some(isWingControl))?.contacts.find(isWingControl);
+  assert.ok(firstControl, 'The real ground reception did not produce a presentation cue');
+  assert.equal(firstControl.time, result.summary.receives[0].time);
+  assert.equal(firstControl.control.foot, options.foot === 'left' ? 0 : 1);
+  assert.equal(firstControl.control.mode, result.summary.receives[0].mode);
+  return { frames, summary: result.summary, trace: result.trace, firstControl };
 }
 
 function fixtureServer() {
@@ -113,14 +119,22 @@ async function openView(browser, url, { playerId, token, mobile = false, localFi
             super(...args);
             window.__wingScene = this;
           }
-          render(players, ...args) {
-            const result = super.render(players, ...args);
-            if (token && !window.__wingKeeper) {
-              const keeper = players.find(p => p.team === 1 && p.role === 'GK' &&
-                ['catch-ready', 'dive', 'catch'].includes(p.action));
-              if (keeper) {
-                const { presentationTime } = window.TRIBUN_MATCH_TEST.getState();
-                window.__wingKeeper = { id: keeper.id, action: keeper.action, time: presentationTime };
+          render(players, ball, ...args) {
+            const result = super.render(players, ball, ...args);
+            if (token) {
+              const { presentationTime: time } = window.TRIBUN_MATCH_TEST.getState();
+              if (!window.__wingFirstControl) {
+                const pilot = this.matchPilot?.info();
+                if (pilot?.lastReceiveContact) {
+                  const winger = players.find(p => p.id === pilot.playerId);
+                  const { x, y, z } = ball;
+                  window.__wingFirstControl = { time, ball: { x, y, z }, face: winger.face, action: winger.action };
+                }
+              }
+              if (!window.__wingKeeper) {
+                const keeper = players.find(p => p.team === 1 && p.role === 'GK' &&
+                  ['catch-ready', 'dive', 'catch'].includes(p.action));
+                if (keeper) window.__wingKeeper = { id: keeper.id, action: keeper.action, time };
               }
             }
             return result;
@@ -145,34 +159,55 @@ async function verifyLocal(browser, url, fixtureSource, options, authority) {
     playerId: authority.summary.wing, localFixture: { options, source: fixtureSource }
   });
   try {
-    const played = await view.page.evaluate(({ dt, ticks }) => {
+    const played = await view.page.evaluate(({ dt, ticks, playerId }) => {
       const { __wingScene: scene, __wingFixture: fixture, TRIBUN_MATCH_TEST: matchPage } = window;
       const captures = {};
-      let previousRelease = 0, truncatedBatches = 0;
-      let previousDraw = 0;
-      const draw = (match, key) => {
+      const heldStages = [];
+      let previousRelease = 0, previousDraw = 0, firstControl;
+      const { match } = fixture;
+      const draw = key => {
         const { ball, players } = match;
-        scene.render(players, ball, [ball.x + ball.vx * .25, ball.z + ball.vz * .25], {}, match.time - previousDraw);
+        if (key === 'first-control') {
+          const winger = players.find(p => p.id === playerId);
+          const { x, y, z } = ball;
+          const eye = scene.cameraSmoothing.slice(), target = scene.cameraTarget.slice();
+          scene.camera = 'portrait';
+          scene.render(players, ball, [(x + winger.x) / 2, (z + winger.z) / 2], {}, 1 / 3);
+          scene.camera = 'close';
+          scene.cameraSmoothing = eye;
+          scene.cameraTarget = target;
+          firstControl = { time: match.time, ball: { x, y, z }, face: winger.face, action: winger.action };
+        } else {
+          scene.render(players, ball, [ball.x + ball.vx * .25, ball.z + ball.vz * .25], {}, match.time - previousDraw);
+        }
         previousDraw = match.time;
         if (key) captures[key] = scene.canvas.toDataURL('image/png');
       };
-      const { match } = fixture;
-      scene.camera = 'close';
-      for (let counter = 0; counter < ticks && !fixture.complete;) {
-        const batch = Math.min(5, ticks - counter);
+      const step = (addition, remaining) => {
         const fromTime = match.time;
-        matchPage.frame(dt * batch);
+        matchPage.frame(dt * addition);
+        const advanced = Math.round((match.time - fromTime) / dt);
+        if (advanced < 1) throw Error('The fixture did not advance its fixed-step frame');
+        let key;
         if (match.releaseSerial !== previousRelease) {
           previousRelease = match.releaseSerial;
-          draw(match, ['cutback', 'shot'].includes(match.flight.kind) ? match.flight.kind : null);
+          if (['cutback', 'shot'].includes(match.flight.kind)) key = match.flight.kind;
+        } else if (!captures['first-control'] && fixture.trace.some(row => row.key === 'first-control')) {
+          key = 'first-control';
         } else if (!captures.keeper && fixture.trace.some(row => row.key === 'keeper-response')) {
-          draw(match, 'keeper');
-        } else if (counter % 10 === 0) draw(match);
-        if (match.time - fromTime < dt * batch - 1e-6) {
-          truncatedBatches++;
-          matchPage.frame(0);
+          key = 'keeper';
         }
-        counter += batch;
+        if (advanced < remaining) heldStages.push(key);
+        if (key || match.time - previousDraw >= dt * 10 - 1e-6) draw(key);
+        return advanced;
+      };
+      scene.camera = 'close';
+      for (let requested = 0; requested < ticks && !fixture.complete;) {
+        // Offset the render boundary so both ball contacts happen inside a batch.
+        const batch = Math.min(requested === 0 ? 4 : 5, ticks - requested);
+        let remaining = batch - step(batch, batch);
+        while (remaining > 0) remaining -= step(0, remaining);
+        requested += batch;
       }
       return {
         captures,
@@ -181,19 +216,19 @@ async function verifyLocal(browser, url, fixtureSource, options, authority) {
         trace: fixture.trace,
         ball: match.ball,
         pilot: matchPage.pilotStats(),
-        truncatedBatches,
+        firstControl,
+        heldStages,
         webgl: Boolean(scene.gl),
       };
-    }, { dt: DT, ticks: authority.summary.ticks });
+    }, { dt: DT, ticks: authority.summary.ticks, playerId: authority.summary.wing });
     assert.equal(played.webgl, true);
     assert.equal(played.complete, true);
     assert.ok(played.pilot.blenderSamples > 0, 'Blender palette was never drawn');
     assert.ok(played.pilot.contactFrames > 0, 'No physical kick was drawn');
     assert.equal(played.pilot.contactCount, 1);
     verifyBootSample(played.pilot, options);
-    if (options.foot === 'left' && !options.pressure) {
-      assert.equal(played.truncatedBatches, 1, 'The busy local frame did not hold its cutback for drawing');
-    }
+    verifyReceiveSample(played.pilot, played.firstControl, authority.firstControl);
+    assert.deepEqual(played.heldStages, ['first-control', 'cutback'], 'The busy local frames did not hold both contacts for drawing');
     // Across Node and Chromium allow sub-micrometre differences in the
     // floating-point calculations. Compare events and discrete values exactly.
     const normalise = value => JSON.parse(JSON.stringify(value, (_, item) =>
@@ -201,7 +236,7 @@ async function verifyLocal(browser, url, fixtureSource, options, authority) {
     assert.deepEqual(normalise(played.summary), normalise(authority.summary));
     assert.deepEqual(normalise(played.trace), normalise(authority.trace));
     assert.deepEqual(normalise(played.ball), normalise(authority.frames.at(-1).ball));
-    for (const key of ['cutback', 'shot', 'keeper']) {
+    for (const key of ['first-control', 'cutback', 'shot', 'keeper']) {
       const png = played.captures[key];
       assert.match(png, /^data:image\/png;base64,/);
       assert.ok(png.length > 5000, `Empty ${key} scene`);
@@ -211,7 +246,7 @@ async function verifyLocal(browser, url, fixtureSource, options, authority) {
     return {
       player: played.pilot.playerId, contactFrames: played.pilot.contactFrames,
       blenderSamples: played.pilot.blenderSamples, boot: played.pilot.lastBootContact,
-      heldLocalBatches: played.truncatedBatches
+      receive: played.pilot.lastReceiveContact, heldStages: played.heldStages
     };
   } finally {
     await view.context.close();
@@ -233,6 +268,24 @@ function verifyBootSample(stats, { foot }) {
   assert.ok(Math.abs(sample.gapMetres) <= Math.abs(sample.baselineGapMetres) + 1e-8);
 }
 
+function verifyReceiveSample(stats, drawn, cue) {
+  assert.equal(stats.bootReceiveSamples, 1, stats.bootMeasurementError || 'The first control must be measured once');
+  const sample = stats.lastReceiveContact;
+  assert.equal(sample.foot, cue.control.foot);
+  assert.equal(sample.mode, cue.control.mode);
+  assert.equal(sample.flightId, cue.flightId);
+  assert.ok(Number.isFinite(sample.gapMetres) && Number.isFinite(sample.baselineGapMetres));
+  assert.ok(Math.abs(sample.contactTime - cue.time) < 1e-6);
+  assert.ok(Math.abs(sample.firstRenderedSampleMs) < .01, 'The receiving boot was not drawn at the ground control time');
+  assert.ok(sample.gapMetres >= -.005 && sample.gapMetres <= .01,
+    `The receiving boot did not reach the ball surface: ${sample.baselineGapMetres} → ${sample.gapMetres}`);
+  assert.ok(drawn && Math.abs(drawn.time - cue.time) < 1e-6, 'The ball and first-control pose were not drawn together');
+  assert.equal(drawn.action, cue.actor.action);
+  assert.ok(Math.abs(Math.sin((drawn.face - cue.actor.face) / 2)) < 1e-6, 'The receiver changed body angle at contact');
+  assert.ok(Math.hypot(drawn.ball.x - cue.ball.x, drawn.ball.y - cue.ball.y, drawn.ball.z - cue.ball.z) < 1e-6,
+    'First-control drawing moved the ball away from its physical contact point');
+}
+
 function batchFrames(frames, stride = [11, 20, 13, 17]) {
   const batches = [];
   let cursor = 0;
@@ -250,22 +303,24 @@ async function verifyLive(browser, url, transport, options, authority) {
     for (const [token, mobile] of [[homeToken, false], [awayToken, true]]) {
       views.push(await openView(browser, url, { token, mobile, playerId: authority.summary.wing }));
     }
-    let repeatedRelease = false;
+    const repeated = new Set();
     for (const state of batchFrames(authority.frames)) {
       transport.show(state);
-      const repeats = !repeatedRelease && state.contacts.some(cue => cue.kind === 'release' &&
-        cue.playerId === authority.summary.wing) ? transport.requests.slice() : null;
+      const repeat = state.contacts.find(cue => (cue.kind === 'release' || cue.id === authority.firstControl.id) &&
+        cue.playerId === authority.summary.wing && !repeated.has(cue.kind));
+      const before = repeat && transport.requests.slice();
       await Promise.all(views.map(({ page }) =>
         page.waitForFunction(time => window.TRIBUN_MATCH_TEST?.getState().presentationTime >= time - 1e-6, state.time,
           { polling: 40, timeout: 15000 })));
-      if (repeats) {
+      if (repeat) {
         await Promise.all(views.map(({ page }) =>
           page.waitForResponse(response => response.url().includes(`${endpoint}?round=${round}`), { timeout: 15000 })));
-        assert.ok(transport.requests.every((count, side) => count > repeats[side] + 1), 'A peer did not receive duplicate frames');
-        repeatedRelease = true;
+        assert.ok(transport.requests.every((count, side) => count > before[side] + 1),
+          `A peer did not receive duplicate ${repeat.kind} frames`);
+        repeated.add(repeat.kind);
       }
     }
-    assert.equal(repeatedRelease, true, 'No cutback frame was repeated on both peers');
+    assert.deepEqual(repeated, new Set(['receive', 'release']), 'Both peers must receive repeated first-control and cutback frames');
     const last = authority.frames.at(-1);
     const result = [];
     for (const { page, errors } of views) {
@@ -273,9 +328,11 @@ async function verifyLive(browser, url, transport, options, authority) {
         null, { timeout: 10000 });
       const progress = await page.evaluate(() => {
         const { ball, visualBall, score, releaseSerial, events, contacts } = window.TRIBUN_MATCH_TEST.getState();
-        const { blenderSamples, contactFrames, contactCount, lastBootContact, bootContactSamples, bootMeasurementError } = window.TRIBUN_MATCH_TEST.pilotStats();
+        const { blenderSamples, contactFrames, contactCount, lastBootContact, bootContactSamples, bootMeasurementError,
+          lastReceiveContact, bootReceiveSamples } = window.TRIBUN_MATCH_TEST.pilotStats();
         return { ball, visualBall, score, releaseSerial, events, contacts, blenderSamples, contactFrames, contactCount,
-          lastBootContact, bootContactSamples, bootMeasurementError, keeper: window.__wingKeeper };
+          lastBootContact, bootContactSamples, bootMeasurementError, lastReceiveContact, bootReceiveSamples,
+          firstControl: window.__wingFirstControl, keeper: window.__wingKeeper };
       });
       assert.deepEqual(progress.ball, last.ball);
       assert.deepEqual(progress.score, last.score);
@@ -286,12 +343,14 @@ async function verifyLive(browser, url, transport, options, authority) {
       assert.ok(progress.blenderSamples > 0, 'Actual match never drew a Blender palette');
       assert.equal(progress.contactCount, 1, 'One wing strike must be presented once despite sparse and repeated packets');
       verifyBootSample(progress, options);
+      verifyReceiveSample(progress, progress.firstControl, authority.firstControl);
       assert.equal(progress.keeper?.id, authority.summary.keeper);
       assert.ok(progress.keeper.time >= authority.summary.response.time - 1e-6, 'Keeper was drawn reacting before his authoritative cue');
       assert.deepEqual(errors, []);
       result.push({
         blenderSamples: progress.blenderSamples, contactFrames: progress.contactFrames,
-        contactCount: progress.contactCount, boot: progress.lastBootContact, keeper: progress.keeper
+        contactCount: progress.contactCount, boot: progress.lastBootContact,
+        receive: progress.lastReceiveContact, keeper: progress.keeper
       });
     }
     for (const [i, { page }] of views.entries()) {

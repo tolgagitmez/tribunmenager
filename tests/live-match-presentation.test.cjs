@@ -62,6 +62,7 @@ test('buffered live ball, kick and keeper phases arrive at the same exact cue th
   near(view.visualBall.vx,20);
   near(view.players[0].actionElapsed,launch.actor.actionElapsed);
   assert.deepEqual(ids(view.presentation.contacts),[1]);
+  assert.equal(view.presentation.flight.kind,'shot');
   assert.equal(view.drain()[0].type,'shot');
   assert.equal(view.drain().length,0);
 
@@ -81,6 +82,7 @@ test('buffered live ball, kick and keeper phases arrive at the same exact cue th
   assert.equal(view.players[1].action,'catch');
   near(view.players[1].actionElapsed,0);
   assert.deepEqual(ids(view.presentation.contacts),[1,2,3]);
+  assert.equal(view.presentation.flight,null);
   assert.equal(view.drain()[0].type,'save');
   assert.equal(view.drain().length,0);
   assert.deepEqual(end,copy,'presentation does not change a received snapshot');
@@ -111,6 +113,46 @@ test('an arrival during an existing blend preserves the sampled clock and does n
   view.ingest(next,1420);
   assert(view.presentationTime>2.1,'stale response cannot rewind presentation');
   assert.equal(view.drain().length,0);
+});
+
+test('a coalesced pass and receive preserves the current flight until the exact first touch',()=>{
+  const view = newView();
+  const passer = player(1,'MID',7,'pass',.18,.3);
+  const winger = player(2,'ATT',11,'idle');
+  view.ingest(packet(6,ball(8),passer,winger,{flight:null}),1000);
+
+  const release={...cue(1,6.04,'release',passer,ball(8,18)),flightId:11,kickKind:'pass',targetId:winger.id};
+  const receiver={...winger,action:'receive',actionClock:.15,actionElapsed:0};
+  const receive={...cue(2,6.16,'receive',receiver,ball(10,2)),flightId:11,kickKind:'pass',targetId:winger.id};
+  const onward={...cue(3,6.20,'release',receiver,ball(11,14)),flightId:12,kickKind:'cutback',targetId:passer.id};
+  const notes={contacts:[release,receive,onward],flight:{id:12,kind:'cutback',fromId:2,targetId:1,age:.03}};
+  view.ingest(packet(6.23,ball(12,14),passer,winger,notes),1200);
+  view.sample(1230,1/60);
+  assert.equal(view.presentation.flight,null,'a buffered release must not announce a flight before departure');
+  view.sample(1260,1/60);
+  near(view.presentationTime,6.04);
+  assert.equal(view.presentation.flight.id,11);
+  assert.equal(view.presentation.flight.kind,'pass');
+  assert.equal(view.presentation.flight.fromId,1);
+  assert.equal(view.presentation.flight.targetId,2);
+  near(view.presentation.flight.age,0);
+  assert.equal(view.flight.id,12,'the authoritative snapshot remains the source of match state');
+
+  view.sample(1300,1/60);
+  near(view.presentation.flight.age,.06);
+  view.ingest(packet(6.30,ball(13,14),passer,winger,{...notes,flight:{...notes.flight,age:.10}}),1300);
+  assert.equal(view.presentation.flight.id,11,'a new packet after the release does not drop the incoming flight');
+  view.sample(1370,1/60);
+  near(view.presentationTime,6.16);
+  assert.equal(view.presentation.flight,null,'the receiver sees no incoming flight at the control');
+  near(view.visualBall.x,receive.ball.x);
+  assert.deepEqual(ids(view.presentation.contacts),[1,2]);
+  view.sample(1420,1/60);
+  near(view.presentationTime,6.20);
+  assert.equal(view.presentation.flight.id,12);
+  near(view.presentation.flight.age,0);
+  view.sample(1500,1/60);
+  near(view.presentation.flight.age,.10);
 });
 
 test('ingest keeps unread exact contacts for even a sparse render and groups equal-time cues',()=>{
@@ -180,13 +222,14 @@ test('a stopped manager prompt draws the current pose and its same-tick answer s
 test('second-half side switch draws actors at the current end of the pitch',()=>{
   const view = newView();
   const shooter = player(1,'ATT',-35,'idle'), keeper = player(21,'GK',49,'idle');
-  view.ingest(packet(4,ball(35),shooter,keeper,{period:1}),1000);
+  view.ingest(packet(4,ball(35),shooter,keeper,{period:1,flight:{id:1,kind:'pass',fromId:1,targetId:null,age:.2}}),1000);
   view.ingest(packet(4.18,ball(0),player(1,'ATT',35,'idle'),player(21,'GK',-49,'idle'),
     {period:2,direction:[-1,1],restart:{id:2,kind:'kickoff'}}),1180);
   near(view.presentationTime,4.18);
   near(view.players[0].x,35);
   near(view.players[1].x,-49);
   near(view.visualBall.x,0);
+  assert.equal(view.presentation.flight,null);
   assert.equal(view.direction(0),-1);
 });
 

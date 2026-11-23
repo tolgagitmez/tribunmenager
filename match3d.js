@@ -170,22 +170,22 @@ function tick(dt){
  while(accumulator+1e-10>=1/60&&!game.done&&steps<budget&&!game.pendingManagerKick){
   steps++;accumulator-=1/60;attackObserver.step();
   for(const p of game.players){p.selected=p===game.owner;if(p.active)Rig.update(p,1/60);}
-  let releaseFrame=false;
+  let contactFrame=false;
   if(localContacts){
    localContacts.observe(game);
    const observed=scene.matchPilot?.observe({
     time:game.time,players:game.players,ball:game.ball,flight:game.flight,
     releaseSerial:game.releaseSerial,contacts:localContacts.recent()
    },1/60);
-   releaseFrame=observed?.releaseCue?.time===game.time;
+   contactFrame=(observed?.receiveCue?.time??observed?.releaseCue?.time)===game.time;
   }
   if(overlayTime>0){
    overlayTime-=1/60;
    if(overlayTime<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}
   }
-  // Keep any remaining fixed steps for the next draw so a busy frame does
-  // not consume both the pilot's strike and the start of its follow-through.
-  if(releaseFrame)break;
+  // Carry remaining fixed steps into the next draw to preserve the pilot's
+  // first control or strike at its physical contact.
+  if(contactFrame)break;
  }
  if(steps===budget&&accumulator>=1/60){accumulator=Math.min(accumulator,2/60);simOverloadFrames++;}
  consume();const metric=Math.floor(game.time*5+1e-7),wall=performance.now();

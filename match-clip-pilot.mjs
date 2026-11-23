@@ -7,12 +7,14 @@ import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createStandardAssetLoader } from './gltf-asset-loader.mjs';
 import { createCustomRuntimeAdapter } from './gltf-runtime-adapter.mjs';
 import { createBootContactMeter } from './match-boot-contact.mjs';
+import { firstTouchPose } from './match-first-touch.mjs';
 
 const keepProcedural=name=>name==='pelvis'||/^(thigh|shin|foot)\./.test(name);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const maxContactLag=1/30,followThrough=.10,maxBootCorrection=.14;
 const freshStats=()=>({samples:0,blenderSamples:0,contactFrames:0,maxSupportHeightError:0,
- maxContactGap:0,contactReleaseSamples:0,bootContactSamples:0,lastBootContact:null,clip:null,source:'Blender GLB'});
+ maxContactGap:0,contactReleaseSamples:0,bootContactSamples:0,lastBootContact:null,
+ bootReceiveSamples:0,lastReceiveContact:null,maxReceivePreparation:0,clip:null,source:'Blender GLB'});
 
 function towardContact(Rig,pose,foot,delta){
  const leg=pose.legs[foot];
@@ -39,6 +41,7 @@ function create({playerId=0}={}){
  let status='loading',reason=null,asset=null,adapter=null,actor=null,mixer=null;
  let bones=null,clips=null,boneIndex=null,selected=null,action=null,clipTime=0,travel=0,lastPoint=null;
  let meter=null,pendingContact=null,bootCorrection=null,seenRelease=null,sampledTime=0,stats=freshStats();
+ let receivePose=null,receiveTrack=null,pendingReceive=null,seenReceive=null;
  const ready=(async()=>{
   try{
    const loader=createStandardAssetLoader({THREE,GLTFLoader});
@@ -67,6 +70,16 @@ function create({playerId=0}={}){
  function observe(match,dt){
   const step=contact.observe(match,dt);
   sampledTime=match.time;
+  receivePose=step?.control??null;
+  if(!receivePose)receiveTrack=null;
+  else if(receiveTrack?.flightId!==receivePose.flightId||receiveTrack?.foot!==receivePose.foot){
+   receiveTrack={flightId:receivePose.flightId,foot:receivePose.foot,support:null,limit:1};
+  }
+  if(step?.receiveCue&&step.receiveCue.id!==seenReceive){
+   seenReceive=step.receiveCue.id;
+   pendingReceive=step.receiveCue;
+   bootCorrection=null;
+  }
   if(step?.release&&step.releaseSerial!==seenRelease){
    const exact=step.releaseCue||match.flight?.age<=1e-8&&{
     time:match.time,ball:match.ball,actor:step.player,kickKind:match.flight.kind
@@ -97,6 +110,43 @@ function create({playerId=0}={}){
   const Rig=window.TribunHumanoidRig,Renderer=window.TribunPlayerRenderer;
   const pose=Rig.getPose(proxy);
   let raw=Renderer.palette(proxy,assets,pose);
+  if(receivePose){
+   const {foot,ball,weight,preparing}=receivePose,track=receiveTrack;
+   const support=pose.legs[1-foot];
+   if(!track.support&&support.stance)track.support={ankle:support.ankle.slice(),toe:support.toe.slice()};
+   const before=raw;
+   const renderReceive=strength=>{
+    const target=firstTouchPose(Rig,pose,{foot,ball,weight:strength,support:track.support});
+    return target===pose?before:Renderer.palette(proxy,assets,target);
+   };
+   raw=renderReceive(weight*track.limit);
+   if(preparing&&raw!==before)stats.maxReceivePreparation=Math.max(stats.maxReceivePreparation,weight);
+   if(pendingReceive){
+    const {time,flightId,control}=pendingReceive;
+    pendingReceive=null;
+    try{
+     meter??=createBootContactMeter({assets,decode:Renderer.decode,Skinning:Renderer.skinning,THREE});
+     const lag=Math.max(0,sampledTime-time);
+     const baseline=meter.measure({palette:before,foot,ball});
+     let reading=meter.measure({palette:raw,foot,ball});
+     if(lag<=maxContactLag+1e-8){
+      // Respect the rendered ball surface at first contact. Reduce the lunge
+      // if the full pose would put the boot visibly inside the ball.
+      while(reading.gapMetres<-.005&&track.limit>.50){
+       track.limit-=.125;
+       raw=renderReceive(weight*track.limit);
+       reading=meter.measure({palette:raw,foot,ball});
+      }
+      if(reading.gapMetres<-.005||Math.abs(reading.gapMetres)>Math.abs(baseline.gapMetres)){
+       raw=before;reading=baseline;track.limit=0;
+      }
+     }
+     stats.bootReceiveSamples++;
+     stats.lastReceiveContact={...reading,baselineGapMetres:baseline.gapMetres,foot,flightId,
+      mode:control.mode,contactTime:time,firstRenderedSampleMs:lag*1000};
+    }catch(error){stats.bootMeasurementError=String(error.message||error);}
+   }
+  }else pendingReceive=null;
   if(pendingContact){
    const {ball,foot,flightId,time,kind}=pendingContact;
    pendingContact=null;
@@ -142,8 +192,8 @@ function create({playerId=0}={}){
   // The Blender shot is right-footed. Receive, pass, left-foot strikes and
   // keeper actions use the contact rig's own pose.
   const activeAction=proxy.actionClock>0&&proxy.action!=='idle';
-  const name=activeAction?(proxy.action==='shoot'&&proxy.kickFoot===1?'shoot':null):(proxy.speed||0)>.45?'run':'idle';
-  stats.clip=name||proxy.action;
+  const name=receivePose?null:activeAction?(proxy.action==='shoot'&&proxy.kickFoot===1?'shoot':null):(proxy.speed||0)>.45?'run':'idle';
+  stats.clip=name||(receivePose?'receive':proxy.action);
   if(status==='ready'&&name){
    try{
     const clip=select(name);
@@ -190,6 +240,7 @@ function create({playerId=0}={}){
  }
  function reset(){
   contact.reset();travel=0;lastPoint=null;selected=null;seenRelease=null;pendingContact=null;bootCorrection=null;stats=freshStats();
+  receivePose=null;receiveTrack=null;pendingReceive=null;seenReceive=null;
  }
  function info(){return {...stats,status,reason,playerId,clips:clips?[...clips.keys()]:[],
   ...contact.state(),visual:undefined};}

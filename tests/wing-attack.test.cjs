@@ -76,6 +76,8 @@ test('a controlled attack sprints, opens up, cuts back and creates a shot with b
      receives.map(({time, playerId, flightId}) => [time, playerId, flightId]),
      summary.receives.map(({time, by}, i) => [time, by, releases[i].flightId])
     );
+    assert.deepEqual(receives.map(({control}) => control),
+     summary.receives.map(({mode, foot}) => ({mode, foot})));
     const keeperPrepare = contacts.find(({kind}) => kind === 'keeper-prepare');
     assert.equal(keeperPrepare.time, summary.response.time);
     assert.equal(keeperPrepare.playerId, summary.keeper);
