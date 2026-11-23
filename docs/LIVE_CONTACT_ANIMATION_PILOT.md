@@ -1,5 +1,7 @@
 # Animasyonu gerçek maç temasına bağlama — tek futbolcu pilotu
 
+Bu belge ilk pilotun tasarımını ve kare bütçesini kaydeder. Güncel deneme ve geliştirici komutları [kanat hücumu rehberinde](WING_ATTACK_PILOT.md) yer alır.
+
 Bu pilot, `feature/aerial-keeper-penalty-offside` dalının güncel
 `football-sim.js` motoruyla çalışır. Maç motoru, sunucu işlem günlüğü,
 takım taktikleri ve RNG **değiştirilmemiştir**.

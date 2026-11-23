@@ -5,6 +5,7 @@
 const readline = require('node:readline');
 const {Match} = require('./football-sim.js');
 const Rig = require('./humanoid-rig.js');
+const ContactEvents = require('./match-contact-events.js');
 
 const MAX_STEPS = 120;
 const RECENT_EVENTS = 80;
@@ -16,8 +17,8 @@ const playerFields = [
   'face', 'selected', 'action', 'actionClock', 'actionDuration', 'actionElapsed',
   'kickFoot', 'kickMoving', 'contactTime', 'footTouch', 'touchPosition',
   'dribbleFoot', 'diveSide', 'diveForward', 'diveContactTime', 'saveTarget',
-  'catchPoint', 'gatherStart', 'headerHeight', 'personality', 'feintClock',
-  'feintSign', 'receiveClock', 'receiveMode', 'holdingBall'
+  'catchPoint', 'gatherStart', 'headerHeight', 'jumpHeight', 'chestContactHeight', 'personality', 'feintClock',
+  'feintSign', 'receiveClock', 'receiveMode', 'holdingBall', 'holdClock'
 ];
 const matchFields = [
   'time', 'duration', 'score', 'cards', 'reds', 'shots', 'onTarget', 'fouls',
@@ -39,7 +40,7 @@ function restartView(restart) {
   };
 }
 
-function snapshot(game) {
+function snapshot(game, contacts) {
   const {owner, flight, kick} = game;
   return {
     ...pick(game, matchFields),
@@ -53,7 +54,9 @@ function snapshot(game) {
       kind: kick.kind, playerId: kick.p.id, targetId: kick.target?.id ?? null,
       restartContext: restartView(kick.restartContext ?? null)
     },
-    flight: flight && {id: flight.id, kind: flight.kind, fromId: flight.from.id},
+    flight: flight && {id: flight.id, kind: flight.kind, fromId: flight.from.id,
+      age: flight.age, targetId: flight.target?.id ?? null},
+    contacts: contacts?.recent() ?? [],
     referee: {pendingAdvantage: !!game.referee.pendingAdvantage},
     players: game.players.map(player => ({
       ...pick(player, playerFields),
@@ -71,16 +74,18 @@ function snapshot(game) {
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const error = message => ({ok: false, error: message});
 
-function createWorker() {
+function createWorker({createMatch = (config, rig) => new Match(config, rig)} = {}) {
   let game;
+  const contacts = ContactEvents.create();
   return request => {
     if (!object(request)) return error('Invalid worker request.');
     if (request.op === 'init') {
       if (game || !object(request.config)) return error('Invalid match initialization.');
-      game = new Match(request.config, Rig);
+      game = createMatch(request.config, Rig);
       game.managerKickTeams = new Set();
+      contacts.observe(game);
       game.drain();
-      return {ok: true, state: snapshot(game)};
+      return {ok: true, state: snapshot(game, contacts)};
     }
     if (!game) return error('Match has not been initialized.');
 
@@ -94,10 +99,11 @@ function createWorker() {
       let processed = 0;
       while (processed < steps && !game.done && !game.pendingManagerKick) {
         game.step(1 / 60);
+        contacts.observe(game);
         processed++;
       }
       game.drain();
-      return {ok: true, steps: processed, state: snapshot(game)};
+      return {ok: true, steps: processed, state: snapshot(game, contacts)};
     }
     if (request.op === 'kick') {
       if (!Number.isSafeInteger(request.id) || request.id < 1 ||
@@ -106,7 +112,7 @@ function createWorker() {
       }
       const accepted = game.resolveManagerKick(request.id, request.input);
       game.drain();
-      return {ok: true, accepted, state: snapshot(game)};
+      return {ok: true, accepted, state: snapshot(game, contacts)};
     }
     return error('Unknown worker operation.');
   };
@@ -130,7 +136,8 @@ async function main() {
   }
 }
 
-main().catch(cause => {
+module.exports = {createWorker, snapshot};
+if(require.main===module)main().catch(cause => {
   // The server discards the process on an unexpected engine failure, since a
   // partial step may already have changed the simulation.
   console.error(cause);
