@@ -140,3 +140,26 @@ test('live snapshots carry only grounded wall-pass and feint clocks; rendering d
  assert.equal(state.players[0].feintResponseClock,.18);
  assert.equal(state.players[0].wallPassClock,.32);
 });
+
+test('the real physical kick timer releases exactly one recorded wall return without moving the ball at contact',()=>{
+ const {m,p,q}=game();
+ p.face=0;p.oneTouchUntil=m.time+.5;
+ q.runIntent={kind:'give-go',partnerId:p.id,epoch:m.attackEpoch[0],origin:{x:-2,z:0},
+  point:{x:13,z:0},until:m.time+2};
+ assert(m.startKick(p,'pass',q,{x:8,z:0}));
+ const before={x:m.ball.x,z:m.ball.z,y:m.ball.y};
+ let release=null;
+ for(let i=0;i<90&&m.kick;i++){
+  m.time+=1/60;
+  m.kickStep(1/60);
+  if(m.flight?.from===p){release=m.flight;break;}
+ }
+ assert(release,'the real kickStep contact gate must release a prepared wall pass');
+ assert.equal(release.kind,'pass');
+ assert.equal(m.telemetry.wallPassReleases,1);
+ assert.equal(m.telemetry.oneTouchPasses,1);
+ assert(m.events.some(e=>e.type==='give-go'));
+ assert(Math.hypot(m.ball.x-before.x,m.ball.z-before.z)<.15,
+  'the physical release changes velocity at foot contact, not the ball position');
+ assert(Math.hypot(m.ball.vx,m.ball.vz)>2,'the actual ball must have a launched pass velocity');
+});
