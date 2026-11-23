@@ -156,7 +156,7 @@ class Match{
  reset(){
   this.clearManagerKick();
   this.seed=this.initialSeed;this.time=0;this.score=[0,0];this.shots=[0,0];this.onTarget=[0,0];this.possession=[0,0];this.fouls=[0,0];this.cards=[0,0];this.reds=[0,0];this.passes=[0,0];this.completed=[0,0];this.xg=[0,0];this.events=[];this.queue=[];this.players=[];this.owner=null;this.lastTouch=null;this.flight=null;this.kick=null;this.restart=null;this.goalPause=null;this.phase='open';this.done=false;this.half=false;this.usedBench=new Set();this.subCount=0;this.planClock=0;this.targets=new Map();this.lastTeam=0;this.lastNarratedTurnover=-3;this.chain=0;this.transitionUntil=[0,0];
-  this.telemetry={signatureDrives:0,holdUpPlays:0,dribbleTouches:0,receives:0,looseBalls:0,shotsAfterPasses:0,restarts:0,turnovers:0,duels:0,throughBalls:0,crosses:0,cutbacks:0,headers:0,feints:0,longPasses:0,switches:0,offsides:0,pressRecoveries:0,clearances:0,giveGoes:0,movingPasses:0,movingShots:0,preparedReceives:0,oneTouchPasses:0,directedTouches:0,keeperCatches:0};this.possessionEpoch=0;this.lastGain=null;
+  this.telemetry={signatureDrives:0,holdUpPlays:0,holdUpOutlets:0,holdUpTurns:0,feintWrongSteps:0,wallPassReleases:0,dribbleTouches:0,receives:0,looseBalls:0,shotsAfterPasses:0,restarts:0,turnovers:0,duels:0,throughBalls:0,crosses:0,cutbacks:0,headers:0,feints:0,longPasses:0,switches:0,offsides:0,pressRecoveries:0,clearances:0,giveGoes:0,movingPasses:0,movingShots:0,preparedReceives:0,oneTouchPasses:0,directedTouches:0,keeperCatches:0};this.possessionEpoch=0;this.lastGain=null;
   this.lastPassPreparation=null;this.teamPhases=[null,null];this._perceptionActive=false;
   this.rules=MatchRules.normalize(this.cfg);this.duration=this.rules.periodSeconds*2;
   this.matchClock=MatchRules.createClock(this.rules);this.period=1;this.lifecycle='playing';
@@ -255,7 +255,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;
   }
  }
  positionRestartKick(r,aim){
@@ -582,7 +582,16 @@ class Match{
   p.feintClock=.35;p.feintSign=-choice.sign;p.feintCooldown=4.6;
   const d=this.players.find(q=>q.id===choice.defender?.id&&q.active);if(!d)return;const gap=dist(p,d),seeing=Math.cos(angle(Math.atan2(p.z-d.z,p.x-d.x),d.face))>.35,closing=((p.x-d.x)*d.vx+(p.z-d.z)*d.vz)/Math.max(.1,gap);
   const susceptibility=(p.dribbling-d.tackling)*.005+Math.max(0,closing)*.015-((d.composure??d.skill)-75)*.002;
-  if(seeing&&closing>.3&&gap<3.1&&susceptibility>.055){d.feintReaction=clamp(.06+susceptibility*.5,.06,.14);this.telemetry.feintResponses++;}
+  if(seeing&&closing>.3&&gap<3.1&&susceptibility>.055){
+   d.feintReaction=clamp(.06+susceptibility*.5,.06,.14);this.telemetry.feintResponses++;
+   if(this.playerBrainEnabled(p)){
+    // A defender can misread the fake only while actually looking/closing.
+    // Steering still goes through normal move acceleration, never a snap.
+    d.feintResponseClock=clamp(.11+susceptibility*.26,.11,.19);
+    d.feintResponseSign=-choice.sign;d.feintResponseSource=p.id;
+    this.telemetry.feintWrongSteps++;
+   }
+  }
   p.dribbleDuel={opponentId:d.id,at:this.time};this.telemetry.feints++;
  }
  canShield(p){return this.time>=(p.shieldReadyAt||0)||p.shieldUntil>this.time&&p.shieldBudgetUntil>this.time;}
@@ -598,10 +607,12 @@ class Match{
   // rather than waiting for the next 160 ms planning refresh.
   p.brainRole=selected.state;
   if(choice.shield){
+   if(choice.holdUp&&(!(p.shieldUntil>this.time)||!Number.isFinite(p.holdUpStartedAt)))p.holdUpStartedAt=this.time;
    if(!(p.shieldUntil>this.time)){p.shieldBudgetUntil=this.time+1.1;p.shieldReadyAt=this.time+2;this.telemetry.shieldCarries++;}
    p.shieldUntil=Math.min(p.shieldBudgetUntil,this.time+.4);
    const a=Math.atan2(choice.defender.z-p.z,choice.defender.x-p.x),sign=angle(a+Math.PI/2,p.face)**2<=angle(a-Math.PI/2,p.face)**2?1:-1;p.shieldFace=a+sign*Math.PI/2;
-  }else p.shieldUntil=0;
+   }else {p.shieldUntil=0;p.holdUpStartedAt=null;}
+  if(choice.holdUpTurn)this.telemetry.holdUpTurns++;
   if(choice.kind==='feint'){
    this.applyFeint(p,choice);
    this.emit('feint','Çalım denemesi',`${p.name}, savunmacıyı bir vücut hareketiyle geçmeye çalışıyor.`,p);
@@ -706,6 +717,12 @@ class Match{
   if(this.clearFinish(p,shot))return {kind:'shot',point:shot.point};
   if(p.role!=='GK'&&shot.distance<(t.shooting==='early'?31:t.shooting==='patient'?22:29)&&shot.open>=.4&&shot.execution>.68&&shot.pressure<.65&&shot.quality>(t.shooting==='early'?.09:t.shooting==='patient'?.16:.13)&&(p.shooting>=83||pressure<3)&&(!best||best.score<15))return {kind:'shot',point:shot.point};
   if(cross&&cross.space>1.5&&cross.score>(best?.score??0)-2)return cross;
+  if(this.playerBrainEnabled(p)&&p.shieldUntil>this.time&&Number.isFinite(p.holdUpStartedAt)){
+   const heldFor=this.time-p.holdUpStartedAt;
+   if(heldFor>.19&&best?.kind==='pass'&&best.risk<.34&&best.arrivalRisk<.60&&best.space>2.4&&best.distance<21&&
+    this.passPreparation(p,best).feasible)return {...best,holdUpOutlet:true};
+   if(heldFor>.46&&carry.clearance>1.6&&(carry.point.x-p.x)*this.direction(p.team)>1.3&&pressure>2.1)return {...carry,holdUpTurn:true};
+  }
   if(best?.kind==='through'&&best.score>10&&best.risk<.6)return best;
   const pendingRun=this.field(p.team).find(q=>this.giveGoLink(p,q));
   if(pendingRun&&!best?.movingReturn&&pressure>3.8&&p.carryTime<.9&&(!best||(best.point.x-p.x)*this.direction(p.team)<4))return {kind:'carry',point:{x:clamp(p.x+this.direction(p.team),-49,49),z:p.z},hold:true};
@@ -809,7 +826,9 @@ class Match{
   const oneTouch=p.oneTouchUntil>this.time&&['pass','cutback','through'].includes(kind);
   const duration=Math.max(kind==='throw'?.55:kind==='shot'?.25:oneTouch?.12:.18,turn/7.0,setup/(oneTouch?6:4.8));
   const moving=!this.restart&&!restartContext&&kind!=='throw'&&turn<1.45&&Math.hypot(p.vx,p.vz)>.8;
-  this.kick={p,kind,target,point:{...aim},clock:0,duration,powerOverride,moving,oneTouch,restartContext,approach:{vx:p.vx,vz:p.vz},setupImpulse:false};if(target&&['through','cross','cutback'].includes(kind)){target.runIntent={...(target.runIntent?.until>this.time?target.runIntent:{}),point:{...aim},until:this.time+3};}this.phase='windup';this.owner=p;
+  const wallPass=this.playerBrainEnabled(p)&&oneTouch&&!!target&&!!this.giveGoLink(p,target);
+  this.kick={p,kind,target,point:{...aim},clock:0,duration,powerOverride,moving,oneTouch,wallPass,restartContext,approach:{vx:p.vx,vz:p.vz},setupImpulse:false};
+  if(wallPass){p.wallPassClock=duration+.22;p.wallPassFoot=p.kickFoot;}if(target&&['through','cross','cutback'].includes(kind)){target.runIntent={...(target.runIntent?.until>this.time?target.runIntent:{}),point:{...aim},until:this.time+3};}this.phase='windup';this.owner=p;
   if(managerControl)this.kick.managerControl=managerControl;
   if(kind==='pass'&&target&&!restartContext&&!oneTouch&&duration>=.30&&(p.passReviewUntil||0)<=this.time){const speed=this.passSpeed(kind,dist(this.ball,aim),this.t[p.team]);this.kick.passRead={base:this.laneRisk(p,aim,speed,kind),next:.04,badSince:null,motionAt:this.time,motion:new Map(this.rivals(p).map(d=>[d.id,{vx:d.vx,vz:d.vz,ax:0,az:0,seenAt:d.seenAt??this.time}]))};}
   this.action(p,kind==='throw'?'throw':kind==='shot'?'shoot':'pass',duration+.22);p.contactTime=duration;p.kickMoving=moving;return true;
@@ -1097,6 +1116,14 @@ class Match{
   if(k.moving&&k.kind==='shot')this.telemetry.movingShots++;
   if(k.moving&&['pass','through','cross','cutback','long-pass'].includes(k.kind))this.telemetry.movingPasses++;
   if(k.oneTouch)this.telemetry.oneTouchPasses++;
+  if(k.wallPass){
+   this.telemetry.wallPassReleases++;
+   this.emit('give-go','Tek dokunuş duvar pası',`${p.name}, koşuya çıkan takım arkadaşına topu tek dokunuşla geri aktardı.`,p);
+  }
+  if(k.holdUpOutlet){
+   this.telemetry.holdUpOutlets++;
+   this.emit('hold-up-pass','Sırtı dönük pas',`${p.name}, savunmacıyı arkasında tutup güvenli pası çıkardı.`,p);
+  }
   if(k.kind==='long-pass')this.telemetry.longPasses++;
   if(['pass','long-pass'].includes(k.kind)&&Math.abs(k.point.z-p.z)>28){
    const old=this.lastSwitch[p.team];this.telemetry.switches++;this.attackStats[p.team].switches++;
@@ -1304,12 +1331,14 @@ class Match{
   const gap=dist(p,this.ball);
   const ballGap=dist(carrier,this.ball),toDefender={x:p.x-carrier.x,z:p.z-carrier.z},toBall={x:this.ball.x-carrier.x,z:this.ball.z-carrier.z};
   const shield=dot(toDefender,toBall)/(Math.hypot(toDefender.x,toDefender.z)*Math.max(.1,ballGap)||1)<-.25&&ballGap<.95;
+  const backToGoalDuel=this.playerBrainEnabled(carrier)&&carrier.shieldUntil>this.time&&shield&&dist(p,carrier)<1.55;
+  const bodyContest=backToGoalDuel?clamp(((carrier.strength??75)+(carrier.balance??75)-(p.strength??75)-(p.balance??75))*.002,-.14,.14):0;
   // The body can screen the ball; receiving it is not an invulnerability window.
   p.tackleClock=1.6+this.random()*.8;
   for(const [actor,opponent] of [[p,carrier],[carrier,p]]){const old=actor.duelMemory,repeat=old&&old.opponentId===opponent.id&&this.time-old.at<6&&dist(actor,old.origin)<5;actor.duelMemory={opponentId:opponent.id,count:repeat?old.count+1:1,at:this.time,origin:repeat?old.origin:{x:actor.x,z:actor.z}};}
   const aggression=+this.t[p.team].aggression/100,fromBehind=Math.cos(carrier.face-Math.atan2(p.z-carrier.z,p.x-carrier.x))<-.45;
   const closing=(p.vx-carrier.vx)*toBall.x+(p.vz-carrier.vz)*toBall.z;
-  const clean=clamp(.62+(p.tackling-(carrier.dribbling??carrier.skill))*.004-aggression*.10-(fromBehind?.18:0)-(shield?.22:0)+clamp(((p.strength??75)-(carrier.strength??75))*.0015+((p.balance??75)-(carrier.balance??75))*.0007,-.12,.12)+Math.max(0,ballGap-.55)*.20-Math.max(0,closing-4)*.012,.16,.94);
+  const clean=clamp(.62+(p.tackling-(carrier.dribbling??carrier.skill))*.004-aggression*.10-(fromBehind?.18:0)-(shield?.22:0)+clamp(((p.strength??75)-(carrier.strength??75))*.0015+((p.balance??75)-(carrier.balance??75))*.0007,-.12,.12)+Math.max(0,ballGap-.55)*.20-Math.max(0,closing-4)*.012-bodyContest,.16,.94);
   this.action(p,'tackle',.32);this.telemetry.duels++;
   if(this.random()<clean){
    const away=Math.atan2(p.z-carrier.z,p.x-carrier.x),sign=p.personality>.5?1:-1,a=away+sign*.55;
@@ -2047,6 +2076,14 @@ class Match{
    target={x:this.ball.x+this.ball.vx*.08,z:this.ball.z+this.ball.vz*.08,pace:.9,state:'kick-recovery'};
   }
   if(!kickRecovery&&(p.action==='shoot'||p.action==='pass')&&p.actionClock>.05&&!p.kickMoving){p.vx=p.vz=p.speed=0;return;}
+  if((p.feintResponseClock||0)>0&&this.owner?.id===p.feintResponseSource&&this.owner.team!==p.team&&
+    dist(this.owner,p)<3.5&&['press','mark','cover','screen','recovery-screen'].includes(target.state)){
+   // Small wrong-side anticipation over a fraction of a second. Standard
+   // acceleration, collision, fatigue and tackle checks stay authoritative.
+   const side=p.feintResponseSign||1,yaw=p.face+side*Math.PI*.5;
+   target={x:clamp(p.x+Math.cos(yaw)*.55,-49,49),z:clamp(p.z+Math.sin(yaw)*.55,-31,31),
+    state:'feint-response',pace:.76};
+  }
   const dx=target.x-p.x,dz=target.z-p.z,d=Math.hypot(dx,dz),heading=Math.atan2(dz,dx);
   const fatigue=p.model?(p.fitness>0?clamp(p.stamina/p.fitness,0,1):1):p.stamina/100;
   const turn=Math.abs(angle(heading,p.face)),top=(p.role==='GK'?4.4+((p.pace??75)-75)*.025:5.7+((p.pace??p.skill)-75)*.040)*(.78+.22*fatigue)*(.83+.17*(p.energy??1))*target.pace*(p.duelRecovery>0?.20:1)*(p.feintReaction>0?.82:1);
@@ -2456,7 +2493,7 @@ class Match{
   const stoppedReason=this.substitutionPause?.remaining>0?'substitution':this.goalPause?'goal':this.restart||this.kick?.restartContext?'restart':null,stoppageId=(this.restart||this.kick?.restartContext)?.id??this.stoppageSerial;
   if(this.substitutionPause?.remaining>0){this.substitutionPause.remaining=Math.max(0,this.substitutionPause.remaining-dt);this.advanceClock(dt,stoppedReason,stoppageId);return;}
   if(!this.restart&&!this.kick?.restartContext&&!this.goalPause){const t=this.owner?.team??this.flight?.from.team;if(t===0||t===1)this.possession[t]+=dt;}
-  for(const p of this.players){p.duelRecovery=Math.max(0,(p.duelRecovery||0)-dt);p.feintCooldown=Math.max(0,(p.feintCooldown||0)-dt);p.feintReaction=Math.max(0,(p.feintReaction||0)-dt);p.feintClock=Math.max(0,(p.feintClock||0)-dt);p.touchClock=Math.max(0,(p.touchClock||0)-dt);p.tackleClock=Math.max(0,(p.tackleClock||0)-dt);p.receiveClock=Math.max(0,(p.receiveClock||0)-dt);p.footTouch=Math.max(0,(p.footTouch||0)-dt);if(p.actionClock>0){p.actionClock=Math.max(0,p.actionClock-dt);p.actionElapsed+=dt;if(p.actionClock===0)p.action='idle';}
+  for(const p of this.players){p.duelRecovery=Math.max(0,(p.duelRecovery||0)-dt);p.feintCooldown=Math.max(0,(p.feintCooldown||0)-dt);p.feintReaction=Math.max(0,(p.feintReaction||0)-dt);p.feintResponseClock=Math.max(0,(p.feintResponseClock||0)-dt);p.wallPassClock=Math.max(0,(p.wallPassClock||0)-dt);p.feintClock=Math.max(0,(p.feintClock||0)-dt);p.touchClock=Math.max(0,(p.touchClock||0)-dt);p.tackleClock=Math.max(0,(p.tackleClock||0)-dt);p.receiveClock=Math.max(0,(p.receiveClock||0)-dt);p.footTouch=Math.max(0,(p.footTouch||0)-dt);if(p.actionClock>0){p.actionClock=Math.max(0,p.actionClock-dt);p.actionElapsed+=dt;if(p.actionClock===0)p.action='idle';}
    if(p.holdClock>0){p.holdClock=Math.max(0,p.holdClock-dt);
     if(p.gatherLift&&this.owner===p){const t=clamp((.75-p.holdClock)/.60,0,1),u=t*t*(3-2*t),height=p.gatherLift.height+(.95-p.gatherLift.height)*u;this.ball.y+=clamp(height-this.ball.y,-1.8*dt,1.8*dt);if(p.catchPoint)p.catchPoint.y=this.ball.y;}
     if(!p.holdClock){p.holdingBall=false;p.catchPoint=null;p.gatherLift=null;p.gatherStart=null;p.receiveClock=.15;p.decision=.18;if(this.owner===p)this.ball.vy=-.3;}}
