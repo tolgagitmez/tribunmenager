@@ -64,7 +64,9 @@ function create({playerId=0}={}){
   const Rig=window.TribunHumanoidRig,Renderer=window.TribunPlayerRenderer;
   const pose=Rig.getPose(proxy),raw=Renderer.palette(proxy,assets,pose);
   let result=raw;
-  if(status==='ready'){
+  // Keep the procedural shoulder fake and shield pose on the selected pilot.
+  // A generic imported run clip would otherwise overwrite those upper joints.
+  if(status==='ready'&&!(proxy.feintClock>0||proxy.brainRole==='shield')){
    try{
     const name=proxy.actionClock>0&&['shoot','pass'].includes(proxy.action)?'shoot':(proxy.speed||0)>.45?'run':'idle';
     const clip=select(name);
