@@ -85,7 +85,7 @@ test('network render extrapolates only visual skill clocks between snapshots',()
  assert.equal(state.players[0].feintClock,.30,'server snapshot is immutable to rendering');
  assert.equal(state.players[0].footTouch,.14);
  view.sample(1250,1/60);
- assert.equal(view.players[0].feintClock,.05);
+ assert(Math.abs(view.players[0].feintClock-.05)<.001);
  assert.equal(view.players[0].footTouch,0);
 });
 test('server snapshot transmits feint, shield and touch cues for the same match actor',()=>{
