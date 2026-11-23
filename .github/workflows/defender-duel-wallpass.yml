@@ -1,0 +1,36 @@
+name: Defensive feint, back-to-goal duel and wall pass
+on:
+  pull_request:
+    paths:
+      - 'football-sim.js'
+      - 'humanoid-rig.js'
+      - 'live-match-worker.cjs'
+      - 'live-match-view.js'
+      - 'match-clip-pilot.mjs'
+      - 'tests/defender-duel-wallpass.test.cjs'
+      - '.github/workflows/defender-duel-wallpass.yml'
+  push:
+    branches: ['feature/defender-duel-wall-pass-20261124']
+jobs:
+  physical-duel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check football-sim.js
+          node --check humanoid-rig.js
+          node --check live-match-worker.cjs
+          node --check live-match-view.js
+          node --check match-clip-pilot.mjs
+          node --check tests/defender-duel-wallpass.test.cjs
+      - name: Grounded feints, strength duels and verified wall passes
+        run: npm run test:duel-wallpass
+      - name: Existing attacking and physical contact regression
+        run: |
+          node --test tests/attack-breakpoint.test.cjs tests/character-rig-anatomy.test.cjs tests/live-contact-animation-pilot.test.cjs
+          node --test tests/pass-preparation.test.cjs tests/first-control.test.cjs
