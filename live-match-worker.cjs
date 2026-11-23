@@ -18,7 +18,8 @@ const playerFields = [
   'dribbleFoot', 'diveSide', 'diveForward', 'diveContactTime', 'saveTarget',
   'catchPoint', 'gatherStart', 'headerHeight', 'personality', 'feintClock',
   'feintSign', 'receiveClock', 'receiveMode', 'holdingBall',
-  'brainRole', 'touchMode', 'shieldFace'
+  'brainRole', 'touchMode', 'shieldFace',
+  'feintResponseClock', 'feintResponseSign', 'wallPassClock', 'wallPassFoot'
 ];
 const matchFields = [
   'time', 'duration', 'score', 'cards', 'reds', 'shots', 'onTarget', 'fouls',
