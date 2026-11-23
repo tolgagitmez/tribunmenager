@@ -102,3 +102,26 @@ test('existing Match physics and deterministic chosen actions are unaffected by 
  assert.deepEqual(m.ball,copy.ball);assert.deepEqual(m.events,copy.events);
  assert.deepEqual(m.score,copy.score);assert.deepEqual(m.telemetry,copy.telemetry);
 });
+
+test('genuine Match carry/feint decisions immediately drive their corresponding rig cues',()=>{
+ const m=new Match({seed:22,individualAI:true}),p=m.players[1],opponent=m.players[11];
+ m.restart=null;m.kick=null;m.owner=p;m.time=10;m.teamPhases=[null,null];
+ Object.assign(p,{x:0,z:0,face:Math.PI,role:'ATT',position:'ST',brainRole:'dribble',
+  shieldUntil:0,energy:1,dribbleFoot:1,feintCooldown:0});
+ Object.assign(opponent,{x:1.9,z:0,vx:0,vz:0,face:Math.PI,active:true});
+ const b=structuredClone(m.ball);
+ m.startCarry(p,{kind:'carry',point:{x:-1,z:0},shield:true,defender:opponent,commit:.35});
+ assert.equal(p.brainRole,'shield','shield pose must be visible in the same accepted decision frame');
+ assert(p.shieldUntil>m.time);
+ const before=structuredClone(m.ball);
+ const shield=Rig.update(p,1/60);
+ assert(shield.shieldWeight>0);
+ assert.deepEqual(m.ball,before,'visual shield must not push the ball');
+ m.startCarry(p,{kind:'feint',point:{x:-3,z:2},defender:opponent,sign:1,commit:.4});
+ assert(p.feintClock>0);
+ p.feintClock=.175;
+ const feint=Rig.update(p,1/60);
+ assert(feint.feintWeight>.99);
+ assert.equal(p.brainRole,'dribble');
+ assert.deepEqual(m.ball,b,'choosing and drawing on-ball actions never teleports the ball');
+});
