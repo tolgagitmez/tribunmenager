@@ -122,7 +122,7 @@ function pose(p,dt=1/60){
  const act=p.action||'idle',special=['pass','shoot','tackle','dive','catch','catch-ready','celebrate','protest','receive','throw','header'].includes(act)&&p.actionClock>0;
  // These cues read actual Match decisions/touches. They only affect this rig
  // and never move a simulated player, defender or the ball.
- const activeContact=p.actionClock>0&&['pass','shoot','tackle','dive','catch','catch-ready','receive','throw','header'].includes(act);
+ const activeContact=special;
  const feintClock=Number.isFinite(p.feintClock)?clamp(p.feintClock,0,.35):0;
  const feintU=1-feintClock/.35,feintWeight=!activeContact&&feintClock>0?Math.sin(Math.PI*feintU):0;
  const feintSide=(p.feintSign??1)>=0?1:-1;
