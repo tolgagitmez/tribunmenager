@@ -56,7 +56,7 @@ test('target forward shields with back to goal, but plays a clear pass first',()
  assert.equal(Brain.canHoldUp({...target,x:0,face:0},defender,null,{pressure:2,forward:-1}),false);
 });
 function preparedMatch(){
- const m=new Match({seed:21}),p=m.players[1];
+ const m=new Match({seed:21,individualAI:true}),p=m.players[1];
  m.restart=null;m.goalPause=null;m.kick=null;m.owner=p;m.time=12;
  m.targets=new Map();m.passOptions=()=>[];m.crossingOption=()=>null;
  m.shotWindow=()=>({distance:50,quality:0,open:0,execution:0,pressure:0,point:{x:52,z:0}});
