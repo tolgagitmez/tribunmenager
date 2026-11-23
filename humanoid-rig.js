@@ -131,7 +131,7 @@ function pose(p,dt=1/60){
  const shieldWeight=clamp(st.shieldWeight,0,1);
  const feintFoot=feintSide>0?1:0;
  const misreadClock=Number.isFinite(p.feintResponseClock)?clamp(p.feintResponseClock,0,.19):0;
- const defenderMisread=!special&&misreadClock>0?Math.sin(Math.PI*clamp(misreadClock/.19,0,1)):0;
+ const defenderMisread=!special&&misreadClock>0?Math.sin(Math.PI*.5*clamp(misreadClock/.19,0,1)):0;
  const defenderSide=(p.feintResponseSign??1)>=0?1:-1;
  const wallPassWeight=kicking&&p.wallPassClock>0&&p.wallPassFoot===p.kickFoot?1:0;
  // Gaze affects the drawn head only. It never turns the physical body or
