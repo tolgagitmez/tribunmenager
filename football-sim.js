@@ -594,6 +594,9 @@ class Match{
   }}),selected=Intent.resolve(p,proposal,context);
   if(selected.x!==choice.point.x||selected.z!==choice.point.z)this.telemetry.carryContinuations=(this.telemetry.carryContinuations||0)+1;
   p.carryTarget={x:selected.x,z:selected.z};p.carryIntent={point:{...p.carryTarget},until:Math.min(p.task?.expiresAt??Infinity,this.time+(choice.commit||.4))};p.settleUntil=choice.hold?this.time+.5:0;
+  // The visual stance switches at the accepted physical carry decision,
+  // rather than waiting for the next 160 ms planning refresh.
+  p.brainRole=selected.state;
   if(choice.shield){
    if(!(p.shieldUntil>this.time)){p.shieldBudgetUntil=this.time+1.1;p.shieldReadyAt=this.time+2;this.telemetry.shieldCarries++;}
    p.shieldUntil=Math.min(p.shieldBudgetUntil,this.time+.4);
