@@ -15,7 +15,7 @@ const playerFields = [
   'portraitId', 'referee', 'active', 'yellow', 'skin', 'hair', 'visual',
   'skill', 'fitness', 'stamina', 'energy', 'x', 'z', 'vx', 'vz', 'speed',
   'face', 'selected', 'action', 'actionClock', 'actionDuration', 'actionElapsed',
-  'kickFoot', 'kickMoving', 'contactTime', 'footTouch', 'touchPosition',
+  'kickFoot', 'preferredFoot', 'kickMoving', 'contactTime', 'footTouch', 'touchPosition',
   'dribbleFoot', 'diveSide', 'diveForward', 'diveContactTime', 'saveTarget',
   'catchPoint', 'gatherStart', 'headerHeight', 'jumpHeight', 'chestContactHeight', 'personality', 'feintClock',
   'feintSign', 'receiveClock', 'receiveMode', 'holdingBall', 'holdClock'

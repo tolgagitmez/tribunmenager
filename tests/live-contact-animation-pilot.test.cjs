@@ -157,6 +157,54 @@ test('a headed shot keeps its header pose in both the timed and direct observers
  }
 });
 
+test('both boots prepare for a ground pass and withdraw from the confirmed contact on match time',()=>{
+ for(const foot of [0,1]){
+  const {p,m}=fixture(),pilot=Pilot.create({playerId:p.id});
+  Object.assign(p,{vx:0,vz:0,speed:0,action:'idle',kickFoot:1-foot,preferredFoot:1-foot});
+  const teammate={id:7,team:p.team,active:true};
+  m.players.push(teammate);
+  const z=foot?.36:-.36;
+  const flight={id:8,kind:'pass',fromId:teammate.id,targetId:p.id,age:.35};
+  const at={x:4.99,y:.11,z,vx:2,vy:0,vz:0};
+  const cue={id:3,kind:'receive',playerId:p.id,flightId:flight.id,time:1.16,ball:at,control:{foot,mode:'open'}};
+  Object.assign(m,{time:1,flight,contacts:[cue],ball:{x:6.7,y:.11,z,vx:-11,vy:0,vz:0}});
+  const before=structuredClone(m);
+  const early=pilot.observe(m,1/60);
+  assert.deepEqual(m,before);
+  assert.equal(early.receiveCue,null,'the exact cue is still in the future');
+  assert.equal(early.control.foot,foot,'ball side predicts the same foot, even with opposite foot preference');
+  assert.equal(early.control.preparing,true);
+  m.time=1.10;m.ball.x=5.6;
+  const nearTouch=pilot.observe(m,1/60);
+  assert(early.control.weight>0&&early.control.weight<nearTouch.control.weight&&nearTouch.control.weight<1);
+  Object.assign(m,{time:cue.time,flight:null,ball:{...at}});
+  Object.assign(p,{kickFoot:foot,action:'receive',actionClock:.20,actionDuration:.20,actionElapsed:0,receiveMode:'open'});
+  const drawn=pilot.observe(m,1/60);
+  assert.equal(drawn.receiveCue,cue);
+  assert.equal(drawn.control.weight,1);
+  assert.equal(drawn.control.preparing,false);
+  assert.equal(pilot.observe(m,1/60).control.weight,1,'duplicate packets do not advance the withdrawal');
+  m.time+=.08;p.actionElapsed+=.08;m.ball.x+=.16;
+  const retreat=pilot.observe(m,1/60);
+  assert.deepEqual(retreat.control.ball,at,'recovery leaves the contact point as the ball rolls away');
+  near(retreat.control.weight,.50);
+  Object.assign(p,{action:'pass',actionElapsed:0,actionClock:.3});
+  assert.equal(pilot.observe(m,1/60).control,null,'the next pass takes over the pose');
+ }
+});
+
+test('crosses, opponents and airborne balls cannot start a projected control pose',()=>{
+ const {p,m}=fixture(),pilot=Pilot.create({playerId:p.id});
+ Object.assign(p,{vx:0,vz:0,speed:0,action:'idle'});
+ const passer={id:9,team:p.team};
+ Object.assign(m,{flight:{id:2,kind:'cross',target:p,from:passer},ball:{x:5.6,y:.11,z:.30,vx:-10,vy:0,vz:0}});
+ assert.equal(pilot.observe(m).control,null);
+ m.flight.kind='pass';passer.team=1-p.team;
+ assert.equal(pilot.observe(m).control,null);
+ passer.team=p.team;m.ball.vy=-.4;
+ assert.equal(pilot.observe(m).control,null);
+});
+
 test('actual Match penalty release is sampled at the same foot-contact tick',()=>{
  const {Match}=require('../football-sim.js'),Club=require('../club-data.js');
  const m=new Match({seed:21,players:Club.createRoster(),starters:Club.starters,

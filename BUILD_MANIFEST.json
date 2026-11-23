@@ -1,12 +1,12 @@
 {
   "version": "1.35.0",
   "simulationStage": 16,
-  "upstreamCommit": "5fd94f00345a7626ae5afef68696690d86843ca4",
+  "upstreamCommit": "6705adca98462794d53263631c4243c493ff4ac6",
   "simulationSHA256": "f076b3cb26b09a0bf47d55861e8ab1119a2ace24ec73f92e02991a90531f08d5",
   "rigSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
   "playerAssetManifestSHA256": "71bbb3fa69153aa9279f97918a3983db0e060eb5c8490266c0ae0641d249f0c4",
   "interchangeManifestSHA256": "c3b6e836838092283b9ada59aeb09e13770868804e465803f7d8424b1f49b6d7",
-  "description": "Distribution file inventory. Includes the current match engine, authoritative live fixtures, licensed footballer and Blender assets, and controlled wing attack and contact presentation checks. Dependencies and local workspace output are excluded.",
+  "description": "Distribution file inventory. Includes the authoritative match engine, licensed character assets, synchronized wing attack pilot and ground first-control rendering checks. Dependencies and local workspace output are excluded.",
   "files": [
     {
       "path": ".github/workflows/aerial-keeper-laws.yml",
@@ -55,8 +55,8 @@
     },
     {
       "path": ".github/workflows/live-contact-pilot.yml",
-      "bytes": 2666,
-      "sha256": "25b54c240c222ed1f7892ce4c85668e5a18eed94800a561130a3c2a6d789d426"
+      "bytes": 2778,
+      "sha256": "7ea2d0d4bdf0c9c59227c965210e6cfd5ced1c24b29724fa4acb173e1b7d64c0"
     },
     {
       "path": ".github/workflows/match-invariance.yml",
@@ -450,8 +450,8 @@
     },
     {
       "path": "docs/WING_ATTACK_PILOT.md",
-      "bytes": 3266,
-      "sha256": "cb1461a375937ad4a8eacaf848fc06980993af7fcfe13dec33897f68b6572aec"
+      "bytes": 3958,
+      "sha256": "8c6d9da96d381bc40739ab4e95c2498e1e034ed26a80dab7a431fba8acb53c1b"
     },
     {
       "path": "docs/previews/character-failure-match-invalid-final.png",
@@ -1210,13 +1210,13 @@
     },
     {
       "path": "live-match-view.js",
-      "bytes": 7113,
-      "sha256": "705d68a19200776ebd51e0db159378fa72b1284df5fb73993a833a353a3b2440"
+      "bytes": 8072,
+      "sha256": "695e034fe8f3735dd02fe6b5ba17a8dcf267391b1725eeeae75dfe2043ea983f"
     },
     {
       "path": "live-match-worker.cjs",
-      "bytes": 5701,
-      "sha256": "aada6a60a4e31af6da04963187528d6b253028e7f66ef50877c5de050972e5d8"
+      "bytes": 5718,
+      "sha256": "bf726a72a3021ea425ce6d7458e6a8a168f9887e1365055ef04c92bb67f3e9b9"
     },
     {
       "path": "live_match.py",
@@ -1255,8 +1255,8 @@
     },
     {
       "path": "match-clip-pilot.mjs",
-      "bytes": 10230,
-      "sha256": "caf0dbd47e99215cfcc6bbfa2e1ed8ec858021e9a5e93085d108761dad7cdc95"
+      "bytes": 12793,
+      "sha256": "6a2d184a6e4a9d43c3d8bacd53c49ace4ea6a4e8c57d35671a08bb950805659c"
     },
     {
       "path": "match-config.js",
@@ -1265,13 +1265,18 @@
     },
     {
       "path": "match-contact-events.js",
-      "bytes": 2762,
-      "sha256": "9fda802430ff4a527801dd0fc81fa22c5341ece337f764244bfdb2056e3b822d"
+      "bytes": 3920,
+      "sha256": "8f06dc6a33629199d177588b6dfc641758f1090ee43c3037122347a9e617e124"
     },
     {
       "path": "match-contact-pilot.js",
-      "bytes": 6539,
-      "sha256": "4f211846975ac9e49d827ce892f7ccf646a79458c37210dd101dcde2f1d229cc"
+      "bytes": 8927,
+      "sha256": "4f1093c72a21bee3c69b5d1784e988b331da190bd5d03677764784295bea4013"
+    },
+    {
+      "path": "match-first-touch.mjs",
+      "bytes": 3997,
+      "sha256": "33087d3c28b5e655f7581b54f407e2632cb5df4563296a27666ac626e220ad7a"
     },
     {
       "path": "match-rules.js",
@@ -1290,8 +1295,8 @@
     },
     {
       "path": "match3d.js",
-      "bytes": 27720,
-      "sha256": "f87401c291384f853d4ba84f1ccbe3acf86c38203a9bb5ab74b4a57a483f8852"
+      "bytes": 27727,
+      "sha256": "1f9275f8f0f8627d1f3bcb3dfd686adca0d0ef869cff714f9fb36ad0d70c2541"
     },
     {
       "path": "package-lock.json",
@@ -1300,8 +1305,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 6200,
-      "sha256": "a3e1f1568931d4aa569fb0bbbcb846da0cfe14afdb64bcc41322ba55d385c0a2"
+      "bytes": 6262,
+      "sha256": "95e9870c78174dc9a856aa9e1de2ab8f2b831c16702b7ab51aa92051cfcfa3db"
     },
     {
       "path": "pitch-laws.js",
@@ -1530,8 +1535,8 @@
     },
     {
       "path": "tests/first-control.test.cjs",
-      "bytes": 9446,
-      "sha256": "52eeabfbc87538dd6a0aaa76abb181bec497ef7908d055f2d0b8649bb89d5eb8"
+      "bytes": 11184,
+      "sha256": "fb876b63932345b7d56c19e32be1b72d100c5753e96e66c845211dd131bb61a8"
     },
     {
       "path": "tests/fixture-roster-api.py",
@@ -1570,8 +1575,8 @@
     },
     {
       "path": "tests/live-contact-animation-pilot.test.cjs",
-      "bytes": 9647,
-      "sha256": "404ca9a292f1a189946378b25a027f53935ea4340ddb514b85c94e9e5a60f1c0"
+      "bytes": 12283,
+      "sha256": "816fd241d27d976c0cca3de2a88410d2e3dd93d592a1a0ecaefef7c150325e02"
     },
     {
       "path": "tests/live-match-browser.cjs",
@@ -1580,8 +1585,8 @@
     },
     {
       "path": "tests/live-match-presentation.test.cjs",
-      "bytes": 10450,
-      "sha256": "8c3c171c1ec88c753e0ee43da3f434cde587f0decd63b9de7d57ae6afc597c2e"
+      "bytes": 12848,
+      "sha256": "145c5bcce456d9574d552c08957ebfbe57342c256912e989f0103b073c5a14e0"
     },
     {
       "path": "tests/live-match-worker.test.cjs",
@@ -1607,6 +1612,11 @@
       "path": "tests/match-boot-contact.test.cjs",
       "bytes": 1995,
       "sha256": "0165ecdc2bdb7a9a0d7b8d0b6f010471e5a114b0e8ccfc2d8fbbedea436be0fd"
+    },
+    {
+      "path": "tests/match-first-touch.test.cjs",
+      "bytes": 3513,
+      "sha256": "23e4336262fe30d8224e3aa4a85fccbd2c77fff2de24bf149ee01a608f1ce7f5"
     },
     {
       "path": "tests/match-fps-profiles.test.cjs",
@@ -1770,13 +1780,13 @@
     },
     {
       "path": "tests/wing-attack-browser.cjs",
-      "bytes": 16124,
-      "sha256": "e6cac9c57cd1fea68f32c91e4bb2596c605e4405da86fecb46bc636f55c7db6b"
+      "bytes": 20136,
+      "sha256": "1d7d7228d44d777d3c5f9ac80f42b9f8b0e7817584c3bc579cf0950658c155a4"
     },
     {
       "path": "tests/wing-attack.test.cjs",
-      "bytes": 5199,
-      "sha256": "de602f61add1769366990a2cae17f7a33f07dffff909f6c7e6c8054443dbc8dc"
+      "bytes": 5320,
+      "sha256": "fa9bca4d9a5ea5a67a037a29d16cf67b1cf075079f08276bdfb3e28e0b60d772"
     },
     {
       "path": "tools/bake-licensed-clips.cjs",

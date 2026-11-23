@@ -8,7 +8,7 @@
     "test:manager-kick-browser": "node tests/manager-kick-browser.cjs",
     "test:live-match": "node --test tests/live-match-worker.test.cjs && python3 -m unittest discover -s tests -p test_live_match.py -v",
     "test:live-match-browser": "node tests/live-match-browser.cjs",
-    "test:wing-attack": "node --test tests/wing-attack.test.cjs tests/live-contact-animation-pilot.test.cjs tests/live-match-presentation.test.cjs tests/match-boot-contact.test.cjs",
+    "test:wing-attack": "node --test tests/wing-attack.test.cjs tests/first-control.test.cjs tests/live-contact-animation-pilot.test.cjs tests/live-match-presentation.test.cjs tests/match-first-touch.test.cjs tests/match-boot-contact.test.cjs",
     "test:wing-attack-browser": "node tests/wing-attack-browser.cjs",
     "test:stage15": "npm run test:stage14 && npm run test:gltf",
     "test:gltf": "node --test tests/standard-gltf-loader.test.cjs tests/gltf-blender-fixture.test.cjs tests/gltf-vendor.test.cjs",

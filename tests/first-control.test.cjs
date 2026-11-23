@@ -2,6 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto'),Module=require('node:module');
 const {Match,BallPhysics,distance}=require('../football-sim');
+const ContactEvents=require('../match-contact-events.js');
 const baselineSource=zlib.gunzipSync(fs.readFileSync(path.join(__dirname,'../docs/validation/baselines/stage4-football-sim.js.gz')));
 assert.equal(crypto.createHash('sha256').update(baselineSource).digest('hex'),'406526afd60d3d2469e4d320b4a5a801f9680ecdbc6b98de9bf8d20d1c9ab539');
 const baselineModule=new Module(path.join(__dirname,'../first-control-stage4.js'),module);baselineModule.filename=path.join(__dirname,'../first-control-stage4.js');baselineModule.paths=module.paths;baselineModule._compile(baselineSource.toString(),baselineModule.filename);
@@ -89,4 +90,39 @@ test('the retained glancing cushion still responds to player technique and incom
  for(const f of [skilled,novice,slow]){f.m.ballStep(dt);assert.equal(f.q.receiveMode,'cushion');}
  assert(Math.hypot(novice.m.ball.vx,novice.m.ball.vz)>Math.hypot(skilled.m.ball.vx,skilled.m.ball.vz));
  assert(Math.hypot(novice.m.ball.vx,novice.m.ball.vz)>Math.hypot(slow.m.ball.vx,slow.m.ball.vz));
+});
+
+test('receive cues expose the accepted ground-control foot and retain their physical contact snapshot',()=>{
+ const observed=({m},receiver)=>{
+  const observer=ContactEvents.create();observer.observe(m);
+  m.time+=dt;m.ballStep(dt);
+  const authoritative=clone(m);
+  observer.observe(m);observer.observe(m);
+  assert.deepEqual(m,authoritative,'observation leaves physics and the referee untouched');
+  const cues=observer.recent();
+  assert.equal(cues.length,1);
+  const [cue]=cues;
+  assert.equal(cue.kind,'receive');
+  assert.equal(cue.playerId,receiver.id);
+  assert.deepEqual(cue.ball,m.ball);
+  const held={...cue.ball};m.integrateBall(dt);
+  assert.deepEqual(cue.ball,held);
+  return cue.control;
+ };
+ for(const foot of [0,1]){
+  const open=fixture({front:true});open.q.kickFoot=1-foot;open.q.preferredFoot=foot;
+  assert.deepEqual(observed(open,open.q),{foot,mode:'open'});
+ }
+ const protect=fixture({front:true});
+ Object.assign(protect.m.players[14],{active:true,x:-.2,z:2.6,vx:0,vz:0,speed:0,face:0,touchClock:0});
+ assert.deepEqual(observed(protect,protect.q),{foot:1,mode:'protect'});
+ const oneTouch=fixture({front:true,mode:'one-touch'});
+ assert.equal(observed(oneTouch,oneTouch.q),undefined);
+ const cushion=fixture();
+ assert.equal(observed(cushion,cushion.q),undefined);
+ const landing=fixture({front:true});landing.m.ball.y=.111;landing.m.ball.vy=-.1;
+ assert.equal(observed(landing,landing.q),undefined);
+ const interception=fixture({mode:'one-touch'}),defender=interception.m.players[14];
+ Object.assign(defender,{active:true,x:-1.2,z:.05,vx:0,vz:0,speed:0,face:0,touchClock:0,duelRecovery:0});
+ assert.equal(observed(interception,defender),undefined);
 });

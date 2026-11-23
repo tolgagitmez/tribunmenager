@@ -64,7 +64,7 @@ class LiveMatchView {
  }
  ingest(snapshot,now){
   if(this.time!==undefined&&(snapshot.time+epsilon<this.time||snapshot.eventSerial<this.eventSerial))return;
-  const {players,ball,ownerId,direction,tactics,contacts=[],...state}=snapshot;
+  const {players,ball,ownerId,direction,tactics,flight=null,contacts=[],...state}=snapshot;
   const first=this.time===undefined;
   const sameTime=this.time===snapshot.time;
   const priorPeriod=this.period;
@@ -77,6 +77,7 @@ class LiveMatchView {
   this.t=tactics;
   this.attackDirections=direction;
   this.ball=ball;
+  this.flight=flight;
   this.owner=players.find(p=>p.id===ownerId)??null;
   this.contacts=contacts;
   const changedPeriod=this.period!==priorPeriod;
@@ -89,12 +90,14 @@ class LiveMatchView {
   this.startTime=this.blendMs?from:this.time;
 
   const inSegment=this.segmentContacts=contacts.filter(cue=>cue.time>this.startTime+epsilon&&cue.time<=this.time+epsilon);
+  const newRestart=this.restart&&this.priorRestartId!==this.restart.id;
+  this.startFlight=this.blendMs&&(!newRestart||inSegment.length)?this.presentation.flight:null;
   const endpoint=(value,kind)=>({time:this.time,value,kind});
   const frames=(initial,points,key,final,kind)=>[
    ...(this.blendMs?[{time:this.startTime,value:initial},...points.map(point=>({time:point.time,value:point[key],kind:point.kind}))]:[]),
    endpoint(final,kind)
   ];
-  const replacedBall=this.restart&&this.priorRestartId!==this.restart.id&&
+  const replacedBall=newRestart&&
    Math.hypot(ball.x-this.visualBall.x,ball.z-this.visualBall.z)>5;
   this.priorRestartId=this.restart?.id;
   this.ballFrames=replacedBall&&!inSegment.length?[endpoint(ball)]:
@@ -140,12 +143,29 @@ class LiveMatchView {
   for(const key of ['vx','vy','vz'])this.visualBall[key]=blend(a,b,impact?0:ballWeight,key);
   if(a.spin===undefined&&(b.spin===undefined||impact))delete this.visualBall.spin;
   else this.visualBall.spin=mix(a.spin||0,b.spin||0,impact?0:ballWeight);
-  const activeFlight=this.flight&&time>=this.time-(this.flight.age??0)-epsilon;
   Object.assign(this.presentation,{
    time,players:this.players,ball:this.visualBall,
-   flight:activeFlight?{...this.flight,age:Math.max(0,(this.flight.age??0)-(this.time-time))}:null,
+   flight:this.flightAt(time),
    releaseSerial:this.releaseSerial,contacts:this.contacts.filter(cue=>cue.time<=time+epsilon)
   });
+ }
+ flightAt(time){
+  const latest=this.flight;
+  if(!this.blendMs||time>=this.time-epsilon)return latest?{...latest,age:latest.age??0}:null;
+  let flight=this.startFlight,launch=this.startTime-(flight?.age??0);
+  for(const cue of this.segmentContacts){
+   if(cue.time>time+epsilon)break;
+   if(cue.kind==='release'&&cue.flightId!=null){
+    flight={id:cue.flightId,kind:cue.kickKind,fromId:cue.playerId,targetId:cue.targetId??null};
+    launch=cue.time;
+   }else if(flight?.id===cue.flightId&&(cue.kind==='receive'||cue.kind==='keeper-contact'))flight=null;
+  }
+  // Older snapshots may supply a flight's age without a release cue.
+  if(latest&&(!flight||latest.id!==flight.id)&&!this.segmentContacts.some(cue=>cue.kind==='release'&&cue.flightId===latest.id)){
+   const latestLaunch=this.time-(latest.age??0);
+   if(time>=latestLaunch-epsilon){flight=latest;launch=latestLaunch;}
+  }
+  return flight?{...flight,age:Math.max(0,time-launch)}:null;
  }
  clockState(){return this.clock;}
  direction(team){return this.attackDirections[team];}
