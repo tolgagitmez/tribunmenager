@@ -98,3 +98,20 @@ test('short-passing playmaker may see a real aligned through run, not an unalign
  p.vision=68;p.passing=70;m.plannedRun=()=>({x:17,z:0});
  assert(!m.passOptions(p).some(o=>o.kind==='through'),'a low-vision player cannot receive the creative exception');
 });
+
+test('legacy generated-roster fixtures retain deterministic behavior until individually enabled',()=>{
+ const original=new Match({seed:9}),explicitOff=new Match({seed:9,individualAI:false});
+ assert.equal(original.playerBrainEnabled(original.players[0]),false);
+ assert.equal(explicitOff.playerBrainEnabled(explicitOff.players[0]),false);
+ for(let frame=0;frame<180;frame++){
+  original.step(1/60);explicitOff.step(1/60);
+ }
+ assert.deepEqual(original.ball,explicitOff.ball);
+ assert.deepEqual(original.events,explicitOff.events);
+ assert.deepEqual(original.score,explicitOff.score);
+ const opted=new Match({seed:9,individualAI:true});
+ assert.equal(opted.playerBrainEnabled(opted.players[0]),true);
+ const supplied=require('../player-model.js').demoTeam(0,'4-3-3'),custom=new Match({seed:9,players:supplied});
+ assert.equal(custom.playerBrainEnabled(custom.players[0]),true);
+ assert.equal(custom.playerBrainEnabled(custom.players[11]),false);
+});
