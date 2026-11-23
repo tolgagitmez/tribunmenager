@@ -103,6 +103,12 @@ class Match{
  hash(s){let n=2166136261;for(const c of s)n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;}
  random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
  direction(team){return (team===0?1:-1)*(this.period===2?-1:1);}
+ playerBrainEnabled(p){
+  if(this.cfg.individualAI===true)return true;
+  if(this.cfg.individualAI===false)return false;
+  const roster=p.team===0?this.cfg.players:this.cfg.awayPlayers;
+  return Array.isArray(roster)&&roster.length>=11;
+ }
  team(t){return this.players.filter(p=>p.active&&p.team===t);}
  field(t){return this.team(t).filter(p=>p.role!=='GK');}
  tactics(t){return this.t[t];}
@@ -365,7 +371,7 @@ class Match{
    const lane=long?risk*.32:risk,preferred=t.passing==='short'?11:t.passing==='direct'?29:17;
    let score=space*.68+advance*(t.playstyle==='counter'||t.playstyle==='direct'?.82:t.passing==='short'?.36:.48)-lane*28-reception.risk*9-Math.abs(d-preferred)*(t.passing==='short'?.52:.23);
    score+=Math.max(0,this.threat(point,p.team)-this.threat(p,p.team))*10;
-   score+=Brain.passBias(p,{kind,forwardGain:advance,pressure,risk:lane,space,arrivalRisk:reception.risk});
+   if(this.playerBrainEnabled(p))score+=Brain.passBias(p,{kind,forwardGain:advance,pressure,risk:lane,space,arrivalRisk:reception.risk});
    // Equal overall ratings can yield different actual passing choices.
    // DM reads the safe local outlet; AM seeks productive forward links.
    if(p.detailedRole&&p.position==='DM')score+=(18-d)*.22-risk*4.5;
@@ -401,14 +407,14 @@ class Match{
    if(t.playstyle==='wing'&&Math.abs(q.z)>18&&advance>4)score+=3;
    options.push({kind,q,point,risk:clamp(lane+reception.risk*.18,0,1),score,space,distance:d,arrivalRisk:reception.risk,movingReturn});
    // Pass into a runner's path, beyond the line but only to an initially onside player.
-   if((t.passing!=='short'||p.x*forward>16||(p.vision??0)>=86&&(p.passing??0)>=82)&&q.role!=='GK'&&q.role!=='DEF'&&q.x*forward<=Math.max(line,p.x*forward)+.05&&(q.x-p.x)*forward>0&&d<34){
+   if((t.passing!=='short'||p.x*forward>16||this.playerBrainEnabled(p)&&(p.vision??0)>=86&&(p.passing??0)>=82)&&q.role!=='GK'&&q.role!=='DEF'&&q.x*forward<=Math.max(line,p.x*forward)+.05&&(q.x-p.x)*forward>0&&d<34){
     const length=5+clamp((q.pace??80)-70,0,25)*.10,intent=this.plannedRun(q),aligned=!!intent&&(intent.x-q.x)*forward>.75;
     const lateral=aligned?clamp((intent.z-q.z)/Math.max(.75,(intent.x-q.x)*forward)*length,-5.5,5.5):q.vz*.45;
     const run={x:clamp(q.x+forward*length,-48,48),z:clamp(q.z+lateral,-28,28)};
     const reachTime=dist(q,run)/Math.max(3.5,5.35+((q.pace??80)-75)*.035),flight=this.passTime('through',dist(p,run),21);
     const rivals=this.rivals(p),r=this.laneRisk(p,run,20),open=Math.min(16,...rivals.map(o=>dist(o,run)));
     const defenderArrival=Math.min(10,...rivals.map(o=>dist(o,run)/(5.7+((o.pace??80)-75)*.04)+.18));
-    if(open>3&&r<.55&&reachTime<flight+.65&&reachTime<defenderArrival+.05&&run.x*forward>line+.8&&line-q.x*forward<9&&p.x*forward>-20&&(t.passing!=='short'||p.x*forward>16||Brain.canThread(p,{forwardGain:(run.x-p.x)*forward,aligned,pressure})))options.push({kind:'through',q,point:run,risk:r,space:open,score:score+(t.passing==='short'?0:2)+(run.x-point.x)*forward*.30+(line<run.x*forward?2:0)-r*7+Brain.passBias(p,{kind:'through',forwardGain:(run.x-p.x)*forward,pressure,risk:r,space:open}),plannedRun:aligned,movingReturn});
+    if(open>3&&r<.55&&reachTime<flight+.65&&reachTime<defenderArrival+.05&&run.x*forward>line+.8&&line-q.x*forward<9&&p.x*forward>-20&&(t.passing!=='short'||p.x*forward>16||this.playerBrainEnabled(p)&&Brain.canThread(p,{forwardGain:(run.x-p.x)*forward,aligned,pressure})))options.push({kind:'through',q,point:run,risk:r,space:open,score:score+(t.passing==='short'?0:2)+(run.x-point.x)*forward*.30+(line<run.x*forward?2:0)-r*7+(this.playerBrainEnabled(p)?Brain.passBias(p,{kind:'through',forwardGain:(run.x-p.x)*forward,pressure,risk:r,space:open}):0),plannedRun:aligned,movingReturn});
    }
   }
   return options.sort((a,b)=>b.score-a.score);
@@ -629,7 +635,7 @@ class Match{
     for(const rival of opponents){const next={x:rival.x+rival.vx*Math.min(time,.6)*.65,z:rival.z+rival.vz*Math.min(time,.6)*.65};clearance=Math.min(clearance,dist(future,next)-.55-Math.max(0,time-.2)*1.1);}
    }
    const continuity=p.carryIntent?.until>this.time&&dist(point,p.carryIntent.point)<2.5?.9:0;
-   const score=Math.min(6,clearance)*1.4+(point.x-p.x)*side*.78-Math.max(0,1.2-clearance)*4-Math.abs(point.z)*.025-Math.abs(angle(a,p.face))*(1.2-(p.agility??80)/110)+continuity+Brain.carryBias(p,{forwardGain:(point.x-p.x)*side,clearance,turn:Math.abs(angle(a,p.face)),point});
+   const score=Math.min(6,clearance)*1.4+(point.x-p.x)*side*.78-Math.max(0,1.2-clearance)*4-Math.abs(point.z)*.025-Math.abs(angle(a,p.face))*(1.2-(p.agility??80)/110)+continuity+(this.playerBrainEnabled(p)?Brain.carryBias(p,{forwardGain:(point.x-p.x)*side,clearance,turn:Math.abs(angle(a,p.face)),point}):0);
    if(!best||score>best.score)best={kind:'carry',point,score,clearance,commit:.65};
   }
   return best||{kind:'carry',point:{x:p.x-side*2,z:clamp(p.z+2,-32,32)},score:-20,clearance:0,commit:.4};
@@ -756,13 +762,13 @@ class Match{
    return {kind:'carry',point:{x:clamp(p.x+this.direction(p.team)*1.5,-49,49),z:p.z},hold:true};
   }
   const nearbyDefender=nearest(opponents,p);
-  if(this.canShield(p)&&Brain.canHoldUp(p,nearbyDefender,best,{forward:this.direction(p.team),pressure})){
+  if(this.playerBrainEnabled(p)&&this.canShield(p)&&Brain.canHoldUp(p,nearbyDefender,best,{forward:this.direction(p.team),pressure})){
    return {...this.shieldOption(p,nearbyDefender),holdUp:true};
   }
-  if(Brain.canFeint(p,nearbyDefender,{pressure})&&p.feintCooldown<=0&&(!best||best.score<17||best.risk>.5)){
+  if((this.playerBrainEnabled(p)?Brain.canFeint(p,nearbyDefender,{pressure}):pressure>1.35&&pressure<3.1&&p.dribbling>=85)&&p.feintCooldown<=0&&(!best||best.score<17||best.risk>.5)){
    const feint=this.feintOption(p,nearbyDefender);if(feint)return feint;
   }
-  if(Brain.shouldDrive(p,carry,best,{forward:this.direction(p.team),pressure,carryTime:p.carryTime,goalDistance:goalDist})){
+  if(this.playerBrainEnabled(p)&&Brain.shouldDrive(p,carry,best,{forward:this.direction(p.team),pressure,carryTime:p.carryTime,goalDistance:goalDist})){
    return {...carry,signatureDrive:true};
   }
   if(outlet&&(pressure<3.2&&carry.clearance<1.5||best?.risk>=.5&&carry.clearance<2.0))return {...outlet,pressureOutlet:true};
