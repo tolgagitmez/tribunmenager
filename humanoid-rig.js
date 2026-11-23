@@ -133,7 +133,7 @@ function pose(p,dt=1/60){
  const misreadClock=Number.isFinite(p.feintResponseClock)?clamp(p.feintResponseClock,0,.19):0;
  const defenderMisread=!special&&misreadClock>0?Math.sin(Math.PI*.5*clamp(misreadClock/.19,0,1)):0;
  const defenderSide=(p.feintResponseSign??1)>=0?1:-1;
- const wallPassWeight=kicking&&p.wallPassClock>0&&p.wallPassFoot===p.kickFoot?1:0;
+ const wallPassWeight=(act==='pass'||act==='shoot')&&p.actionClock>0&&p.wallPassClock>0&&p.wallPassFoot===p.kickFoot?1:0;
  // Gaze affects the drawn head only. It never turns the physical body or
  // changes contact anchors. Keep draw queries read-only by easing on update.
  const hasScan=Number.isFinite(p.perception?.headYaw),scanTarget=hasScan?clamp(p.perception.headYaw,-.8,.8):0;
