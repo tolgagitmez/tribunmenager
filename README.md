@@ -17,6 +17,10 @@ Hiç izlenmeyen lig fikstürleri de aynı saha motoruyla tamamlanır. Maç bitin
 
 [Sahada yön ve güç seçimi](docs/previews/manager-kick-aim.png) · [Mobilde temas noktası seçimi](docs/previews/manager-kick-contact.png)
 
+## Kanat hücumu animasyon pilotu
+
+Kontrollü prova kanat oyuncusunun hızlanmasını, frenleyip pası açık gövdeyle almasını, geriye çıkarmasını, üçüncü oyuncunun şutunu ve kaleci tepkisini tek akışta ölçer. Geliştirici komutları ve maçta pilotu açma adımları [kanat hücumu rehberinde](docs/WING_ATTACK_PILOT.md) yer alır.
+
 ## On beşinci aşama: standart Blender aktarımı ve çizici karşılaştırması — v1.34.0
 
 **[Standart model karşılaştırma atölyesini aç](interop-lab.html).** Aynı Blender futbolcusunun GLB veya harici dosyalı glTF sürümünü mevcut WebGL çizicisi ve Three.js üzerinde, aynı animasyon zamanı ve kamera ile inceleyebilirsin. Python başlatıcısı yeterlidir; gerekli kütüphaneler pakettedir, CDN veya npm çalışma anında gerekmez.

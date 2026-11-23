@@ -3,6 +3,8 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const Rig=require('../humanoid-rig.js');
 global.TribunHumanoidRig=Rig;
 const Pilot=require('../match-contact-pilot.js'),BallVisual=require('../ball-visual.js');
+const Renderer=require('../player-renderer.js'),Skinning=require('../player-skinning.js');
+const Assets=require('../assets/player/player-model-data.js');
 const near=(a,b,eps=1e-5)=>assert(Math.abs(a-b)<=eps,a+' vs '+b);
 function fixture(){
  const p={id:0,team:0,role:'ATT',active:true,x:4,z:0,face:0,
@@ -63,6 +65,96 @@ test('only selected pilot actor gets visual state and reset clears inherited eve
  m.releaseSerial=5;m.flight={id:5,kind:'pass',from:other};
  ctl.observe(m,1/60);assert.equal(ctl.state().contactCount,0);
  ctl.reset();assert.equal(ctl.state().contactCount,0);
+});
+
+test('both support boots hold the licensed outsole in world space and step when they run out of reach',()=>{
+ const raw=Buffer.from(Assets.lods[0].vertices,'base64');
+ const vertices=new Float32Array(raw.buffer,raw.byteOffset,raw.length/4);
+ const sampleDt=1/60;
+ for(const kickFoot of [0,1]){
+  const {p,m}=fixture(),ctl=Pilot.create({playerId:p.id});
+  const joint=Assets.bones.findIndex(bone=>bone.name===(kickFoot===0?'foot.R':'foot.L'));
+  assert(joint>=0);
+  const outsole=[];
+  for(let i=0;i<vertices.length;i+=20){
+   if(vertices[i+16]===4&&vertices[i+1]<.03&&vertices[i+8]===joint)outsole.push(i);
+  }
+  assert(outsole.length>=100,'outsole sampling includes the licensed visible mesh');
+  function sample(frame,x,speed){
+   m.time=frame*sampleDt;
+   Object.assign(p,{x,z:0,speed,vx:speed,vz:0,kickFoot,action:'pass',actionClock:.9,
+    actionDuration:1.6,actionElapsed:.30+Math.min(m.time,.18)});
+   const unchanged=structuredClone(m),step=ctl.observe(m,sampleDt);
+   assert.deepEqual(m,unchanged);
+   const pose=Rig.getPose(step.visual),leg=pose.legs[1-kickFoot];
+   near(Math.hypot(...leg.knee.map((v,i)=>v-leg.hip[i])),Rig.ANATOMY.thigh);
+   near(Math.hypot(...leg.ankle.map((v,i)=>v-leg.knee[i])),Rig.ANATOMY.shin);
+   const palette=Skinning.fromMatrices(Renderer.palette(step.visual,Assets,pose));
+   const points=outsole.map(i=>Skinning.deform(palette,vertices.subarray(i+8,i+12),
+    vertices.subarray(i+12,i+16),vertices.subarray(i,i+3)));
+   return {leg,points};
+  }
+  const start=sample(0,0,3);
+  assert(start.leg.stance);
+  for(let frame=1;frame<=9;frame++){
+   const {leg,points}=sample(frame,3*frame*sampleDt,3);
+   assert(leg.stance,'initial 150 ms is one unbroken plant');
+   for(let i=0;i<points.length;i++){
+    const [x,y,z]=points[i],reference=start.points[i];
+    assert(Math.hypot(x-reference[0],z-reference[2])<.03,'the planted sole must stay on the same turf');
+    near(y,reference[1]);
+   }
+  }
+  let lifted=false,replanted=false;
+  const initialSole=Math.min(...start.points.map(point=>point[1]));
+  for(let frame=10;frame<40&&!replanted;frame++){
+   const {leg,points}=sample(frame,3*Math.min(frame,15)*sampleDt,frame<15?3:0);
+   if(!leg.stance&&Math.min(...points.map(point=>point[1]))>initialSole+.02)lifted=true;
+   if(lifted&&leg.stance){
+    assert(Math.abs(leg.ankle[0]-start.leg.ankle[0])>.1,'support must move to a new spot');
+    assert.equal(ctl.state().support.phase,'planted');
+    replanted=true;
+   }
+  }
+  assert(lifted&&replanted,'unreachable support must visibly lift and replant');
+ }
+});
+
+test('timed cutback and through cues survive a missing flight without replaying past contacts',()=>{
+ for(const kickKind of ['cutback','through']){
+  const {p,m}=fixture(),ctl=Pilot.create({playerId:p.id});
+  const cue={id:3,kind:'release',playerId:p.id,flightId:17,kickKind,time:1,
+   actor:{...p,contactTime:.41},ball:{...m.ball}};
+  m.contacts=[cue];m.time=.97;m.releaseSerial=21;
+  assert.equal(ctl.observe(m,1/60).release,false,'a future cue must not reach the pose early');
+  m.time=1.08;
+  const unchanged=structuredClone(m),step=ctl.observe(m,1/60);
+  assert.equal(step.release,true);
+  assert.equal(step.releaseCue,cue);
+  assert.equal(step.visual.action,'pass');
+  near(step.visual.actionElapsed,.49);
+  assert.equal(ctl.state().releaseAt,cue.time);
+  assert.equal(ctl.state().releaseSerial,cue.flightId);
+  assert.deepEqual(m,unchanged);
+  m.time=1.10;ctl.observe(m,1/60);
+  assert.equal(ctl.state().contactCount,1,'repeated snapshots must not replay the cue');
+  m.contacts=[cue,{...cue,id:4,time:1.2}];m.time=1.60;
+  assert.equal(ctl.observe(m,1/60).release,false,'late history past the recovery window must not animate');
+  assert.equal(ctl.state().contactCount,1);
+ }
+});
+
+test('a headed shot keeps its header pose in both the timed and direct observers',()=>{
+ const {p,m}=fixture();
+ Object.assign(p,{action:'header',actionClock:.22,actionElapsed:.27});
+ Object.assign(m,{time:1,releaseSerial:1,flight:{id:1,kind:'shot',from:p,age:0}});
+ const cue={id:1,kind:'release',playerId:p.id,flightId:1,kickKind:'shot',time:1,
+  actor:{...p},ball:{...m.ball}};
+ for(const source of [m,{...m,contacts:[cue]}]){
+  const step=Pilot.create({playerId:p.id}).observe(source,1/60);
+  assert.equal(step.release,false);
+  assert.equal(step.visual.action,'header');
+ }
 });
 
 test('actual Match penalty release is sampled at the same foot-contact tick',()=>{
