@@ -458,6 +458,18 @@ class Match{
    if(t.playstyle==='counter')score+=Math.max(0,advance)*.16;
    if(t.playstyle==='wing'&&Math.abs(q.z)>18&&advance>4)score+=3;
    options.push({kind,q,point,risk:clamp(lane+reception.risk*.18,0,1),score,space,distance:d,arrivalRisk:reception.risk,movingReturn,...(runBonus&&advance>1?{offBallKind}:{})});
+   // A staged diagonal can be useful before it reaches the last line.
+   // Feed the run only if its accepted command actually predicts forward
+   // movement during the pass, not merely an attractive distant target.
+   if(this.playerBrainEnabled(p)&&offBallKind&&kind==='pass'&&advance>5&&d<27&&risk<.30&&reception.risk<.55&&space>3&&this.acceptedTimedRun(p,q)&&q.role!=='DEF'){
+    const task=q.task,travel=dist(q,point),taskGap=dist(q,task),dx=point.x-q.x,dz=point.z-q.z;
+    const alignment=travel>.1&&taskGap>.1?(dx*(task.x-q.x)+dz*(task.z-q.z))/(travel*taskGap):0;
+    if(travel>1.2&&alignment>.7&&dx*forward>.8){
+     const bonus=clamp(1.5+advance*.13+travel*.35,2,5);
+     options[options.length-1].score+=bonus;
+     options[options.length-1].diagonalFeed=true;
+    }
+   }
    // Pass into a runner's path, beyond the line but only to an initially onside player.
    if((t.passing!=='short'||p.x*forward>16||this.playerBrainEnabled(p)&&(p.vision??0)>=86&&(p.passing??0)>=82)&&q.role!=='GK'&&q.role!=='DEF'&&q.x*forward<=Math.max(line,p.x*forward)+.05&&(q.x-p.x)*forward>0&&d<34){
     const length=5+clamp((q.pace??80)-70,0,25)*.10,intent=this.plannedRun(q),aligned=!!intent&&(intent.x-q.x)*forward>.75;
@@ -904,6 +916,11 @@ class Match{
   const pendingRun=this.field(p.team).find(q=>this.giveGoLink(p,q));
   if(pendingRun&&!best?.movingReturn&&pressure>3.8&&p.carryTime<.9&&(!best||(best.point.x-p.x)*this.direction(p.team)<4))return {kind:'carry',point:{x:clamp(p.x+this.direction(p.team),-49,49),z:p.z},hold:true};
   if(best?.movingReturn&&best.risk<.45&&best.arrivalRisk<.65&&best.space>2.5&&best.score>4)return best;
+  const diagonalFeed=options.find(o=>o.diagonalFeed&&o.score>4&&o.score>=(best?.score??0)-3);
+  if(diagonalFeed&&this.passPreparation(p,diagonalFeed).feasible){
+   this.telemetry.diagonalFeedChoices=(this.telemetry.diagonalFeedChoices||0)+1;
+   return diagonalFeed;
+  }
   const boxLink=this.finalThirdLink(p,options);
   if(boxLink){this.telemetry.finalThirdLinkChoices=(this.telemetry.finalThirdLinkChoices||0)+1;return boxLink;}
   const arrivalPlan=this.supportPlans[p.team],counterExit=this.transitionUntil[p.team]>this.time&&t.onWin==='counter';
