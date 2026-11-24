@@ -1,0 +1,21 @@
+name: Progressive first touch
+on:
+  push:
+    branches: ['fix/first-touch-forward-20261124']
+    paths: ['.github/workflows/progressive-first-touch.yml', 'football-sim.js', 'tests/progressive-first-touch.test.cjs']
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --check football-sim.js
+      - run: node --test tests/progressive-first-touch.test.cjs tests/first-control.test.cjs tests/reception-facing.test.cjs tests/touch-feasibility.test.cjs tests/pass-trajectory-safety.test.cjs tests/pass-arrival.test.cjs tests/post-receive-hold.test.cjs tests/collective-team-ai.test.cjs
+      - run: node tools/profile-current-attack-chain.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: progressive-first-touch-audit
+          path: docs/validation/current-attack-120s.json
