@@ -23,7 +23,7 @@ function roster([rating,formation],team){
 function cases(seeds,shards=1,shard=0){
  assert(Number.isInteger(seeds)&&seeds>=1&&seeds<=100);
  assert(Number.isInteger(shards)&&shards>=1&&Number.isInteger(shard)&&shard>=0&&shard<shards);
- return scenarios.flatMap(s=>Array.from({length:seeds},(_,i)=>[false,true].map(swap=>({id:s.id+':'+(i+1)+':'+Number(swap),scenario:s.id,seed:1009+i*7919,swap,a:s.a,b:s.b})))).flat(1).filter((_,i)=>i%shards===shard);
+ return scenarios.flatMap(s=>Array.from({length:seeds},(_,i)=>[false,true].map(swap=>({id:s.id+':'+(i+1)+':'+Number(swap),scenario:s.id,seed:1009+i*7919+(s.id==='equal-balanced'&&swap?3959:0),swap,a:s.a,b:s.b})))).flat(1).filter((_,i)=>i%shards===shard);
 }
 function config(c){
  const home=c.swap?c.b:c.a,away=c.swap?c.a:c.b;
@@ -123,11 +123,12 @@ function simulate(c){
 const sum=a=>a.reduce((x,y)=>x+y,0),round=n=>Math.round(n*1000)/1000,ratio=(a,b)=>b?round(100*a/b):null;
 function summarize(rows){
  const n=rows.length;assert(n>0);
+ const knownDigests=rows.map(r=>r.configDigest).filter(Boolean),uniqueInputs=knownDigests.length===n?new Set(knownDigests).size:null;
  const full=rows.filter(r=>r.finishReason==='full-time'),f=full.length;
  const totals=k=>sum(full.map(r=>sum(r.pairs[k]))),counter=k=>sum(full.map(r=>r.counters[k]));
  const mean=k=>f?round(totals(k)/f):null;
  const shotFunnel=Object.fromEntries(['decisions','withWindow','nearGoal','openLane','controlledWindow','qualityWindow','shotChosen','qualityWindowPassed','qualityWindowCarried','qualityWindowOther','qualityWindowShotChosen','openPlayShotAttempts','openPlayShotAccepted','openPlayShotRejected','openPlayShotReleased','openPlayShotInterrupted','openPlayShotPending','goalsFromShotFlight','goalsFromOtherFlight','goalsWithoutFlight','goalsWithDefendingLastTouch','goalsWithUnknownLastTouch'].map(k=>[k,sum(full.map(r=>r.shotFunnel?.[k]??0))]));
- return {matches:n,fullTime:f,otherFinishes:n-f,shotFunnel,goalsPerMatch:mean('goals'),shotsPerMatch:mean('shots'),shotsOnTargetPerMatch:mean('onTarget'),passesPerMatch:mean('passes'),passAccuracyPct:ratio(totals('completed'),totals('passes')),onTargetPct:ratio(totals('onTarget'),totals('shots')),goalsPerShotPct:full.every(r=>Number.isFinite(r.shotFunnel?.goalsFromShotFlight))?ratio(shotFunnel.goalsFromShotFlight,totals('shots')):null,rawGoalsPerRecordedShotPct:ratio(totals('goals'),totals('shots')),zeroShotMatchPct:ratio(full.filter(r=>sum(r.pairs.shots)===0).length,f),scorelessMatchPct:ratio(full.filter(r=>sum(r.pairs.goals)===0).length,f),foulsPerMatch:mean('fouls'),yellowsPerMatch:mean('yellows'),redsPerMatch:mean('reds'),offsidesPerMatch:f?round(counter('offsides')/f):null,finalThirdEntriesPerMatch:mean('finalThirdEntries'),boxEntriesPerMatch:mean('boxEntries'),xgPerMatch:mean('xg'),controlledPct:ratio(sum(full.map(r=>r.seconds.controlled)),sum(full.map(r=>r.ticks*DT))),homePossessionPct:ratio(sum(full.map(r=>r.pairs.possessionSeconds[0])),totals('possessionSeconds')),abortedKicksPerMatch:f?round(counter('abortedKicks')/f):null,
+ return {matches:n,uniqueInputs,duplicateInputs:uniqueInputs===null?null:n-uniqueInputs,fullTime:f,otherFinishes:n-f,shotFunnel,goalsPerMatch:mean('goals'),shotsPerMatch:mean('shots'),shotsOnTargetPerMatch:mean('onTarget'),passesPerMatch:mean('passes'),passAccuracyPct:ratio(totals('completed'),totals('passes')),onTargetPct:ratio(totals('onTarget'),totals('shots')),goalsPerShotPct:full.every(r=>Number.isFinite(r.shotFunnel?.goalsFromShotFlight))?ratio(shotFunnel.goalsFromShotFlight,totals('shots')):null,rawGoalsPerRecordedShotPct:ratio(totals('goals'),totals('shots')),zeroShotMatchPct:ratio(full.filter(r=>sum(r.pairs.shots)===0).length,f),scorelessMatchPct:ratio(full.filter(r=>sum(r.pairs.goals)===0).length,f),foulsPerMatch:mean('fouls'),yellowsPerMatch:mean('yellows'),redsPerMatch:mean('reds'),offsidesPerMatch:f?round(counter('offsides')/f):null,finalThirdEntriesPerMatch:mean('finalThirdEntries'),boxEntriesPerMatch:mean('boxEntries'),xgPerMatch:mean('xg'),controlledPct:ratio(sum(full.map(r=>r.seconds.controlled)),sum(full.map(r=>r.ticks*DT))),homePossessionPct:ratio(sum(full.map(r=>r.pairs.possessionSeconds[0])),totals('possessionSeconds')),abortedKicksPerMatch:f?round(counter('abortedKicks')/f):null,
  sideA:{wins:full.filter(r=>r.pairs.goals[r.swap?1:0]>r.pairs.goals[r.swap?0:1]).length,draws:full.filter(r=>r.pairs.goals[0]===r.pairs.goals[1]).length,losses:full.filter(r=>r.pairs.goals[r.swap?1:0]<r.pairs.goals[r.swap?0:1]).length,goals:sum(full.map(r=>r.pairs.goals[r.swap?1:0])),shots:sum(full.map(r=>r.pairs.shots[r.swap?1:0]))}};
 }
 function combine(parts){
@@ -135,7 +136,10 @@ function combine(parts){
  for(const p of parts){assert.equal(p.schema,1);assert.equal(p.seeds,first.seeds);assert.deepEqual(p.sources,first.sources);}
  const rows=parts.flatMap(p=>p.rows).sort((a,b)=>a.id.localeCompare(b.id));
  assert.deepEqual(rows.map(r=>r.id),expected.map(r=>r.id).sort((a,b)=>a.localeCompare(b)),'incomplete or duplicate cases');
- return {schema:1,seeds:first.seeds,sources:first.sources,method:'Natural five-minute matches with default competition rules, 60Hz physics, paired home/away assignment, explicit position-matched synthetic rosters; full-time matches only in averages. No extrapolation to 90 simulated minutes.',overall:summarize(rows),scenarios:scenarios.map(s=>({id:s.id,...summarize(rows.filter(r=>r.scenario===s.id))})),rows};
+ const digests=rows.map(r=>r.configDigest).filter(Boolean);
+ if(digests.length){assert.equal(digests.length,rows.length,'missing match input digest');assert.equal(new Set(digests).size,rows.length,'duplicate match input');
+  const byId=new Map(expected.map(c=>[c.id,c]));for(const r of rows)assert.equal(r.configDigest,digest(JSON.stringify(config(byId.get(r.id)))),'match input digest mismatch: '+r.id);}
+ return {schema:1,seeds:first.seeds,sources:first.sources,method:'Natural five-minute matches with default competition rules, 60Hz physics, paired home/away assignment (symmetric teams use separate seeds to avoid identical matches), explicit position-matched synthetic rosters; full-time matches only in averages. No extrapolation to 90 simulated minutes.',overall:summarize(rows),scenarios:scenarios.map(s=>({id:s.id,...summarize(rows.filter(r=>r.scenario===s.id))})),rows};
 }
 function main(){
  const args=process.argv.slice(2),get=(k,d)=>{const i=args.indexOf(k);return i<0?d:args[i+1];};
