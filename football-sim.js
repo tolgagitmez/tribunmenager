@@ -687,10 +687,16 @@ class Match{
   // Low technique/weak-foot sharp turns retain more of the incoming roll.
   const leak=clamp((100-technique)*.006*turn/Math.PI+Math.max(0,.65-(p.energy??1))*.12,0,.28);
   const interval=close?clamp(.19+(100-technique)*.0012,.19,.27):stride?.32+(100-technique)*.0012:.28+(p.speed<2?.16:0);
-  const plan=this.touchPlan(p,{vx:Math.cos(a)*speed*(1-leak)+b.vx*leak,vz:Math.sin(a)*speed*(1-leak)+b.vz*leak,vy:close?.10:.16},{interval,target,mode:shield?'shield':'carry',maxGap:stride&&pressure>5?1.65:1.30});
+  let nextInterval=interval,plan=this.touchPlan(p,{vx:Math.cos(a)*speed*(1-leak)+b.vx*leak,vz:Math.sin(a)*speed*(1-leak)+b.vz*leak,vy:close?.10:.16},{interval,target,mode:shield?'shield':'carry',maxGap:stride&&pressure>5?1.65:1.30});
+  if(!plan.ready&&this.playerBrainEnabled(p)){
+   // Recover with a shorter, softer contact rather than repeatedly requesting
+   // the same unreachable stride. Still require the normal foot forecast.
+   nextInterval=.19;const soft=clamp(p.speed*.75+(Math.max(0,.65-along))*2,.45,4.4);
+   plan=this.touchPlan(p,{vx:Math.cos(a)*soft,vz:Math.sin(a)*soft,vy:0},{interval:nextInterval,target,mode:shield?'shield':'carry',maxGap:1.30});
+  }
   if(!plan.ready){p.touchClock=Math.max(p.touchClock||0,.05);this.telemetry.touchDeferrals=(this.telemetry.touchDeferrals||0)+1;return false;}
   Object.assign(b,plan.velocity);if(plan.limited)this.telemetry.limitedTouches=(this.telemetry.limitedTouches||0)+1;
-  this.lastTouch=p;p.touchClock=interval;
+  this.lastTouch=p;p.touchClock=nextInterval;
   p.footTouch=.14;p.dribbleFoot=foot;p.touchPosition={x:b.x,z:b.z};p.touchMode=shield?'shield':cut?'cut':burst?'burst':close?'close':stride?'stride':'control';this.telemetry.dribbleTouches++;
   if(cut)this.telemetry.directionalCutTouches=(this.telemetry.directionalCutTouches||0)+1;
   if(burst)this.telemetry.accelerationBurstTouches=(this.telemetry.accelerationBurstTouches||0)+1;
