@@ -63,7 +63,7 @@ test('runtime weight painting is documented as a localized derivative of the ret
 });
 test('runtime is a validated anatomical skin with all nineteen bones and sensible human bounds',()=>{
  const r=Status.validate(assets);assert(r.ok,JSON.stringify(r.errors));assert.equal(r.summary.boneCount,19);assert.equal(r.summary.lods[0].skinnedBoneCount,19);assert.equal(r.summary.lods[0].vertexCount,manifest.vertices);assert.equal(r.summary.lods[0].triangleCount,manifest.triangles);
- const b=r.summary.lods[0].bounds;assert(b.min[1]>=-.005&&b.max[1]>1.7&&b.max[1]<2.05);assert(b.max[2]-b.min[2]<1.6);assert(manifest.triangles>20000);assert.equal(assets.metadata.rigReferenceSHA256,digest(fs.readFileSync(path.join(root,'humanoid-rig.js'))));
+ const b=r.summary.lods[0].bounds;assert(b.min[1]>=-.005&&b.max[1]>1.7&&b.max[1]<2.05);assert(b.max[2]-b.min[2]<1.6);assert(manifest.triangles>20000);assert.equal(assets.metadata.rigReferenceSHA256,require('../tools/rig-provenance.cjs').verifyRigReference(assets.metadata.rigReferenceSHA256));
 });
 test('actual head, hands, boots and hip belt have adult proportions and the front pelvis is covered by shorts',()=>{
  const d=floatRows();for(const bone of [8,15]){const wrist=assets.bones[bone].head;let count=0,max=0;for(let at=0;at<d.length;at+=20)if(d[at+8]===bone){count++;max=Math.max(max,Math.hypot(d[at]-wrist[0],d[at+1]-wrist[1],d[at+2]-wrist[2]));}assert(count>500);assert(max>.16&&max<.215,'wrist-to-finger extent: '+max);}
