@@ -394,6 +394,8 @@ test('attacking depth is retained only if an alternative can actually be played'
   const retreat={kind:'pass',q:link,point:{x:5*side,z:10},distance:21,risk:.05,arrivalRisk:.1,space:9,score:20};
   const forward={...retreat,point:{x:31*side,z:4},distance:7,space:5,score:5};
   const carry={kind:'carry',point:{x:31*side,z:8},clearance:4};
+  assert.equal(m.retainAttackingDepth(owner,[retreat,forward],carry,5),null);
+  m.cfg.attackingSupportExperiment=true;
   m.passPreparation=()=>({feasible:true});
   assert.equal(m.retainAttackingDepth(owner,[retreat,forward],carry,5).retainDepth,true);
   m.passPreparation=()=>({feasible:false});m.controlPreparation=()=>({firstTouchTime:.2,interventionTime:null});
@@ -410,6 +412,7 @@ test('advanced carrier receives a nearby diagonal support target without displac
   const {m,owner,link}=fixture(side);
   Object.assign(owner,{x:25*side,z:0});
   Object.assign(link,{x:13*side,z:5.5,homeZ:5.5});
+  m.cfg.attackingSupportExperiment=true;
   const reserved=new Map([[100,{x:29*side,z:0}]]);
   m.supportRead=(p,q,point)=>({space:6,risk:.1,travel:Math.hypot(q.x-point.x,q.z-point.z),eta:.7,window:1.3,urgency:0,earlyRisk:.1,readyAt:0});
   const point=m.supportTargets(owner,[link],reserved,40).get(link.id);
