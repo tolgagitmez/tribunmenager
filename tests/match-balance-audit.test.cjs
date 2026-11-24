@@ -19,3 +19,20 @@ test('merge rejects missing, duplicated, mixed-source and mismatched-seed result
  assert.throws(()=>combine([part,{...part,sources:{engine:'b'}}]));
  assert.throws(()=>combine([part,{...part,seeds:2}]));
 });
+
+test('shot funnel observes a real choice exactly once and restores inherited methods',()=>{
+ const {observeShotDecisions}=require('../tools/audit-match-balance.cjs');
+ const actor={role:'ATT',z:0};let reads=0,choices=0;
+ const proto={shotWindow(){reads++;return {distance:20,open:.8,execution:.9,pressure:.1,quality:.15};},choose(p){choices++;this.shotWindow(p);return {kind:'pass'};}};
+ const m=Object.create(proto),observer=observeShotDecisions(m);
+ assert.deepEqual(m.choose(actor),{kind:'pass'});assert.equal(reads,1);assert.equal(choices,1);assert.equal(observer.result.qualityWindow,1);assert.equal(observer.result.qualityWindowPassed,1);assert.equal(observer.result.shotChosen,0);
+ observer.detach();assert.equal(Object.hasOwn(m,'choose'),false);assert.equal(Object.hasOwn(m,'shotWindow'),false);
+});
+test('paired comparison accepts identical inputs, rejects changes, and excludes non-full-time pairs',()=>{
+ const {compare}=require('../tools/compare-match-balance.cjs');
+ const source={'tools/audit-match-balance.cjs':'harness'},rows=cases(1).map(c=>({...row(c),configDigest:'config:'+c.id}));
+ const a={schema:1,seeds:1,sources:source,rows},b=structuredClone(a);
+ b.rows[0].pairs.shots=[2,0];b.rows[1].finishReason='minimum-players';
+ const result=compare(a,b);assert.equal(result.overall.fullTimePairs,11);assert.equal(result.overall.shotPairs.improved,1);assert.equal(result.overall.excluded,1);
+ b.rows[2].configDigest='wrong';assert.throws(()=>compare(a,b),/different match inputs/);
+});
