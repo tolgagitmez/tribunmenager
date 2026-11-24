@@ -12,6 +12,11 @@ on:
       - 'tools/find-live-match-fixture.cjs'
       - '.github/workflows/attack-chain.yml'
   workflow_dispatch:
+    inputs:
+      discover_live_fixture:
+        description: Search for a new natural two-manager fixture
+        type: boolean
+        default: false
 jobs:
   replay:
     runs-on: ubuntu-latest
@@ -66,13 +71,16 @@ jobs:
       - name: Old and new animation rig on the updated single-cause engine
         run: npm run test:engine-invariance
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: attack-fixed-motor-rig-invariance
           path: docs/validation/character-physics.json
+          if-no-files-found: error
           retention-days: 30
 
   find-live-match-fixture:
+    # The main regression jobs already exercise real home and away kicks.
+    # A bounded seed search can legitimately find no new fixture.
+    if: github.event_name == 'workflow_dispatch' && inputs.discover_live_fixture
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

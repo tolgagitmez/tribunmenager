@@ -1245,7 +1245,7 @@ class Match{
   if(this.owner===p||p.duelRecovery>0)return false;
   if(this.penaltyImpact(p))return false;
   if(this.offsideTouch(p))return false;
-  if(this.penaltyAttempt?.state==='released'&&this.penaltyAttempt.takerId===p.id&&this.lastTouch===p){this.penaltyAttempt.state='settled';this.setRestart('free-kick',1-p.team,{x:p.x,z:p.z});this.restart.indirect=true;this.emit('double-touch','Çift dokunuş','Penaltıyı kullanan oyuncu başka bir oyuncu dokunmadan topa yeniden dokundu.',p,1-p.team);return false;}
+  if(this.penaltyDoubleTouch(p))return false;
   if(this.offsidePhase&&p.team!==this.offsidePhase.team)this.offsidePhase=null;
   const previous=this.lastTouch,flight=this.flight,regained=this.lastTeam!==p.team;
   if(flight?.thirdManReturn?.runnerId===p.id&&flight.from?.team===p.team&&flight.thirdManReturn.epoch===this.attackEpoch[p.team]){this.telemetry.thirdManCompletions=(this.telemetry.thirdManCompletions||0)+1;this.emit('third-man','Üçüncü adam bağlantısı',p.name+' iki takım arkadaşının hazırladığı pas bağlantısını tamamladı.',p);}
@@ -1343,7 +1343,19 @@ class Match{
   for(const d of pending){const p=this.players[d.playerId];if(!p?.active)continue;
    if(d.card==='yellow'){this.cards[p.team]++;p.yellow=(p.yellow||0)+1;if(p.yellow<2){this.emit('yellow','Sarı kart',`${p.name} kontrolsüz müdahalesi nedeniyle sarı kart gördü.`,p);continue;}}
    p.active=false;p.sentOff=true;p.vx=p.vz=p.speed=0;this.reds[p.team]++;this.emit('red',d.card==='red'?'Doğrudan kırmızı kart':'İkinci sarıdan kırmızı',`${p.name} oyun dışında. ${d.reason==='serious-foul-play'?'Rakibinin güvenliğini tehlikeye soktu.':d.reason==='denial-of-goal-opportunity'?'Bariz gol şansını engelledi.':''}`,p);
-   if(this.team(p.team).length<this.rules.minPlayers&&!this.done)this.finishMatch('minimum-players');
+   const remaining=this.team(p.team);
+   if(remaining.length<this.rules.minPlayers&&!this.done)this.finishMatch('minimum-players');
+   else if(p.role==='GK'&&!remaining.some(q=>q.role==='GK')){
+    // Law 3 still requires a goalkeeper when the dismissed player's team
+    // can continue. An existing outfielder takes over; no player is added.
+    const keeper=remaining.sort((a,b)=>(b.goalkeeping??b.skill)-(a.goalkeeping??a.skill)||a.id-b.id)[0];
+    if(keeper){
+     keeper.role=keeper.position='GK';
+     keeper.homeX=-49*this.direction(p.team);keeper.homeZ=0;
+     this.planClock=0;
+     this.emit('keeper-change','Kaleye geçti',keeper.name+' ihraç edilen kalecinin görevini devraldı.',keeper);
+    }
+   }
   }
  }
  recallAdvantage(){const a=this.referee.pendingAdvantage;if(!a)return false;this.referee.pendingAdvantage=null;a.decision.status='recalled';this.emit('advantage-recall','Avantaj geri alındı','Hakem ilk faulün yerine dönüyor.',null,a.decision.team);this.setRestart(a.decision.restart,a.decision.team,a.decision.spot);return true;}
@@ -1395,6 +1407,16 @@ class Match{
   const taker=this.players[attempt.takerId],team=attempt.team;
   this.setRestart('penalty',team,{x:this.direction(team)*41,z:0},taker);
   this.emit('penalty-retake','Penaltı tekrarlanacak','Hakem ihlalin etkisini değerlendirdi: '+reason+'.',taker,team);
+  return true;
+ }
+ penaltyDoubleTouch(p){
+  const attempt=this.penaltyAttempt;
+  if(attempt?.state!=='released'||attempt.takerId!==p.id||this.lastTouch!==p)return false;
+  attempt.state='settled';
+  const team=1-p.team,spot={x:clamp(p.x,-52,52),z:clamp(p.z,-34,34)};
+  this.setRestart('free-kick',team,spot);
+  if(this.restart)this.restart.indirect=true;
+  this.emit('double-touch','Çift dokunuş','Penaltıyı kullanan oyuncu başka bir oyuncu dokunmadan topa yeniden dokundu.',p,team);
   return true;
  }
  penaltyImpact(p){
@@ -2416,7 +2438,7 @@ class Match{
    if(this.flight)this.flight.age+=remaining*(limit?.t??1);
    const incoming={vx:b.vx,vy:b.vy,vz:b.vz},owned=this.owner;
    if(!this.owner&&!this.keeperDeliveryContact(previous))this.keeper(previous,remaining*(limit?.t??1));
-   if(this.restart||this.done)return;
+   if(this.ball!==b||this.done)return; // a penalty retake replaces the ball and its sweep
    if(this.owner!==owned||b.vx!==incoming.vx||b.vz!==incoming.vz){delete b.spin;return;}
    if(this.offsideInterference()||this.aerial(previous))return;
    const flight=this.flight,lastTouch=this.lastTouch;this.fieldBallContact(previous);
@@ -2443,6 +2465,7 @@ class Match{
      const heading=Math.atan2(b.vz,b.vx);b.vx=-Math.cos(heading)*(4+this.random()*4);b.vz+=(this.random()-.5)*8;b.vy=1+this.random();this.lastTouch=p;this.flight=null;this.owner=null;this.phase='open';p.touchClock=.3;this.emit('block','Savunma kapattı',`${p.name} şutun önüne vücudunu koydu. Top oyunda!`,p);return;
     }
     if(b.y>=1.05)continue;
+    if(this.penaltyDoubleTouch(p))return;
     if(speed>21&&p.role!=='GK'){b.vx*=.45;b.vz*=.45;b.vy=1.3;p.touchClock=.35;this.lastTouch=p;this.owner=null;this.flight=null;this.phase='open';this.telemetry.looseBalls++;return;}
     if(!this.owner||p.team!==this.owner.team&&dist(this.owner,b)>1.6){
      const sweep=p.role==='GK'&&this.playerBrainEnabled(p)&&this.targets.get(p)?.state==='keeper-sweep'&&this.flight?.from?.team===1-p.team;
@@ -2804,7 +2827,8 @@ class Match{
   if(!p||!b||this.done)return {ok:false,error:'Uygun bir oyuncu ve kullanılmamış yedek seç.'};
   if(this.restart?.taker===p)return {ok:false,error:'Duran topu kullanacak oyuncu hazırlıkta; başka bir oyuncu seç.'};
   if(this.owner===p||this.kick?.p===p||this.flight?.target===p)return {ok:false,error:'Oyuncunun top aksiyonu sürüyor; pozisyon bitince tekrar dene.'};
-  const old=p.name,profile=PlayerModel.forSlot(b,PlayerModel.slotFor(this.cfg.formation||'4-3-3',p.index));
+  const slot=p.role==='GK'?{role:'GK',position:'GK'}:PlayerModel.slotFor(this.cfg.formation||'4-3-3',p.index);
+  const old=p.name,profile=PlayerModel.forSlot(b,slot);
   Object.assign(p,profile,{id:p.id,index:p.index,team:p.team,role:p.role,position:p.position,rosterId:b.id,rosterUid:b.uid??null,name:b.name,num:b.number,portraitId:b.face,yellow:0,sentOff:false,energy:1,kickFoot:profile.preferredFoot,reception:null,nextAction:null,runIntent:null,supportIntent:null,offerIntent:null,connectionIntent:null,carryIntent:null,keeperRead:null,shieldUntil:0,shieldReadyAt:0,duelMemory:null,dribbleDuel:null});
   Intent.clear(p,'substitution',this.taskContext(p));Perception.clear(p,this.time);
   this.usedBench.add(b.id);MatchRules.recordSubstitution(this.substitutionState,decision);this.subCount=this.substitutionState.count;this.subWindowsUsed=this.substitutionState.windowsUsed;

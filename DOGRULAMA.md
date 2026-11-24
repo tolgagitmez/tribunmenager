@@ -25,6 +25,18 @@ doğrulama başarısız olur. Kaynak pimi asla otomatik güncellenmez.
 
 ---
 
+22 Kasım 2026 denetiminde düzeltilen motor üç tam maçta eski ve güncel
+hareket modülleriyle karşılaştırıldı. **63.840 fizik adımı ve 534 tam durum
+kontrolü eşleşti.** Kaynak özetleri ve maç başına top/hakem izleri yeniden
+üretilebilir ölçüm kaydındadır. Aynı denetimde `bash test_all.sh` toplam
+615 testi geçti. [22 Kasım motor ölçümü](docs/validation/measurements/engine-baseline-2026-11-22.json)
+
+## 24 Kasım güncelleme uyumluluğu
+
+Güncel bireysel oyuncu kararları ve yenilenmiş lisanslı model, kanat ve ilk kontrol pilotuyla birlikte çalışır. Oyun motoru çalım, sırtı dönük oyun ve duvar pası pozlarını gönderdiğinde pilot ilgili iskelet pozunu korur. Yerel ve canlı maç görünümü aynı bireysel beceri sayaçlarını gösterir. Hücum prototipindeki ileri ilk kontrol denemesi ancak açıkça etkinleştirildiğinde çalışır.
+
+`npm run test:wing-attack` güncel Blender modeli, ayak teması ve iki ayaklı kanat senaryolarını kapsar. `npm run test:wing-attack-browser` aynı temasları yerel ve iki canlı Chromium oturumunda ölçer. `npm run test:live-match` kayıtlı vuruşların ve fizik durumunun maç işçisi yeniden açıldığında uyumunu, `npm run test:live-match-browser` iki izleyicinin skor, beceri ve menajer kontrolünü doğrular. [Kanat ve ilk kontrol pilotu](docs/WING_ATTACK_PILOT.md)
+
 ## Aşama 15 — standart Blender aktarımı, v1.34.0
 
 **548/548 test geçti: 519 JavaScript + 29 Python; hata, atlanan veya iptal edilen test yok.** Tekrar: `npm run test:stage15`; kaynak hash'leri ve ham günlük için `python3 tools/check-gltf-tests.py`. [Test raporu](docs/validation/gltf-tests.json) ve [tam günlük](docs/validation/gltf-tests.log.gz) yayımlanır. Bu paket önceki maç/anatomi/GLB/LOD kontrollerini, resmi yükleyici ve Blender çıktı testlerini, çevrimdışı kütüphane bütünlüğünü kapsar.

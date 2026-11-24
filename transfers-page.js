@@ -65,7 +65,7 @@ function receive(data){
  if(view&&data.profileId===view.profileId&&data.revision<view.revision)return;
  view=data;offset=data.serverTime-Date.now()/1000;
  $('cashBalance').textContent=Number(data.wallet.cash).toLocaleString('tr-TR',{notation:'compact',maximumFractionDigits:1})+' K';$('cashBalance').title=money(data.wallet.cash);$('tokenBalance').textContent=num(data.wallet.tokens);
- $('connectionStatus').textContent=data.rosterLockedUntil?'GÜNLÜK MAÇ · KADRO '+when(data.rosterLockedUntil)+' TARİHİNE KADAR KİLİTLİ':'TRANSFER MERKEZİ BAĞLI · '+when(data.serverTime);$('connectionStatus').dataset.state='ready';$('connectionHelp').hidden=true;
+ $('connectionStatus').textContent=(data.rosterLocked??!!data.rosterLockedUntil)?'GÜNLÜK MAÇ · KADRO MAÇ SONUNA KADAR KİLİTLİ':'TRANSFER MERKEZİ BAĞLI · '+when(data.serverTime);$('connectionStatus').dataset.state='ready';$('connectionHelp').hidden=true;
  renderMarket();renderSales();renderScout();renderOffer();renderBooks();
 }
 function failed(e){$('connectionStatus').textContent='Transfer bağlantısı kurulamadı.';$('connectionStatus').dataset.state='error';$('connectionHelp').hidden=false;$('connectionMessage').textContent=e.message;}

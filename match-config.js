@@ -4,6 +4,7 @@
 const C=root.TribunClubData;
 const clone=value=>JSON.parse(JSON.stringify(value));
 const CONTEXT='tribun-match-launch-context-v1';
+const transfersDisabled=Symbol('transfers disabled');
 let memoryContext=null,contextSequence=0;
 function leagueToken(){try{return root.localStorage.getItem('tribun-league-token')||'';}catch{return '';}}
 function identityContext(){
@@ -38,6 +39,18 @@ async function fixtureSnapshot(token){
   return value;
  }finally{root.clearTimeout(timer);}
 }
+async function refreshSquad(transfers){
+ try{return await transfers.sync();}
+ catch(error){
+  if(error.status!==503)throw error;
+  const controller=new root.AbortController(),timer=root.setTimeout(()=>controller.abort(),2500);
+  try{
+   const response=await root.fetch('/api/health',{cache:'no-store',signal:controller.signal});
+   if(response.ok&&(await response.json())?.transfers===false)return transfersDisabled;
+  }catch{}finally{root.clearTimeout(timer);}
+  throw error;
+ }
+}
 function prepared(cfg){
  if(cfg?.matchSetup?.version!==1||!Array.isArray(cfg.players)||!Array.isArray(cfg.awayPlayers)||cfg.awayPlayers.length<11)return false;
  const saved=readContext(),current=identityContext();
@@ -56,8 +69,9 @@ async function prepare(input={}){
   delete cfg.fixture;delete cfg.matchSetup;
  }
  cfg.formation=C.formations[cfg.formation]?cfg.formation:'4-3-3';
- if(transfers?.hasSession()){
-  const view=await transfers.sync(),current=transfers.cached();
+ const hasTransferSession=transfers?.hasSession(),view=hasTransferSession?await refreshSquad(transfers):undefined;
+ if(hasTransferSession&&view!==transfersDisabled){
+  const current=transfers.cached();
   if(!view?.players)throw Error('Güncel kadro alınamadı.');
   const newerCache=current.transferProfileId===view.profileId&&Number(current.transferRevision)>Number(view.revision)&&Array.isArray(current.players);
   const revision=newerCache?current.transferRevision:view.revision;
@@ -67,7 +81,14 @@ async function prepare(input={}){
   cfg.special=same?(cfg.special||current.special):(current.special||cfg.special);
   cfg.transferProfileId=view.profileId;cfg.transferRevision=revision;
  }else{
-  cfg.players=C.loadRoster(cfg);cfg.starters=C.repairStarters(cfg.starters||C.starters,cfg.players,cfg.formation);
+  const stored=view===transfersDisabled?transfers.cached():null;
+  const squad=Array.isArray(cfg.players)?cfg:stored||cfg;
+  cfg.players=C.loadRoster(squad);cfg.starters=C.repairStarters(cfg.starters||squad.starters||C.starters,cfg.players,cfg.formation);
+  if(view===transfersDisabled){
+   cfg.special=cfg.special||squad.special;
+   delete cfg.transferProfileId;
+   delete cfg.transferRevision;
+  }
  }
  const token=leagueToken();
  if(token){
@@ -90,6 +111,7 @@ async function prepare(input={}){
   cfg.opponentSource=cfg.opponentSource||'provided-roster';cfg.awayName=cfg.awayName||'Rakip';
   cfg.rosterNotice=cfg.rosterNotice||'Seçilen iki kadroyla yerel maç.';
  }else demo(cfg,'no-league');
+ if(view===transfersDisabled)cfg.rosterNotice='Transfer hizmeti kapalı · Hazırlık maçında yerel kadro kullanılıyor. '+(cfg.rosterNotice||'');
  cfg.homeName=cfg.homeName||'Moreirense SK';
  cfg.matchSetup={version:1,ownRevision:cfg.transferRevision??null,opponentSource:cfg.opponentSource,contextId:bindContext()};
  return cfg;
