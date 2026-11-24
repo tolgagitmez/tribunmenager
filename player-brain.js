@@ -45,6 +45,19 @@ function shouldDrive(p,carry,pass,{forward=1,pressure=10,carryTime=0,goalDistanc
  if(pass&&pass.risk<.35&&pass.arrivalRisk<.55&&pass.space>2.5&&bestGain>5&&pass.score>6)return false;
  return true;
 }
+// Classify only an available carry route. A visual cue is not a skill
+// success: Match still needs to complete a reachable physical touch.
+function dribbleStyle(p,point,{forward=1,pressure=10,clearance=0}={}){
+ if(!point||p.role==='GK'||(p.energy??1)<.45||clearance<1.6)return null;
+ const heading=Math.atan2(point.z-p.z,point.x-p.x);
+ const turn=Math.abs(Math.atan2(Math.sin(heading-(p.face??heading)),Math.cos(heading-(p.face??heading))));
+ const gain=advance(p,point,forward),speed=p.speed??0;
+ if(stat(p,'dribbling')>=84&&stat(p,'agility')>=84&&pressure<4.5&&turn>=.55&&turn<=1.45&&speed<5.2&&gain>0)
+  return 'cut';
+ if(stat(p,'acceleration')>=85&&stat(p,'pace')>=84&&stat(p,'dribbling')>=81&&pressure>=3.2&&clearance>=2.8&&turn<.55&&gain>=3&&speed<4.2)
+  return 'burst';
+ return null;
+}
 function canFeint(p,defender,{pressure=10}={}){
  if(!defender||p?.role==='GK'||pressure<1.25||pressure>3.35)return false;
  if(stat(p,'dribbling')<82||stat(p,'agility')<78||(Number.isFinite(p.energy)?p.energy:1)<.43)return false;
@@ -269,7 +282,7 @@ function trapOutlet(p,carrier,receiver,{forward=1,ball,pressPoint,coverPoint}={}
  if(distance(p,point)>6.5||distance(point,pressPoint)<3.3||distance(point,coverPoint)<3.8||point.x*forward<ball.x*forward-11)return null;
  return {id:p.id,receiverId:receiver.id,point,score:range*.10-distance(p,point)*.5+Math.max(0,18-Math.abs(receiver.z))*.12};
 }
-const api={passBias,canThread,carryBias,shouldDrive,canFeint,canHoldUp,runMargin,offBallOption,decoyOption,decoyOpened,runPassBias,defensiveRead,jockeyOption,screenOption,tackleDecision,keeperReaction,keeperDepth,keeperAngle,keeperArrival,keeperSweep,keeperClaim,keeperCatch,keeperParry,thirdManOption,thirdManBias,trapOutlet};
+const api={passBias,canThread,carryBias,shouldDrive,dribbleStyle,canFeint,canHoldUp,runMargin,offBallOption,decoyOption,decoyOpened,runPassBias,defensiveRead,jockeyOption,screenOption,tackleDecision,keeperReaction,keeperDepth,keeperAngle,keeperArrival,keeperSweep,keeperClaim,keeperCatch,keeperParry,thirdManOption,thirdManBias,trapOutlet};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 root.TribunPlayerBrain=api;
 })(typeof window!=='undefined'?window:globalThis);
