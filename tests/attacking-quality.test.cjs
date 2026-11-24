@@ -685,3 +685,39 @@ test('a saturated pass lane never forecasts later defenders unnecessarily',()=>{
  const second={x:owner.x+8,z:owner.z,vx:0,vz:0,passFuture(){throw Error('fully blocked lane should not need another forecast');}};
  assert.equal(m.laneRisk(owner,point,17,'pass',[first,second]),1);
 });
+
+
+test('closing pressure chooses an available forward exit over a tempting but blocked pass in both halves',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back,set}=fixture(side);
+  Object.assign(mid,{x:owner.x+side*3,z:0,vx:-side*3,vz:0});
+  const lateral=set(7,'MID',9,8),wide=set(8,'MID',17,7);
+  const make=(q,score,risk=.12)=>({kind:'pass',q,point:{x:q.x,z:q.z},score,risk,arrivalRisk:.22,space:5,distance:Math.hypot(q.x-owner.x,q.z-owner.z)});
+  const blocked=make(link,50,.7),good=make(wide,9),sideways=make(lateral,12);
+  const tried=[];m.passPreparation=(p,o)=>{tried.push(o.q);return {feasible:true,contactTime:.2};};
+  const carry={kind:'carry',point:{x:owner.x+side*2,z:1},clearance:1.2};
+  const result=m.pressEscapeDelivery(owner,[blocked,sideways,good],carry);
+  assert.equal(result.q,wide);assert.equal(result.pressEscapeForward,true);assert.equal(result.pressEscapeDelivery,true);
+  assert.deepEqual(tried,[wide]);
+  m.passPreparation=()=>({feasible:false,contactTime:.2});
+  assert.equal(m.pressEscapeDelivery(owner,[good,sideways],carry),null);
+  m.passPreparation=()=>({feasible:true,contactTime:.7});
+  assert.equal(m.pressEscapeDelivery(owner,[good],carry),null,'late contact cannot beat pressure');
+  m.passPreparation=()=>({feasible:true,contactTime:.2});
+  mid.x=owner.x+side*8;mid.vx=0;
+  assert.equal(m.pressEscapeDelivery(owner,[good],carry),null,'unpressured carrier must retain normal decisions');
+  mid.x=owner.x+side*4;mid.vx=-side*3;
+  assert.equal(m.pressEscapeDelivery(owner,[good],{point:{x:owner.x+side*5,z:0},clearance:4}),null,'open carrying lane should not be sacrificed');
+ }
+});
+test('pressure escape rejects offside, unsafe reception and excessive recycling',()=>{
+ const {m,owner,link,mid,set}=fixture();
+ Object.assign(mid,{x:11,z:0,vx:-3,vz:0});
+ const off=set(7,'ATT',51,0),back=set(8,'MID',-5,8);
+ const make=q=>({kind:'pass',q,point:{x:q.x,z:q.z},score:20,risk:.1,arrivalRisk:.2,space:6,distance:Math.hypot(q.x-owner.x,q.z-owner.z)});
+ const unsafe={...make(link),arrivalRisk:.85};
+ let calls=0;m.passPreparation=()=>{calls++;return {feasible:true,contactTime:.1};};
+ const carry={point:{x:9,z:0},clearance:1};
+ assert.equal(m.pressEscapeDelivery(owner,[make(off),make(back),unsafe],carry),null);
+ assert.equal(calls,0);
+});
