@@ -73,7 +73,8 @@
     "test:duel-wallpass": "node --test tests/defender-duel-wallpass.test.cjs tests/onball-presentation.test.cjs tests/player-brain.test.cjs",
     "test:render-budget": "node --test tests/22-player-render-budget.test.cjs tests/match-fps-profiles.test.cjs tests/post-receive-hold.test.cjs",
     "benchmark:render-budget": "node tools/benchmark-match-22-browser.cjs",
-    "test:offball": "node --test tests/offball-intelligence.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-brain.test.cjs"
+    "test:offball": "node --test tests/offball-intelligence.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-brain.test.cjs",
+    "test:individual-defence": "node --test tests/individual-defence.test.cjs tests/defender-duel-wallpass.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/offball-intelligence.test.cjs"
   },
   "devDependencies": {
     "gltf-validator": "2.0.0-dev.3.10",
