@@ -855,6 +855,21 @@ class Match{
   }
   return best;
  }
+ retainAttackingDepth(p,options,carry,pressure){
+  const side=this.direction(p.team),depth=p.x*side,best=options[0];
+  if(!this.playerBrainEnabled(p)||!['ATT','MID'].includes(p.role)||p.position==='DM'||depth<20||depth>37||!best||best.movingReturn||(best.point.x-p.x)*side>-10||pressure<2.8||p.receiveClock>0||p.shieldUntil>this.time)return null;
+  // Do not replace a safe retreat with an imaginary future pass. Only
+  // preview currently available short connections, or the existing carry.
+  const alternatives=options.filter(o=>o.kind==='pass'&&o.q?.active&&o.q.role!=='GK'&&o.distance<=23&&o.risk<.30&&o.arrivalRisk<.60&&o.space>2.6&&o.score>0&&(o.point.x-p.x)*side>=-2&&(o.point.x*side>=depth+3||Math.abs(o.point.z)<Math.abs(p.z)-5));
+  for(const option of alternatives.slice(0,2)){
+   if(this.passPreparation(p,option).feasible)return {...option,retainDepth:true};
+  }
+  if(pressure<4||!carry?.point||carry.clearance<2.8||(carry.point.x-p.x)*side<3.5||(p.energy??1)<.48||p.carryTime>2.1)return null;
+  const turn=Math.abs(angle(Math.atan2(carry.point.z-p.z,carry.point.x-p.x),p.face));
+  if(turn>1.1)return null;
+  const preview=this.controlPreparation(p,carry,null,.55);
+  return preview.firstTouchTime!==null&&preview.interventionTime===null?{...carry,retainDepth:true}:null;
+ }
  finalThirdLink(p,options){
   const side=this.direction(p.team),depth=p.x*side;
   if(!this.playerBrainEnabled(p)||p.role==='GK'||depth<24||depth>48||this.kick||this.restart)return null;
@@ -923,6 +938,8 @@ class Match{
   }
   const boxLink=this.finalThirdLink(p,options);
   if(boxLink){this.telemetry.finalThirdLinkChoices=(this.telemetry.finalThirdLinkChoices||0)+1;return boxLink;}
+  const retained=this.retainAttackingDepth(p,options,carry,pressure);
+  if(retained){this.telemetry.retainedAttackingDepth=(this.telemetry.retainedAttackingDepth||0)+1;return retained;}
   const arrivalPlan=this.supportPlans[p.team],counterExit=this.transitionUntil[p.team]>this.time&&t.onWin==='counter';
   const closing=opponents.some(q=>{const gap=dist(q,p);return gap<12&&((p.x-q.x)*(q.vx-p.vx)+(p.z-q.z)*(q.vz-p.vz))/Math.max(.1,gap)>.75;});
   if((pressure<5.5||closing)&&arrivalPlan?.ownerId===p.id&&arrivalPlan.epoch===this.attackEpoch[p.team]&&arrivalPlan.handoffUntil>this.time&&p.carryTime>=.18){
