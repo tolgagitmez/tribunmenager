@@ -1004,11 +1004,29 @@ class Match{
    ranked.push({o,value:o.score+advance*.65+(box?5:0)-o.risk*8-o.arrivalRisk*5});
   }
   ranked.sort((a,b)=>b.value-a.value);
+  // Under an approaching press, do not mistake an intentional escape
+  // outlet for pointless recycling. Preserve a physically safer release.
+  const closing=pressure<4.4||opponents.some(q=>{const gap=dist(q,p);return gap<7&&((p.x-q.x)*(q.vx-p.vx)+(p.z-q.z)*(q.vz-p.vz))/Math.max(.1,gap)>.9;});
+  const safety=this.cfg.territorialPressSafety===true&&closing;
+  if(safety&&(choice.pressureOutlet||choice.supportContinuation)){
+   this.telemetry.territorialProtectedOutlets=(this.telemetry.territorialProtectedOutlets||0)+1;return choice;
+  }
+  let original=null;
+  if(safety&&choice.kind==='pass'&&choice.q?.active&&choice.risk<.25&&choice.arrivalRisk<.48&&ranked.length){
+   const read=this.passPreparation(p,choice);
+   if(read.feasible)original=read;
+  }
   // A lower-ranked but already feasible progressive pass beats a pause
   // or retreat. No protection from interceptions or offside is granted.
   for(const {o} of ranked.slice(0,2)){
-   if(this.passPreparation(p,o).feasible){this.telemetry.territorialPassChoices=(this.telemetry.territorialPassChoices||0)+1;return {...o,territorialPass:true};}
+   const read=this.passPreparation(p,o);
+   if(!read.feasible)continue;
+   if(original&&(read.contactTime>original.contactTime+.10||read.risk>original.risk+.08||read.arrivalRisk>original.arrivalRisk+.12)){
+    this.telemetry.territorialRiskRejected=(this.telemetry.territorialRiskRejected||0)+1;continue;
+   }
+   this.telemetry.territorialPassChoices=(this.telemetry.territorialPassChoices||0)+1;return {...o,territorialPass:true};
   }
+  if(original)return choice;
   if(!carry?.point||pressure<3.0||carry.clearance<2.5||gain(carry)<3||(p.energy??1)<.45||p.carryTime>3.2||p.role==='DEF'&&depth< -12||t.mentality==='defensive'&&depth<0)return choice;
   const heading=Math.atan2(carry.point.z-p.z,carry.point.x-p.x);
   if(Math.abs(angle(heading,p.face))>1.25&&pressure<7||opponents.some(q=>{const h=segment({x:q.x+(q.vx||0)*.35,z:q.z+(q.vz||0)*.35},p,carry.point);return h.u>.04&&h.d<1.65;}))return choice;
