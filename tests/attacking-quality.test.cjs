@@ -758,3 +758,42 @@ test('territorial correction defaults off in engine and can be enabled in an act
  m.cfg.territorialProgression=true;
  assert(m.choose(owner).territorialPass);
 });
+
+
+test('a stationary accepted forward run is led using physical acceleration, in both halves',()=>{
+ for(const side of [1,-1]){
+  const {m,set,owner,link,mid,back}=fixture(side);
+  owner.x=23*side;owner.z=0;m.ball.x=owner.x;link.active=false;mid.active=false;back.x=45*side;back.z=12;
+  const st=set(1,'ATT',34,0,{position:'ST',pace:88,acceleration:88,stamina:100,fitness:100,face:side>0?0:Math.PI});
+  const target={x:39*side,z:2,pace:1.06,state:'box-run',partnerId:owner.id,priority:30};
+  require('../team-intent').resolve(st,target,m.taskContext(st));m.targets.set(st,target);
+  assert(m.acceptedTimedRun(owner,st));
+  const original={x:st.x,z:st.z};
+  assert.deepEqual(m.receiverPoint(st,.9),original);
+  m.cfg.acceleratingRunReceivers=true;
+  const before=structuredClone({player:st,ball:m.ball,seed:m.seed});
+  const lead=m.receiverPoint(st,.9);
+  assert.equal(lead.acceleratingRun,true);
+  assert((lead.x-st.x)*side>.65);
+  assert(Math.hypot(lead.x-st.x,lead.z-st.z)<=.9*7.5);
+  assert.deepEqual({player:st,ball:m.ball,seed:m.seed},before);
+  st.task.epoch--;
+  assert.deepEqual(m.receiverPoint(st,.9),original);
+  st.task.epoch++;
+  assert.deepEqual(m.receiverPoint(st,.2),original);
+  assert.deepEqual(m.receiverPoint(st,.9,{...target,state:'support'}),original);
+ }
+});
+test('actual pass option uses the accelerating receiver lead without moving the receiver',()=>{
+ const {m,set,owner,link,mid,back}=fixture();
+ owner.x=23;owner.z=0;m.ball.x=23;link.active=false;mid.active=false;back.x=45;back.z=15;
+ const st=set(1,'ATT',34,0,{position:'ST',pace:88,acceleration:88,stamina:100,fitness:100});
+ const target={x:39,z:2,pace:1.06,state:'box-run',partnerId:owner.id,priority:30};
+ require('../team-intent').resolve(st,target,m.taskContext(st));m.targets.set(st,target);
+ const baseline=m.passOptions(owner).find(o=>o.kind==='pass'&&o.q===st);
+ assert(baseline);
+ m.cfg.acceleratingRunReceivers=true;
+ const corrected=m.passOptions(owner).find(o=>o.kind==='pass'&&o.q===st);
+ assert(corrected);assert.equal(corrected.acceleratingRun,true);
+ assert(corrected.point.x>baseline.point.x+.55);assert.equal(st.x,34);assert.equal(st.vx,0);
+});

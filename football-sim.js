@@ -257,7 +257,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;this.kick.territorialPass=choice.territorialPass;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;this.kick.territorialPass=choice.territorialPass;this.kick.acceleratingRun=choice.acceleratingRun;
   }
  }
  positionRestartKick(r,aim){
@@ -403,6 +403,17 @@ class Match{
   // Distant runs and unknown commands retain the existing velocity extension.
   if(q.active&&target&&Number.isFinite(target.x)&&Number.isFinite(target.z)&&Number.isFinite(target.pace)&&target.pace>=0&&!['restart','wall','goal'].includes(target.state)){
    const speed=Math.hypot(q.vx,q.vz),reach=speed*seconds+speed*speed/22+.5;
+   // A newly committed attacking run can start from rest. Linear velocity
+   // extrapolation misses its acceleration, so the passer sees a stationary
+   // player even when the actual movement command is already accepted.
+   const source=this.kick?.p||this.owner;
+   if(this.cfg.acceleratingRunReceivers===true&&source?.team===q.team&&source!==q&&seconds>=.35&&seconds<=1.6&&
+    ['ATT','MID'].includes(q.role)&&q.duelRecovery<=0&&this.acceptedTimedRun(source,q)&&target.state===q.task.state&&dist(target,q.task)<.5&&
+    (q.x-source.x)*this.direction(q.team)>2&&dist(q,source)<30&&dist(q,target)<13&&speed<3.2){
+    const predicted=this.receiverAt(q,seconds,target).player,side=this.direction(q.team);
+    if((predicted.x-q.x)*side>.65&&(predicted.x-point.x)*side>.55&&dist(predicted,q)<=seconds*7.5)
+     return {x:predicted.x,z:predicted.z,acceleratingRun:true};
+   }
    if(speed>.2&&dist(q,target)<reach){const predicted=this.receiverAt(q,seconds,target).player;return {x:predicted.x,z:predicted.z};}
   }
   return point;
@@ -458,7 +469,7 @@ class Match{
    if(q.role==='GK')score-=5;if(q.role==='ATT'&&Math.abs(q.z)<12&&p.x*forward>23)score+=3;
    if(t.playstyle==='counter')score+=Math.max(0,advance)*.16;
    if(t.playstyle==='wing'&&Math.abs(q.z)>18&&advance>4)score+=3;
-   options.push({kind,q,point,risk:clamp(lane+reception.risk*.18,0,1),score,space,distance:d,arrivalRisk:reception.risk,movingReturn,...(runBonus&&advance>1?{offBallKind}:{})});
+   options.push({kind,q,point,risk:clamp(lane+reception.risk*.18,0,1),score,space,distance:d,arrivalRisk:reception.risk,movingReturn,...(predicted.acceleratingRun&&kind==='pass'?{acceleratingRun:true}:{}),...(runBonus&&advance>1?{offBallKind}:{})});
    // A staged diagonal can be useful before it reaches the last line.
    // Feed the run only if its accepted command actually predicts forward
    // movement during the pass, not merely an attractive distant target.
@@ -1559,6 +1570,7 @@ class Match{
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
+  if(k.acceleratingRun&&this.flight&&k.target){this.telemetry.acceleratingRunReleases=(this.telemetry.acceleratingRunReleases||0)+1;this.flight.acceleratingRun=true;}
   if(k.territorialPass){this.telemetry.territorialPassReleases=(this.telemetry.territorialPassReleases||0)+1;this.flight.territorialPass=true;this.flight.territorialOrigin={x:p.x,z:p.z};}
   if(k.attackingRunDelivery){this.telemetry.attackingRunReleases=(this.telemetry.attackingRunReleases||0)+1;this.flight.attackingRunDelivery=true;}
   if(k.kind==='shot'&&k.shotStyle){
@@ -1631,6 +1643,7 @@ class Match{
   const previous=this.lastTouch,flight=this.flight,regained=this.lastTeam!==p.team;
   if(this.rebound?.team===p.team&&this.rebound.until>this.time)this.telemetry.reboundRecoveries=(this.telemetry.reboundRecoveries||0)+1;
   this.rebound=null;
+  if(flight?.acceleratingRun&&flight.target===p&&flight.from?.team===p.team)this.telemetry.acceleratingRunCompletions=(this.telemetry.acceleratingRunCompletions||0)+1;
   if(flight?.territorialPass&&flight.target===p&&flight.from?.team===p.team){this.telemetry.territorialPassCompletions=(this.telemetry.territorialPassCompletions||0)+1;this.telemetry.territorialCompletedMetres=(this.telemetry.territorialCompletedMetres||0)+Math.max(0,(p.x-flight.territorialOrigin.x)*this.direction(p.team));}
   if(flight?.attackingRunDelivery&&flight.target===p&&flight.from?.team===p.team)this.telemetry.attackingRunCompletions=(this.telemetry.attackingRunCompletions||0)+1;
   if(flight?.thirdManReturn?.runnerId===p.id&&flight.from?.team===p.team&&flight.thirdManReturn.epoch===this.attackEpoch[p.team]){this.telemetry.thirdManCompletions=(this.telemetry.thirdManCompletions||0)+1;this.emit('third-man','Üçüncü adam bağlantısı',p.name+' iki takım arkadaşının hazırladığı pas bağlantısını tamamladı.',p);}
