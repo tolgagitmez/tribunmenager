@@ -26,6 +26,7 @@ function snapshot(p,time,source){
 function update(players,time,dt=1/60,options={}){
  if(!Number.isFinite(time))return;
  const active=players.filter(live),byId=new Map(active.map(p=>[p.id,p])),epoch=options.epoch??null;
+ const teams=[[],[]],snapshots=new Map();for(const p of active)teams[p.team].push(p);
  for(const p of players){
   if(!live(p)){if(p)p.perception=null;continue;}
   let state=p.perception;
@@ -50,12 +51,20 @@ function update(players,time,dt=1/60,options={}){
    // Identity/activity are lifecycle data. Do not read a hidden actor's position.
    if(!q||q.team===p.team||record.rosterId!==(q.rosterId??q.id)||time-record.seenAt>config.ttl)delete state.records[id];
   }
-  for(const q of active){
-   if(q.team===p.team||!Number.isFinite(q.x)||!Number.isFinite(q.z))continue;
-   const dx=q.x-p.x,dz=q.z-p.z,distance=Math.hypot(dx,dz),heading=Math.atan2(dz,dx);
-   const contact=distance<=1.65,front=distance<=config.range&&Math.abs(angle(heading,facing))<=config.halfAngle;
-   const scanned=state.headYaw!==0&&distance<=config.range*.88&&Math.abs(angle(heading,look))<=config.halfAngle;
-   if(contact||front||scanned)state.records[q.id]=snapshot(q,time,contact?'contact':front?'vision':'scan');
+  for(const q of teams[1-p.team]){
+   if(!Number.isFinite(q.x)||!Number.isFinite(q.z))continue;
+   const dx=q.x-p.x,dz=q.z-p.z;
+   if(Math.abs(dx)>config.range||Math.abs(dz)>config.range)continue;
+   const distance=Math.hypot(dx,dz);if(distance>config.range)continue;
+   const contact=distance<=1.65,heading=contact?0:Math.atan2(dz,dx);
+   const front=!contact&&Math.abs(angle(heading,facing))<=config.halfAngle;
+   const scanned=!contact&&!front&&state.headYaw!==0&&distance<=config.range*.88&&Math.abs(angle(heading,look))<=config.halfAngle;
+   if(contact||front||scanned){
+    // Copy only after this observer independently sees the opponent. The
+    // scalar snapshot is shared for this update, never its memory object.
+    if(!snapshots.has(q))snapshots.set(q,snapshot(q,time,'vision'));
+    state.records[q.id]={...snapshots.get(q),source:contact?'contact':front?'vision':'scan'};
+   }
   }
   state.lastUpdate=time;
  }
