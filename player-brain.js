@@ -172,7 +172,68 @@ function tackleDecision(p,carrier,ball,{aggression=.5,emergency=false,cover=fals
   aggression>=.34&&aggression<=.78&&(emergency||cover);
  return {kind:slide?'slide':'standing',bonus:timing+(slide?.035:0)};
 }
-const api={passBias,canThread,carryBias,shouldDrive,canFeint,canHoldUp,runMargin,offBallOption,decoyOption,decoyOpened,runPassBias,defensiveRead,jockeyOption,screenOption,tackleDecision};
+// Keeper decisions consume visible ball geometry, never a private kick aim.
+function keeperReaction(p){
+ const reactions=stat(p,'reactions'),positioning=stat(p,'goalkeeping'),agility=stat(p,'agility');
+ return clamp(.24-(reactions-60)*.003-(positioning-75)*.001-(agility-75)*.0005+Math.max(0,.65-(p.energy??1))*.09,.095,.29);
+}
+function keeperDepth(p,ball,{forward=1,has=false,oneOnOne=false,covered=false,highLine=false}={}){
+ const depth=52+ball.x*forward,skill=stat(p,'goalkeeping'),read=stat(p,'vision'),calm=stat(p,'composure');
+ if(has)return clamp(4+(ball.x*forward+35)*.18+(highLine?2.5:0)+(highLine&&read>=83&&calm>=80?1.8:0),3,15.5);
+ // Bisect the two-post shooting cone. A better keeper can advance in a
+ // genuine isolated central duel, but never abandon the near post out wide.
+ const close=oneOnOne&&!covered&&Math.abs(ball.z)<12&&depth>4&&depth<20;
+ return clamp(close?depth*(.29+(skill-65)*.004):1.5+(ball.x*forward+35)*.11,1.2,close?7.2:5.8);
+}
+function keeperAngle(p,ball,depth,forward){
+ const goal=-forward*52,dx=Math.max(2,(ball.x-goal)*forward);
+ // Project the angle bisector onto the keeper depth plane.
+ const a=Math.atan2(ball.z-3.66,dx),b=Math.atan2(ball.z+3.66,dx);
+ return clamp(Math.tan((a+b)*.5)*depth,-3.45,3.45);
+}
+function keeperArrival(p,point){
+ const dx=point.x-p.x,dz=point.z-p.z,d=Math.hypot(dx,dz);
+ const speed=clamp((4.4+(stat(p,'pace')-75)*.025)*1.08*(.78+.22*(p.energy??1)),2.6,5.5);
+ const along=d>.01?((p.vx||0)*dx+(p.vz||0)*dz)/d:0;
+ return Math.max(0,d-.42)/speed+Math.max(0,speed-along)/18;
+}
+function keeperSweep(p,point,opponents,{forward=1,highLine=false}={}){
+ if(!point||!Number.isFinite(point.t)||point.t<.15||point.t>2.3||point.y>.65||point.x*forward>-20||Math.abs(point.z)>22)return false;
+ const outside=point.x*forward>-35.5||Math.abs(point.z)>20.16;
+ if(outside&&(!highLine||stat(p,'vision')<82||stat(p,'composure')<80||stat(p,'pace')<60))return false;
+ if((p.energy??1)<.45||keeperArrival(p,point)>point.t+.08)return false;
+ const enemy=Math.min(10,...opponents.map(q=>Math.max(0,distance(q,point)-.65)/Math.max(3.5,5.7+(stat(q,'pace')-75)*.04)));
+ return enemy>point.t+(outside?.65:.30);
+}
+function keeperClaim(p,point,opponents,{forward=1}={}){
+ if(!point||!Number.isFinite(point.t)||point.t<.12||point.t>2.1||point.y<.55||point.y>1.95||point.vy>1||
+  point.x*forward>-36||point.x*forward<-51.5||Math.abs(point.z)>19.5||(p.energy??1)<.45||
+  stat(p,'handling')<76||stat(p,'goalkeeping')<78)return false;
+ if(keeperArrival(p,point)>point.t-.10)return false;
+ const enemy=Math.min(10,...opponents.map(q=>Math.max(0,distance(q,point)-.7)/Math.max(3.5,5.7+(stat(q,'pace')-75)*.04)));
+ return enemy>point.t+.25;
+}
+function keeperCatch(p,{speed,height,lateral,pressure,handHits=2}){
+ const handling=stat(p,'handling'),positioning=stat(p,'goalkeeping');
+ const capacity=17+handling*.13;
+ if(height<.08||height>2.05||lateral>.9||speed>=capacity||pressure<=1.15||handHits<1)return false;
+ const difficulty=speed*.65+Math.abs(height-1.05)*2.0+lateral*4+Math.max(0,3-pressure)*2.5+(handHits<2?3:0);
+ return difficulty<12+(handling-65)*.17+(positioning-75)*.065;
+}
+function keeperParry(p,ball,opponents,{forward=1}={}){
+ const skill=.65*stat(p,'goalkeeping')+.35*stat(p,'handling');
+ if(skill<77)return null;
+ let best=null;
+ for(const side of [-1,1]){
+  const vx=forward*(5.5+(skill-75)*.045),vz=side*(6.8+(skill-75)*.065);
+  const point={x:ball.x+vx*.72,z:clamp(ball.z+vz*.72,-34,34)};
+  const clearance=Math.min(12,...opponents.map(q=>distance(point,{x:q.x+(q.vx||0)*.45,z:q.z+(q.vz||0)*.45})));
+  const score=clearance+Math.abs(point.z)*.09+(side===Math.sign(ball.z||p.diveSide||1)?.35:0);
+  if(!best||score>best.score)best={vx,vz,score,point};
+ }
+ return best;
+}
+const api={passBias,canThread,carryBias,shouldDrive,canFeint,canHoldUp,runMargin,offBallOption,decoyOption,decoyOpened,runPassBias,defensiveRead,jockeyOption,screenOption,tackleDecision,keeperReaction,keeperDepth,keeperAngle,keeperArrival,keeperSweep,keeperClaim,keeperCatch,keeperParry};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 root.TribunPlayerBrain=api;
 })(typeof window!=='undefined'?window:globalThis);
