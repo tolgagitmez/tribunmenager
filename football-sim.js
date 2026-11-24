@@ -1653,7 +1653,7 @@ class Match{
     // simply because reception is difficult. Less skill leaves residual roll.
     const touchSpeed=controlled?clamp(1.05+p.speed*.16+technique.precision*.28,.9,2.2):speed;
     const retain=controlled?technique.retention:0;
-    const impulse={vx:Math.cos(a)*touchSpeed*(1-retain)+this.ball.vx*retain,vz:Math.sin(a)*touchSpeed*(1-retain)+this.ball.vz*retain,vy:this.ball.vy};
+    const impulse=controlled?{vx:Math.cos(a)*touchSpeed*(1-retain)+this.ball.vx*retain,vz:Math.sin(a)*touchSpeed*(1-retain)+this.ball.vz*retain,vy:this.ball.vy}:{vx:Math.cos(a)*speed,vz:Math.sin(a)*speed,vy:this.ball.vy};
     const plan=contact&&['pass','through','cutback'].includes(flight.kind)?this.touchPlan(p,impulse,{mode:'receive',interval:Math.max(p.receiveClock,p.touchClock),target:p.carryTarget,replan:true}):null;
     if(!contact||plan?.ready){
      this.ball.vx=plan?plan.velocity.vx:Math.cos(a)*speed;this.ball.vz=plan?plan.velocity.vz:Math.sin(a)*speed;
