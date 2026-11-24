@@ -386,3 +386,21 @@ test('accepted diagonal movement earns a feed only for a moving receiver in a sa
  m.attackPlans[0].runner.accepted=true;m.laneRisk=()=>.7;
  assert(!m.passOptions(owner).find(o=>o.q===link&&o.kind==='pass')?.diagonalFeed);
 });
+
+test('attacking depth is retained only if an alternative can actually be played',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link}=fixture(side);
+  Object.assign(owner,{x:26*side,z:8,face:side===1?0:Math.PI,carryTime:.5,receiveClock:0,position:'AM'});
+  const retreat={kind:'pass',q:link,point:{x:5*side,z:10},distance:21,risk:.05,arrivalRisk:.1,space:9,score:20};
+  const forward={...retreat,point:{x:31*side,z:4},distance:7,space:5,score:5};
+  const carry={kind:'carry',point:{x:31*side,z:8},clearance:4};
+  m.passPreparation=()=>({feasible:true});
+  assert.equal(m.retainAttackingDepth(owner,[retreat,forward],carry,5).retainDepth,true);
+  m.passPreparation=()=>({feasible:false});m.controlPreparation=()=>({firstTouchTime:.2,interventionTime:null});
+  assert.equal(m.retainAttackingDepth(owner,[retreat,forward],carry,5).kind,'carry');
+  m.controlPreparation=()=>({firstTouchTime:.2,interventionTime:.3});
+  assert.equal(m.retainAttackingDepth(owner,[retreat,forward],carry,5),null);
+  assert.equal(m.retainAttackingDepth(owner,[retreat,forward],carry,1.5),null);
+  assert.equal(m.retainAttackingDepth(owner,[forward,retreat],carry,5),null);
+ }
+});
