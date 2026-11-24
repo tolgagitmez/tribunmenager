@@ -367,3 +367,22 @@ test('early diagonal runs create a reachable onside passing lane before the last
   m.laneRisk=()=>.1;link.position='DM';assert.equal(m.earlyDiagonalRun(link,owner,33),null);
  }
 });
+
+test('accepted diagonal movement earns a feed only for a moving receiver in a safe corridor',()=>{
+ const {m,owner,link,back}=fixture();
+ Object.assign(link,{x:17,z:2,role:'ATT',position:'ST',vx:4,vz:2,face:Math.atan2(2,4),pace:85});
+ back.x=37;
+ const Intent=require('../team-intent');
+ Intent.resolve(link,{x:24,z:5,state:'penetration',pace:1.07,partnerId:owner.id,priority:30},m.taskContext(link));
+ m.attackPlans[0]={ownerId:owner.id,epoch:m.attackEpoch[0],until:m.time+2,runner:{id:link.id,kind:'diagonal',accepted:true,point:{x:24,z:5}}};
+ m.receiverPoint=(q)=>q===link?{x:20,z:3.5}:{x:q.x,z:q.z};
+ m.laneRisk=()=>.1;m.receptionSafety=()=>({risk:.1,pressure:6});
+ let pass=m.passOptions(owner).find(o=>o.q===link&&o.kind==='pass');
+ assert(pass?.diagonalFeed);
+ const scored=pass.score;
+ m.attackPlans[0].runner.accepted=false;
+ pass=m.passOptions(owner).find(o=>o.q===link&&o.kind==='pass');
+ assert(!pass?.diagonalFeed);assert(pass.score<scored);
+ m.attackPlans[0].runner.accepted=true;m.laneRisk=()=>.7;
+ assert(!m.passOptions(owner).find(o=>o.q===link&&o.kind==='pass')?.diagonalFeed);
+});
