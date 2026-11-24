@@ -1585,6 +1585,7 @@ class Match{
   const side=this.direction(owner.team),depth=Math.min(line-1.0,Math.max(owner.x*side+6,baseLine+27)),ideal=clamp(owner.z*.4+Math.sign(p.homeZ||-owner.z||1)*9,-18,18);let best=null;
   const evaluate=point=>{const risk=this.laneRisk(owner,point,17),space=Math.min(12,...this.rivals(owner).map(q=>dist(q,point))),score=space*.5-risk*11-dist(p,point)*.16-Math.abs(point.z-ideal)*.035;return {...point,score,risk,space};};
   for(const z of [ideal,ideal-4,ideal+4,clamp(p.z,-20,20)]){const point=evaluate({x:side*depth,z:clamp(z,-22,22)});if(!best||point.score>best.score)best=point;}
+  let improvedConnection=false;
   // The default formation-relative depth can be behind a cover shadow even
   // when a nearby diagonal connection is available. Only compare bounded,
   // reachable alternatives with safe reception and onside staging.
@@ -1606,11 +1607,11 @@ class Match{
      const point={x:side*Math.min(line-Brain.runMargin(p,side),owner.x*side+forward),z:clamp(p.z+lateral,-20,20)},q=assess(point);
      if(q&&(!reachable||q.score>reachable.score))reachable=q;
     }
-    if(reachable){const baseline=assess(best);if(!baseline||reachable.score>baseline.score+1.2)best=reachable;}
+    if(reachable){const baseline=assess(best);if(!baseline||reachable.score>baseline.score+1.2){best=reachable;improvedConnection=true;}}
    }
   }
   const intent=p.connectionIntent,old=intent?.ownerId===owner.id&&intent.epoch===this.attackEpoch[owner.team]&&intent.until>this.time&&(intent.point.x-owner.x)*side>3&&intent.point.x*side<line-.7?evaluate(intent.point):null;
-  if(old&&old.risk<.55&&old.space>1.8&&old.score>best.score-1.5&&(!this.playerBrainEnabled(p)||best.risk>.30||old.risk<.30&&dist(p,old)<=8))best=old;
+  if(old&&old.risk<.55&&old.space>1.8&&old.score>best.score-1.5&&!improvedConnection)best=old;
   const same=old&&dist(old,best)<.1;p.connectionIntent={ownerId:owner.id,epoch:this.attackEpoch[owner.team],point:{x:best.x,z:best.z},until:same?intent.until:this.time+1.4};return best;
  }
  supportUnit(team,owner,pool,holding,build,pattern,flank,box,line,connection=null,meeting=null){
