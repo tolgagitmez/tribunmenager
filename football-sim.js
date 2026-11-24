@@ -295,9 +295,12 @@ class Match{
  // Conservative lane interception estimate: defenders must have time to reach a pass.
  laneRisk(p,point,power=17,kind='pass',rivals=null){
   let risk=0;const opponents=rivals||this.rivals(p),origin=p===this.owner&&dist(p,this.ball)<1.6?this.ball:p,length=dist(origin,point),ground=!['cross','long-pass','clearance','throw'].includes(kind),near=[];
+  // Ground delivery starts at the ball, not the carrier's centre. Keep
+  // the same rolling law for the long and near interception estimates.
+  const pathOrigin=ground&&this.playerBrainEnabled(p)?origin:p,pathLength=dist(pathOrigin,point);
   for(const d of opponents){
-   let hit=segment(d,p,point);
-   if(hit.u>=.05&&hit.u<=.98){const travel=Math.min(6,BallPhysics.groundTime(dist(p,point)*hit.u,power)),future=d.passFuture?d.passFuture(Math.min(.5,travel)):{x:d.x+d.vx*Math.min(.5,travel),z:d.z+d.vz*Math.min(.5,travel)};hit=segment(future,p,point);const reach=.55+Math.max(0,travel-.22)*3.9+clamp(d.uncertainty||0,0,.8);risk=Math.max(risk,clamp((reach-hit.d)/Math.max(.7,reach),0,1));}
+   let hit=segment(d,pathOrigin,point);
+   if(hit.u>=.05&&hit.u<=.98){const travel=Math.min(6,BallPhysics.groundTime(pathLength*hit.u,power)),future=d.passFuture?d.passFuture(Math.min(.5,travel)):{x:d.x+d.vx*Math.min(.5,travel),z:d.z+d.vz*Math.min(.5,travel)};hit=segment(future,pathOrigin,point);const reach=.55+Math.max(0,travel-.22)*3.9+clamp(d.uncertainty||0,0,.8);risk=Math.max(risk,clamp((reach-hit.d)/Math.max(.7,reach),0,1));}
    if(ground&&Math.max(d.touchClock||0,d.duelRecovery||0)<.3&&dist(d,origin)<.3*(power+Math.hypot(d.vx,d.vz))+1.1+(d.passFuture?.5:0))near.push(d);
   }
   // The longer-range arrival estimate must not miss a boot already crossing
@@ -451,9 +454,12 @@ class Match{
     const lateral=aligned?clamp((intent.z-q.z)/Math.max(.75,(intent.x-q.x)*forward)*length,-5.5,5.5):q.vz*.45;
     const run={x:clamp(q.x+forward*length,-48,48),z:clamp(q.z+lateral,-28,28)};
     const reachTime=dist(q,run)/Math.max(3.5,5.35+((q.pace??80)-75)*.035),flight=this.passTime('through',dist(p,run),21);
-    const rivals=this.rivals(p),r=this.laneRisk(p,run,20),open=Math.min(16,...rivals.map(o=>dist(o,run)));
+    const advanced=this.playerBrainEnabled(p),rivals=this.rivals(p),r=this.laneRisk(p,run,advanced?21:20,'through'),open=Math.min(16,...rivals.map(o=>dist(o,run)));
+    const runReception=advanced?this.receptionSafety(p,q,run,flight):reception;
+    const arrivalRisk=runReception.risk,runSpace=advanced?Math.min(open,runReception.pressure):open;
+    const runGain=(run.x-p.x)*forward,runBonusSafe=aligned?Brain.runPassBias(p,{kind:offBallKind,risk:r,arrivalRisk,space:runSpace}):0;
     const defenderArrival=Math.min(10,...rivals.map(o=>dist(o,run)/(5.7+((o.pace??80)-75)*.04)+.18));
-    if(open>3&&r<.55&&reachTime<flight+.65&&reachTime<defenderArrival+.05&&run.x*forward>line+.8&&line-q.x*forward<9&&p.x*forward>-20&&(t.passing!=='short'||p.x*forward>16||this.playerBrainEnabled(p)&&Brain.canThread(p,{forwardGain:(run.x-p.x)*forward,aligned,pressure})))options.push({kind:'through',q,point:run,risk:r,space:open,score:score+(t.passing==='short'?0:2)+(run.x-point.x)*forward*.30+(line<run.x*forward?2:0)-r*7+(this.playerBrainEnabled(p)?Brain.passBias(p,{kind:'through',forwardGain:(run.x-p.x)*forward,pressure,risk:r,space:open}):0)+(aligned?Brain.runPassBias(p,{kind:offBallKind,risk:r,arrivalRisk:reception.risk,space:open}):0),plannedRun:aligned,movingReturn,...(aligned&&offBallKind&&r<.38&&open>3&&Brain.runPassBias(p,{kind:offBallKind,risk:r,arrivalRisk:reception.risk,space:open})>0?{offBallKind}: {})});
+    if(open>3&&r<.55&&(!advanced||arrivalRisk<.72&&runSpace>2.4)&&reachTime<flight+.65&&reachTime<defenderArrival+.05&&run.x*forward>line+.8&&line-q.x*forward<9&&p.x*forward>-20&&(t.passing!=='short'||p.x*forward>16||this.playerBrainEnabled(p)&&Brain.canThread(p,{forwardGain:(run.x-p.x)*forward,aligned,pressure})))options.push({kind:'through',q,point:run,risk:advanced?clamp(r+arrivalRisk*.18,0,1):r,space:runSpace,...(advanced?{arrivalRisk}:{}),score:score+(advanced?clamp((reception.risk-arrivalRisk)*9,-9,9)+clamp((lane-r)*20,-20,20):0)+(t.passing==='short'?0:2)+(run.x-point.x)*forward*.30+(line<run.x*forward?2:0)-r*7+(this.playerBrainEnabled(p)?Brain.passBias(p,{kind:'through',forwardGain:(run.x-p.x)*forward,pressure,risk:r,space:runSpace,arrivalRisk}):0)+runBonusSafe,plannedRun:aligned,movingReturn,...(aligned&&offBallKind&&r<.38&&runSpace>3&&runBonusSafe>0?{offBallKind}: {})});
    }
   }
   return options.sort((a,b)=>b.score-a.score);
