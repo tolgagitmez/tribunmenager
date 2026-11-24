@@ -212,7 +212,7 @@ class Match{
   const id=this.managerKickSerial=(this.managerKickSerial||0)+1;
   this.pendingManagerKick=Object.freeze({
    id,kind,team:p.team,playerId:p.id,playerName:p.name,origin,target:Object.freeze({...target}),direction,
-   angle:heading,angleRange:angleLimit*Math.PI/180,range,power:clamp((suggested-min)/(max-min),0,1),
+   angle:heading,angleRange:(kind==='free-kick'&&restart?.indirect?180:angleLimit)*Math.PI/180,range,power:clamp((suggested-min)/(max-min),0,1),
    skill:this.managerKickSkill(p,kind),indirect:!!restart?.indirect,delivery:choice?.kind
   });
   this.managerKickContext={player:p,restart,choice};
@@ -738,7 +738,7 @@ class Match{
  }
  canShield(p){return this.time>=(p.shieldReadyAt||0)||p.shieldUntil>this.time&&p.shieldBudgetUntil>this.time;}
  startCarry(p,choice){
-  const proposal={...choice.point,state:choice.shield?'shield':'dribble',pace:1,priority:90,urgent:!!choice.shield||choice.kind==='feint'||!!choice.openFieldCarry};
+  const proposal={...choice.point,state:choice.shield?'shield':'dribble',pace:1,priority:90,urgent:!!choice.shield||choice.kind==='feint'||!!choice.openFieldCarry||!!choice.shotAngleCarry};
   const context=this.taskContext(p,{forceReason:p.task&&p.task.purpose!=='carry'?'ball-control':choice.openFieldCarry&&p.task&&(p.task.x-p.x)*this.direction(p.team)<0?'ball-control':null,safe:(actor,task,c)=>{
    if(!this.taskSafe(actor,task,c))return false;
    return !c.rivals.some(q=>{const hit=segment(q,actor,task);return hit.u>.05&&hit.u<.95&&hit.d<1.35&&dist(actor,q)<6;});
@@ -2422,7 +2422,7 @@ class Match{
      // rolls beyond kicking reach, approach it before choosing distribution.
      if(owner===p&&!p.holdingBall&&!this.kick&&dist(p,ball)>.95){x=ball.x+ball.vx*.10;z=ball.z+ball.vz*.10;state='keeper-control';pace=1.0;}
     }else if(p===owner){const target=p.carryTarget||{x:p.x+side*5,z:p.z};x=target.x;z=target.z;if(dist(p,ball)>1.1||p.receiveMode==='cushion'&&p.receiveClock>0){x=ball.x+ball.vx*.12;z=ball.z+ball.vz*.12;}const pressure=Math.min(20,...personal.map(q=>dist(q,p))),shield=p.shieldUntil>this.time;pace=p.receiveClock>0?.48:shield?.56:p.settleUntil>this.time?.34:counter?1.04:p.escapeUntil>this.time?.98:pressure>5&&aBall<20?(this.progressiveCarryPace(p,personal,pressure)??.60):.98;state=p.receiveClock>0?'receive':shield?'shield':'dribble';}
-    else if(!owner&&!this.flight){if(p===presser){const q=this.interceptPoint(p);x=q.x;z=q.z;pace=1.12;state='loose-ball';}else if(p===cover){x=ball.x-side*7;z=ball.z*.55+p.homeZ*.45;state='screen';}}
+    else if(!owner&&!this.flight){if(p===presser&&(!rebound||rebound.id===p.id)){const q=this.interceptPoint(p);x=q.x;z=q.z;pace=1.12;state='loose-ball';}else if(p===cover){x=ball.x-side*7;z=ball.z*.55+p.homeZ*.45;state='screen';}}
     else if(has){
      if(p.role==='MID'){x=side*(baseLine+(p===holding?15:24)+(counter&&p!==holding?5:0));if(p===holding&&aBall>2)x=Math.min(x*side,aBall-7)*side;
       if(p.detailedRole&&p.position==='DM')x=side*Math.min(x*side,baseLine+15,aBall-7);
@@ -2881,7 +2881,7 @@ class Match{
    if(!this.refereeGoal(scoring))return;
    this.score[scoring]++;if(this.flight?.kind==='shot'&&this.flight.from.team===scoring)this.onTarget[scoring]++;
    this.emit('goal','GOOOL!',this.lastTouch?.team===scoring?`${this.lastTouch.name} topu ağlara gönderdi!`:'Top savunmadan ağlara gitti.',this.lastTouch,scoring);
-   if(this.lastTouch)this.action(this.lastTouch,'celebrate',2.2);this.owner=null;this.flight=null;this.kick=null;this.offsidePhase=null;this.phase='goal';this.goalPause={clock:1.6,team:defending};this.stoppageSerial++;b.x=exit.point.x+side*1e-7;b.vx*=.25;b.vz*=.25;this.planClock=0;this.settleDiscipline();return;
+   if(this.lastTouch)this.action(this.lastTouch,'celebrate',2.2);this.rebound=null;this.owner=null;this.flight=null;this.kick=null;this.offsidePhase=null;this.phase='goal';this.goalPause={clock:1.6,team:defending};this.stoppageSerial++;b.x=exit.point.x+side*1e-7;b.vx*=.25;b.vz*=.25;this.planClock=0;this.settleDiscipline();return;
   }
   const corner=this.lastTouch?.team===defending,team=corner?scoring:defending;
   this.setRestart(corner?'corner':'goal-kick',team,corner?{x:side*51.8,z:(exit.point.z>=0?1:-1)*33.8}:{x:side*47,z:exit.point.z>=0?5:-5});
