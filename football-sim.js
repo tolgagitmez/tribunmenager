@@ -1852,6 +1852,7 @@ class Match{
   const f=this.flight,b=this.ball;
   if(!this.restart&&!this.kick?.restartContext&&p.active&&p.role!=='GK'&&f?.target===p&&f.from?.team===p.team&&['pass','cutback'].includes(f.kind)&&b.y<=BallPhysics.radius+.01&&Math.abs(b.vy)<1e-6)return this.receiverInterceptPoint(p);
   const top=5.35+((p.pace??80)-75)*.035,forecast=this.currentBallForecast();let result={x:b.x,z:b.z,t:0};
+  if(!forecast.samples){forecast.samples=[];forecast.sampleBall=BallPhysics.copy(b);}
   // All players observe the same moving ball. Extend the identical .1s
   // physical trajectory only when another sample is needed, not per actor.
   for(let i=1;i<=24;i++){
@@ -2875,7 +2876,7 @@ class Match{
  integrateBall(dt){BallPhysics.step(this.ball,dt);}
  currentBallForecast(){
   const b=this.ball,c=this.ballForecast;
-  if(!c||c.ball!==b||c.time!==this.time||c.x!==b.x||c.y!==b.y||c.z!==b.z||c.vx!==b.vx||c.vy!==b.vy||c.vz!==b.vz||c.spin!==b.spin)this.ballForecast={ball:b,time:this.time,x:b.x,y:b.y,z:b.z,vx:b.vx,vy:b.vy,vz:b.vz,...(b.spin===undefined?{}:{spin:b.spin}),planes:new Map(),samples:[],sampleBall:BallPhysics.copy(b)};
+  if(!c||c.ball!==b||c.time!==this.time||c.x!==b.x||c.y!==b.y||c.z!==b.z||c.vx!==b.vx||c.vy!==b.vy||c.vz!==b.vz||c.spin!==b.spin)this.ballForecast={ball:b,time:this.time,x:b.x,y:b.y,z:b.z,vx:b.vx,vy:b.vy,vz:b.vz,...(b.spin===undefined?{}:{spin:b.spin}),planes:new Map()};
   return this.ballForecast;
  }
  ballCrossing(x,limit=3){
