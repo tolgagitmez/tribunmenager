@@ -2467,7 +2467,7 @@ class Match{
     if(flank?.fullbackId===p.id){if(['overlap','wide-support'].includes(chosen.state))flank.point={x:chosen.x,z:chosen.z};else this.flankPlans[team]=null;}
     if(box?.points.has(p.id)&&['box-run','cutback-support'].includes(chosen.state)){
      const run=box.points.get(p.id);
-     if(run.role==='second-wave'&&!run.accepted&&chosen.state==='box-run'&&chosen.partnerId===owner?.id&&dist(chosen,run)<1.5){run.accepted=true;this.telemetry.secondWaveRuns=(this.telemetry.secondWaveRuns||0)+1;}
+     if(run.role==='second-wave'&&!run.accepted&&chosen.state==='box-run'&&chosen.partnerId===owner?.id&&dist(chosen,run)<1.5){run.accepted=true;if(p.task?.since===this.time)this.telemetry.secondWaveRuns=(this.telemetry.secondWaveRuns||0)+1;}
      Object.assign(run,{x:chosen.x,z:chosen.z});
     }
     if(box?.points.has(p.id)&&!['box-run','cutback-support','receive-run'].includes(chosen.state))box.points.delete(p.id);
