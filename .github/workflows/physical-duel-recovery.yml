@@ -1,0 +1,56 @@
+name: Physical duel recovery calibration
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'football-sim.js'
+      - 'tests/attacking-quality.test.cjs'
+      - 'tests/manager-kick.test.cjs'
+      - 'tools/compare-match-flow.cjs'
+      - '.github/workflows/physical-duel-recovery.yml'
+  workflow_dispatch:
+concurrency:
+  group: physical-duel-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  rule-and-ai-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm run test:duel-wallpass
+      - run: npm run test:touch-feasibility
+      - run: npm run test:manager-kick
+      - run: npm run test:collective-ai
+      - run: npm run test:match-laws
+      - run: npm run test:engine-invariance
+      - run: npm run test:render-budget
+  paired-natural-games:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || 'main' }}
+          path: baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compare eight natural scenarios with physical profiles
+        working-directory: candidate
+        run: node tools/compare-match-flow.cjs ../baseline . --physical
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: physical-duel-comparison
+          path: candidate/docs/validation/match-flow-comparison.json
+          if-no-files-found: warn
+          retention-days: 30
