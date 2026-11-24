@@ -74,3 +74,24 @@ test('broadcast quality uniform is sent once per frame, but close camera transit
  assert.equal(r.lastRenderStats.players,22);assert.equal(r.lastRenderStats.detailed,11);
  assert.deepEqual(fast,Array.from({length:22},(_,i)=>i%2));
 });
+
+
+test('conservative frustum culling keeps edge actors, selected players and live blend state',()=>{
+ const players=actors(),{r}=renderer(),bridge=Bridge.create();
+ const vp=new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+ for(const p of players){p.x=30;p.z=0;Rig.update(p,1/60);}
+ Object.assign(players[0],{x:0,z:0});Object.assign(players[1],{x:3.8,z:0});
+ players[2].selected=true;
+ assert(Renderer.playerInView(players[0],vp));assert(Renderer.playerInView(players[1],vp));
+ assert(!Renderer.playerInView(players[3],vp));
+ assert(Renderer.playerInView(players[3],new Float32Array(16)));
+ assert(Renderer.playerInView(players[3],Array(16).fill(NaN)));
+ r.draw(players,vp,[0,0,0],'close',1/60,bridge,{cull:true});
+ assert.equal(r.lastRenderStats.active,22);assert.equal(r.lastRenderStats.players,3);assert.equal(r.lastRenderStats.culled,19);
+ assert.equal(r.lastRenderStats.dualBuilds,3);assert.equal(bridge.stats().players,22);
+ players[3].x=0;Rig.update(players[3],1/60);
+ r.draw(players,vp,[0,0,0],'close',1/60,bridge,{cull:true});
+ assert.equal(r.lastRenderStats.players,4);assert.equal(bridge.stats().players,22);
+ r.draw(players,vp,[0,0,60],'tv',0,bridge,{});
+ assert.equal(r.lastRenderStats.players,22);assert.equal(r.lastRenderStats.culled,0);
+});
