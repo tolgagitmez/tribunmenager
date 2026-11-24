@@ -952,6 +952,20 @@ class Match{
   }
   return best?.velocity??null;
  }
+ selectKickFoot(p,heading,kind){
+  const lateral=-(this.ball.x-p.x)*Math.sin(heading)+(this.ball.z-p.z)*Math.cos(heading);
+  const natural=Math.abs(lateral)>.10?(lateral>0?1:0):(p.preferredFoot??p.kickFoot??0);
+  if(!this.playerBrainEnabled(p)||p.footPreference==='both'||p.footPreference==='unknown'||![0,1].includes(p.preferredFoot))return natural;
+  const preferred=p.preferredFoot,skill=kind==='shot'?p.shooting:kind==='cross'?(p.crossing??p.passing):p.passing;
+  if(!Number.isFinite(skill)||preferred===natural)return natural;
+  const gap=foot=>{const cp=this.contactPoint({...p,face:heading,kickFoot:foot},kind);return Math.hypot(cp[0]-this.ball.x,cp[2]-this.ball.z);};
+  const naturalGap=gap(natural),preferredGap=gap(preferred);
+  const pressure=Math.min(10,...this.rivals(p).map(q=>dist(p,q)));
+  // A strong foot can justify a small extra preparation, but not under an
+  // immediate challenge or when the ball lies clearly on the other side.
+  const advantage=footSkill(p,skill,preferred)-footSkill(p,skill,natural);
+  return pressure>3.4&&advantage>5&&preferredGap<.95&&preferredGap-naturalGap<Math.min(.23,advantage*.012)?preferred:natural;
+ }
  aimShot(p,point,origin=p){
   const preferred=point?.z??this.shotWindow(p).point.z,pressure=Math.min(20,...this.rivals(p).map(q=>dist(p,q)));
   const distance=this.shotWindow(p).distance,turn=Math.abs(angle(Math.atan2(preferred-origin.z,52*this.direction(p.team)-origin.x),p.face));
@@ -965,15 +979,14 @@ class Match{
   if(this.kick||!p.active||target===p)return false;
   let aim=point;
   if(kind==='shot'){
-   if(!restartContext){const raw=point||this.shotWindow(p).point,a=Math.atan2(raw.z-p.z,raw.x-p.x),lateral=-(this.ball.x-p.x)*Math.sin(a)+(this.ball.z-p.z)*Math.cos(a);p.kickFoot=Math.abs(lateral)>.10?(lateral>0?1:0):(p.preferredFoot??p.kickFoot);}
+   if(!restartContext){const raw=point||this.shotWindow(p).point,a=Math.atan2(raw.z-p.z,raw.x-p.x);p.kickFoot=this.selectKickFoot(p,a,kind);}
    if(!managerControl)aim=restartContext?.shotAim?{...restartContext.shotAim}:this.aimShot(p,aim);
    this.emit('shot','Kaleyi deniyor',`${p.name} boşluğu gördü ve şutunu hazırladı.`,p);
   }
   if(!aim&&target)aim={x:target.x,z:target.z};if(!aim)return false;
   const origin=restartContext&&kind!=='throw'?restartContext.spot:p;
   const heading=Math.atan2(aim.z-origin.z,aim.x-origin.x),turn=Math.abs(angle(heading,p.face));
-  const lateral=-(this.ball.x-p.x)*Math.sin(heading)+(this.ball.z-p.z)*Math.cos(heading);
-  if(!restartContext&&kind!=='shot')p.kickFoot=Math.abs(lateral)>.10?(lateral>0?1:0):(p.preferredFoot??p.kickFoot);
+  if(!restartContext&&kind!=='shot')p.kickFoot=kind==='throw'?p.kickFoot:this.selectKickFoot(p,heading,kind);
   const aimed={...p,face:heading},cp=this.contactPoint(aimed);
   const setup=Math.hypot(cp[0]-this.ball.x,cp[2]-this.ball.z);
   const oneTouch=p.oneTouchUntil>this.time&&['pass','cutback','through'].includes(kind);
@@ -1358,7 +1371,15 @@ class Match{
   // Cushion incoming speed. A first touch may run a little loose; it never relocates the player.
   const arrivalSpeed=Math.hypot(this.ball.vx-p.vx,this.ball.vz-p.vz),arrivalYaw=Math.atan2(this.ball.vz,this.ball.vx),pressure=Math.min(20,...this.field(1-p.team).map(q=>dist(q,p)));
   const turn=Math.abs(angle(p.face,arrivalYaw+Math.PI)),control=clamp((p.skill+(p.dribbling??p.skill))*.005,0,1);
-  const difficulty=clamp((arrivalSpeed-10)*.022+turn*.065+Math.max(0,2.5-pressure)*.08-(control-.7)*.6,0,.45);
+  const advanced=!!contact&&this.playerBrainEnabled(p),receivingFoot=advanced?this.touchContact(p,this.ball).foot:null;
+  const effective=advanced?footSkill(p,p.dribbling??p.skill,receivingFoot):p.dribbling??p.skill;
+  const footPenalty=advanced?Math.max(0,(p.dribbling??p.skill)-effective)*.005:0;
+  const pressurePenalty=advanced?Math.max(0,3-pressure)*Math.max(0,80-(p.composure??p.skill))*.002:0;
+  const difficulty=clamp((arrivalSpeed-10)*.022+turn*.065+Math.max(0,2.5-pressure)*.08-(control-.7)*.6+footPenalty+pressurePenalty,0,.45);
+  if(advanced&&reception?.mode==='one-touch'&&difficulty>.28&&pressure<3){
+   reception={...reception,mode:'protect',next:null};
+   this.telemetry.pressuredControlDeferrals=(this.telemetry.pressuredControlDeferrals||0)+1;
+  }
   this.ball.vx=this.ball.vx*(.10+difficulty*.32)+p.vx*.25;this.ball.vz=this.ball.vz*(.10+difficulty*.32)+p.vz*.25;this.ball.vy=Math.max(0,this.ball.vy*.15);
   if(contact){
    this.telemetry.firstControlChecks=(this.telemetry.firstControlChecks||0)+1;
@@ -1509,13 +1530,27 @@ class Match{
   }
   return false;
  }
+ shoulderContest(p,carrier){
+  const gap=dist(p,carrier),heading=carrier.face??0,dx=p.x-carrier.x,dz=p.z-carrier.z;
+  if(gap<.35||gap>1.15||dist(carrier,this.ball)>1.2||this.ball.y>.45)return null;
+  const forward=dx*Math.cos(heading)+dz*Math.sin(heading),lateral=-dx*Math.sin(heading)+dz*Math.cos(heading);
+  if(Math.abs(forward)>.42||Math.abs(lateral)<.32||Math.cos(angle(p.face??heading,heading))<.5)return null;
+  const approach=Math.hypot(p.vx-carrier.vx,p.vz-carrier.vz);
+  if(approach>3.5)return null;
+  const resistance=clamp(((carrier.strength??75)-(p.strength??75))*.0017+((carrier.balance??75)-(p.balance??75))*.0015,-.12,.12);
+  // Only modifies the existing reachable challenge's chance. A shoulder
+  // contest cannot move the ball, award possession or suppress fouls.
+  return {resistance,lateral,approach};
+ }
  doTackle(p,carrier){
   const access=this.tackleAccess(p,carrier);if(!access.attempt){if(access.retry)p.tackleClock=access.retry;if(access.patient)this.telemetry.patientChallenges=(this.telemetry.patientChallenges||0)+1;return;}
   const gap=dist(p,this.ball);
   const ballGap=dist(carrier,this.ball),toDefender={x:p.x-carrier.x,z:p.z-carrier.z},toBall={x:this.ball.x-carrier.x,z:this.ball.z-carrier.z};
   const shield=dot(toDefender,toBall)/(Math.hypot(toDefender.x,toDefender.z)*Math.max(.1,ballGap)||1)<-.25&&ballGap<.95;
   const backToGoalDuel=this.playerBrainEnabled(carrier)&&carrier.shieldUntil>this.time&&shield&&dist(p,carrier)<1.55;
-  const bodyContest=backToGoalDuel?clamp(((carrier.strength??75)+(carrier.balance??75)-(p.strength??75)-(p.balance??75))*.002,-.14,.14):0;
+  const sideContest=!backToGoalDuel&&access.style!=='slide'&&this.playerBrainEnabled(carrier)&&this.shoulderContest(p,carrier);
+  const bodyContest=backToGoalDuel?clamp(((carrier.strength??75)+(carrier.balance??75)-(p.strength??75)-(p.balance??75))*.002,-.14,.14):sideContest?.resistance??0;
+  if(sideContest)this.telemetry.shoulderContests=(this.telemetry.shoulderContests||0)+1;
   // The body can screen the ball; receiving it is not an invulnerability window.
   p.tackleClock=1.6+this.random()*.8;
   for(const [actor,opponent] of [[p,carrier],[carrier,p]]){const old=actor.duelMemory,repeat=old&&old.opponentId===opponent.id&&this.time-old.at<6&&dist(actor,old.origin)<5;actor.duelMemory={opponentId:opponent.id,count:repeat?old.count+1:1,at:this.time,origin:repeat?old.origin:{x:actor.x,z:actor.z}};}
