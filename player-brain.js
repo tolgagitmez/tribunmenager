@@ -61,7 +61,64 @@ function canHoldUp(p,defender,pass,{forward=1,pressure=10}={}){
  if(pass?.risk<.35&&pass?.arrivalRisk<.55&&pass?.space>2.5&&advance(p,pass.point,forward)>5)return false;
  return true;
 }
-const api={passBias,canThread,carryBias,shouldDrive,canFeint,canHoldUp};
+// An onside staging point, not a permission to cross before release.
+function runMargin(p,forward){
+ const v=Math.max(0,(p.vx||0)*forward),brake=clamp(9+(stat(p,'agility')-75)*.04,7.5,10.5);
+ return clamp(.95+v*v/(2*brake)+v*.18,.95,4.7);
+}
+function segmentDistance(q,a,b){
+ const dx=b.x-a.x,dz=b.z-a.z,len=dx*dx+dz*dz;
+ const t=len?clamp(((q.x-a.x)*dx+(q.z-a.z)*dz)/len,0,1):0;
+ return Math.hypot(q.x-a.x-dx*t,q.z-a.z-dz*t);
+}
+function offBallOption(p,owner,{forward=1,line,opponents=[]}={}){
+ if(!owner||!Number.isFinite(line)||p.id===owner.id||!['ATT','MID'].includes(p.role)||p.position==='DM'||(p.energy??1)<.43)return null;
+ const read=.45*stat(p,'vision')+.30*stat(p,'composure')+.25*stat(p,'acceleration');
+ if(read<80||stat(p,'pace')<80||distance(p,owner)<5||distance(p,owner)>31)return null;
+ const depth=p.x*forward,legal=line-runMargin(p,forward);
+ if(line-depth>12||depth>line-.4||legal-depth<1.2||owner.x*forward<-12||owner.x*forward>31)return null;
+ // The runner's own observation, not an omniscient peek at a defender's plans.
+ const visible=opponents.filter(d=>d.active!==false&&(d.confidence??1)>.45&&(d.age??0)<.6);
+ if(!visible.length)return null;
+ const marker=visible.filter(d=>d.role!=='GK'&&distance(p,d)<6.5&&d.x*forward>=depth-.8).sort((a,b)=>distance(p,a)-distance(p,b))[0];
+ const x=forward*Math.min(legal,depth+6.5,owner.x*forward+23),gain=(x-p.x)*forward;
+ if(gain<1.2)return null;
+ let best=null;
+ for(const dz of [-6,-3.5,3.5,6]){
+  const point={x,z:clamp(p.z+dz,-27,27)};
+  const room=Math.min(12,...visible.map(d=>distance(point,{x:d.x+(d.vx||0)*.28,z:d.z+(d.vz||0)*.28})));
+  const lane=Math.min(10,...visible.map(d=>segmentDistance(d,p,point)));
+  if(room<2.6||lane<1.25||Math.abs(point.z-p.z)<2.5)continue;
+  const behind=marker&&Number.isFinite(marker.face)&&Math.cos(Math.atan2(point.z-marker.z,point.x-marker.x)-marker.face)<-.30;
+  const kind=behind?'blind-side':'diagonal';
+  const score=room*.82+gain*.18+lane*.18+(read-80)*.09+(behind?2.3:0)-Math.abs(dz)*.10;
+  if(!best||score>best.score)best={kind,point,score,markerId:marker?.id??null};
+ }
+ return best;
+}
+function decoyOption(p,owner,runner,{forward=1,line,opponents=[]}={}){
+ if(!p||!owner||!runner?.point||p.id===owner.id||p.id===runner.id||p.role!=='ATT'||(p.energy??1)<.5||stat(p,'vision')<80||stat(p,'composure')<76)return null;
+ if(distance(p,runner.point)<5||distance(p,owner)>28)return null;
+ // Choose an actual observed blocker who is close enough to follow this
+ // decoy. Never directly change the defender or assume it will follow.
+ const marker=opponents.filter(d=>d.role!=='GK'&&d.active!==false&&(d.confidence??1)>.55&&(d.age??0)<.5&&distance(d,p)<4.0&&segmentDistance(d,owner,runner.point)<3.0).sort((a,b)=>distance(a,p)-distance(b,p))[0];
+ if(!marker||!Number.isFinite(line))return null;
+ const side=p.z>=runner.point.z?1:-1,point={x:forward*Math.min(p.x*forward+1.2,line-runMargin(p,forward)),z:clamp(p.z+side*6.0,-28,28)};
+ if(distance(point,runner.point)<6||distance(point,p)<3.5||segmentDistance(point,owner,runner.point)<4)return null;
+ const space=Math.min(12,...opponents.filter(d=>d.id!==marker.id).map(d=>distance(point,d)));
+ if(space<3)return null;
+ return {id:p.id,point,markerId:marker.id,markerOrigin:{x:marker.x,z:marker.z},runnerId:runner.id,origin:{x:p.x,z:p.z},score:space+stat(p,'vision')*.02};
+}
+function decoyOpened(decoy,marker,runner,owner,actor){
+ if(!decoy||!marker||!runner||!owner||!actor||marker.id!==decoy.markerId||(marker.confidence??1)<.55||(marker.age??0)>.45)return false;
+ const moved=distance(marker,decoy.markerOrigin),follow=distance(marker,actor),actorMoved=distance(actor,decoy.origin);
+ return moved>1.5&&actorMoved>1.8&&follow<4.5&&segmentDistance(marker,owner,runner)>3.2&&segmentDistance(decoy.markerOrigin,owner,runner)<3;
+}
+function runPassBias(p,{kind,risk=1,arrivalRisk=1,space=0}={}){
+ if(!['blind-side','diagonal','decoy-opening'].includes(kind)||risk>.38||arrivalRisk>.65||space<3||stat(p,'vision')<80)return 0;
+ return clamp((stat(p,'vision')-78)*.085+(kind==='decoy-opening'?.6:.35),0,2.5);
+}
+const api={passBias,canThread,carryBias,shouldDrive,canFeint,canHoldUp,runMargin,offBallOption,decoyOption,decoyOpened,runPassBias};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 root.TribunPlayerBrain=api;
 })(typeof window!=='undefined'?window:globalThis);
