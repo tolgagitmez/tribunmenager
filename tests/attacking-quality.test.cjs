@@ -404,3 +404,20 @@ test('attacking depth is retained only if an alternative can actually be played'
   assert.equal(m.retainAttackingDepth(owner,[forward,retreat],carry,5),null);
  }
 });
+
+test('advanced carrier receives a nearby diagonal support target without displacing reserved runners',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link}=fixture(side);
+  Object.assign(owner,{x:25*side,z:0});
+  Object.assign(link,{x:13*side,z:5.5,homeZ:5.5});
+  const reserved=new Map([[100,{x:29*side,z:0}]]);
+  m.supportRead=(p,q,point)=>({space:6,risk:.1,travel:Math.hypot(q.x-point.x,q.z-point.z),eta:.7,window:1.3,urgency:0,earlyRisk:.1,readyAt:0});
+  const point=m.supportTargets(owner,[link],reserved,40).get(link.id);
+  assert(point);
+  assert((point.x-owner.x)*side>=-9);
+  assert(Math.hypot(point.x-owner.x,point.z-owner.z)<=14);
+  assert(Math.hypot(point.x-29*side,point.z)>=3.2);
+  m.supportRead=()=>({space:.5,risk:.9,travel:0,eta:0,window:1,urgency:1,earlyRisk:.9,readyAt:3});
+  assert.equal(m.supportTargets(owner,[link],reserved,40).size,0);
+ }
+});
