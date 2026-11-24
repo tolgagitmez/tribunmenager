@@ -685,3 +685,34 @@ test('a saturated pass lane never forecasts later defenders unnecessarily',()=>{
  const second={x:owner.x+8,z:owner.z,vx:0,vz:0,passFuture(){throw Error('fully blocked lane should not need another forecast');}};
  assert.equal(m.laneRisk(owner,point,17,'pass',[first,second]),1);
 });
+
+
+test('adaptive read distinguishes observed crowded flank from unknown space and mirrors attack direction',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link}=fixture(side);
+  owner.x=12*side;owner.z=12;link.x=17*side;link.z=-9;
+  m.t[0].playstyle='wing';m.t[0].width='wide';
+  const observed=[{x:16*side,z:12},{x:20*side,z:15},{x:25*side,z:9},{x:30*side,z:-8}];
+  const read=m.adaptiveRead(owner,observed,{urgency:0,protect:false});
+  assert.equal(read.switchSide,-1);
+  const option={kind:'pass',q:link,point:{x:link.x,z:link.z},risk:.12,arrivalRisk:.2,space:10,distance:22};
+  assert.equal(m.adaptivePassBias(owner,option,read),2.4);
+  assert.equal(m.adaptiveRead(owner,observed.slice(0,3),{}),null);
+  assert.equal(m.adaptiveRead(owner,observed.map(q=>({...q,age:1})),{}),null);
+  assert.equal(m.adaptivePassBias(owner,{...option,risk:.8},read),0);
+  m.t[0].width='narrow';assert.equal(m.adaptivePassBias(owner,option,read),0);
+  m.t[0].width='wide';m.lastSwitch[0]={time:m.time-1,fromZ:-12};
+  assert.equal(m.adaptivePassBias(owner,option,read),0);
+ }
+});
+test('late score context adds bounded safe-pass preference without changing tactical instructions',()=>{
+ const {m,owner,link}=fixture();
+ const option={kind:'pass',q:link,point:{x:owner.x+8,z:0},risk:.1,arrivalRisk:.2,space:6,distance:8};
+ const before=JSON.stringify(m.t);
+ assert(m.adaptivePassBias(owner,option,{urgency:1,protect:false})>0);
+ assert.equal(m.adaptivePassBias(owner,option,{urgency:0,protect:true}),1.5);
+ assert.equal(m.adaptivePassBias(owner,option,{urgency:0,protect:false}),0);
+ assert.equal(m.adaptivePassBias(owner,{...option,risk:.4},{urgency:1,protect:true}),0);
+ assert.equal(JSON.stringify(m.t),before);
+ m.t[0].mentality='defensive';assert.equal(m.adaptivePassBias(owner,option,{urgency:1,protect:false}),0);
+});
