@@ -893,6 +893,11 @@ class Match{
    // A pass must lead the accepted runner or find an already-open box lane.
    const moving=dist(q,o.point)>.5&&segment(o.point,q,task).d<2.2&&(o.point.x-q.x)*side>.25;
    if(!moving&&!inside)continue;
+   const rotation=this.attackPlans[p.team];
+   if(rotation?.runner?.kind==='rotation-run'&&rotation.runner.id===q.id){
+    const connector=this.players.find(a=>a.active&&a.id===rotation.connectorId),ct=connector?.task;
+    if(!rotation.runner.accepted||ct?.state!=='between-lines'||ct.partnerId!==p.id||ct.epoch!==rotation.epoch||ct.expiresAt<=this.time||dist(ct,rotation.connectorPoint)>3)continue;
+   }
    const role=box?.epoch===this.attackEpoch[p.team]&&box.source===p.id?box.points.get(q.id)?.role:null;
    candidates.push({o,value:o.score+gain*.18+(inside?3:0)+(role==='second-wave'?2:0)});
   }
@@ -1995,7 +2000,7 @@ class Match{
  coordinatedAttack(team,owner,line){
   if(!owner)return null;
   const side=this.direction(team),zone=Math.abs(owner.z)>15?Math.sign(owner.z):0,old=this.attackPlans[team];
-  if(old&&old.until>this.time&&(!old.runner?.kind||old.ownerId===owner.id)&&old.zone===zone&&old.ownerTeam===this.lastTeam&&old.epoch===this.attackEpoch[team]&&old.runner?.id!==owner.id&&old.connectorId!==owner.id&&![old.runner?.id,old.connectorId].some(id=>this.players.some(p=>p.id===id&&this.arrivalHelper(p,owner)))&&(!old.runner||this.players.some(q=>q.id===old.runner.id&&q.active)))return old;
+  if(old&&old.until>this.time&&(!old.runner?.kind||old.ownerId===owner.id)&&old.zone===zone&&old.ownerTeam===this.lastTeam&&old.epoch===this.attackEpoch[team]&&old.runner?.id!==owner.id&&old.connectorId!==owner.id&&![old.runner?.id,old.connectorId].some(id=>this.players.some(p=>p.id===id&&this.arrivalHelper(p,owner)))&&(!old.runner||this.players.some(q=>q.id===old.runner.id&&q.active))&&(!old.connectorPoint||this.players.some(q=>q.id===old.connectorId&&q.active&&q.id!==owner.id)))return old;
   const pool=this.field(team),opponents=this.rivals(owner),ballDepth=this.ball.x*side,counter=this.transitionUntil[team]>this.time&&this.t[team].onWin==='counter';
   const candidates=pool.filter(p=>p!==owner&&!this.taskReserved(p,['penetration'])&&!this.arrivalHelper(p,owner)&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)&&(p.role==='ATT'||p.role==='MID'&&p.homeX*side>7)&&p.x*side>owner.x*side-3);
   const rotation=this.rotationAttack(team,owner,line);
