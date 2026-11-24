@@ -1852,6 +1852,7 @@ class Match{
  }
  supportTargets(owner,supporters,reserved=new Map(),line=Math.max(this.observedLine(owner),this.ball.x*this.direction(owner.team))){
   const result=new Map(),side=this.direction(owner.team),t=this.t[owner.team],opponents=this.rivals(owner),radius=t.passing==='short'?8.5:11.5;
+  const advanced=this.playerBrainEnabled(owner)&&owner.x*side>=16&&owner.x*side<37;
   for(let rank=0;rank<supporters.length;rank++){
    const p=supporters[rank],preferred=rank===0?(p.homeZ>=owner.z?1:-1):-(supporters[0].homeZ>=owner.z?1:-1);
    const evaluate=point=>{
@@ -1861,7 +1862,11 @@ class Match{
     const read=this.supportRead(owner,p,point,opponents),{space,risk}=read;
     if(space<1.3)return null;
     const advance=(point.x-owner.x)*side,crowd=[...result.values()].reduce((n,q)=>n+Math.max(0,8-dist(q,point)),0);
-    const score=space*.55-risk*13-travel*.22-Math.abs(point.z-p.homeZ)*.035+(rank===1?advance*.17:-Math.max(0,advance-4)*.10)+(Math.sign(point.z-owner.z)===preferred?.65:0)-crowd-Math.max(0,read.eta-read.window)*2-Math.max(0,read.readyAt-read.window)*read.urgency*16-read.earlyRisk*read.urgency*8;
+    // Keep one short diagonal outlet near the advanced receiver. The
+    // existing readiness and interception costs can still reject it.
+    const depthCost=advanced?Math.max(0,-advance-9)*.65:0;
+    const shortLink=advanced&&rank===0&&advance>=-9&&advance<=3&&range<=14&&risk<.35&&space>2.4?2.4:0;
+    const score=space*.55-risk*13-travel*.22-Math.abs(point.z-p.homeZ)*.035+(rank===1?advance*.17:-Math.max(0,advance-4)*.10)+(Math.sign(point.z-owner.z)===preferred?.65:0)-crowd-Math.max(0,read.eta-read.window)*2-Math.max(0,read.readyAt-read.window)*read.urgency*16-read.earlyRisk*read.urgency*8-depthCost+shortLink;
     return {x:point.x,z:point.z,score,risk,space};
    };
    const candidates=[{x:p.x,z:p.z}];
@@ -1869,6 +1874,7 @@ class Match{
    // without first running to a distant formation-relative destination.
    for(const lateral of [-5,-3,3,5])for(const forward of [-1.5,0,1.5])candidates.push({x:p.x+side*forward,z:p.z+lateral});
    for(const forward of (rank===0?[-7,-3,2]:[7,3,-3]))for(const lateral of [preferred*radius,-preferred*radius,preferred*radius*.65])candidates.push({x:owner.x+side*forward,z:owner.z+lateral});
+   if(advanced&&rank===0)for(const forward of [-5,-8])for(const lateral of [preferred*5.5,-preferred*5.5])candidates.push({x:owner.x+side*forward,z:owner.z+lateral});
    let best=null;for(const point of candidates){const q=evaluate(point);if(q&&(!best||q.score>best.score))best=q;}
    const intent=p.offerIntent,old=intent?.ownerId===owner.id&&intent.epoch===this.attackEpoch[owner.team]&&(!intent.origin||dist(intent.origin,owner)<6)?evaluate(intent.point):null;
    // Continuity never preserves a newly blocked lane or a crowded endpoint.
@@ -1942,7 +1948,8 @@ class Match{
    if(old?.arrival&&old.ownerId!==owner.id)for(const p of pool)if(p.offerIntent?.ownerId===old.ownerId)p.offerIntent=null;
   }
   const pressure=Math.min(20,...this.rivals(owner).map(q=>dist(owner,q)));
-  const eligible=pool.filter(p=>p.id!==owner.id&&p.duelRecovery<=0&&!this.taskReserved(p,['support'])&&!reserved.has(p.id)&&(p.role!=='ATT'||pressure<5.5&&this.teamRole(p)==='winger'&&dist(p,owner)<24)&&(p!==holding||owner.x*this.direction(team)<0)&&(p.role!=='DEF'||Math.abs(p.homeZ)>19&&this.t[team].fullbacks!=='hold')&&!(p.role==='DEF'&&owner.x*this.direction(team)>0&&p.homeZ*owner.z<0)&&dist(p,owner)<32);
+  const advanced=this.playerBrainEnabled(owner)&&owner.x*this.direction(team)>=16&&owner.x*this.direction(team)<37;
+  const eligible=pool.filter(p=>p.id!==owner.id&&p.duelRecovery<=0&&!this.taskReserved(p,['support'])&&!reserved.has(p.id)&&(p.role!=='ATT'||(pressure<5.5||advanced)&&this.teamRole(p)==='winger'&&dist(p,owner)<24)&&(p!==holding||owner.x*this.direction(team)<0)&&(p.role!=='DEF'||Math.abs(p.homeZ)>19&&this.t[team].fullbacks!=='hold')&&!(p.role==='DEF'&&owner.x*this.direction(team)>0&&p.homeZ*owner.z<0)&&dist(p,owner)<32);
   const incumbent=id=>old?.ownerId===owner.id&&old.epoch===this.attackEpoch[team]&&old.points.has(id);
   // Choose helpers by a reachable open angle, not just their distance. Keep
   // the anchor/runner/overlap reservations above even under pressure.
@@ -1951,7 +1958,8 @@ class Match{
    for(const dz of [0,-3,3,-5,5]){
     const q={x:p.x,z:p.z+dz},range=dist(owner,q);if(range<5.2||range>26||q.x*this.direction(team)>line-.7||Math.abs(q.z)>30||[...reserved.values()].some(a=>dist(a,q)<3.2))continue;
     const risk=this.laneRisk(owner,q,this.passSpeed('pass',range,this.t[team])),space=Math.min(12,...rivals.map(a=>dist(a,q)));
-    best=Math.min(best,risk*11+Math.max(0,2.4-space)*4+Math.abs(dz)*.5+range*.12-(dz===0&&risk<.25&&space>2.4?1.5:0));
+    const retreat=advanced?Math.max(0,(owner.x-q.x)*this.direction(team)-10)*.35:0;
+    best=Math.min(best,risk*11+Math.max(0,2.4-space)*4+Math.abs(dz)*.5+range*.12-(dz===0&&risk<.25&&space>2.4?1.5:0)+retreat);
    }
    return [p,best-(incumbent(p.id)?2.0:0)];
   }));
