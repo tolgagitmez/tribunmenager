@@ -255,7 +255,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;
   }
  }
  positionRestartKick(r,aim){
@@ -343,11 +343,19 @@ class Match{
  plannedRun(p){
   // A producer's wish is not a run after task arbitration has rejected it.
   // Teammates pass into the destination the runner actually committed to.
-  if(p.task?.epoch===this.attackEpoch[p.team]&&p.task.expiresAt>this.time)return p.task.purpose==='run'?{x:p.task.x,z:p.task.z}:null;
+  if(p.task?.epoch===this.attackEpoch[p.team]&&p.task.expiresAt>this.time)return p.task.purpose==='run'&&p.task.state!=='decoy-run'?{x:p.task.x,z:p.task.z}:null;
   const run=p.runIntent,pattern=this.attackPlans[p.team];
   if(run?.until>this.time&&(run.epoch===undefined||run.epoch===this.attackEpoch[p.team]))return run.point;
   if(pattern?.epoch===this.attackEpoch[p.team]&&pattern.until>this.time&&pattern.runner?.id===p.id)return pattern.runner.point;
   return null;
+ }
+ offBallRead(p,q){
+  if(!this.playerBrainEnabled(p))return null;
+  const pattern=this.attackPlans[p.team],runner=pattern?.runner;
+  if(!runner?.kind||!runner.accepted||runner.id!==q.id||pattern.epoch!==this.attackEpoch[p.team]||pattern.until<=this.time||q.task?.state!=='penetration'||q.task?.partnerId!==p.id||q.task.expiresAt<=this.time)return null;
+  const decoy=pattern.decoy,actor=decoy&&this.players.find(a=>a.id===decoy.id&&a.active&&a.task?.state==='decoy-run'&&a.task.expiresAt>this.time&&a.task.partnerId===p.id);
+  if(actor&&decoy.accepted&&Brain.decoyOpened(decoy,this.rivals(p).find(d=>d.id===decoy.markerId),runner.point,p,actor))return 'decoy-opening';
+  return runner.kind;
  }
  receiverPoint(q,seconds,target=this.targets.get(q)){
   seconds=clamp(Number.isFinite(seconds)?seconds:0,0,1.6);
@@ -368,10 +376,11 @@ class Match{
    const long=d>32&&(t.passing==='direct'||Math.abs(q.z-p.z)>32),kind=long?'long-pass':'pass',speed=this.passSpeed(kind,d,t),arrival=this.passTime(kind,d,speed);if(!Number.isFinite(arrival))continue;
    const lead=clamp(arrival,.14,1.6),predicted=this.receiverPoint(q,lead),point={x:clamp(predicted.x,-49,49),z:clamp(predicted.z,-31,31)};
    const reception=this.receptionSafety(p,q,point,this.passTime(kind,dist(p,point),speed)),risk=this.laneRisk(p,point,speed,kind),space=Math.min(15,reception.pressure),advance=(point.x-p.x)*forward;
-   const lane=long?risk*.32:risk,preferred=t.passing==='short'?11:t.passing==='direct'?29:17;
+   const lane=long?risk*.32:risk,preferred=t.passing==='short'?11:t.passing==='direct'?29:17,offBallKind=this.offBallRead(p,q);
    let score=space*.68+advance*(t.playstyle==='counter'||t.playstyle==='direct'?.82:t.passing==='short'?.36:.48)-lane*28-reception.risk*9-Math.abs(d-preferred)*(t.passing==='short'?.52:.23);
    score+=Math.max(0,this.threat(point,p.team)-this.threat(p,p.team))*10;
    if(this.playerBrainEnabled(p))score+=Brain.passBias(p,{kind,forwardGain:advance,pressure,risk:lane,space,arrivalRisk:reception.risk});
+   const runBonus=Brain.runPassBias(p,{kind:offBallKind,risk:lane,arrivalRisk:reception.risk,space});if(runBonus&&advance>1)score+=runBonus;
    // Equal overall ratings can yield different actual passing choices.
    // DM reads the safe local outlet; AM seeks productive forward links.
    if(p.detailedRole&&p.position==='DM')score+=(18-d)*.22-risk*4.5;
@@ -405,7 +414,7 @@ class Match{
    if(q.role==='GK')score-=5;if(q.role==='ATT'&&Math.abs(q.z)<12&&p.x*forward>23)score+=3;
    if(t.playstyle==='counter')score+=Math.max(0,advance)*.16;
    if(t.playstyle==='wing'&&Math.abs(q.z)>18&&advance>4)score+=3;
-   options.push({kind,q,point,risk:clamp(lane+reception.risk*.18,0,1),score,space,distance:d,arrivalRisk:reception.risk,movingReturn});
+   options.push({kind,q,point,risk:clamp(lane+reception.risk*.18,0,1),score,space,distance:d,arrivalRisk:reception.risk,movingReturn,...(runBonus&&advance>1?{offBallKind}:{})});
    // Pass into a runner's path, beyond the line but only to an initially onside player.
    if((t.passing!=='short'||p.x*forward>16||this.playerBrainEnabled(p)&&(p.vision??0)>=86&&(p.passing??0)>=82)&&q.role!=='GK'&&q.role!=='DEF'&&q.x*forward<=Math.max(line,p.x*forward)+.05&&(q.x-p.x)*forward>0&&d<34){
     const length=5+clamp((q.pace??80)-70,0,25)*.10,intent=this.plannedRun(q),aligned=!!intent&&(intent.x-q.x)*forward>.75;
@@ -414,7 +423,7 @@ class Match{
     const reachTime=dist(q,run)/Math.max(3.5,5.35+((q.pace??80)-75)*.035),flight=this.passTime('through',dist(p,run),21);
     const rivals=this.rivals(p),r=this.laneRisk(p,run,20),open=Math.min(16,...rivals.map(o=>dist(o,run)));
     const defenderArrival=Math.min(10,...rivals.map(o=>dist(o,run)/(5.7+((o.pace??80)-75)*.04)+.18));
-    if(open>3&&r<.55&&reachTime<flight+.65&&reachTime<defenderArrival+.05&&run.x*forward>line+.8&&line-q.x*forward<9&&p.x*forward>-20&&(t.passing!=='short'||p.x*forward>16||this.playerBrainEnabled(p)&&Brain.canThread(p,{forwardGain:(run.x-p.x)*forward,aligned,pressure})))options.push({kind:'through',q,point:run,risk:r,space:open,score:score+(t.passing==='short'?0:2)+(run.x-point.x)*forward*.30+(line<run.x*forward?2:0)-r*7+(this.playerBrainEnabled(p)?Brain.passBias(p,{kind:'through',forwardGain:(run.x-p.x)*forward,pressure,risk:r,space:open}):0),plannedRun:aligned,movingReturn});
+    if(open>3&&r<.55&&reachTime<flight+.65&&reachTime<defenderArrival+.05&&run.x*forward>line+.8&&line-q.x*forward<9&&p.x*forward>-20&&(t.passing!=='short'||p.x*forward>16||this.playerBrainEnabled(p)&&Brain.canThread(p,{forwardGain:(run.x-p.x)*forward,aligned,pressure})))options.push({kind:'through',q,point:run,risk:r,space:open,score:score+(t.passing==='short'?0:2)+(run.x-point.x)*forward*.30+(line<run.x*forward?2:0)-r*7+(this.playerBrainEnabled(p)?Brain.passBias(p,{kind:'through',forwardGain:(run.x-p.x)*forward,pressure,risk:r,space:open}):0)+(aligned?Brain.runPassBias(p,{kind:offBallKind,risk:r,arrivalRisk:reception.risk,space:open}):0),plannedRun:aligned,movingReturn,...(aligned&&offBallKind&&r<.38&&open>3&&Brain.runPassBias(p,{kind:offBallKind,risk:r,arrivalRisk:reception.risk,space:open})>0?{offBallKind}: {})});
    }
   }
   return options.sort((a,b)=>b.score-a.score);
@@ -827,7 +836,8 @@ class Match{
   const duration=Math.max(kind==='throw'?.55:kind==='shot'?.25:oneTouch?.12:.18,turn/7.0,setup/(oneTouch?6:4.8));
   const moving=!this.restart&&!restartContext&&kind!=='throw'&&turn<1.45&&Math.hypot(p.vx,p.vz)>.8;
   const wallPass=this.playerBrainEnabled(p)&&oneTouch&&!!target&&!!this.giveGoLink(p,target);
-  this.kick={p,kind,target,point:{...aim},clock:0,duration,powerOverride,moving,oneTouch,wallPass,restartContext,approach:{vx:p.vx,vz:p.vz},setupImpulse:false};
+  const timedRun=kind==='through'&&target&&this.offBallRead(p,target);
+  this.kick={p,kind,target,point:{...aim},clock:0,duration,powerOverride,moving,oneTouch,wallPass,...(timedRun?{timedRun:true}:{}),restartContext,approach:{vx:p.vx,vz:p.vz},setupImpulse:false};
   if(wallPass){p.wallPassClock=duration+.22;p.wallPassFoot=p.kickFoot;}else if(p.wallPassClock!==undefined)p.wallPassClock=0;if(target&&['through','cross','cutback'].includes(kind)){target.runIntent={...(target.runIntent?.until>this.time?target.runIntent:{}),point:{...aim},until:this.time+3};}this.phase='windup';this.owner=p;
   if(managerControl)this.kick.managerControl=managerControl;
   if(kind==='pass'&&target&&!restartContext&&!oneTouch&&duration>=.30&&(p.passReviewUntil||0)<=this.time){const speed=this.passSpeed(kind,dist(this.ball,aim),this.t[p.team]);this.kick.passRead={base:this.laneRisk(p,aim,speed,kind),next:.04,badSince:null,motionAt:this.time,motion:new Map(this.rivals(p).map(d=>[d.id,{vx:d.vx,vz:d.vz,ax:0,az:0,seenAt:d.seenAt??this.time}]))};}
@@ -1119,6 +1129,10 @@ class Match{
   if(k.wallPass){
    this.telemetry.wallPassReleases++;
    this.emit('give-go','Tek dokunuş duvar pası',`${p.name}, koşuya çıkan takım arkadaşına topu tek dokunuşla geri aktardı.`,p);
+  }
+  if(k.offBallKind&&['pass','through'].includes(k.kind)){
+   this.telemetry.offBallPasses=(this.telemetry.offBallPasses||0)+1;
+   if(k.offBallKind==='decoy-opening')this.telemetry.decoyOpeningPasses=(this.telemetry.decoyOpeningPasses||0)+1;
   }
   if(k.holdUpOutlet){
    this.telemetry.holdUpOutlets++;
@@ -1426,17 +1440,27 @@ class Match{
   const candidates=pool.filter(p=>p!==owner&&!this.taskReserved(p,['penetration'])&&!this.arrivalHelper(p,owner)&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)&&(p.role==='ATT'||p.role==='MID'&&p.homeX*side>7)&&p.x*side>owner.x*side-3);
   let runner=null;
   for(const p of candidates){
+   const special=this.playerBrainEnabled(p)?Brain.offBallOption(p,owner,{forward:side,line,opponents:this.rivals(p)}):null;
    const channels=this.t[team].width==='wide'&&Math.abs(p.homeZ)>18?[p.homeZ*1.05,p.homeZ*.85]:[p.homeZ*.65,p.homeZ>=0?12:-12,p.homeZ>=0?-10:10];
    for(const z of channels){
     const point={x:side*Math.min(line-.75,ballDepth+(counter?27:19)),z:clamp(z,-25,25)},space=Math.min(15,...opponents.map(q=>dist({x:q.x+q.vx*.6,z:q.z+q.vz*.6},point)));
     const score=space*.9+(p.pace??80)*.035-dist(p,point)*.08-Math.abs(z-p.z)*.06;
     if(!runner||score>runner.score)runner={id:p.id,point,score};
    }
+   if(special&&(!runner||special.score+3.3>runner.score))runner={id:p.id,point:special.point,score:special.score+3.3,kind:special.kind,markerId:special.markerId};
   }
   if(ballDepth<-12&&!counter||ballDepth>31)runner=null;
-  const links=pool.filter(p=>p!==owner&&!this.taskReserved(p,['between-lines'])&&!this.arrivalHelper(p,owner)&&p.id!==runner?.id&&p.role!=='DEF'&&p.role!=='GK'&&this.teamRole(p)!=='anchor'&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)),centralLinks=links.filter(p=>p.role==='MID'&&Math.abs(p.homeZ)<19);
+  let decoy=null;
+  if(runner?.kind){
+   for(const p of candidates){
+    if(!this.playerBrainEnabled(p)||p.id===runner.id)continue;
+    const option=Brain.decoyOption(p,owner,runner,{forward:side,line,opponents:this.rivals(p)});
+    if(option&&(!decoy||option.score>decoy.score))decoy=option;
+   }
+  }
+  const links=pool.filter(p=>p!==owner&&p.id!==decoy?.id&&!this.taskReserved(p,['between-lines'])&&!this.arrivalHelper(p,owner)&&p.id!==runner?.id&&p.role!=='DEF'&&p.role!=='GK'&&this.teamRole(p)!=='anchor'&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)),centralLinks=links.filter(p=>p.role==='MID'&&Math.abs(p.homeZ)<19);
   const connector=(centralLinks.length?centralLinks:links).sort((a,b)=>(Math.abs(a.x*side-(ballDepth+7))+Math.abs(a.z-owner.z)*.25)-(Math.abs(b.x*side-(ballDepth+7))+Math.abs(b.z-owner.z)*.25))[0];
-  const result={ownerTeam:this.lastTeam,epoch:this.attackEpoch[team],zone,until:this.time+2.6,runner,connectorId:connector?.id};
+  const result={ownerTeam:this.lastTeam,epoch:this.attackEpoch[team],zone,until:this.time+2.6,runner,connectorId:connector?.id,...(decoy?{decoy}:{})};
   this.attackPlans[team]=result;
   if(runner)this.telemetry.coordinatedRuns=(this.telemetry.coordinatedRuns||0)+1;
   return result;
@@ -1512,6 +1536,7 @@ class Match{
   const reserved=new Map(box?.points||[]);
   if(build)reserved.set(build.id,build.point);
   if(pattern?.runner)reserved.set(pattern.runner.id,pattern.runner.point);
+  if(pattern?.decoy)reserved.set(pattern.decoy.id,pattern.decoy.point);
   if(connection)reserved.set(pattern.connectorId,connection);
   if(flank)reserved.set(flank.fullbackId,flank.point);
   for(const p of pool){if(p.runIntent?.until>this.time)reserved.set(p.id,p.runIntent.point);else if(p.supportIntent?.until>this.time&&p.supportIntent.epoch===this.attackEpoch[team])reserved.set(p.id,p.supportIntent.point);}
@@ -1811,6 +1836,7 @@ class Match{
       const point=supports.get(p.id);x=point.x;z=point.z;state='support';pace=.94;
      }
      if(pattern?.runner?.id===p.id&&!supports.has(p.id)){x=pattern.runner.point.x;z=pattern.runner.point.z;state='penetration';pace=1.07;}
+     else if(pattern?.decoy?.id===p.id&&!supports.has(p.id)){x=pattern.decoy.point.x;z=pattern.decoy.point.z;state='decoy-run';pace=1.04;}
      else if(pattern?.connectorId===p.id&&connection&&!supports.has(p.id)){x=connection.x;z=connection.z;state='between-lines';}
      if(!supports.has(p.id)&&p.duty==='fullback'&&p.homeZ*ball.z>0&&t.fullbacks!=='hold'&&aBall>-10){x=side*(t.fullbacks==='overlap'&&owner&&Math.abs(owner.z)>12?Math.min(44,aBall+8):Math.min(aBall-8,baseLine+12));z=Math.sign(p.homeZ)*Math.min(31,Math.abs(p.homeZ)*1.12);state=t.fullbacks==='overlap'?'overlap':'wide-support';pace=1.02;}
      if(flank?.fullbackId===p.id){x=flank.point.x;z=flank.point.z;state=flank.state;pace=1.02;}
@@ -1822,7 +1848,10 @@ class Match{
      if(build?.id===p.id){x=build.point.x;z=build.point.z;state='build-support';pace=.98;}
      if(box?.points.has(p.id)){const q=box.points.get(p.id);x=q.x;z=q.z;state=q.state;pace=q.role==='edge'?.96:1.06;p.boxRole=q.role;}
      if(this.flight?.target===p){const q=['through','cross','long-pass'].includes(this.flight.kind)&&dist(p,ball)>3?this.flight.point:meeting||this.interceptPoint(p);x=q.x;z=q.z;state='receive-run';pace=1.13;}
-     else if(this.kick?.target===p){x=this.kick.point.x;z=this.kick.point.z;state='receive-run';pace=1.03;}
+     else if(this.kick?.target===p){
+      x=this.kick.point.x;z=this.kick.point.z;state='receive-run';pace=1.03;
+      if(this.kick.timedRun)x=side*Math.min(x*side,offsideLine-Brain.runMargin(p,side));
+     }
      else if(p.runIntent?.until>this.time&&(p.runIntent.epoch===undefined||p.runIntent.epoch===this.attackEpoch[team])){x=p.runIntent.point.x;z=p.runIntent.point.z;state='channel-run';pace=1.08;}
      else if(p.supportIntent?.until>this.time&&p.supportIntent.epoch===this.attackEpoch[team]){x=p.supportIntent.point.x;z=p.supportIntent.point.z;state='return-support';pace=.96;}
      if(p.role!=='DEF'&&!['receive-run'].includes(state)&&!this.flight&&x*side>offsideLine-.6)x=side*(offsideLine-.6);
@@ -1857,6 +1886,10 @@ class Match{
     if(this.activeWall?.team===team&&this.activeWall.until>this.time&&this.activeWall.points.has(p.id)&&this.flight){const q=this.activeWall.points.get(p.id);x=q.x;z=q.z;state='wall';pace=.6;}
     // Target spacing uses intended destinations, not a late teleport at contact.
     if(!['support','build-support','between-lines','cover','screen','press','counterpress','intercept','loose-ball','receive-run','dribble','receive','goalkeeper','keeper-sweep','keeper-control','wall'].includes(state))for(const [q,other] of plans){if(q.team!==team||q.role==='GK')continue;const d=Math.hypot(x-other.x,z-other.z);if(d<4.0){const a=Math.atan2(z-other.z,x-other.x)+(d<.01?(p.id%2?1:-1):0);x+=Math.cos(a)*(4-d)*.65;z+=Math.sin(a)*(4-d)*.65;}}
+    if(has&&!this.flight&&((state==='penetration'&&pattern?.runner?.id===p.id&&pattern.runner.kind)||state==='decoy-run'||state==='receive-run'&&this.kick?.target===p&&this.kick.timedRun)){
+     // Spacing adjustments must not push a timed runner past the staging line.
+     x=side*Math.min(x*side,offsideLine-Brain.runMargin(p,side));
+    }
     const chasing=['press','counterpress','intercept','loose-ball','receive-run','dribble','keeper-sweep','keeper-control'].includes(state),limitX=p.role==='GK'?51.75:chasing?52.4:50,point={x:clamp(x,-limitX,limitX),z:clamp(z,chasing?-34.3:-32,chasing?34.3:32),pace,state};
     const purpose=Intent.purposeFor(state),focusId=assignments.get(p)?.id??(['press','counterpress','cover','intercept','delay'].includes(state)?owner?.id:null),partnerId=purpose==='support'?owner?.id??this.flight?.target?.id:purpose==='run'?p.runIntent?.partnerId??p.supportIntent?.qId??owner?.id??this.flight?.from?.id:state==='cover'?presser?.id:null;
     const priority=p===owner?100:['receive-run','block','loose-ball'].includes(state)?110:state==='recovery'?80:purpose==='press'?60:purpose==='mark'||purpose==='cover'?40:['support','run'].includes(purpose)?30:0;
@@ -1868,7 +1901,18 @@ class Match{
      if(chosen.state==='support'&&chosen.partnerId===this.supportPlans[team].ownerId)this.supportPlans[team].points.set(p.id,{x:chosen.x,z:chosen.z});
      else this.supportPlans[team].points.delete(p.id);
     }
-    if(pattern?.runner?.id===p.id){if(chosen.state==='penetration')pattern.runner.point={x:chosen.x,z:chosen.z};else pattern.runner=null;}
+    if(pattern?.runner?.id===p.id){
+     if(chosen.state==='penetration'){
+      pattern.runner.point={x:chosen.x,z:chosen.z};
+      if(pattern.runner.kind&&!pattern.runner.accepted&&Math.abs(chosen.x-x)<1.5&&Math.abs(chosen.z-z)<1.5){
+       pattern.runner.accepted=true;this.telemetry[pattern.runner.kind==='blind-side'?'blindSideRuns':'diagonalRuns']=(this.telemetry[pattern.runner.kind==='blind-side'?'blindSideRuns':'diagonalRuns']||0)+1;
+      }
+     }else {pattern.runner=null;if(pattern.decoy)pattern.decoy=null;}
+    }
+    if(pattern?.decoy?.id===p.id){
+     if(chosen.state==='decoy-run'){pattern.decoy.point={x:chosen.x,z:chosen.z};if(!pattern.decoy.accepted){pattern.decoy.accepted=true;this.telemetry.decoyRuns=(this.telemetry.decoyRuns||0)+1;}}
+     else pattern.decoy=null;
+    }
     if(pattern?.connectorId===p.id&&chosen.state==='between-lines'&&p.connectionIntent)p.connectionIntent.point={x:chosen.x,z:chosen.z};
     if(build?.id===p.id){if(chosen.state==='build-support')build.point={x:chosen.x,z:chosen.z};else this.buildPlans[team]=null;}
     if(flank?.fullbackId===p.id){if(['overlap','wide-support'].includes(chosen.state))flank.point={x:chosen.x,z:chosen.z};else this.flankPlans[team]=null;}
