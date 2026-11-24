@@ -3,11 +3,13 @@ on:
   push:
     branches:
       - fix/attack-chain-one-cause
+      - fix/integration-stability-20261124
   pull_request:
     paths:
       - 'football-sim.js'
       - 'tests/attack-breakpoint.test.cjs'
       - 'tools/profile-current-attack-chain.cjs'
+      - 'tools/find-live-match-fixture.cjs'
       - '.github/workflows/attack-chain.yml'
   workflow_dispatch:
 jobs:
@@ -72,7 +74,7 @@ jobs:
 
   find-live-match-fixture:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
