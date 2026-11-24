@@ -285,7 +285,44 @@ window.addEventListener('DOMContentLoaded',()=>{
   window.TribunMatchConfig.prepare(cfg).then(value=>{Object.assign(cfg,value);controls.forEach(b=>b.disabled=false);if(!scene.gl)$('rigButton').disabled=true;start();}).catch(()=>{$('sessionTitle').textContent='KADRO BAĞLANTISI KURULAMADI · SAYFAYI YENİLE';});
  }else start();
 });
-window.TRIBUN_MATCH_TEST={attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||{status:'not-loaded'},ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
+// Isolated visual stress probe, intentionally absent in normal game sessions.
+function skillRenderProbe(){
+ if(!new URLSearchParams(location.search).has('renderStress')||!paused||live||!scene.gl)throw Error('Paused local test match required');
+ const before={clock:game.time,score:JSON.stringify(game.score),players:JSON.stringify(game.players.map(p=>[p.id,p.x,p.z,p.face,p.action])),ball:JSON.stringify(game.ball)};
+ const actors=game.players.filter(p=>p.active).map(p=>({...p,face:0,speed:0,action:'idle',actionClock:0,feintClock:0,feintResponseClock:0,wallPassClock:0,footTouch:0,brainRole:'shape',visual:p.visual&&{...p.visual}}));
+ const field=actors.filter(p=>!p.referee),priorBridge=scene.matchAnimation,priorPilot=scene.matchPilot;
+ const cues={feint:0,shield:0,misread:0,wallPass:0};
+ const frames=[];
+ const render=()=>{const start=performance.now(),b=game.ball;scene.render(actors,b,[b.x,b.z],{},0);scene.gl.finish();
+  return {active:field.length,cpuGpuMs:performance.now()-start,webgl:true,profile:scene.performanceMode()};};
+ let frozen;
+ try{
+  scene.matchPilot=null;
+  scene.matchAnimation=window.TribunMatchAnimationBridge.create();
+  for(let i=0;i<24;i++){
+   const wave=.5+.5*Math.sin(i*Math.PI/12);
+   Object.assign(field[1],{feintClock:.35*(1-wave),feintSign:1});
+   Object.assign(field[3],{brainRole:'shield'});
+   Object.assign(field[12],{feintResponseClock:.19*wave,feintResponseSign:-1});
+   Object.assign(field[16],{action:'pass',actionClock:.22,actionDuration:.44,actionElapsed:.15,contactTime:.22,
+    kickFoot:1,wallPassClock:.22,wallPassFoot:1});
+   Object.assign(field[7],{footTouch:.14*wave,dribbleFoot:1,touchPosition:{x:field[7].x+.45,z:field[7].z+.18}});
+   for(const p of actors){
+    const pose=Rig.update(p,1/60);
+    if(pose.feintWeight>.01)cues.feint++;
+    if(pose.shieldWeight>.01)cues.shield++;
+    if(pose.defenderMisread>.01)cues.misread++;
+    if(pose.wallPassWeight>.01)cues.wallPass++;
+   }
+   frames.push(render());
+  }
+  frozen=render();
+ }finally{scene.matchAnimation=priorBridge;scene.matchPilot=priorPilot;}
+ return {active:field.length,frames,frozen,cues,clockUnchanged:game.time===before.clock,
+  scoreUnchanged:JSON.stringify(game.score)===before.score,
+  positionsUnchanged:JSON.stringify(game.players.map(p=>[p.id,p.x,p.z,p.face,p.action]))===before.players&&JSON.stringify(game.ball)===before.ball};
+}
+window.TRIBUN_MATCH_TEST={skillRenderProbe,attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||{status:'not-loaded'},ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
  renderProbe:()=>{const b=game.ball,start=performance.now();scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);if(scene.gl)scene.gl.finish();return {cpuGpuMs:performance.now()-start,active:game.players.filter(p=>p.active&&!p.referee).length,bridge:scene.animationStats(),webgl:!!scene.gl};},
  advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();
