@@ -2,9 +2,9 @@ name: API-Football catalog offline validation
 on:
   push:
     branches: ['feature/api-football-access-probe']
-    paths: ['tools/api_football_catalog.py', 'api-football-roster.cjs', 'api-football-ratings.cjs', 'economy.py', 'transfers-page.js', 'data/**', 'tools/import_api_football_market.py', 'tools/api-football-market-export.cjs', 'tests/test_api_football_market.py', 'tests/api-football-ratings.test.cjs', 'tests/test_api_football_catalog.py', 'tests/api-football-roster.test.cjs', '.github/workflows/api-football-catalog.yml']
+    paths: ['tools/api_football_catalog.py', 'api-football-roster.cjs', 'api-football-ratings.cjs', 'api-football-ratings.js', 'api-football-roster.js', 'catalog-friendly*', 'match.html', 'match3d.js', 'index.html', 'tests/catalog-friendly.test.cjs', 'economy.py', 'transfers-page.js', 'data/**', 'tools/import_api_football_market.py', 'tools/api-football-market-export.cjs', 'tests/test_api_football_market.py', 'tests/api-football-ratings.test.cjs', 'tests/test_api_football_catalog.py', 'tests/api-football-roster.test.cjs', '.github/workflows/api-football-catalog.yml']
   pull_request:
-    paths: ['tools/api_football_catalog.py', 'api-football-roster.cjs', 'api-football-ratings.cjs', 'economy.py', 'transfers-page.js', 'data/**', 'tools/import_api_football_market.py', 'tools/api-football-market-export.cjs', 'tests/test_api_football_market.py', 'tests/api-football-ratings.test.cjs', 'tests/test_api_football_catalog.py', 'tests/api-football-roster.test.cjs', '.github/workflows/api-football-catalog.yml']
+    paths: ['tools/api_football_catalog.py', 'api-football-roster.cjs', 'api-football-ratings.cjs', 'api-football-ratings.js', 'api-football-roster.js', 'catalog-friendly*', 'match.html', 'match3d.js', 'index.html', 'tests/catalog-friendly.test.cjs', 'economy.py', 'transfers-page.js', 'data/**', 'tools/import_api_football_market.py', 'tools/api-football-market-export.cjs', 'tests/test_api_football_market.py', 'tests/api-football-ratings.test.cjs', 'tests/test_api_football_catalog.py', 'tests/api-football-roster.test.cjs', '.github/workflows/api-football-catalog.yml']
 permissions:
   contents: read
 concurrency:
@@ -25,4 +25,4 @@ jobs:
         with:
           node-version: '24'
       - run: python -m unittest discover -s tests -p 'test_api_football*.py' -v
-      - run: node --test tests/api-football-roster.test.cjs tests/api-football-ratings.test.cjs
+      - run: node --test tests/api-football-roster.test.cjs tests/api-football-ratings.test.cjs tests/catalog-friendly.test.cjs

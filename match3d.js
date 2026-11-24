@@ -6,13 +6,15 @@ const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>'
 function config(){if(window.MATCH_CFG)return window.MATCH_CFG;let explicit=null,stored=null;try{if(location.hash)explicit=decodeURIComponent(location.hash.slice(1));}catch{}try{stored=sessionStorage.getItem('tribun-match-config');}catch{}for(const raw of [explicit,stored]){try{if(raw){const value=JSON.parse(raw);if(value&&typeof value==='object'&&!Array.isArray(value))return value;}}catch{}}return {};}
 
 function label(id,text,name){const el=$(id);if(window.TribunUI){el.innerHTML=(name?window.TribunUI.icon(name):'')+'<span>'+text+'</span>';el.setAttribute('aria-label',text);}else el.textContent=text;}
-const cfg=config(),scene=new Stadium3D($('stadiumCanvas'));
-const liveRound=new URLSearchParams(location.search).get('live');
+const catalogMode=new URLSearchParams(location.search).get('catalog')==='1';
+let catalogError=false;
+const cfg=catalogMode?(()=>{try{return window.TribunCatalogFriendly.consume();}catch{catalogError=true;return {};}})():config(),scene=new Stadium3D($('stadiumCanvas'));
+const liveRound=catalogMode?null:new URLSearchParams(location.search).get('live');
 let game,attackObserver,attackView,paused=false,speed=1,accumulator=0,lastMetric=-1,lastMetricWall=0,simOverloadFrames=0,shownFinish=false,overlayTime=0,lastFrameCost=null;
 let kickPanel,kickAim,visibleKick=null,kickStage=0,kickFollow=null;
 let live,liveSide=0,liveKickSending=false;
 const radians=Math.PI/180;
-const portrait=p=>`assets/face${(p?.portraitId??4)%17}.png`;
+const portrait=p=>catalogMode?'assets/ui/player-silhouette.svg':`assets/face${(p?.portraitId??4)%17}.png`;
 const clock=seconds=>{seconds=Math.max(0,Math.floor(seconds+1e-7));return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');};
 const matchClock=()=>typeof game.clockState==='function'?game.clockState():{period:game.time>=game.duration/2?2:1,phase:game.done?'finished':'playing',display:clock(game.time),nominalElapsed:game.time,remaining:Math.max(0,game.duration-game.time),addedSeconds:0,addedAnnounced:false,halftimeRemaining:0};
 function substitutionState(){
@@ -278,6 +280,12 @@ window.addEventListener('DOMContentLoaded',()=>{
   });
   live.start();
   return;
+ }
+ if(catalogMode){
+  if(catalogError){$('sessionTitle').textContent='KATALOG KADROSU BULUNAMADI';liveNotice('Hazırlık merkezine dön ve kadroları yeniden seç.');return;}
+  const back=document.querySelector('#finishScreen a');if(back){back.href='catalog-friendly.html';back.textContent='Hazırlık merkezine dön';}
+  const crests=document.querySelectorAll('.scoreboard .crest');if(crests[0])crests[0].textContent='EV';if(crests[1])crests[1].textContent='DEP';
+  start();return;
  }
  if(!window.TribunMatchConfig.prepared(cfg)){
   const controls=[...document.querySelectorAll('.match-controls button,#subButton,#saveSubs,#againButton,#restartButton,#playButton,#speedButton')];controls.forEach(b=>b.disabled=true);
