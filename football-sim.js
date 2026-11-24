@@ -666,10 +666,15 @@ class Match{
    const room=Math.min(10,...others.map(q=>{const h=segment({x:q.x+q.vx*.4,z:q.z+q.vz*.4},p,point);return h.u>.08?h.d:10;})),space=Math.min(12,...this.rivals(p).map(q=>dist(q,point)));
    if(space<2||room<1.25)continue;const score=space+room*.35+(sign===(p.personality>.5?1:-1)?.1:0);
    if(!best||score>best.score)best={kind:'feint',point,defender,sign,score};
-  }return best;
+  }
+  if(best&&this.playerBrainEnabled(p)&&(p.dribbling??0)>=89&&(p.agility??0)>=86&&(p.balance??0)>=80&&p.speed<2.5&&dist(p,this.ball)<1.0&&this.ball.y<.25)
+   best.feintStyle='step-over';
+  return best;
  }
  applyFeint(p,choice){
   p.feintClock=.35;p.feintSign=-choice.sign;p.feintCooldown=4.6;
+  p.feintStyle=choice.feintStyle==='step-over'?'step-over':'body';
+  if(p.feintStyle==='step-over')this.telemetry.stepOverAttempts=(this.telemetry.stepOverAttempts||0)+1;
   const d=this.players.find(q=>q.id===choice.defender?.id&&q.active);if(!d)return;const gap=dist(p,d),seeing=Math.cos(angle(Math.atan2(p.z-d.z,p.x-d.x),d.face))>.35,closing=((p.x-d.x)*d.vx+(p.z-d.z)*d.vz)/Math.max(.1,gap);
   const susceptibility=(p.dribbling-d.tackling)*.005+Math.max(0,closing)*.015-((d.composure??d.skill)-75)*.002;
   if(seeing&&closing>.3&&gap<3.1&&susceptibility>.055){
@@ -713,7 +718,7 @@ class Match{
    const a=Math.atan2(choice.defender.z-p.z,choice.defender.x-p.x),sign=angle(a+Math.PI/2,p.face)**2<=angle(a-Math.PI/2,p.face)**2?1:-1;p.shieldFace=a+sign*Math.PI/2;
    }else {p.shieldUntil=0;if(p.holdUpStartedAt!==undefined)p.holdUpStartedAt=null;}
   if(choice.holdUpTurn)this.telemetry.holdUpTurns++;
-  if(choice.kind==='feint'){
+  if(choice.kind==='feint'&&dist(selected,choice.point)<.1){
    this.applyFeint(p,choice);
    this.emit('feint','Çalım denemesi',`${p.name}, savunmacıyı bir vücut hareketiyle geçmeye çalışıyor.`,p);
   }
@@ -1377,7 +1382,7 @@ class Match{
   const pressurePenalty=advanced?Math.max(0,3-pressure)*Math.max(0,80-(p.composure??p.skill))*.002:0;
   const difficulty=clamp((arrivalSpeed-10)*.022+turn*.065+Math.max(0,2.5-pressure)*.08-(control-.7)*.6+footPenalty+pressurePenalty,0,.45);
   if(advanced&&reception?.mode==='one-touch'&&difficulty>.28&&pressure<3){
-   reception={...reception,mode:'protect',next:null};
+   reception={...reception,mode:'protect',next:null};p.nextAction=null;p.oneTouchUntil=0;
    this.telemetry.pressuredControlDeferrals=(this.telemetry.pressuredControlDeferrals||0)+1;
   }
   this.ball.vx=this.ball.vx*(.10+difficulty*.32)+p.vx*.25;this.ball.vz=this.ball.vz*(.10+difficulty*.32)+p.vz*.25;this.ball.vy=Math.max(0,this.ball.vy*.15);
