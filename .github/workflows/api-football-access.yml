@@ -1,0 +1,28 @@
+name: API-Football access probe
+on:
+  push:
+    branches: ['feature/api-football-access-probe']
+    paths: ['.github/workflows/api-football-access.yml', 'tools/api_football_probe.py', 'tests/test_api_football_probe.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: api-football-access-probe
+  cancel-in-progress: false
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline tests with synthetic responses
+        run: python -m unittest discover -s tests -p test_api_football_probe.py -v
+      - name: Verify free account and current squad access
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        run: python tools/api_football_probe.py
