@@ -143,7 +143,9 @@ class Match{
   if(task.purpose==='receive'&&context.flightTargetId!==p.id&&context.kickTargetId!==p.id)return false;
   if(task.purpose==='mark'&&task.focusId!==null&&!context.rivals.some(q=>q.id===task.focusId))return false;
   if(['support','run'].includes(task.purpose)){
-   if(task.x*this.direction(p.team)>Math.max(this.observedLine(p),this.ball.x*this.direction(p.team))-.5)return false;
+   const side=this.direction(p.team),line=Math.max(this.observedLine(p),this.ball.x*side),run=this.attackPlans[p.team]?.runner;
+   const timed=task.state==='decoy-run'||task.state==='penetration'&&run?.id===p.id&&run.kind;
+   if(task.x*side>line-(timed?Brain.runMargin(p,side):.5))return false;
    if(context.rivals.some(q=>dist(q,task)<1.35||dist(q,p)<3.5&&segment(q,p,task).d<.8))return false;
    if(task.partnerId!==null&&task.state!=='overlap'&&task.state!=='wide-support'){
     const connected=[this.owner?.id,this.flight?.from?.id,this.flight?.target?.id,this.kick?.target?.id];
@@ -346,7 +348,7 @@ class Match{
   if(p.task?.epoch===this.attackEpoch[p.team]&&p.task.expiresAt>this.time)return p.task.purpose==='run'&&p.task.state!=='decoy-run'?{x:p.task.x,z:p.task.z}:null;
   const run=p.runIntent,pattern=this.attackPlans[p.team];
   if(run?.until>this.time&&(run.epoch===undefined||run.epoch===this.attackEpoch[p.team]))return run.point;
-  if(pattern?.epoch===this.attackEpoch[p.team]&&pattern.until>this.time&&pattern.runner?.id===p.id)return pattern.runner.point;
+  if(pattern?.epoch===this.attackEpoch[p.team]&&pattern.until>this.time&&pattern.runner?.id===p.id&&(!pattern.runner.kind||pattern.runner.accepted))return pattern.runner.point;
   return null;
  }
  offBallRead(p,q){
@@ -1435,7 +1437,7 @@ class Match{
  coordinatedAttack(team,owner,line){
   if(!owner)return null;
   const side=this.direction(team),zone=Math.abs(owner.z)>15?Math.sign(owner.z):0,old=this.attackPlans[team];
-  if(old&&old.until>this.time&&old.zone===zone&&old.ownerTeam===this.lastTeam&&old.epoch===this.attackEpoch[team]&&old.runner?.id!==owner.id&&old.connectorId!==owner.id&&![old.runner?.id,old.connectorId].some(id=>this.players.some(p=>p.id===id&&this.arrivalHelper(p,owner)))&&(!old.runner||this.players.some(q=>q.id===old.runner.id&&q.active)))return old;
+  if(old&&old.until>this.time&&(!old.runner?.kind||old.ownerId===owner.id)&&old.zone===zone&&old.ownerTeam===this.lastTeam&&old.epoch===this.attackEpoch[team]&&old.runner?.id!==owner.id&&old.connectorId!==owner.id&&![old.runner?.id,old.connectorId].some(id=>this.players.some(p=>p.id===id&&this.arrivalHelper(p,owner)))&&(!old.runner||this.players.some(q=>q.id===old.runner.id&&q.active)))return old;
   const pool=this.field(team),opponents=this.rivals(owner),ballDepth=this.ball.x*side,counter=this.transitionUntil[team]>this.time&&this.t[team].onWin==='counter';
   const candidates=pool.filter(p=>p!==owner&&!this.taskReserved(p,['penetration'])&&!this.arrivalHelper(p,owner)&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)&&(p.role==='ATT'||p.role==='MID'&&p.homeX*side>7)&&p.x*side>owner.x*side-3);
   let runner=null;
@@ -1460,7 +1462,7 @@ class Match{
   }
   const links=pool.filter(p=>p!==owner&&p.id!==decoy?.id&&!this.taskReserved(p,['between-lines'])&&!this.arrivalHelper(p,owner)&&p.id!==runner?.id&&p.role!=='DEF'&&p.role!=='GK'&&this.teamRole(p)!=='anchor'&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)),centralLinks=links.filter(p=>p.role==='MID'&&Math.abs(p.homeZ)<19);
   const connector=(centralLinks.length?centralLinks:links).sort((a,b)=>(Math.abs(a.x*side-(ballDepth+7))+Math.abs(a.z-owner.z)*.25)-(Math.abs(b.x*side-(ballDepth+7))+Math.abs(b.z-owner.z)*.25))[0];
-  const result={ownerTeam:this.lastTeam,epoch:this.attackEpoch[team],zone,until:this.time+2.6,runner,connectorId:connector?.id,...(decoy?{decoy}:{})};
+  const result={ownerTeam:this.lastTeam,epoch:this.attackEpoch[team],zone,until:this.time+2.6,runner,connectorId:connector?.id,...(runner?.kind?{ownerId:owner.id}:{}),...(decoy?{decoy}:{})};
   this.attackPlans[team]=result;
   if(runner)this.telemetry.coordinatedRuns=(this.telemetry.coordinatedRuns||0)+1;
   return result;
@@ -1904,7 +1906,7 @@ class Match{
     if(pattern?.runner?.id===p.id){
      if(chosen.state==='penetration'){
       pattern.runner.point={x:chosen.x,z:chosen.z};
-      if(pattern.runner.kind&&!pattern.runner.accepted&&Math.abs(chosen.x-x)<1.5&&Math.abs(chosen.z-z)<1.5){
+      if(pattern.runner.kind&&!pattern.runner.accepted&&Math.abs(chosen.x-x)<1.5&&Math.abs(chosen.z-z)<1.5&&chosen.partnerId===owner?.id){
        pattern.runner.accepted=true;this.telemetry[pattern.runner.kind==='blind-side'?'blindSideRuns':'diagonalRuns']=(this.telemetry[pattern.runner.kind==='blind-side'?'blindSideRuns':'diagonalRuns']||0)+1;
       }
      }else {pattern.runner=null;if(pattern.decoy)pattern.decoy=null;}
