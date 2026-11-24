@@ -1677,9 +1677,46 @@ class Match{
   const same=retained&&best.id===old.id&&dist(best.point,old.point)<.1;
   return this.buildPlans[team]={...best,owner:owner.id,epoch:this.attackEpoch[team],until:same?old.until:this.time+1.4,ball:same?old.ball:{x:this.ball.x,z:this.ball.z}};
  }
- boxAttack(team,owner){
+ // Central attacks need a reachable scoring connection, not three players
+ // rushing the same space. Stage behind the observed offside line and
+ // reserve one late supporting midfielder; the normal task arbiter owns movement.
+ centralBoxAttack(team,source,line,pattern,flank,build){
+  const side=this.direction(team),depth=source.x*side,old=this.boxPlans[team];
+  if(!this.playerBrainEnabled(source)||depth<17||depth>36||Math.abs(source.z)>=14||source.role==='GK'||source.role==='DEF')return null;
+  const rivals=this.rivals(source),pressure=Math.min(20,...rivals.map(q=>dist(q,source)));
+  if(pressure<2.8)return null;
+  const eligible=this.field(team).filter(p=>p!==source&&p.id!==pattern?.runner?.id&&p.id!==pattern?.decoy?.id&&p.id!==pattern?.connectorId&&p.id!==flank?.fullbackId&&p.id!==build?.id&&this.playerBrainEnabled(p)&&p.duelRecovery<=0&&p.energy>=.45&&!this.taskReserved(p,['box-run','cutback-support'])&&!this.arrivalHelper(p,source)&&!(p.runIntent?.until>this.time)&&!(p.supportIntent?.until>this.time));
+  const evaluate=(p,point,role)=>{
+   const gain=(point.x-source.x)*side,travel=dist(p,point),range=dist(source,point),space=Math.min(12,...rivals.map(q=>dist({x:q.x+q.vx*.35,z:q.z+q.vz*.35},point)));
+   if(range<5||range>25||travel>10||space<2.5||point.x*side>line-Brain.runMargin(p,side)||gain<(role==='central-run'?5:-8))return null;
+   const risk=this.laneRisk(source,point,this.passSpeed('pass',range,this.t[team]),'pass');
+   if(risk>.38)return null;
+   return {...point,state:role==='central-run'?'box-run':'cutback-support',role,score:space*.7-risk*12+gain*.19-travel*.32};
+  };
+  let runner=null;
+  for(const p of eligible.filter(p=>p.role==='ATT'||p.position==='AM')){
+   const targetDepth=Math.min(43,depth+12,line-Brain.runMargin(p,side));
+   if(targetDepth<33)continue;
+   for(const z of [-9,-4,4,9]){
+    const point=evaluate(p,{x:side*targetDepth,z},'central-run');
+    if(point&&(!runner||point.score>runner.point.score))runner={p,point};
+   }
+  }
+  if(!runner)return null;
+  let edge=null;
+  for(const p of eligible.filter(p=>p!==runner.p&&p.role==='MID'&&p.position!=='DM'&&this.teamRole(p)!=='anchor')){
+   for(const z of [-12,0,12]){
+    const point=evaluate(p,{x:side*Math.min(depth+3,32,line-Brain.runMargin(p,side)),z},'central-edge');
+    if(point&&dist(point,runner.point)>7&&(!edge||point.score>edge.point.score))edge={p,point};
+   }
+  }
+  const points=new Map([[runner.p.id,runner.point]]);if(edge)points.set(edge.p.id,edge.point);
+  return {source:source.id,flank:0,central:true,epoch:this.attackEpoch[team],until:this.time+1.4,points};
+ }
+ boxAttack(team,owner,pattern=null,flankPlan=null,build=null){
   const flight=this.flight,delivery=flight&&flight.from.team===team&&['cross','cutback'].includes(flight.kind);
   const source=owner?.team===team?owner:delivery?flight.from:null,side=this.direction(team);
+  if(source&&source===owner&&Math.abs(source.z)<14){const line=Math.max(this.observedLine(source),this.ball.x*side);return this.boxPlans[team]=this.centralBoxAttack(team,source,line,pattern,flankPlan,build);}
   if(!source||source.x*side<23||Math.abs(source.z)<14){this.boxPlans[team]=null;return null;}
   const flank=Math.sign(source.z),old=this.boxPlans[team];
   if(old&&old.source===source.id&&old.flank===flank&&old.epoch===this.attackEpoch[team]&&old.until>this.time&&[...old.points.keys()].every(id=>this.players.some(p=>p.id===id&&p.active&&!this.arrivalHelper(p,owner))))return old;
@@ -1880,7 +1917,7 @@ class Match{
    const defenders=pool.filter(p=>p.role==='DEF'),holding=pool.filter(p=>p.detailedRole&&p.position==='DM').sort((a,b)=>a.homeX*side-b.homeX*side)[0]||
     pool.filter(p=>p.role==='MID').sort((a,b)=>a.homeX*side-b.homeX*side)[0];
    const build=has?this.buildOutSupport(team,owner):null,pattern=has?this.coordinatedAttack(team,owner,offsideLine):null,flank=has?this.flankSupport(team,owner,offsideLine):null;
-   const box=has?this.boxAttack(team,owner):null;
+   const box=has?this.boxAttack(team,owner,pattern,flank,build):null;
    const connection=pattern?.connectorId!==undefined&&pattern.connectorId!==build?.id&&pattern.connectorId!==flank?.fullbackId&&!box?.points.has(pattern.connectorId)&&owner&&aBall>-12&&aBall<30?this.connectionPoint(owner,this.players[pattern.connectorId],baseLine,offsideLine):null;
    const supports=has?this.supportUnit(team,owner,pool,holding,build,pattern,flank,box,offsideLine,connection,meeting):new Map(),pressurePlan=has?{active:false,reason:'in-possession'}:this.pressPolicy(team,presser,cover,owner);this.pressPolicies[team]=pressurePlan;
    const unit=!has?this.defensiveUnit(team,owner,baseLine,pool,opponents,pressurePlan.active?presser:null,pressurePlan.active?cover:null):null,assignments=unit?.assignments||new Map();
@@ -1942,7 +1979,7 @@ class Match{
      if(p.detailedRole&&p.position==='CB'&&p!==owner&&aBall>0){x=side*Math.min(x*side,baseLine+3);state='rest-defence';}
      if(p.detailedRole&&p.position==='AM'&&!supports.has(p.id)&&p!==owner&&aBall>0&&x*side<baseLine+25){x=side*Math.min(offsideLine-1,baseLine+32);state='between-lines';}
      if(build?.id===p.id){x=build.point.x;z=build.point.z;state='build-support';pace=.98;}
-     if(box?.points.has(p.id)){const q=box.points.get(p.id);x=q.x;z=q.z;state=q.state;pace=q.role==='edge'?.96:1.06;p.boxRole=q.role;}
+     if(box?.points.has(p.id)){const q=box.points.get(p.id);x=q.x;z=q.z;state=q.state;pace=q.role==='edge'||q.role==='central-edge'?.96:1.06;p.boxRole=q.role;}
      if(this.flight?.target===p){const q=['through','cross','long-pass'].includes(this.flight.kind)&&dist(p,ball)>3?this.flight.point:meeting||this.interceptPoint(p);x=q.x;z=q.z;state='receive-run';pace=1.13;}
      else if(this.kick?.target===p){
       x=this.kick.point.x;z=this.kick.point.z;state='receive-run';pace=1.03;
@@ -1988,7 +2025,7 @@ class Match{
     if(this.activeWall?.team===team&&this.activeWall.until>this.time&&this.activeWall.points.has(p.id)&&this.flight){const q=this.activeWall.points.get(p.id);x=q.x;z=q.z;state='wall';pace=.6;}
     // Target spacing uses intended destinations, not a late teleport at contact.
     if(!['support','build-support','between-lines','cover','screen','trap-screen','press','counterpress','intercept','loose-ball','receive-run','dribble','receive','goalkeeper','keeper-sweep','keeper-control','wall'].includes(state))for(const [q,other] of plans){if(q.team!==team||q.role==='GK')continue;const d=Math.hypot(x-other.x,z-other.z);if(d<4.0){const a=Math.atan2(z-other.z,x-other.x)+(d<.01?(p.id%2?1:-1):0);x+=Math.cos(a)*(4-d)*.65;z+=Math.sin(a)*(4-d)*.65;}}
-    if(has&&!this.flight&&((state==='penetration'&&pattern?.runner?.id===p.id&&pattern.runner.kind)||state==='decoy-run'||state==='channel-run'&&p.runIntent?.kind==='third-man'||state==='receive-run'&&this.kick?.target===p&&this.kick.timedRun)){
+    if(has&&!this.flight&&((box?.central&&box.points.has(p.id)&&['box-run','cutback-support'].includes(state))||(state==='penetration'&&pattern?.runner?.id===p.id&&pattern.runner.kind)||state==='decoy-run'||state==='channel-run'&&p.runIntent?.kind==='third-man'||state==='receive-run'&&this.kick?.target===p&&this.kick.timedRun)){
      // Spacing adjustments must not push a timed runner past the staging line.
      x=side*Math.min(x*side,offsideLine-Brain.runMargin(p,side));
     }
@@ -2018,7 +2055,7 @@ class Match{
     if(pattern?.connectorId===p.id&&chosen.state==='between-lines'&&p.connectionIntent)p.connectionIntent.point={x:chosen.x,z:chosen.z};
     if(build?.id===p.id){if(chosen.state==='build-support')build.point={x:chosen.x,z:chosen.z};else this.buildPlans[team]=null;}
     if(flank?.fullbackId===p.id){if(['overlap','wide-support'].includes(chosen.state))flank.point={x:chosen.x,z:chosen.z};else this.flankPlans[team]=null;}
-    if(box?.points.has(p.id)&&['box-run','cutback-support'].includes(chosen.state))Object.assign(box.points.get(p.id),{x:chosen.x,z:chosen.z});
+    if(box?.points.has(p.id)&&['box-run','cutback-support'].includes(chosen.state)){const q=box.points.get(p.id);if(box.central&&chosen.partnerId===owner?.id&&dist(chosen,q)<1.5&&p.task?.since===this.time)this.telemetry.centralBoxRuns=(this.telemetry.centralBoxRuns||0)+1;Object.assign(q,{x:chosen.x,z:chosen.z});}
     if(box?.points.has(p.id)&&!['box-run','cutback-support','receive-run'].includes(chosen.state))box.points.delete(p.id);
     if(p.runIntent?.kind==='third-man'&&!p.runIntent.accepted&&chosen.state==='channel-run'&&chosen.partnerId===p.runIntent.partnerId&&dist(chosen,p.runIntent.point)<1.5){p.runIntent.accepted=true;this.telemetry.thirdManRuns=(this.telemetry.thirdManRuns||0)+1;}
     if(pressingUnit?.outlet?.id===p.id&&chosen.state==='trap-screen'&&chosen.focusId===pressingUnit.outlet.receiverId&&p.task?.since===this.time)this.telemetry.pressTrapScreens=(this.telemetry.pressTrapScreens||0)+1;
