@@ -62,3 +62,15 @@ test('quality changes keep identical 22 draw calls while binding the appropriate
  assert.equal(high.stats.players,22);assert.equal(high.stats.detailed,22);assert.equal(high.stats.lodBinds,1);
  assert(high.stats.triangles>low.stats.triangles);assert.deepEqual(high.captures,low.captures);
 });
+
+test('broadcast quality uniform is sent once per frame, but close camera transitions still update it',()=>{
+ const players=actors(),{r,draw}=renderer(),fast=[];
+ r.loc.uFast='fast';r.gl.uniform1f=(location,value)=>{if(location==='fast')fast.push(value);};
+ draw(players);assert.deepEqual(fast,[1]);
+ fast.length=0;r.visualQuality='detailed';draw(players);assert.deepEqual(fast,[0]);
+ fast.length=0;r.visualQuality='auto';
+ for(let i=0;i<players.length;i++){players[i].x=i%2?30:0;players[i].z=0;}
+ r.draw(players,new Float32Array(16),[0,0,0],'close',0,null,{});
+ assert.equal(r.lastRenderStats.players,22);assert.equal(r.lastRenderStats.detailed,11);
+ assert.deepEqual(fast,Array.from({length:22},(_,i)=>i%2));
+});
