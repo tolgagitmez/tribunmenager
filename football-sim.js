@@ -432,6 +432,11 @@ class Match{
    if(movingReturn)score+=Math.min(3,(q.x-combo.origin.x)*forward*.5);
    const offer=q.offerIntent;
    if(offer?.ownerId===p.id&&offer.epoch===this.attackEpoch[p.team]&&dist(q,offer.point)<2&&risk<.35&&reception.risk<.65)score+=1.5;
+   if(this.playerBrainEnabled(p)&&advance>3&&lane<.32&&reception.risk<.60&&space>2.5){
+    const task=q.task,accepted=task?.epoch===this.attackEpoch[p.team]&&task.expiresAt>this.time&&task.partnerId===p.id;
+    if(accepted&&task.state==='between-lines'&&dist(q,task)<3)score+=2.8;
+    if(point.x*forward>35.5&&Math.abs(point.z)<20.16&&p.x*forward<35.5)score+=2.2;
+   }
    if(q.role==='DEF'&&advance<0&&p.x*forward>20)score-=2;
    if(long)score-=Math.min(8,Math.max(0,7-space)*1.5);
    if(t.onWin==='counter'&&this.transitionUntil[p.team]>this.time)score+=Math.max(0,advance)*.30;
@@ -729,17 +734,20 @@ class Match{
   const goalX=52*this.direction(p.team),x=Math.max(.2,52-p.x*this.direction(p.team)),d=Math.hypot(x,p.z);
   const goalAngle=Math.abs(Math.atan2(3.66-p.z,x)-Math.atan2(-3.66-p.z,x));
   let best=null,open=0;
+  const rivals=this.rivals(p),keeper=this.rivals(p,true).find(q=>q.role==='GK'),advanced=this.playerBrainEnabled(p);
   for(const z of [-2.65,-1.3,0,1.3,2.65]){
-   const point={x:goalX,z},block=this.rivals(p).reduce((r,q)=>{
+   const point={x:goalX,z},block=rivals.reduce((r,q)=>{
     const h=segment(q,p,point),travel=d*h.u/31,reach=1.0+clamp((.22+travel-.14)*2.2,0,.9);
     return h.u>.025&&h.u<.96?Math.max(r,clamp((reach-h.d)/reach,0,1)):r;
    },0);
    if(block<.25)open++;
-   const keeper=this.rivals(p,true).find(q=>q.role==='GK'),keeperCost=keeper?Math.exp(-Math.abs(z-keeper.z)/1.7)*.15:0;
-   const value=(1-block)*.8-keeperCost;if(!best||value>best.value)best={point,block,value};
+   const u=keeper&&advanced?clamp((keeper.x-p.x)/(goalX-p.x||.01),0,1):1;
+   const crossingZ=p.z+(z-p.z)*u,keeperZ=keeper?keeper.z+(advanced?clamp((keeper.vz||0)*Math.min(.35,d*u/31),-1.1,1.1):0):0;
+   const keeperCost=keeper?Math.exp(-Math.abs(crossingZ-keeperZ)/1.7)*.15:0;
+   const value=(1-block)*.8-keeperCost-(advanced?Math.abs(z)*.003:0);if(!best||value>best.value)best={point,block,value};
   }
   const heading=Math.atan2(-p.z,goalX-p.x),turn=Math.abs(angle(heading,p.face??heading));let pressure=0;
-  for(const q of this.rivals(p)){
+  for(const q of rivals){
    const dx=q.x-p.x,dz=q.z-p.z,gap=Math.hypot(dx,dz)||.01,front=(dx*Math.cos(heading)+dz*Math.sin(heading))/gap;
    const closing=((q.vx-(p.vx||0))*dx+(q.vz-(p.vz||0))*dz)/gap;
    const effective=gap+Math.min(0,closing)*.18;
@@ -783,9 +791,10 @@ class Match{
  }
  choose(p){
   const opponents=this.rivals(p),pressure=Math.min(30,...opponents.map(o=>dist(p,o))),goalDist=52-p.x*this.direction(p.team);
-  const t=this.t[p.team],shot=this.shotWindow(p),options=this.passOptions(p),best=options[0],cross=this.crossingOption(p),carry=this.carryOption(p);
-  // A clear close-range shooting window is taken; a random roll cannot veto it.
+  const t=this.t[p.team],shot=this.shotWindow(p);
+  // A clear finish wins unconditionally, so skip speculative forecasts.
   if(this.clearFinish(p,shot))return {kind:'shot',point:shot.point};
+  const options=this.passOptions(p),best=options[0],cross=this.crossingOption(p),carry=this.carryOption(p);
   if(p.role!=='GK'&&shot.distance<(t.shooting==='early'?31:t.shooting==='patient'?22:29)&&shot.open>=.4&&shot.execution>.68&&shot.pressure<.65&&shot.quality>(t.shooting==='early'?.09:t.shooting==='patient'?.16:.13)&&(p.shooting>=83||pressure<3)&&(!best||best.score<15))return {kind:'shot',point:shot.point};
   if(cross&&cross.space>1.5&&cross.score>(best?.score??0)-2)return cross;
   if(this.playerBrainEnabled(p)&&p.shieldUntil>this.time&&Number.isFinite(p.holdUpStartedAt)){
@@ -1606,8 +1615,32 @@ class Match{
  }
  connectionPoint(owner,p,baseLine,line){
   const side=this.direction(owner.team),depth=Math.min(line-1.0,Math.max(owner.x*side+6,baseLine+27)),ideal=clamp(owner.z*.4+Math.sign(p.homeZ||-owner.z||1)*9,-18,18);let best=null;
-  const evaluate=point=>{const risk=this.laneRisk(owner,point,17),space=Math.min(12,...this.rivals(owner).map(q=>dist(q,point))),score=space*.5-risk*11-dist(p,point)*.16-Math.abs(point.z-ideal)*.035;return {...point,score,risk,space};};
-  for(const z of [ideal,ideal-4,ideal+4,clamp(p.z,-20,20)]){const point=evaluate({x:side*depth,z:clamp(z,-22,22)});if(!best||point.score>best.score)best=point;}
+  const rivals=this.rivals(owner),advanced=this.playerBrainEnabled(p),personal=advanced?this.rivals(p):rivals;
+  const gap=z=>{
+   const local=personal.filter(q=>Math.abs(q.z-z)<13&&(q.confidence??1)>=.45&&(q.age??0)<.8);
+   const mids=local.filter(q=>q.role==='MID').map(q=>q.x*side),backs=local.filter(q=>q.role==='DEF').map(q=>q.x*side);
+   if(!mids.length||!backs.length)return null;
+   const mid=Math.max(...mids),back=Math.min(...backs);
+   return back-mid>=6?{mid,back}:null;
+  };
+  const evaluate=point=>{
+   const risk=this.laneRisk(owner,point,17),space=Math.min(12,...rivals.map(q=>dist(q,point))),g=advanced?gap(point.z):null;
+   const inPocket=!!g&&point.x*side>=g.mid+2&&point.x*side<=g.back-2;
+   const score=space*.5-risk*11-dist(p,point)*.16-Math.abs(point.z-ideal)*.035+(inPocket&&risk<.42&&space>2.5?4:0);
+   return {...point,score,risk,space,inPocket};
+  };
+  const lanes=[ideal,ideal-4,ideal+4,clamp(p.z,-20,20)];
+  for(const z of lanes){const point=evaluate({x:side*depth,z:clamp(z,-22,22)});if(!best||point.score>best.score)best=point;}
+  // Use local observed line depths, not the far-side fullback or formation.
+  if(advanced)for(const z of [...lanes,-7,7,0]){
+   const lateral=clamp(z,-22,22),g=gap(lateral);if(!g)continue;
+   const low=Math.max(g.mid+2,owner.x*side+3),high=Math.min(g.back-2,line-1,47);
+   if(high<low)continue;
+   const point={x:side*clamp((g.mid+g.back)/2,low,high),z:lateral};
+   if(dist(p,point)>14||dist(owner,point)>29)continue;
+   const read=evaluate(point);
+   if(read.inPocket&&read.space>2.5&&read.risk<.42&&read.score>best.score)best=read;
+  }
   const intent=p.connectionIntent,old=intent?.ownerId===owner.id&&intent.epoch===this.attackEpoch[owner.team]&&intent.until>this.time&&(intent.point.x-owner.x)*side>3&&intent.point.x*side<line-.7?evaluate(intent.point):null;
   if(old&&old.risk<.55&&old.space>1.8&&old.score>best.score-1.5)best=old;
   const same=old&&dist(old,best)<.1;p.connectionIntent={ownerId:owner.id,epoch:this.attackEpoch[owner.team],point:{x:best.x,z:best.z},until:same?intent.until:this.time+1.4};return best;
@@ -1703,15 +1736,37 @@ class Match{
  boxAttack(team,owner){
   const flight=this.flight,delivery=flight&&flight.from.team===team&&['cross','cutback'].includes(flight.kind);
   const source=owner?.team===team?owner:delivery?flight.from:null,side=this.direction(team);
-  if(!source||source.x*side<23||Math.abs(source.z)<14){this.boxPlans[team]=null;return null;}
-  const flank=Math.sign(source.z),old=this.boxPlans[team];
-  if(old&&old.source===source.id&&old.flank===flank&&old.epoch===this.attackEpoch[team]&&old.until>this.time&&[...old.points.keys()].every(id=>this.players.some(p=>p.id===id&&p.active&&!this.arrivalHelper(p,owner))))return old;
+  const central=!!owner&&!!source&&this.playerBrainEnabled(source)&&Math.abs(source.z)<14&&source.x*side>=23;
+  if(!source||source.x*side<23||(!central&&Math.abs(source.z)<14)){this.boxPlans[team]=null;return null;}
+  const flank=Math.sign(source.z||source.homeZ||1),old=this.boxPlans[team];
+  if(!central&&old&&!old.central&&old.source===source.id&&old.flank===flank&&old.epoch===this.attackEpoch[team]&&old.until>this.time&&[...old.points.keys()].every(id=>this.players.some(p=>p.id===id&&p.active&&!this.arrivalHelper(p,owner))))return old;
   const pool=this.field(team).filter(p=>p!==source&&!this.taskReserved(p,['box-run','cutback-support'])&&!(p.runIntent?.until>this.time)&&!(p.supportIntent?.until>this.time)&&!this.arrivalHelper(p,owner)),attackers=pool.filter(p=>p.role==='ATT');
   const near=attackers.slice().sort((a,b)=>Math.abs(a.homeZ)-Math.abs(b.homeZ))[0];
   const wide=pool.filter(p=>p!==near&&(p.role==='ATT'||['winger','wide-midfielder'].includes(this.teamRole(p))));
   const far=wide.sort((a,b)=>(a.homeZ*flank<0?0:30)+Math.abs(a.homeZ+flank*15)*.2-((b.homeZ*flank<0?0:30)+Math.abs(b.homeZ+flank*15)*.2))[0];
   const edge=pool.filter(p=>p!==near&&p!==far&&p.role==='MID'&&Math.abs(p.homeZ)<19&&this.teamRole(p)!=='anchor').sort((a,b)=>dist(a,{x:side*33,z:0})-dist(b,{x:side*33,z:0}))[0];
   const points=new Map();
+  if(central){
+   // Striker and winger attack distinct lanes, staging onside before release.
+   const line=Math.max(this.observedLine(source),this.ball.x*side),rivals=this.rivals(source);
+   const add=(p,depth,lanes,role)=>{
+    if(!p)return;
+    const limit=Math.min(line,Math.max(this.observedLine(p),this.ball.x*side))-Brain.runMargin(p,side);
+    const x=side*Math.min(depth,limit);
+    if(x*side<source.x*side+1||x*side<p.x*side-2)return;
+    let best=null;
+    for(const z of lanes){
+     const point={x,z},space=Math.min(12,...rivals.map(q=>dist(q,point)));
+     if(space<2||[...points.values()].some(q=>dist(q,point)<6))continue;
+     const score=space-dist(p,point)*.25;
+     if(!best||score>best.score)best={...point,score};
+    }
+    if(best)points.set(p.id,{x:best.x,z:best.z,state:'box-run',role});
+   };
+   add(near,clamp(source.x*side+8,36,45),[-3,0,3],'near-post');
+   add(far,clamp(source.x*side+6,36,43),[-flank*10,-flank*15],'far-post');
+   return this.boxPlans[team]={source:source.id,flank,central:true,epoch:this.attackEpoch[team],until:this.time+1.2,points};
+  }
   if(near)points.set(near.id,{x:side*clamp(source.x*side+6,40,44),z:flank*3.5,state:'box-run',role:'near-post'});
   if(far)points.set(far.id,{x:side*clamp(source.x*side+8,42,46),z:-flank*7,state:'box-run',role:'far-post'});
   if(edge)points.set(edge.id,{x:side*clamp(source.x*side-4,30,35),z:-flank*1.5,state:'cutback-support',role:'edge'});
@@ -2751,7 +2806,7 @@ class Match{
   for(const [p,target] of this.targets)this.move(p,target,dt);
   // Small separation impulses keep shoulders from occupying the same space.
   const bodies=this.players.filter(p=>p.active&&!p.referee);
-  for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){const a=bodies[i],b=bodies[j],dx=a.x-b.x,dz=a.z-b.z,d=Math.hypot(dx,dz);if(d<.58){const n=d||1,nx=d?dx/n:(a.id%2?1:-1),nz=d?dz/n:0,push=Math.min((.58-d)*.35,dt*.8);if(this.kick?.p!==a){a.x+=nx*push;a.z+=nz*push;}if(this.kick?.p!==b){b.x-=nx*push;b.z-=nz*push;}}}
+  for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){const a=bodies[i],b=bodies[j],dx=a.x-b.x,dz=a.z-b.z;if(Math.abs(dx)>=.58||Math.abs(dz)>=.58)continue;const d=Math.hypot(dx,dz);if(d<.58){const n=d||1,nx=d?dx/n:(a.id%2?1:-1),nz=d?dz/n:0,push=Math.min((.58-d)*.35,dt*.8);if(this.kick?.p!==a){a.x+=nx*push;a.z+=nz*push;}if(this.kick?.p!==b){b.x-=nx*push;b.z-=nz*push;}}}
   if(this.goalPause){
    this.goalPause.clock-=dt;const b=this.ball;b.x+=b.vx*dt;b.z+=b.vz*dt;b.y=Math.max(.11,b.y+b.vy*dt);b.vy-=9.81*dt;b.vx*=.96;b.vz*=.96;
    if(Math.abs(b.x)>54){b.x=Math.sign(b.x)*54;b.vx*=-.15;}b.z=clamp(b.z,-3.5,3.5);
