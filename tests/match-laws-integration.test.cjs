@@ -58,3 +58,58 @@ test('direct indirect-free-kick and throw-in goals use the legal defending resta
 test('diagnostics records the referee-resolved restart after an advantage recall',()=>{
  const {m,p,d}=isolated();m.players[21].active=true;Object.assign(p,{x:5,z:0});m.ball={x:5.3,y:.11,z:0,vx:0,vy:0,vz:0};m.lastTeam=1;m.owner=null;const o=D.attach(m);assert(m.acquire(p));m.adjudicateFoul(d,p,{advantage:true});m.setRestart('throw',1,{x:8,z:34});assert.equal(m.restart.kind,'free-kick');assert.equal(m.restart.team,0);const episode=o.report().episodes.find(e=>e.team===0);assert.equal(episode.endReason,'foul-won');o.detach();
 });
+
+
+test('free kick target clamping cannot leave a defender inside the required radius',()=>{
+ for(const side of [1,-1]){
+  const m=game();m.period=side===1?1:2;m.matchClock.period=m.period;
+  const taker=m.field(0)[0],defender=m.field(1)[0],spot={x:43*side,z:21};
+  m.setRestart('free-kick',0,spot,taker);
+  const r=m.restart,layout=m.freeKickLayout(r);
+  assert(layout&&layout.distance>=12);
+  // Reproduce an in-bounds marking target whose radial projection crosses
+  // the goal line. Clamping alone would leave an illegal 8m destination.
+  layout.wall.delete(defender.id);
+  layout.marking.set(defender.id,{x:47*side,z:21,state:'fk-mark',pace:.95});
+  const before={x:defender.x,z:defender.z,ball:{...m.ball},seed:m.seed};
+  m.planFreeKick(r,layout);
+  const target=m.targets.get(defender);
+  assert(Math.hypot(target.x-spot.x,target.z-spot.z)>=9.15);
+  assert(Math.abs(target.x)<=51&&Math.abs(target.z)<=32.7);
+  assert.deepEqual({x:defender.x,z:defender.z,ball:m.ball,seed:m.seed},before);
+  // The real referee gate remains authoritative until players move.
+  defender.x=spot.x+side*2;defender.z=spot.z;
+  assert.equal(m.restartReady(r),false);
+ }
+});
+test('natural free kick plans near touchlines and goal lines preserve the legal defensive distance',()=>{
+ for(const side of [1,-1])for(const depth of [27,34,40,45])for(const z of [-31,-23,23,31]){
+  const m=game();m.period=side===1?1:2;m.matchClock.period=m.period;
+  m.setRestart('free-kick',0,{x:depth*side,z},m.field(0)[0]);
+  const r=m.restart,layout=m.freeKickLayout(r);
+  if(!layout||layout.distance<12)continue;
+  m.planFreeKick(r,layout);
+  for(const p of m.team(1)){
+   const point=m.targets.get(p);assert(point);
+   assert(Math.hypot(point.x-r.spot.x,point.z-r.spot.z)>=9.15-1e-8,JSON.stringify({side,depth,z,id:p.id,point}));
+  }
+ }
+});
+
+
+test('seed 311 touchline free kick approach remains reachable before setup in either half',()=>{
+ for(const side of [1,-1])for(const flank of [1,-1]){
+  const m=game();m.cfg.managerKicks=false;m.period=side===1?1:2;m.matchClock.period=m.period;
+  const spot={x:32.0138864486254*side,z:33.70923399215685*flank},taker=m.field(0)[0];
+  Object.assign(taker,{x:31.609781251230647*side,z:32.02418939927563*flank,vx:0,vz:0,speed:0});
+  m.setRestart('free-kick',0,spot,taker);
+  const r=m.restart,layout=m.freeKickLayout(r);assert(layout);
+  m.planFreeKick(r,layout);
+  const target=m.targets.get(taker),ball={...m.ball};
+  assert(Math.hypot(target.x-spot.x,target.z-spot.z)<1.4);
+  for(let i=0;i<180;i++)m.move(taker,target,dt);
+  assert(Math.hypot(taker.x-spot.x,taker.z-spot.z)<1.4);
+  assert.deepEqual(m.ball,ball);
+  assert.equal(r.setupPoint,undefined);
+ }
+});
