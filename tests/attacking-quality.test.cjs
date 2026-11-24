@@ -685,3 +685,39 @@ test('a saturated pass lane never forecasts later defenders unnecessarily',()=>{
  const second={x:owner.x+8,z:owner.z,vx:0,vz:0,passFuture(){throw Error('fully blocked lane should not need another forecast');}};
  assert.equal(m.laneRisk(owner,point,17,'pass',[first,second]),1);
 });
+
+
+test('technical touch responds to actual foot, balance, agility and fatigue at equal overall rating',()=>{
+ const {m,owner}=fixture();
+ Object.assign(owner,{skill:82,dribbling:95,agility:93,balance:91,composure:92,preferredFoot:1,footPreference:'right',weakFoot:50,energy:1});
+ const good=m.technicalTouchProfile(owner,1,1.2,2);
+ const weak=m.technicalTouchProfile(owner,0,1.2,2);
+ const average=m.technicalTouchProfile({...owner,dribbling:72,agility:70,balance:70,composure:70},1,1.2,2);
+ const tired=m.technicalTouchProfile({...owner,energy:.35},1,1.2,2);
+ for(const other of [weak,average,tired]){
+  assert(good.precision>other.precision);assert(good.interval<other.interval);assert(good.retention<other.retention);
+ }
+ assert.equal(owner.energy,1);
+});
+test('technical cut is accepted only by the real touch forecast and never bypasses foot reach',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,mid,back}=fixture(side);
+  m.cfg.technicalTouchExperiment=true;mid.active=false;back.active=false;
+  Object.assign(owner,{dribbling:95,agility:92,balance:91,composure:90,preferredFoot:1,footPreference:'right',weakFoot:65,energy:1,speed:1,vx:side,vz:0,touchClock:0,receiveClock:0,duelRecovery:0});
+  owner.carryTarget={x:owner.x+side*3,z:3*side};m.ball={x:owner.x+.5*side,y:.11,z:0,vx:side,vy:0,vz:0};
+  Object.assign(mid,{active:true,x:owner.x-3*side,z:0,vx:0,vz:0});
+  m.planClock=0;
+  const before={x:owner.x,z:owner.z,seed:m.seed};
+  const calls=[],original=m.touchPlan;
+  m.touchPlan=function(p,v,opts){const result=original.call(this,p,v,opts);calls.push({opts,result});return result;};
+  m.dribbleTouch(owner);
+  assert.equal(calls[0].opts.maxGap,1.12);
+  if(m.telemetry.technicalCutTouches){
+   assert(calls[0].result.ready);assert(calls[0].result.recovery.maxGap<=Math.max(calls[0].opts.maxGap,.5)+.05);
+   assert.equal(m.ball.vx,calls[0].result.velocity.vx);assert.equal(m.ball.vz,calls[0].result.velocity.vz);
+  }
+  assert.deepEqual({x:owner.x,z:owner.z,seed:m.seed},before);
+  m.ball.x=owner.x-2*side;const ball={...m.ball};
+  assert.equal(m.dribbleTouch(owner),false);assert.deepEqual(m.ball,ball);
+ }
+});
