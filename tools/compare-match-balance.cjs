@@ -6,12 +6,14 @@ function compare(base,candidate){
  assert(base.sources['tools/audit-match-balance.cjs']&&base.sources['tools/audit-match-balance.cjs']===candidate.sources['tools/audit-match-balance.cjs'],'different audit harness');
  const ordered=rows=>rows.slice().sort((a,b)=>a.id.localeCompare(b.id)),a=ordered(base.rows),b=ordered(candidate.rows);
  assert(a.length&&a.length===b.length&&new Set(a.map(r=>r.id)).size===a.length,'missing/duplicate cases');
+ assert.equal(new Set(a.map(r=>r.configDigest)).size,a.length,'duplicate baseline match inputs');
+ assert.equal(new Set(b.map(r=>r.configDigest)).size,b.length,'duplicate candidate match inputs');
  const matched=a.map((r,i)=>{const t=b[i];assert.equal(r.id,t.id);assert.equal(r.seed,t.seed);assert.equal(r.swap,t.swap);assert.deepEqual(r.a,t.a);assert.deepEqual(r.b,t.b);assert(r.configDigest&&r.configDigest===t.configDigest,'different match inputs');return [r,t];});
  function group(pairs){
   const full=pairs.filter(([r,t])=>r.finishReason==='full-time'&&t.finishReason==='full-time');
   if(!full.length)return {pairs:pairs.length,fullTimePairs:0,excluded:pairs.length,baseline:null,candidate:null,delta:null};
   const baseline=summarize(full.map(p=>p[0])),candidate=summarize(full.map(p=>p[1]));
-  const delta=Object.fromEntries(Object.keys(baseline).filter(k=>typeof baseline[k]==='number'&&typeof candidate[k]==='number'&&!['matches','fullTime','otherFinishes'].includes(k)).map(k=>[k,round(candidate[k]-baseline[k])]));
+  const delta=Object.fromEntries(Object.keys(baseline).filter(k=>typeof baseline[k]==='number'&&typeof candidate[k]==='number'&&!['matches','uniqueInputs','duplicateInputs','fullTime','otherFinishes'].includes(k)).map(k=>[k,round(candidate[k]-baseline[k])]));
   const shotDelta=full.map(([r,t])=>sum(t.pairs.shots)-sum(r.pairs.shots));
   return {pairs:pairs.length,fullTimePairs:full.length,excluded:pairs.length-full.length,baseline,candidate,delta,shotPairs:{improved:shotDelta.filter(n=>n>0).length,unchanged:shotDelta.filter(n=>n===0).length,worse:shotDelta.filter(n=>n<0).length}};
  }
