@@ -34,7 +34,12 @@ function update(players,time,dt=1/60,options={}){
   // A head turn is an observation window, never a change to the body's pose.
   const occupied=p.duelRecovery>0||p.receiveClock>0||p.actionClock>0&&['pass','through','cross','cutback','long-pass','shot','shoot','clearance','tackle','dive','receive'].includes(p.action);
   const scanning=options.scanAllowed!==false&&!occupied;
-  if(advancing&&time>=state.nextScanAt){
+  const receiveScan=options.receiveScan;
+  const targeted=advancing&&scanning&&receiveScan?.id===p.id&&Number.isFinite(receiveScan.flightId)&&Number.isFinite(receiveScan.yaw)&&Math.abs(receiveScan.yaw)>.55&&state.lastReceiveScan!==receiveScan.flightId&&time>=state.scanUntil&&time>=state.nextScanAt-.50;
+  if(targeted){
+   state.headYaw=clamp(receiveScan.yaw,-1.55,1.55);state.scanSide=Math.sign(state.headYaw);
+   state.scanUntil=time+.16;state.nextScanAt=time+config.period;state.lastReceiveScan=receiveScan.flightId;
+  }else if(advancing&&time>=state.nextScanAt){
    if(scanning){state.scanSide*=-1;state.headYaw=state.scanSide*1.55;state.scanUntil=time+.16;state.nextScanAt=time+config.period;}
    else state.nextScanAt=time+.15;
   }

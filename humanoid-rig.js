@@ -126,6 +126,11 @@ function pose(p,dt=1/60){
  const feintClock=Number.isFinite(p.feintClock)?clamp(p.feintClock,0,.35):0;
  const feintU=1-feintClock/.35,feintWeight=!activeContact&&feintClock>0?Math.sin(Math.PI*feintU):0;
  const feintSide=(p.feintSign??1)>=0?1:-1;
+ // Only an accepted physical touch generates a skill cue. Existing touch
+ // anchors, planted-foot IK and kick priority stay authoritative.
+ const skillWeight=!activeContact&&p.footTouch>0?Math.sin(clamp(p.footTouch/.14,0,1)*Math.PI/2):0;
+ const cutWeight=p.touchMode==='cut'?skillWeight:0,burstWeight=p.touchMode==='burst'?skillWeight:0;
+ const cutSide=p.dribbleFoot===0?-1:1;
  const shieldTarget=!activeContact&&p.brainRole==='shield'?1:0;
  st.shieldWeight=mix(st.shieldWeight,shieldTarget,1-Math.exp(-dt*(shieldTarget?18:14)));
  const shieldWeight=clamp(st.shieldWeight,0,1);
@@ -153,7 +158,7 @@ function pose(p,dt=1/60){
  const headerU=act==='header'&&p.actionClock>0?clamp((p.actionElapsed||0)/Math.max(.1,p.actionDuration||.5),0,1):0,headerWave=Math.sin(Math.PI*headerU);
  const headerBend=p.headerHeight?clamp((1.77-p.headerHeight)*headerWave,0,.8):0;
  const shieldSide=p.dribbleFoot===0?1:-1;
- const pitch=clamp(st.lean*2+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp(st.turn*.25+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
+ const pitch=clamp(st.lean*2+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp(st.turn*.25+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055+cutWeight*cutSide*.045,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
  const facing=[Math.cos(p.face||0),0,Math.sin(p.face||0)],right=[-facing[2],0,facing[0]];
  const up=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
  const bodyForward=unit(sub(facing,mul(up,dot(facing,up)))),bodyRight=unit(cross(bodyForward,up)),bodyFrame={forward:bodyForward,up,right:bodyRight};
@@ -213,7 +218,10 @@ function pose(p,dt=1/60){
   // The feint is a fake step, not a second ball impulse. Preserve the
   // unselected support foot and solve the lifted ankle through bounded IK.
   if(!kicking&&feintWeight>.001&&i===feintFoot&&p.footTouch<=0){
-   const target=world(p,.11,side*.24,GROUND+.075);
+   const stepOver=p.feintStyle==='step-over';
+   // Swing around the ball-side corridor without adding a second impulse;
+   // the support boot stays under the same bounded leg solver.
+   const target=stepOver?world(p,.21+.19*Math.sin(feintU*Math.PI),side*mix(.12,.32,smooth(feintU)),GROUND+.12):world(p,.11,side*.24,GROUND+.075);
    foot=blend(foot,target,feintWeight*.8);footFace=p.face;stance=false;
   }
   // A deceived defender takes a visible preparatory shuffle in the same
@@ -231,6 +239,10 @@ function pose(p,dt=1/60){
   const shoulder=add(torsoUpper,mul(bodyRight,side*ANATOMY.shoulderWidth/2));
   const swing=-Math.sin(st.phase*2*Math.PI+i*Math.PI)*st.activity*(.22+.12*sprint);
   let wrist=world(p,swing+kick*(i===1?-.35:.24),side*(.255+kick*.10),.94+bounce+celebrating*.93+protest*.30-tackle*.17-gather);
+  if(cutWeight>.001||burstWeight>.001){
+   const target=world(p,cutWeight>0?(side===cutSide?-.14:.18):-.18,side*.29,1.02);
+   wrist=blend(wrist,target,Math.max(cutWeight*.5,burstWeight*.4));
+  }
   if(feintWeight>.001){
    // Shoulder counter-rotation makes the defender-facing fake visible.
    const target=world(p,side===feintSide?-.10:.18,side*.26,1.02);
@@ -255,7 +267,7 @@ function pose(p,dt=1/60){
   if(act==='throw'&&p.actionClock>0){const u=smooth((p.actionElapsed||0)/Math.max(.1,p.contactTime||.55));wrist=blend(wrist,world(p,mix(-.06,.4,u),side*.12,1.95),action);}
   arms.push({shoulder,target:wrist});
  }
- let result={pelvis,neck,head,headTop,torsoBase,torsoMid,torsoUpper,legs,arms,activity:st.activity,sprint,kick,tackle,diving,celebrating,protest,face:p.face,action:act,weight:action,turn:st.turn,feintWeight,shieldWeight,defenderMisread,wallPassWeight};
+ let result={pelvis,neck,head,headTop,torsoBase,torsoMid,torsoUpper,legs,arms,activity:st.activity,sprint,kick,tackle,diving,celebrating,protest,face:p.face,action:act,weight:action,turn:st.turn,feintWeight,shieldWeight,defenderMisread,wallPassWeight,cutWeight,burstWeight};
  if(hasScan||st.scanYaw){result.headYaw=st.scanYaw;result.headFace=(p.face||0)+st.scanYaw;}
  let frame=bodyFrame,contactTargets=null;
  const bodyKeys=['pelvis','neck','head','headTop','torsoBase','torsoMid','torsoUpper'];

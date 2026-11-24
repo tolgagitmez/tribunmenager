@@ -3,6 +3,9 @@ name: Licensed human character
 on:
   pull_request:
     paths:
+      - 'tools/rig-provenance.cjs'
+      - 'assets/interchange/rig-reference.js'
+      - 'tests/test_player_assets.py'
       - 'football-sim.js'
       - 'humanoid-rig.js'
       - 'player-skinning.js'
@@ -23,6 +26,10 @@ on:
       - 'requirements-player-assets.txt'
       - '.github/workflows/licensed-character.yml'
   workflow_dispatch:
+
+concurrency:
+  group: ci-licensed-character-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   regressions:

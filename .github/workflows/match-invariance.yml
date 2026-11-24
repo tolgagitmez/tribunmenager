@@ -22,6 +22,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: ci-match-invariance-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   engine-invariance:
     runs-on: ubuntu-latest

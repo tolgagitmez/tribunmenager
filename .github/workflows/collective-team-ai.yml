@@ -9,6 +9,10 @@ on:
       - 'team-intent.js'
       - 'tests/collective-team-ai.test.cjs'
       - '.github/workflows/collective-team-ai.yml'
+concurrency:
+  group: ci-collective-team-ai-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   team:
     runs-on: ubuntu-latest

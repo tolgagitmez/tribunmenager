@@ -141,10 +141,26 @@ def obj(path):
 
 
 def reference_frames():
-    if sha((ROOT / 'humanoid-rig.js').read_bytes()) != RIG_SHA256:
-        raise ValueError('humanoid-rig.js differs from the reviewed rig reference; review the bind pose before rebuilding')
-    code = "const R=require('./humanoid-rig');const p={x:0,z:0,face:0,speed:0,action:'idle',actionClock:0};process.stdout.write(JSON.stringify(R.boneFrames(R.update(p,0))))"
-    frames = json.loads(subprocess.check_output(['node','-e',code], cwd=ROOT))
+    # Geometry is generated from the immutable reviewed bind reference.
+    # Live animation can evolve only through the explicit provenance check.
+    historical = ROOT / 'assets/interchange/rig-reference.js'
+    runtime = ROOT / 'humanoid-rig.js'
+    if not historical.is_file() or sha(historical.read_bytes()) != RIG_SHA256:
+        raise ValueError('Historical reviewed rig reference is missing or altered')
+    if not runtime.is_file():
+        raise ValueError('Live reviewed rig reference is missing')
+    code = (
+        "require('./tools/rig-provenance.cjs').verifyRigReference(process.argv[1]);"
+        "const frame=R=>R.boneFrames(R.update({x:0,z:0,face:0,speed:0,action:'idle',actionClock:0},0));"
+        "const canonical=JSON.stringify(frame(require('./assets/interchange/rig-reference.js')));"
+        "const current=JSON.stringify(frame(require('./humanoid-rig.js')));"
+        "if(current!==canonical)throw Error('Live bind frames differ from historical reference');"
+        "process.stdout.write(canonical);"
+    )
+    try:
+        frames = json.loads(subprocess.check_output(['node','-e',code,RIG_SHA256], cwd=ROOT, stderr=subprocess.PIPE))
+    except subprocess.CalledProcessError as exc:
+        raise ValueError('Runtime differs from the reviewed rig reference: ' + exc.stderr.decode(errors='replace')) from exc
     if set(frames) != set(NAMES):
         raise ValueError('Canonical rig must expose exactly the reviewed nineteen bones')
     return {name: tuple(np.asarray(p, dtype=float) for p in frames[name]) for name in NAMES}

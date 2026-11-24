@@ -3,6 +3,9 @@ name: Standard glTF interchange
 on:
   pull_request:
     paths:
+      - 'tools/rig-provenance.cjs'
+      - 'assets/interchange/rig-reference.js'
+      - 'humanoid-rig.js'
       - '**/*.mjs'
       - 'interop-lab.*'
       - 'player-renderer.js'
@@ -19,6 +22,10 @@ on:
       - 'package*.json'
       - '.github/workflows/gltf-interop.yml'
   workflow_dispatch:
+
+concurrency:
+  group: ci-gltf-interop-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   regressions:

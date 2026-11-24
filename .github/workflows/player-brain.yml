@@ -11,6 +11,10 @@ on:
   push:
     branches:
       - 'feature/individual-onball-decisions-20261124'
+concurrency:
+  group: ci-player-brain-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   player-brain:
     runs-on: ubuntu-latest

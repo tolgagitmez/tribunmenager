@@ -9,6 +9,10 @@ on:
     branches:
       - main
   workflow_dispatch:
+concurrency:
+  group: ci-attack-coverage-sync-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   controlled-coverage:
     runs-on: ubuntu-latest

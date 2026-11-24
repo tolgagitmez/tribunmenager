@@ -61,7 +61,7 @@ function packGLB(json,bin){
  const out=Buffer.alloc(28+j.length+b.length);out.writeUInt32LE(0x46546c67,0);out.writeUInt32LE(2,4);out.writeUInt32LE(out.length,8);out.writeUInt32LE(j.length,12);out.writeUInt32LE(0x4e4f534a,16);j.copy(out,20);out.writeUInt32LE(b.length,20+j.length);out.writeUInt32LE(0x004e4942,24+j.length);b.copy(out,28+j.length);return out;
 }
 function bakeLicensedGLB({source=path.join(__dirname,'../assets/player/footballer.glb')}={}){
- if(sha256(fs.readFileSync(path.join(__dirname,'../humanoid-rig.js')))!==RIG_SHA256)throw Error('Reviewed canonical rig pin changed');
+ require('./rig-provenance.cjs').verifyRigReference(RIG_SHA256);
  const bytes=fs.readFileSync(source),parsed=parseGLB(bytes),json=parsed.json,bin=Buffer.from(parsed.bin),blobs=[bin];let length=bin.length;
  // The inherited runtime color multiplier includes 1.05 highlights. Standard
  // glTF COLOR_0 must be in [0,1]; normalize only this derivative, never source.

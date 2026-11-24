@@ -16,6 +16,10 @@ on:
       - tools/benchmark-live-contact-pilot.cjs
       - .github/workflows/live-contact-pilot.yml
   workflow_dispatch:
+concurrency:
+  group: ci-live-contact-pilot-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   physics-and-footlock:
     runs-on: ubuntu-latest
