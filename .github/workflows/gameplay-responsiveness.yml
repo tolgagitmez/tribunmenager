@@ -1,0 +1,20 @@
+name: Gameplay responsiveness pilot
+on:
+  push:
+    branches: ['feature/api-football-access-probe']
+    paths: ['football-sim.js','match3d.js','tests/gameplay-responsiveness.test.cjs','tools/compare-responsive-gameplay.cjs','.github/workflows/gameplay-responsiveness.yml']
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test tests/gameplay-responsiveness.test.cjs tests/attacking-quality.test.cjs tests/individual-keeper.test.cjs tests/match-laws-integration.test.cjs tests/touch-feasibility.test.cjs
+      - run: node tools/compare-responsive-gameplay.cjs

@@ -80,7 +80,7 @@ function updateKickCamera(){
 function init(){
  if(attackObserver)attackObserver.detach();
  closeKickControls();scene.managerKickView=null;kickFollow=null;
- game=new window.TribunFootball.Match({...cfg,individualAI:cfg.individualAI!==false,managerKicks:cfg.managerKicks!==false},Rig);scene.resetAnimation();attackObserver=window.TribunAttackDiagnostics.attach(game);
+ game=new window.TribunFootball.Match({...cfg,individualAI:cfg.individualAI!==false,managerKicks:cfg.managerKicks!==false,gameplayResponsiveness:!new URLSearchParams(location.search).has('baseline')&&cfg.gameplayResponsiveness!==false},Rig);scene.resetAnimation();attackObserver=window.TribunAttackDiagnostics.attach(game);
  if(!attackView)attackView=window.TribunAttackAnalysisUI.mount($('attackAnalysis'),{summary:()=>attackObserver.summary(),report:()=>attackObserver.report()});
  resetPresentation();
 }
