@@ -331,6 +331,7 @@ window.TRIBUN_MATCH_TEST={skillRenderProbe,attackReport:()=>attackObserver.repor
    return {cpuGpuMs:performance.now()-start,profile:scene.performanceMode(),clock:game.time,score:[...game.score]};
   }finally{scene.camera=previous.camera;scene.cameraSmoothing=previous.eye;scene.cameraTarget=previous.target;scene.managerKickView=previous.kick;}
  },
+ renderPixels:()=>{const gl=scene.gl,b=game.ball;if(!gl)throw Error('WebGL required');scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);const data=new Uint8Array(scene.canvas.width*scene.canvas.height*4);gl.readPixels(0,0,scene.canvas.width,scene.canvas.height,gl.RGBA,gl.UNSIGNED_BYTE,data);const error=gl.getError();if(error!==gl.NO_ERROR)throw Error('Render readback GL error '+error);return data;},
  renderProbe:()=>{const b=game.ball,start=performance.now();scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);if(scene.gl)scene.gl.finish();return {cpuGpuMs:performance.now()-start,active:game.players.filter(p=>p.active&&!p.referee).length,bridge:scene.animationStats(),webgl:!!scene.gl};},
  advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();
