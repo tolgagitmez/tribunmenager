@@ -301,6 +301,7 @@ class Match{
   for(const d of opponents){
    let hit=segment(d,pathOrigin,point);
    if(hit.u>=.05&&hit.u<=.98){const travel=Math.min(6,BallPhysics.groundTime(pathLength*hit.u,power)),future=d.passFuture?d.passFuture(Math.min(.5,travel)):{x:d.x+d.vx*Math.min(.5,travel),z:d.z+d.vz*Math.min(.5,travel)};hit=segment(future,pathOrigin,point);const reach=.55+Math.max(0,travel-.22)*3.9+clamp(d.uncertainty||0,0,.8);risk=Math.max(risk,clamp((reach-hit.d)/Math.max(.7,reach),0,1));}
+   if(risk===1)return 1;
    if(ground&&Math.max(d.touchClock||0,d.duelRecovery||0)<.3&&dist(d,origin)<.3*(power+Math.hypot(d.vx,d.vz))+1.1+(d.passFuture?.5:0))near.push(d);
   }
   // The longer-range arrival estimate must not miss a boot already crossing
@@ -313,7 +314,7 @@ class Match{
     const ready=Math.max(.025,d.touchClock||0,d.duelRecovery||0);if(ready>=end)continue;
     const relative=t=>{const travel=BallPhysics.ground(power,t).distance;if(d.passFuture){const future=d.passFuture(t);return {x:origin.x+dx*travel-future.x,z:origin.z+dz*travel-future.z};}return {x:origin.x+dx*travel-d.x-d.vx*t,z:origin.z+dz*travel-d.z-d.vz*t};};
     let at=ready,previous=relative(at);
-    while(at<end-1e-9){at=Math.min(end,at+.1);const next=relative(at),gap=segment({x:0,z:0},previous,next).d;risk=Math.max(risk,clamp((1.0-gap)/.4,0,1));previous=next;}
+    while(at<end-1e-9){at=Math.min(end,at+.1);const next=relative(at),gap=segment({x:0,z:0},previous,next).d;risk=Math.max(risk,clamp((1.0-gap)/.4,0,1));if(risk===1)return 1;previous=next;}
    }
   }
   return risk;
@@ -325,11 +326,11 @@ class Match{
  }
  observedLine(p){return this.rivals(p,true).map(q=>q.x*this.direction(p.team)).sort((a,b)=>b-a)[1]??49;}
  defenceLine(team){return this.team(1-team).map(q=>q.x*this.direction(team)).sort((a,b)=>b-a)[1]??49;}
- receptionSafety(p,q,point,seconds){
+ receptionSafety(p,q,point,seconds,opponents=null){
   const top=player=>5.7+((player.pace??player.skill)-75)*.04;
   const control=.12+(100-q.skill)*.003,receiverArrival=dist(q,point)/Math.max(3.5,top(q));
   let risk=0,pressure=18,defenderArrival=10;
-  for(const rival of this.rivals(p)){
+  for(const rival of opponents||this.rivals(p)){
    const future={x:rival.x+rival.vx*Math.min(seconds,.6)*.5,z:rival.z+rival.vz*Math.min(seconds,.6)*.5};
    const uncertainty=clamp(rival.uncertainty||0,0,1),gap=Math.max(0,dist(future,point)-uncertainty),arrival=.22+Math.max(0,dist(rival,point)-uncertainty)/Math.max(3.5,top(rival));pressure=Math.min(pressure,gap);defenderArrival=Math.min(defenderArrival,arrival);
    const from={x:p.x-point.x,z:p.z-point.z},op={x:rival.x-point.x,z:rival.z-point.z},length=Math.hypot(from.x,from.z)*Math.hypot(op.x,op.z)||1;
@@ -407,12 +408,12 @@ class Match{
   return point;
  }
  passOptions(p){
-  const options=[],forward=this.direction(p.team),t=this.t[p.team],tempo=+t.tempo,line=this.observedLine(p),pressure=Math.min(15,...this.rivals(p).map(q=>dist(p,q)));
+  const options=[],forward=this.direction(p.team),t=this.t[p.team],tempo=+t.tempo,line=this.observedLine(p),opponents=this.rivals(p),pressure=Math.min(15,...opponents.map(q=>dist(p,q))),context=this.matchContext(p.team);
   for(const q of this.team(p.team)){
    if(q.id===p.id)continue;const d=dist(p,q),limit=t.passing==='short'?28:t.passing==='direct'?62:49;if(d<3.4||d>limit)continue;if(q.x*forward>Math.max(line,this.ball.x*forward)+.12&&q.x*forward>0)continue;
    const long=d>32&&(t.passing==='direct'||Math.abs(q.z-p.z)>32),kind=long?'long-pass':'pass',speed=this.passSpeed(kind,d,t),arrival=this.passTime(kind,d,speed);if(!Number.isFinite(arrival))continue;
    const lead=clamp(arrival,.14,1.6),predicted=this.receiverPoint(q,lead),point={x:clamp(predicted.x,-49,49),z:clamp(predicted.z,-31,31)};
-   const reception=this.receptionSafety(p,q,point,this.passTime(kind,dist(p,point),speed)),risk=this.laneRisk(p,point,speed,kind),space=Math.min(15,reception.pressure),advance=(point.x-p.x)*forward;
+   const reception=this.receptionSafety(p,q,point,this.passTime(kind,dist(p,point),speed),opponents),risk=this.laneRisk(p,point,speed,kind,opponents),space=Math.min(15,reception.pressure),advance=(point.x-p.x)*forward;
    const lane=long?risk*.32:risk,preferred=t.passing==='short'?11:t.passing==='direct'?29:17,offBallKind=this.offBallRead(p,q);
    let score=space*.68+advance*(t.playstyle==='counter'||t.playstyle==='direct'?.82:t.passing==='short'?.36:.48)-lane*28-reception.risk*9-Math.abs(d-preferred)*(t.passing==='short'?.52:.23);
    score+=Math.max(0,this.threat(point,p.team)-this.threat(p,p.team))*10;
@@ -429,7 +430,7 @@ class Match{
     const foot=p.footPreference,wide=Math.sign(p.homeZ||1)===Math.sign(point.z||1);
     score+=wide?2*(foot==='both'||foot==='unknown'||foot===(p.homeZ<0?'left':'right')?1:.55):-.8;
    }
-   const context=this.matchContext(p.team),bodyTurn=Math.abs(angle(Math.atan2(point.z-p.z,point.x-p.x),p.face));
+   const bodyTurn=Math.abs(angle(Math.atan2(point.z-p.z,point.x-p.x),p.face));
    score+=context.urgency*advance*.18-bodyTurn*(1-(p.composure??p.skill)/120)*1.2;
    if(context.protect)score+=lane<.2?2:-lane*5;
    const combo=this.giveGoLink(p,q),movingReturn=!!combo&&(q.x-combo.origin.x)*forward>1.8;
@@ -482,8 +483,8 @@ class Match{
     const along=(q.vx||0)*Math.cos(heading)+(q.vz||0)*Math.sin(heading);
     const delay=timed?Math.max(0,speed-along)/16+Math.abs(angle(heading,q.face??heading))*.09:0;
     const reachTime=dist(q,run)/speed+delay,flight=this.passTime('through',dist(p,run),21);
-    const advanced=this.playerBrainEnabled(p),rivals=this.rivals(p),r=this.laneRisk(p,run,advanced?21:20,'through'),open=Math.min(16,...rivals.map(o=>dist(o,run)));
-    const runReception=advanced?this.receptionSafety(p,q,run,flight):reception;
+    const advanced=this.playerBrainEnabled(p),rivals=opponents,r=this.laneRisk(p,run,advanced?21:20,'through',rivals),open=Math.min(16,...rivals.map(o=>dist(o,run)));
+    const runReception=advanced?this.receptionSafety(p,q,run,flight,rivals):reception;
     const arrivalRisk=runReception.risk,runSpace=advanced?Math.min(open,runReception.pressure):open;
     const runGain=(run.x-p.x)*forward,runBonusSafe=aligned?Brain.runPassBias(p,{kind:offBallKind,risk:r,arrivalRisk,space:runSpace}):0;
     const defenderArrival=Math.min(10,...rivals.map(o=>dist(o,run)/(5.7+((o.pace??80)-75)*.04)+.18));
