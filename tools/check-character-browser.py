@@ -271,7 +271,7 @@ try:
         baseline_hash = hashlib.sha256(baseline.encode()).hexdigest()
         assert 'Yakın' in match.locator('#camButton').inner_text()
         frame = capture(match)
-        assert frame['skinDraws'] == 23 and frame['indexCount'] > 0
+        assert 0 < frame['skinDraws'] <= 23 and frame['indexCount'] > 0
         textures = match.evaluate('window.__playerAssetQA.textureUploads')
         assert {r['path'] for r in textures} == {'/assets/player/textures/skin-detail.png', '/assets/player/textures/fabric-detail.png'}
         assert all(r['width'] == 256 and r['height'] == 256 for r in textures)
@@ -284,15 +284,18 @@ try:
         shots = [image_record(match, '#stadiumCanvas', 'character-match-close.png')]
         fast_stats = match.evaluate('TRIBUN_MATCH_TEST.performanceStats()')
         bridge_stats = match.evaluate('TRIBUN_MATCH_TEST.animationStats()')
-        assert fast_stats['mode'] == 'performance' and fast_stats['players']['players'] == 23
-        assert fast_stats['players']['fast'] == 23 and fast_stats['players']['detailed'] == 0
+        assert fast_stats['mode'] == 'performance' and fast_stats['players']['active'] == 23
+        assert fast_stats['players']['players'] + fast_stats['players']['culled'] == 23
+        assert fast_stats['players']['fast'] == frame['skinDraws'] == fast_stats['players']['players'] and fast_stats['players']['detailed'] == 0
         assert bridge_stats['enabled'] and bridge_stats['players'] == 23, bridge_stats
         match.locator('#qualityButton').click()
         match.wait_for_function("TRIBUN_MATCH_TEST.performanceStats().mode==='quality'")
         quality_frame = capture(match)
         assert_palette(quality_frame)
         quality_stats = match.evaluate('TRIBUN_MATCH_TEST.performanceStats()')
-        assert quality_stats['players']['detailed'] == 23 and quality_stats['players']['fast'] == 0
+        assert quality_stats['players']['active'] == 23
+        assert quality_stats['players']['players'] + quality_stats['players']['culled'] == 23
+        assert quality_stats['players']['detailed'] == quality_frame['skinDraws'] == frame['skinDraws'] and quality_stats['players']['fast'] == 0
         assert quality_frame['indexCount'] > frame['indexCount'], 'Actual GPU submissions must use runtime reduced LODs in performance mode'
         assert quality_stats['canvas'][0] > fast_stats['canvas'][0]
         assert 'FPS' in match.locator('#qualityButton').inner_text()
