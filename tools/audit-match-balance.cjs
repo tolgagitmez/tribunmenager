@@ -18,7 +18,7 @@ function fingerprints(){
  return Object.fromEntries(files.map(f=>[f,digest(fs.readFileSync(path.join(root,f)))]));
 }
 function roster([rating,formation],team){
- return P.demoTeam(team,formation).map(p=>({...p,rating,fitness:95,form:80,...Object.fromEntries(P.attributes.filter(k=>k!=='weakFoot').map(k=>[k,Math.max(1,Math.min(99,p[k]+rating-80))]))}));
+ return P.demoTeam(team,formation).map(p=>({...p,dataKind:'synthetic-balance',rating,fitness:95,form:80,...Object.fromEntries(P.attributes.filter(k=>k!=='weakFoot').map(k=>[k,Math.max(1,Math.min(99,p[k]+rating-80))]))}));
 }
 function cases(seeds,shards=1,shard=0){
  assert(Number.isInteger(seeds)&&seeds>=1&&seeds<=100);
@@ -50,10 +50,11 @@ function simulate(c){
   assert(Number.isFinite(m.ball.x)&&Number.isFinite(m.ball.y)&&Number.isFinite(m.ball.z),c.id+' nonfinite ball');
   if(ticks%60===0)assert(m.players.every(p=>[p.x,p.z,p.vx,p.vz].every(Number.isFinite)),c.id+' nonfinite player');
  }
- assert(m.done,c.id+' failed to terminate');assert(['full-time','abandoned'].includes(m.finishReason)||m.period===2,c.id+' invalid finish');
+ assert(m.done,c.id+' failed to terminate');assert(['full-time','minimum-players'].includes(m.finishReason),c.id+' invalid finish');if(m.finishReason==='full-time')assert.equal(m.period,2);
  const pairs={goals:m.score,shots:m.shots,onTarget:m.onTarget,passes:m.passes,completed:m.completed,fouls:m.fouls,yellows:m.cards,reds:m.reds,xg:m.xg,possessionSeconds:m.possession,finalThirdSeconds:finalThird.map(n=>n*DT),boxSeconds:box.map(n=>n*DT),finalThirdEntries:entries.finalThird,boxEntries:entries.box};
  for(const [k,v] of Object.entries(pairs))assert(v.length===2&&v.every(n=>Number.isFinite(n)&&n>=0),c.id+' invalid '+k);
  const counters=Object.fromEntries(['offsides','turnovers','duels','crosses','throughBalls','abortedKicks','touchDeferrals','restarts','shotsAfterPasses','progressiveFirstTouches','openShotReleases'].map(k=>[k,m.telemetry[k]??0]));
+ for(const [k,v] of Object.entries(counters))assert(Number.isFinite(v)&&v>=0,c.id+' invalid '+k);
  return {...c,finishReason:m.finishReason,period:m.period,ticks,elapsed:m.time,seconds:{controlled:controlled*DT,loose:loose*DT,dead:dead*DT},pairs,counters,wallSeconds:Number(process.hrtime.bigint()-started)/1e9,finalSeed:m.seed};
 }
 const sum=a=>a.reduce((x,y)=>x+y,0),round=n=>Math.round(n*1000)/1000,ratio=(a,b)=>b?round(100*a/b):null;
