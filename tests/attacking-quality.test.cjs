@@ -685,3 +685,42 @@ test('a saturated pass lane never forecasts later defenders unnecessarily',()=>{
  const second={x:owner.x+8,z:owner.z,vx:0,vz:0,passFuture(){throw Error('fully blocked lane should not need another forecast');}};
  assert.equal(m.laneRisk(owner,point,17,'pass',[first,second]),1);
 });
+
+
+test('shoulder recovery depends on closing load, stability and fatigue rather than overall rating',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,mid}=fixture(side);
+  Object.assign(owner,{x:0,z:0,face:side>0?0:Math.PI,vx:3*side,vz:0,speed:3,skill:82,balance:95,strength:90,agility:88,energy:1});
+  Object.assign(mid,{x:0,z:.82,face:owner.face,vx:3*side,vz:-1.8,strength:82});
+  m.ball={x:.4*side,y:.11,z:0,vx:3*side,vy:0,vz:0};
+  const contest=m.shoulderContest(mid,owner);assert(contest);
+  const strong=m.shoulderRecoveryRead(owner,mid,contest);
+  const weak=m.shoulderRecoveryRead({...owner,balance:52,strength:55,agility:60},mid,contest);
+  const tired=m.shoulderRecoveryRead({...owner,energy:.3},mid,contest);
+  assert(strong&&weak&&tired);assert(weak.severity>strong.severity);assert(weak.duration>strong.duration);assert(tired.severity>strong.severity);
+  assert.equal(m.shoulderRecoveryRead(owner,{...mid,vz:1.8},contest),null);
+  assert.equal(m.shoulderRecoveryRead(owner,mid,null),null);
+  assert(weak.duration<=.5);
+ }
+});
+test('legal shoulder recovery changes subsequent movement, never teleports or grants possession',()=>{
+ const {m,owner,mid,back,link,keeper}=fixture();
+ m.cfg.physicalDuelExperiment=true;back.active=link.active=keeper.active=false;
+ Object.assign(owner,{x:0,z:0,face:0,vx:3,vz:0,speed:3,balance:55,strength:60,agility:65,energy:1});
+ Object.assign(mid,{x:0,z:.82,face:0,vx:3,vz:-1.8,strength:90,tackleClock:0});
+ m.ball={x:.4,y:.11,z:0,vx:3,vy:0,vz:0};
+ const before={x:owner.x,z:owner.z,vx:owner.vx,vz:owner.vz,ball:{...m.ball}};
+ m.tackleAccess=()=>({attempt:true,style:'stand'});m.random=()=>.99;
+ m.doTackle(mid,owner);
+ assert(m.owner===owner);assert(m.telemetry.balanceRecoveries>=1);
+ assert.equal(owner.x,before.x);assert.equal(owner.z,before.z);assert.equal(owner.vx,before.vx);assert.equal(owner.vz,before.vz);assert.deepEqual(m.ball,before.ball);
+ const end=owner.balanceRecoveryUntil,contest=m.shoulderContest(mid,owner);
+ assert.equal(m.applyShoulderRecovery(owner,mid,contest),false);assert.equal(owner.balanceRecoveryUntil,end);
+ const normal={...owner,balanceRecoveryUntil:0},recovering={...owner},target={x:8,z:0,pace:1,state:'dribble'};
+ m.move(normal,target,1/60);m.move(recovering,target,1/60);
+ assert(recovering.speed<normal.speed);assert(recovering.x<=normal.x);assert.deepEqual(m.ball,before.ball);
+ m.time=end+.01;
+ const expired={...owner},clear={...owner,balanceRecoveryUntil:0};
+ m.move(expired,target,1/60);m.move(clear,target,1/60);
+ assert.deepEqual([expired.x,expired.z,expired.vx,expired.vz,expired.face],[clear.x,clear.z,clear.vx,clear.vz,clear.face]);
+});
