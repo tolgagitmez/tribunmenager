@@ -897,6 +897,17 @@ class Match{
   const balanced=turn<.85&&(p.speed||0)<5&&pressure>2.4;
   // These are strike intentions, not preselected outcomes. All use the
   // ordinary physical boot contact and the same interception/goal rules.
+  const keeper=this.rivals(p,true).find(q=>q.role==='GK');
+  if(keeper&&balanced&&skill>=80&&composure>=80&&depth>=13&&depth<=25&&Math.abs(p.z)<10&&52-keeper.x*side>=8&&(keeper.x-p.x)*side>5){
+   const power=clamp(13+skill*.025,14,16),height=.95,range=dist(p,point),vy=BallPhysics.verticalLaunch(range,power,.11,height,10,.4);
+   const trial={x:p.x,y:.11,z:p.z,vx:Math.cos(heading)*power,vz:Math.sin(heading)*power,vy};
+   const over=BallPhysics.atX(trial,keeper.x,3),goal=BallPhysics.atX(trial,52*side,3);
+   // A lob is only considered if the shared flight model actually clears
+   // the observed keeper and descends into the goal mouth.
+   if(over&&over.y>2.8&&goal&&goal.y<2.30&&goal.y>.2&&Math.abs(goal.z)<3.5)return {style:'chip',power,height};
+  }
+  if(balanced&&skill>=83&&composure>=76&&distance>=16&&distance<=29&&Math.abs(p.z)>=8&&Math.abs(p.z)<=19)
+   return {style:'curled',power:clamp(20+skill*.045,22,25),height:1.1,spin:-Math.sign(p.z)*side*.24};
   if(distance<17&&balanced&&composure>=75)return {style:'placed',power:clamp(19+skill*.045,20,24),height:.65};
   return {style:'driven',power:clamp((21+skill*.085)*(1-Math.max(0,3-pressure)*.025),20,32),height:distance>22?1.25:.85};
  }
@@ -906,7 +917,27 @@ class Match{
   if(!this.startKick(p,'shot',null,point,profile.power))return false;
   this.kick.heightTarget=profile.height;
   this.kick.shotStyle=profile.style;
+  if(profile.spin)this.kick.shotSpin=profile.spin;
   return true;
+ }
+ curvedShotVelocity(k,power,height){
+  const b=this.ball,side=this.direction(k.p.team),plane=52*side,dx=k.point.x-b.x;
+  if(!k.shotSpin||Math.abs(dx)<1||Math.abs(plane-b.x)<1)return null;
+  const targetZ=b.z+(k.point.z-b.z)*(plane-b.x)/dx;
+  let yaw=Math.atan2(k.point.z-b.z,dx),best=null;
+  // Solve the initial direction against the *same* spin/drag model used
+  // in live play. Never redirect the ball after the boot contact.
+  for(let i=0;i<4;i++){
+   const vx=Math.cos(yaw)*power,vz=Math.sin(yaw)*power;
+   const vy=BallPhysics.verticalLaunch(Math.abs((plane-b.x)/Math.cos(yaw)),power,b.y,height,10,.4);
+   const velocity={vx,vz,vy,spin:k.shotSpin},cross=BallPhysics.atX({...b,...velocity},plane,3);
+   if(!cross)break;
+   const error=targetZ-cross.z;
+   if(!best||Math.abs(error)<best.error)best={velocity,error:Math.abs(error)};
+   if(Math.abs(error)<.03)break;
+   yaw+=clamp(side*error/Math.max(3,Math.abs(plane-b.x)),-.25,.25);
+  }
+  return best?.velocity??null;
  }
  aimShot(p,point,origin=p){
   const preferred=point?.z??this.shotWindow(p).point.z,pressure=Math.min(20,...this.rivals(p).map(q=>dist(p,q)));
@@ -1206,7 +1237,9 @@ class Match{
    const aimed={x:k.point.x-(k.point.z-this.ball.z)/d*accuracy,z:k.point.z+(k.point.x-this.ball.x)/d*accuracy};
    const length=dist(this.ball,aimed)||1;
    this.ball.vx=(aimed.x-this.ball.x)/length*power;this.ball.vz=(aimed.z-this.ball.z)/length*power;
-   if(k.kind==='shot'){const pressure=Math.min(10,...this.field(1-p.team).map(q=>dist(q,p))),spread=1.6+(100-p.shooting)*.09+Math.max(0,d-12)*.08+(pressure<3?1:0),height=clamp(k.heightTarget!==undefined?k.heightTarget+(this.random()-.5)*(.8+(100-p.shooting)*.04):.85+(this.random()-.5)*spread,.12,3.6);this.ball.vy=BallPhysics.verticalLaunch(d,power,this.ball.y,height,10,.4);}
+   if(k.kind==='shot'){const pressure=Math.min(10,...this.field(1-p.team).map(q=>dist(q,p))),spread=1.6+(100-p.shooting)*.09+Math.max(0,d-12)*.08+(pressure<3?1:0),height=clamp(k.heightTarget!==undefined?k.heightTarget+(this.random()-.5)*(.8+(100-p.shooting)*.04):.85+(this.random()-.5)*spread,.12,3.6);this.ball.vy=BallPhysics.verticalLaunch(k.shotStyle?Math.abs((52*this.direction(p.team)-this.ball.x)/(this.ball.vx/power||.01)):d,power,this.ball.y,height,10,.4);
+    if(k.shotStyle==='curled'){const curved=this.curvedShotVelocity(k,power,height);if(curved)Object.assign(this.ball,curved);}
+   }
    else if(k.kind==='cross'){this.ball.vy=BallPhysics.verticalLaunch(d,power,this.ball.y,1.75,11,4);}
    else if(k.kind==='long-pass'||k.kind==='clearance'){this.ball.vy=BallPhysics.verticalLaunch(d,power,this.ball.y,.45,12,4.5);}
    else if(k.kind==='throw'){this.ball.vy=BallPhysics.verticalLaunch(d,power,this.ball.y,.45,7,-1);}
@@ -1228,7 +1261,8 @@ class Match{
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
   if(k.kind==='shot'&&k.shotStyle){
    this.flight.shotStyle=k.shotStyle;
-   const key=k.shotStyle==='placed'?'placedShotReleases':'drivenShotReleases';
+   const key={placed:'placedShotReleases',driven:'drivenShotReleases',curled:'curledShotReleases',chip:'chipShotReleases'}[k.shotStyle];
+   if(k.firstTime)this.telemetry.firstTimeShotReleases=(this.telemetry.firstTimeShotReleases||0)+1;
    this.telemetry[key]=(this.telemetry[key]||0)+1;
   }
   if(k.moving&&k.kind==='shot')this.telemetry.movingShots++;
@@ -2518,6 +2552,23 @@ class Match{
    if(exit)this.ballExit(exit);return;
   }
  }
+ firstTimeFinish(p){
+  const f=this.flight,b=this.ball,side=this.direction(p.team);
+  if(this.owner||this.kick||!this.playerBrainEnabled(p)||!f||f.from?.team!==p.team||f.target!==p||
+   !['pass','through','cutback'].includes(f.kind)||p.role==='GK'||p.shooting<80||(p.composure??p.skill)<78||
+   p.x*side<35.5||Math.abs(p.z)>15||b.y>.22||Math.abs(b.vy)>.8||p.receiveClock>0||Math.hypot(b.vx-p.vx,b.vz-p.vz)>18)return false;
+  const foot=this.touchContact(p,b),window=this.shotWindow(p),heading=Math.atan2(window.point.z-p.z,window.point.x-p.x);
+  if(!foot.ready||foot.footClock>0||Math.abs(angle(heading,p.face))>.38||!this.clearFinish(p,window))return false;
+  const contact=this.contactPoint({...p,kickFoot:foot.foot},'shot');
+  if(Math.hypot(contact[0]-b.x,contact[2]-b.z)>.24)return false;
+  // A physical receiving contact completes the delivery. It is immediately
+  // redirected as a shot; there is no invented setup touch or ball relocation.
+  if(!this.acquire(p))return false;
+  if(!this.startKick(p,'shot',null,window.point,clamp(20+p.shooting*.065,23,27)))return false;
+  this.kick.heightTarget=.75;this.kick.shotStyle='driven';this.kick.firstTime=true;
+  this.release();
+  return true;
+ }
  fieldBallContact(previous){
   const b=this.ball;
   // Blocks, interceptions and first touches happen only near the physical ball.
@@ -2535,6 +2586,7 @@ class Match{
     if(speed>21&&p.role!=='GK'){b.vx*=.45;b.vz*=.45;b.vy=1.3;p.touchClock=.35;this.lastTouch=p;this.owner=null;this.flight=null;this.phase='open';this.telemetry.looseBalls++;return;}
     if(!this.owner||p.team!==this.owner.team&&dist(this.owner,b)>1.6){
      const sweep=p.role==='GK'&&this.playerBrainEnabled(p)&&this.targets.get(p)?.state==='keeper-sweep'&&this.flight?.from?.team===1-p.team;
+     if(this.firstTimeFinish(p))return;
      if(this.acquire(p)&&sweep)this.telemetry.keeperSweeps=(this.telemetry.keeperSweeps||0)+1;
      return;
     }
