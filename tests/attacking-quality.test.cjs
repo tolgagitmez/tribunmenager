@@ -489,3 +489,43 @@ test('carry forecast rejects an unnecessarily wide gap and accepts a recoverable
  const plan=m.touchPlan(owner,{vx:6,vz:0,vy:0},{mode:'carry',interval:.25,maxGap:1.3});
  assert(plan.ready&&plan.limited);assert(plan.velocity.vx<=3);
 });
+
+
+test('second-wave midfielder chooses a distinct onside half-space and preserves the anchor',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back,keeper}=fixture(side);
+  Object.assign(owner,{x:28*side,z:2});
+  Object.assign(link,{x:27*side,z:6,position:'AM',homeX:19*side,energy:1});
+  mid.active=false;back.x=44*side;back.z=23;keeper.x=49*side;
+  m.ball.x=owner.x;m.ball.z=owner.z;
+  const occupied=new Map([[1,{x:39*side,z:0}],[2,{x:40*side,z:-12}]]);
+  const point=m.secondWavePoint(owner,link,occupied,44);
+  assert(point);assert(point.x*side>=35.5);assert(point.x*side<=44-Brain.runMargin(link,side)+1e-8);
+  assert([...occupied.values()].every(q=>Math.hypot(q.x-point.x,q.z-point.z)>=5.5));
+  assert.equal(m.secondWavePoint(owner,link,occupied,35),null);
+  link.position='DM';assert.equal(m.secondWavePoint(owner,link,occupied,44),null);
+ }
+});
+
+test('run delivery prefers an accepted box entry over recycling, but rejects stale, offside or blocked options',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{x:28*side,z:0,receiveClock:0});
+  Object.assign(link,{role:'MID',position:'AM',x:32*side,z:7});
+  back.x=44*side;back.z=20;mid.active=false;
+  m.ball.x=owner.x;m.ball.z=0;
+  const Intent=require('../team-intent');
+  Intent.resolve(link,{x:38*side,z:8,state:'box-run',pace:1.06,partnerId:owner.id,priority:30},m.taskContext(link));
+  const feed={kind:'pass',q:link,point:{x:37*side,z:8},risk:.10,arrivalRisk:.25,space:5,score:8,distance:12};
+  const recycle={...feed,point:{x:18*side,z:0},score:30};
+  m.passPreparation=()=>({feasible:true});
+  assert(m.attackingRunDelivery(owner,[recycle,feed])?.attackingRunDelivery);
+  assert.equal(m.attackingRunDelivery(owner,[{...feed,risk:.65}]),null);
+  assert.equal(m.attackingRunDelivery(owner,[{...feed,kind:'through',plannedRun:false}]),null);
+  assert(m.attackingRunDelivery(owner,[{...feed,kind:'through',plannedRun:true}]));
+  m.passPreparation=()=>({feasible:false});assert.equal(m.attackingRunDelivery(owner,[feed]),null);
+  m.passPreparation=()=>({feasible:true});
+  link.task.epoch--;assert.equal(m.attackingRunDelivery(owner,[feed]),null);
+  link.task.epoch++;link.x=46*side;assert.equal(m.attackingRunDelivery(owner,[feed]),null);
+ }
+});
