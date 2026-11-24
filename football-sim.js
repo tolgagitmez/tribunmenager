@@ -670,6 +670,16 @@ class Match{
   }
   return {ready:false,reason:'next-contact',contact};
  }
+ // Technical ability changes the achievable touch, not possession or
+ // a defender's movement. Use the contacting foot and actual turn angle.
+ technicalTouchProfile(p,foot,turn,pressure){
+  const skill=footSkill(p,p.dribbling??p.skill,foot);
+  const quality=clamp((skill*.55+(p.agility??p.skill)*.18+(p.balance??p.skill)*.12+(p.composure??p.skill)*.15-55)/40,0,1);
+  const load=clamp(turn/1.65,0,1)*.65+clamp((5-pressure)/4,0,1)*.35;
+  const fatigue=clamp((.72-(p.energy??1))/.40,0,1);
+  const precision=clamp(quality*(1-fatigue*.32),0,1);
+  return {precision,load,interval:clamp(.24-.055*precision+.025*load,.18,.28),retention:clamp(.035+(1-precision)*.19*load+fatigue*.045,.035,.27)};
+ }
  dribbleTouch(p){
   const b=this.ball,dx=b.x-p.x,dz=b.z-p.z,gap=Math.hypot(dx,dz),forward=dx*Math.cos(p.face)+dz*Math.sin(p.face),lateral=-dx*Math.sin(p.face)+dz*Math.cos(p.face);
   // A nearby ball still needs a reachable foot; no reverse impulse from
@@ -688,7 +698,17 @@ class Match{
   // Low technique/weak-foot sharp turns retain more of the incoming roll.
   const leak=clamp((100-technique)*.006*turn/Math.PI+Math.max(0,.65-(p.energy??1))*.12,0,.28);
   const interval=close?clamp(.19+(100-technique)*.0012,.19,.27):stride?.32+(100-technique)*.0012:.28+(p.speed<2?.16:0);
-  let nextInterval=interval,plan=this.touchPlan(p,{vx:Math.cos(a)*speed*(1-leak)+b.vx*leak,vz:Math.sin(a)*speed*(1-leak)+b.vz*leak,vy:close?.10:.16},{interval,target,mode:shield?'shield':'carry',maxGap:stride&&pressure>5?1.65:1.30});
+  let nextInterval=interval,plan=null,technical=false;
+  // The demanding cut has a shorter touch cadence and less incoming
+  // momentum for a proficient player. Straight sprint touches stay intact.
+  if(this.cfg.technicalTouchExperiment===true&&this.playerBrainEnabled(p)&&!shield&&pressure>1.35&&pressure<5&&room>1.5&&turn>.55&&turn<1.75&&p.speed<4.8){
+   const profile=this.technicalTouchProfile(p,foot,turn,pressure);
+   const compact=clamp(p.speed*.58+Math.max(0,.54-along)*2.5,.5,3.6);
+   const retention=profile.retention;
+   plan=this.touchPlan(p,{vx:Math.cos(a)*compact*(1-retention)+b.vx*retention,vz:Math.sin(a)*compact*(1-retention)+b.vz*retention,vy:.04},{interval:profile.interval,target,mode:'carry',maxGap:1.12});
+   if(plan.ready){nextInterval=profile.interval;technical=true;}
+  }
+  if(!technical)plan=this.touchPlan(p,{vx:Math.cos(a)*speed*(1-leak)+b.vx*leak,vz:Math.sin(a)*speed*(1-leak)+b.vz*leak,vy:close?.10:.16},{interval,target,mode:shield?'shield':'carry',maxGap:stride&&pressure>5?1.65:1.30});
   if(!plan.ready&&this.playerBrainEnabled(p)){
    // Recover with a shorter, softer contact rather than repeatedly requesting
    // the same unreachable stride. Still require the normal foot forecast.
@@ -699,6 +719,7 @@ class Match{
   Object.assign(b,plan.velocity);if(plan.limited)this.telemetry.limitedTouches=(this.telemetry.limitedTouches||0)+1;
   this.lastTouch=p;p.touchClock=nextInterval;
   p.footTouch=.14;p.dribbleFoot=foot;p.touchPosition={x:b.x,z:b.z};p.touchMode=shield?'shield':cut?'cut':burst?'burst':close?'close':stride?'stride':'control';this.telemetry.dribbleTouches++;
+  if(technical)this.telemetry.technicalCutTouches=(this.telemetry.technicalCutTouches||0)+1;
   if(cut)this.telemetry.directionalCutTouches=(this.telemetry.directionalCutTouches||0)+1;
   if(burst)this.telemetry.accelerationBurstTouches=(this.telemetry.accelerationBurstTouches||0)+1;
   if(close)this.telemetry.closeControlTouches++;if(stride)this.telemetry.strideTouches++;return true;
@@ -1626,11 +1647,19 @@ class Match{
     const fresh=this.controlOption(p,p,reception.face,0,this.ball);if(fresh){reception.point=fresh;p.carryTarget={...fresh};this.telemetry.firstTouchRechecks++;}
     reception.mode=Math.min(20,...this.rivals(p).map(q=>dist(q,p)))<3?'protect':'open';p.receiveMode=reception.mode;
     const planned=Math.atan2(reception.point.z-this.ball.z,reception.point.x-this.ball.x),a=planned+clamp(angle(arrivalYaw,planned),-1,1)*difficulty*.5,speed=(reception.mode==='protect'?1.1:clamp(1.8+p.speed*.35,1.8,3.8))+difficulty*2.8;
-    const plan=contact&&['pass','through','cutback'].includes(flight.kind)?this.touchPlan(p,{vx:Math.cos(a)*speed,vz:Math.sin(a)*speed,vy:this.ball.vy},{mode:'receive',interval:Math.max(p.receiveClock,p.touchClock),target:p.carryTarget,replan:true}):null;
+    const controlled=this.cfg.technicalTouchExperiment===true&&advanced&&contact.ready&&reception.mode==='protect';
+    const technique=controlled?this.technicalTouchProfile(p,receivingFoot,Math.abs(angle(planned,p.face)),pressure):null;
+    // Under close pressure don't increase the requested touch distance
+    // simply because reception is difficult. Less skill leaves residual roll.
+    const touchSpeed=controlled?clamp(1.05+p.speed*.16+technique.precision*.28,.9,2.2):speed;
+    const retain=controlled?technique.retention:0;
+    const impulse={vx:Math.cos(a)*touchSpeed*(1-retain)+this.ball.vx*retain,vz:Math.sin(a)*touchSpeed*(1-retain)+this.ball.vz*retain,vy:this.ball.vy};
+    const plan=contact&&['pass','through','cutback'].includes(flight.kind)?this.touchPlan(p,impulse,{mode:'receive',interval:Math.max(p.receiveClock,p.touchClock),target:p.carryTarget,replan:true}):null;
     if(!contact||plan?.ready){
      this.ball.vx=plan?plan.velocity.vx:Math.cos(a)*speed;this.ball.vz=plan?plan.velocity.vz:Math.sin(a)*speed;
      if(plan){this.ball.vy=plan.velocity.vy;p.kickFoot=plan.foot;if(plan.limited)this.telemetry.limitedTouches=(this.telemetry.limitedTouches||0)+1;}
      this.telemetry.directedTouches++;
+     if(controlled&&plan?.ready)this.telemetry.technicalProtectedReceives=(this.telemetry.technicalProtectedReceives||0)+1;
      if(plan?.ready&&reception.point?.progressive){
       const side=this.direction(p.team);
       if((this.ball.vx-p.vx*.25)*side>.5){
