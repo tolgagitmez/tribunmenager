@@ -640,7 +640,12 @@ class Match{
   const target=p.carryTarget||{x:p.x+this.direction(p.team)*6,z:p.z},a=Math.atan2(target.z-p.z,target.x-p.x),rivals=this.rivals(p),pressure=Math.min(20,...rivals.map(q=>dist(q,p))),shield=p.shieldUntil>this.time;
   const ahead={x:p.x+Math.cos(a)*3,z:p.z+Math.sin(a)*3},room=Math.min(10,...rivals.map(q=>dist({x:q.x+q.vx*.4,z:q.z+q.vz*.4},ahead)));
   const foot=Math.abs(lateral)>.12?(lateral>0?1:0):(p.preferredFoot??p.kickFoot),technique=footSkill(p,p.dribbling??p.skill,foot);
-  const stride=!shield&&pressure>5&&room>3&&p.speed>3.2,close=shield||pressure<2.8,desired=shield?.48:close?.56:stride?1.10+(100-technique)*.002:.82+(100-technique)*.0015;
+  const style=this.owner===p&&!shield&&p.carryIntent?.until>this.time?p.carryIntent.style:null;
+  // Recheck current space, not just the original carry proposal. Style
+  // affects the requested touch; the existing recovery gate can reject it.
+  const cut=style==='cut'&&room>1.5&&pressure>1.15;
+  const burst=style==='burst'&&pressure>3.2&&room>3;
+  const stride=!shield&&!cut&&(pressure>5&&room>3&&p.speed>3.2||burst),close=shield||cut||pressure<2.8,desired=shield?.48:cut?.48:close?.56:burst?1.18+(100-technique)*.002:stride?1.10+(100-technique)*.002:.82+(100-technique)*.0015;
   const along=dx*Math.cos(a)+dz*Math.sin(a),speed=clamp(p.speed+(desired-along)*3.4,close?.35:.65,stride?7.3:close?Math.max(4.5,p.speed+.65):6.5),turn=Math.abs(angle(a,p.face));
   // Low technique/weak-foot sharp turns retain more of the incoming roll.
   const leak=clamp((100-technique)*.006*turn/Math.PI+Math.max(0,.65-(p.energy??1))*.12,0,.28);
@@ -649,7 +654,9 @@ class Match{
   if(!plan.ready){p.touchClock=Math.max(p.touchClock||0,.05);this.telemetry.touchDeferrals=(this.telemetry.touchDeferrals||0)+1;return false;}
   Object.assign(b,plan.velocity);if(plan.limited)this.telemetry.limitedTouches=(this.telemetry.limitedTouches||0)+1;
   this.lastTouch=p;p.touchClock=interval;
-  p.footTouch=.14;p.dribbleFoot=foot;p.touchPosition={x:b.x,z:b.z};p.touchMode=shield?'shield':close?'close':stride?'stride':'control';this.telemetry.dribbleTouches++;
+  p.footTouch=.14;p.dribbleFoot=foot;p.touchPosition={x:b.x,z:b.z};p.touchMode=shield?'shield':cut?'cut':burst?'burst':close?'close':stride?'stride':'control';this.telemetry.dribbleTouches++;
+  if(cut)this.telemetry.directionalCutTouches=(this.telemetry.directionalCutTouches||0)+1;
+  if(burst)this.telemetry.accelerationBurstTouches=(this.telemetry.accelerationBurstTouches||0)+1;
   if(close)this.telemetry.closeControlTouches++;if(stride)this.telemetry.strideTouches++;return true;
  }
  feintOption(p,defender){
@@ -690,6 +697,12 @@ class Match{
   }}),selected=Intent.resolve(p,proposal,context);
   if(selected.x!==choice.point.x||selected.z!==choice.point.z)this.telemetry.carryContinuations=(this.telemetry.carryContinuations||0)+1;
   p.carryTarget={x:selected.x,z:selected.z};p.carryIntent={point:{...p.carryTarget},until:Math.min(p.task?.expiresAt??Infinity,this.time+(choice.commit||.4))};p.settleUntil=choice.hold?this.time+.5:0;
+  if(this.playerBrainEnabled(p)){
+   const accepted=dist(selected,choice.point)<.1&&!choice.hold&&!choice.shield&&choice.kind!=='feint';
+   const pressure=accepted?Math.min(20,...this.rivals(p).map(q=>dist(q,p))):0;
+   const style=accepted?Brain.dribbleStyle(p,selected,{forward:this.direction(p.team),pressure,clearance:choice.clearance??0}):null;
+   if(style)p.carryIntent.style=style;
+  }
   // The visual stance switches at the accepted physical carry decision,
   // rather than waiting for the next 160 ms planning refresh.
   p.brainRole=selected.state;
@@ -2390,7 +2403,7 @@ class Match{
   const turn=Math.abs(angle(heading,p.face)),top=(p.role==='GK'?4.4+((p.pace??75)-75)*.025:5.7+((p.pace??p.skill)-75)*.040)*(.78+.22*fatigue)*(.83+.17*(p.energy??1))*target.pace*(p.duelRecovery>0?.20:1)*(p.feintReaction>0?.82:1);
   const wanted=d>(['restart','penalty-keeper'].includes(target.state)?.025:.16)?Math.min(top,d*2,Math.sqrt(16*d))*(1-.45*turn/Math.PI):0;
   let vx=d?dx/d*wanted:0,vz=d?dz/d*wanted:0;
-  if(!['restart','goal','wall'].includes(target.state))for(const q of this.players){if(q===p||!q.active||q.referee||q.team!==p.team)continue;const ax=(p.x+p.vx*.28)-(q.x+q.vx*.28),az=(p.z+p.vz*.28)-(q.z+q.vz*.28),gap=Math.hypot(ax,az);if(gap>.05&&gap<1.5){const push=(1.5-gap)*1.9;vx+=ax/gap*push;vz+=az/gap*push;}}
+  if(!['restart','goal','wall'].includes(target.state))for(const q of this.players){if(q===p||!q.active||q.referee||q.team!==p.team)continue;const ax=(p.x+p.vx*.28)-(q.x+q.vx*.28),az=(p.z+p.vz*.28)-(q.z+q.vz*.28);if(Math.abs(ax)>=1.5||Math.abs(az)>=1.5)continue;const gap=Math.hypot(ax,az);if(gap>.05&&gap<1.5){const push=(1.5-gap)*1.9;vx+=ax/gap*push;vz+=az/gap*push;}}
   const dead=this.restart||this.kick?.restartContext;
   if(dead&&p.team!==dead.team&&target.state!=='wall'&&['free-kick','corner'].includes(dead.kind)){
    const applicable=dead.kind!=='free-kick'||dist(dead.spot,{x:this.direction(dead.team)*52,z:0})>=12,gap=dist(p,dead.spot);
