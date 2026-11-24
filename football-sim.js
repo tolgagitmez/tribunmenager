@@ -257,7 +257,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;if(choice.stalledOutlet)this.kick.stalledOutlet=true;
   }
  }
  positionRestartKick(r,aim){
@@ -775,6 +775,25 @@ class Match{
   }
   return best;
  }
+ // Only completed, current-possession receptions can establish stagnant
+ // circulation. Never force a vertical pass into a closed lane or replace
+ // a useful rest-defence recycle when the manager is protecting a lead.
+ stalledPassOutlet(p,options,pressure){
+  const t=this.t[p.team],side=this.direction(p.team),depth=p.x*side;
+  if(!this.playerBrainEnabled(p)||p!==this.owner||p.role==='GK'||t.playstyle!=='possession'||pressure<4.2||depth<-40||depth>26||
+   p.energy<.45||this.matchContext(p.team).protect||this.transitionUntil[p.team]>this.time&&t.onWin==='counter')return null;
+  const history=this.recentPasses.filter(a=>a.team===p.team&&a.epoch===this.attackEpoch[p.team]&&a.period===this.period&&a.stoppage===this.stoppageSerial&&this.time-a.time>=0&&this.time-a.time<8&&Number.isFinite(a.depth));
+  if(history.length<3||this.time-history[0].time<2.8)return null;
+  const depths=history.map(a=>a.depth).concat(depth);
+  if(Math.max(...depths)-Math.min(...depths)>8||depth-history[0].depth>3.5)return null;
+  const top=options[0],gain=o=>(o.point.x-p.x)*side;
+  if(top&&gain(top)>5&&top.risk<.34&&(top.arrivalRisk??1)<.60)return null;
+  const candidates=options.filter(o=>o.kind==='pass'&&o.q?.active&&o.q.role!=='GK'&&o.q.duelRecovery<=0&&gain(o)>=6&&o.risk<.28&&o.arrivalRisk<.52&&o.space>3&&o.distance<24&&
+   Math.abs(angle(Math.atan2(o.point.z-p.z,o.point.x-p.x),p.face))<2.35&&o.score>0)
+   .sort((a,b)=>(b.score+gain(b)*.24)-(a.score+gain(a)*.24));
+  for(const option of candidates.slice(0,2))if(this.passPreparation(p,option).feasible)return {...option,stalledOutlet:true};
+  return null;
+ }
  choose(p){
   const opponents=this.rivals(p),pressure=Math.min(30,...opponents.map(o=>dist(p,o))),goalDist=52-p.x*this.direction(p.team);
   const t=this.t[p.team],shot=this.shotWindow(p),options=this.passOptions(p),best=options[0],cross=this.crossingOption(p),carry=this.carryOption(p);
@@ -825,6 +844,8 @@ class Match{
    return {kind:'clearance',point:{x:clamp(p.x+this.direction(p.team)*40,-45,45),z:p.z>=0?24:-24}};
   }
   if(p.x*this.direction(p.team)<-31&&pressure<2.4&&(!best||best.risk>.62)&&!outlet)return {kind:'clearance',point:{x:clamp(p.x+this.direction(p.team)*39,-45,45),z:Math.sign(p.z||1)*29}};
+  const stagnantExit=this.stalledPassOutlet(p,options,pressure);
+  if(stagnantExit){this.telemetry.stalledOutletChoices=(this.telemetry.stalledOutletChoices||0)+1;return stagnantExit;}
   const counter=this.transitionUntil[p.team]>this.time&&t.onWin==='counter',supports=this.field(p.team).filter(q=>q!==p&&this.targets.get(q)?.state==='support');
   // Circulate at the chosen tempo when the block is closed. A clear shot,
   // through-ball, urgent outlet or counter already took priority above.
@@ -1183,6 +1204,7 @@ class Match{
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
+  if(k.stalledOutlet&&k.kind==='pass')this.telemetry.stalledOutletReleases=(this.telemetry.stalledOutletReleases||0)+1;
   if(k.moving&&k.kind==='shot')this.telemetry.movingShots++;
   if(k.moving&&['pass','through','cross','cutback','long-pass'].includes(k.kind))this.telemetry.movingPasses++;
   if(k.oneTouch)this.telemetry.oneTouchPasses++;
@@ -1247,7 +1269,9 @@ class Match{
   if(flight?.giveGoReturn?.passerId===p.id&&flight.from.team===p.team&&flight.giveGoReturn.epoch===this.attackEpoch[p.team])this.telemetry.giveGoCompletions++;
   if(flight&&['pass','through','cross','cutback','long-pass'].includes(flight.kind)&&flight.from.team===p.team&&flight.from!==p){this.completed[p.team]++;if(['cross','cutback'].includes(flight.kind))this.attackStats[p.team].completedDeliveries++;this.chain++;if(this.chain===3)this.emit('pass','Paslarla ilerliyorlar',`${p.name} topu aldı; takım pas bağlantısını koruyor.`,p);}
   else if(this.lastTeam!==p.team){this.chain=0;this.transitionUntil[p.team]=this.time+(this.t[p.team].onWin==='counter'?5.5:2.0);this.lossUntil[1-p.team]=this.time+3.2;this.telemetry.turnovers++;if(p.role!=='GK'&&this.time-(this.lastNarratedTurnover||-3)>2){this.lastNarratedTurnover=this.time;this.emit('tackle','Top kazanıldı',`${p.name} araya girdi. Takımı yeniden yerleşiyor.`,p);}}
-  if(flight&&flight.from?.team===p.team&&flight.from!==p){p.lastPassFrom=flight.from.id;this.recentPasses.push({from:flight.from.id,to:p.id,time:this.time});this.recentPasses=this.recentPasses.filter(a=>this.time-a.time<8);}
+  if(flight&&flight.from?.team===p.team&&flight.from!==p){p.lastPassFrom=flight.from.id;const record={from:flight.from.id,to:p.id,time:this.time};
+   if(this.playerBrainEnabled(p)&&!regained&&!flight.restartKind&&['pass','through','cross','cutback','long-pass'].includes(flight.kind))Object.assign(record,{team:p.team,depth:this.ball.x*this.direction(p.team),epoch:this.attackEpoch[p.team],period:this.period,stoppage:this.stoppageSerial});
+   this.recentPasses.push(record);this.recentPasses=this.recentPasses.filter(a=>this.time-a.time<8);}
   if(Math.abs(p.z)>19)this.tacticalStats[p.team].wideReceives++;
   if(regained&&this.lossUntil[p.team]>this.time&&this.t[p.team].onLoss==='counterpress')this.telemetry.pressRecoveries++;
   if(regained){this.recoveryUntil[1-p.team]=this.time+8;this.recoveryUntil[p.team]=0;this.attackEpoch[p.team]++;this.attackPlans=[null,null];this.flankPlans=[null,null];this.boxPlans=[null,null];this.supportPlans=[null,null];this.pressUnits=[null,null];this.pressAssignments=[null,null];for(const q of this.players){Intent.clear(q,q.team===p.team?'gain':'loss',this.taskContext(q));q.runIntent=null;q.supportIntent=null;q.offerIntent=null;q.connectionIntent=null;q.carryIntent=null;}}
