@@ -28,6 +28,7 @@ jobs:
       - name: Regenerate licensed derivative from pinned packaged originals
         run: |
           set -euo pipefail
+          sha256sum humanoid-rig.js
           python tools/build-player-assets.py --from-package assets/player --output "$RUNNER_TEMP/rebuilt-player"
           # Source evidence must be identical, not merely regenerated hashes.
           for f in LICENSE-CC0.txt SOURCE-LICENSE.md source/makehuman-base.obj.gz source/makehuman-default.mhskel.gz source/makehuman-default_weights.mhw.gz source/provenance.json; do
@@ -59,7 +60,7 @@ jobs:
           npm run test:match-animation
           npm run test:match-fps
           npm run test:character-human
-      - name: Publish evidence archive even if a later commit fails
+      - name: Publish verified derivative evidence
         uses: actions/upload-artifact@v4
         with:
           name: validated-stabilization-asset-package
