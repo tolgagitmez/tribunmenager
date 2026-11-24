@@ -257,7 +257,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;this.kick.spatialOutlet=choice.spatialOutlet;
   }
  }
  positionRestartKick(r,aim){
@@ -954,6 +954,51 @@ class Match{
   // Keep any genuinely playable forward connection ahead of the carry.
   return !options.some(o=>(o.point.x-p.x)*side>5&&o.risk<.34&&(o.arrivalRisk??1)<.60&&o.space>2.5&&o.score>0);
  }
+ // Local time-to-space estimate, not an omniscient pitch map. An empty
+ // observation cannot prove a free region. No opponent commands are read.
+ spatialRead(observer,point,receiver=observer,flight=0,observed=this.rivals(observer)){
+  const bearing=Math.atan2(point.z-observer.z,point.x-observer.x),range=dist(observer,point),limits=Perception.limits(observer);
+  const seen=range<=limits.range*.85&&(range<2||Math.abs(angle(bearing,observer.face))<=limits.halfAngle-.12);
+  const fresh=observed.filter(q=>(q.confidence??1)>=.55&&(q.age??0)<=.65&&Number.isFinite(q.x)&&Number.isFinite(q.z));
+  const near=fresh.filter(q=>dist(q,point)<=22);
+  const eta=(p,opponent=false)=>{
+   const dx=point.x-p.x,dz=point.z-p.z,d=Math.hypot(dx,dz);
+   const uncertainty=opponent?clamp(p.uncertainty||0,0,2):0;
+   const remaining=Math.max(0,d-uncertainty-.7),top=Math.max(3.5,5.7+((p.pace??p.skill??75)-75)*.04);
+   const along=d>.01?clamp(((p.vx||0)*dx+(p.vz||0)*dz)/d,-top,top):0;
+   return remaining/top+(remaining>.2?Math.max(0,top-along)/16*.5:0);
+  };
+  const receiveAt=Math.max(flight,eta(receiver))+.22,enemyAt=Math.min(5,...near.map(q=>eta(q,true)));
+  const nearby=this.field(observer.team).filter(q=>q!==observer&&q!==receiver&&q.duelRecovery<=0&&dist(q,point)<=12);
+  const friends=nearby.filter(q=>eta(q)<=receiveAt+1.2).length;
+  const enemies=near.filter(q=>eta(q,true)<=receiveAt+1.2).length;
+  return {observed:seen&&fresh.length>=3&&near.length>=2,receiveAt,enemyAt,margin:enemyAt-receiveAt,friends,enemies,room:Math.min(15,...near.map(q=>Math.max(0,dist(q,point)-(q.uncertainty||0))))};
+ }
+ spatialOutlet(p,options,carry,opponents=this.rivals(p)){
+  if(!this.playerBrainEnabled(p)||this.owner!==p||p.role==='GK'||this.restart||this.kick||p.receiveClock>0||p.shieldUntil>this.time||dist(p,this.ball)>1.35)return null;
+  const side=this.direction(p.team),depth=p.x*side;
+  if(depth< -10||depth>30)return null;
+  const pressure=Math.min(15,...opponents.map(q=>dist(p,q)));
+  if(pressure<3.5||pressure>8||opponents.filter(q=>dist(q,p)<9&&(q.age??0)<=.65&&(q.confidence??1)>=.55).length<2)return null;
+  if(carry?.clearance>=3.2&&(carry.point.x-p.x)*side>=3)return null;
+  if(options.some(o=>o.q?.active&&o.risk<.30&&o.arrivalRisk<.58&&o.space>2.5&&o.score>0&&(o.point.x-p.x)*side>7))return null;
+  const local=this.spatialRead(p,p,p,0,opponents);
+  if(!local.observed)return null;
+  const line=Math.max(this.observedLine(p),this.ball.x*side),ranked=[];
+  for(const o of options){
+   if(o.kind!=='pass'||!o.q?.active||o.q.team!==p.team||o.q.role==='GK'||o.risk>=.27||o.arrivalRisk>=.52||o.space<3.5||o.score<0||o.distance>23||o.distance<7||o.q.x*side>Math.max(0,line)+.05)continue;
+   const gain=(o.point.x-p.x)*side;
+   if(gain< -2||Math.abs(o.point.z-p.z)<7)continue;
+   const flight=this.passTime('pass',dist(p,o.point),this.passSpeed('pass',o.distance,this.t[p.team]));
+   if(!Number.isFinite(flight))continue;
+   const read=this.spatialRead(p,o.point,o.q,flight,opponents);
+   if(!read.observed||read.margin<.45||read.margin<local.margin+.4||read.friends<1||read.friends+1<=read.enemies||read.room<local.room+1.5)continue;
+   ranked.push({o,value:o.score+read.margin*2+(read.friends-read.enemies)*1.5+Math.min(8,gain)*.2});
+  }
+  ranked.sort((a,b)=>b.value-a.value||a.o.q.id-b.o.q.id);
+  for(const {o} of ranked.slice(0,2))if(this.passPreparation(p,o).feasible)return {...o,spatialOutlet:true};
+  return null;
+ }
  choose(p){
   const opponents=this.rivals(p),pressure=Math.min(30,...opponents.map(o=>dist(p,o))),goalDist=52-p.x*this.direction(p.team);
   const t=this.t[p.team],shot=this.shotWindow(p);
@@ -982,6 +1027,8 @@ class Match{
    this.telemetry.openFieldCarryChoices=(this.telemetry.openFieldCarryChoices||0)+1;
    return {...carry,openFieldCarry:true,commit:.45};
   }
+  const spatial=this.cfg.spatialExperiment===true?this.spatialOutlet(p,options,carry,opponents):null;
+  if(spatial){this.telemetry.spatialChoices=(this.telemetry.spatialChoices||0)+1;return spatial;}
   const pendingRun=this.field(p.team).find(q=>this.giveGoLink(p,q));
   if(pendingRun&&!best?.movingReturn&&pressure>3.8&&p.carryTime<.9&&(!best||(best.point.x-p.x)*this.direction(p.team)<4))return {kind:'carry',point:{x:clamp(p.x+this.direction(p.team),-49,49),z:p.z},hold:true};
   if(best?.movingReturn&&best.risk<.45&&best.arrivalRisk<.65&&best.space>2.5&&best.score>4)return best;
@@ -1500,6 +1547,7 @@ class Match{
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
+  if(k.spatialOutlet){this.telemetry.spatialReleases=(this.telemetry.spatialReleases||0)+1;this.flight.spatialOutlet=true;}
   if(k.attackingRunDelivery){this.telemetry.attackingRunReleases=(this.telemetry.attackingRunReleases||0)+1;this.flight.attackingRunDelivery=true;}
   if(k.kind==='shot'&&k.shotStyle){
    this.flight.shotStyle=k.shotStyle;
@@ -1571,6 +1619,7 @@ class Match{
   const previous=this.lastTouch,flight=this.flight,regained=this.lastTeam!==p.team;
   if(this.rebound?.team===p.team&&this.rebound.until>this.time)this.telemetry.reboundRecoveries=(this.telemetry.reboundRecoveries||0)+1;
   this.rebound=null;
+  if(flight?.spatialOutlet&&flight.target===p&&flight.from?.team===p.team)this.telemetry.spatialCompletions=(this.telemetry.spatialCompletions||0)+1;
   if(flight?.attackingRunDelivery&&flight.target===p&&flight.from?.team===p.team)this.telemetry.attackingRunCompletions=(this.telemetry.attackingRunCompletions||0)+1;
   if(flight?.thirdManReturn?.runnerId===p.id&&flight.from?.team===p.team&&flight.thirdManReturn.epoch===this.attackEpoch[p.team]){this.telemetry.thirdManCompletions=(this.telemetry.thirdManCompletions||0)+1;this.emit('third-man','Üçüncü adam bağlantısı',p.name+' iki takım arkadaşının hazırladığı pas bağlantısını tamamladı.',p);}
   if(flight?.giveGoReturn?.passerId===p.id&&flight.from.team===p.team&&flight.giveGoReturn.epoch===this.attackEpoch[p.team])this.telemetry.giveGoCompletions++;
