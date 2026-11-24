@@ -733,6 +733,22 @@ class Match{
  clearFinish(p,shot=this.shotWindow(p)){
   return p.role!=='GK'&&52-p.x*this.direction(p.team)<23&&Math.abs(p.z)<19&&shot.open>=.60&&(shot.distance<11?shot.quality>.075&&shot.execution>.42:shot.quality>.14&&shot.execution>.66&&(shot.distance<19||shot.quality>.19));
  }
+ // Take a clean, controlled shot rather than requiring a close defender
+ // to trigger a medium-range attempt. Preserve a genuinely better entry
+ // pass and the manager's patient/early shooting preference.
+ openShotChoice(p,shot,options,pressure){
+  if(!this.playerBrainEnabled(p)||!['MID','ATT'].includes(p.role)||p.position==='DM'||
+   (p.energy??1)<.5||p.receiveClock>0||pressure<3||shot.pressure>.38||shot.execution<.76||shot.open<.6||shot.turn>.85)return false;
+  const mode=this.t[p.team].shooting,early=mode==='early',patient=mode==='patient';
+  const skill=p.shooting??p.skill,limit=early?29:patient?22:26;
+  if(skill<(early?78:patient?85:81)||shot.distance>limit||Math.abs(p.z)>16||
+   shot.quality<(early?.09:patient?.16:.115))return false;
+  const forward=this.direction(p.team);
+  // A good pass into a better central scoring position beats the shot.
+  if(options.some(o=>o.q?.role!=='GK'&&o.risk<.32&&(o.arrivalRisk??1)<.58&&o.space>2.8&&
+   (o.point.x-p.x)*forward>3.5&&Math.hypot(52-o.point.x*forward,o.point.z)<Math.min(18,shot.distance-4)&&Math.abs(o.point.z)<12))return false;
+  return true;
+ }
  crossingOption(p){
   const side=this.direction(p.team),t=this.t[p.team];if(p.x*side<25||Math.abs(p.z)<15)return null;
   const candidates=this.field(p.team).filter(q=>q!==p&&q.x*side>24&&Math.abs(q.z)<18),opponents=this.rivals(p);
@@ -765,6 +781,7 @@ class Match{
   // A clear close-range shooting window is taken; a random roll cannot veto it.
   if(this.clearFinish(p,shot))return {kind:'shot',point:shot.point};
   if(p.role!=='GK'&&shot.distance<(t.shooting==='early'?31:t.shooting==='patient'?22:29)&&shot.open>=.4&&shot.execution>.68&&shot.pressure<.65&&shot.quality>(t.shooting==='early'?.09:t.shooting==='patient'?.16:.13)&&(p.shooting>=83||pressure<3)&&(!best||best.score<15))return {kind:'shot',point:shot.point};
+  if(this.openShotChoice(p,shot,options,pressure))return {kind:'shot',point:shot.point,openShot:true};
   if(cross&&cross.space>1.5&&cross.score>(best?.score??0)-2)return cross;
   if(this.playerBrainEnabled(p)&&p.shieldUntil>this.time&&Number.isFinite(p.holdUpStartedAt)){
    const heldFor=this.time-p.holdUpStartedAt;
@@ -1125,7 +1142,7 @@ class Match{
   // Contact changes velocity, never the ball's position. At restarts the boot
   // approaches the fixed ball; a throw has already been lifted to the hands.
   const d=dist(this.ball,k.point)||1,shotPressure=Math.min(10,...this.field(1-p.team).map(q=>dist(q,p)));
-  if(k.kind==='shot'){this.shots[p.team]++;this.xg[p.team]+=this.shotQuality(p);this.telemetry.shotsAfterPasses+=this.chain>=2?1:0;}
+  if(k.kind==='shot'){this.shots[p.team]++;if(k.openShot)this.telemetry.openShotReleases=(this.telemetry.openShotReleases||0)+1;this.xg[p.team]+=this.shotQuality(p);this.telemetry.shotsAfterPasses+=this.chain>=2?1:0;}
   let managerKick=null;
   delete this.ball.spin;
   const specialist=this.specialistKickType(k);
@@ -2749,7 +2766,7 @@ class Match{
       if(choice.kind==='carry'||choice.kind==='feint'){
        this.startCarry(p,choice);
       }
-      else if(choice.kind==='shot')this.startKick(p,'shot',null,choice.point);
+      else if(choice.kind==='shot'){if(this.startKick(p,'shot',null,choice.point)&&choice.openShot)this.kick.openShot=true;}
       else if(!['cross','cutback'].includes(choice.kind)||!this.offerManagerKick(p,'cross',choice.point,null,{choice}))this.startChosenDelivery(p,choice);
      }
      if(!this.kick&&!this.pendingManagerKick&&p.touchClock<=0&&p.receiveClock<=0&&this.ball.y<.45&&dist(p,this.ball)<1.3){
