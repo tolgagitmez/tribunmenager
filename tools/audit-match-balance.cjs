@@ -34,10 +34,12 @@ function config(c){
 // Observe existing decisions only. The engine still evaluates shotWindow
 // exactly as before; no added tactical queries, random draws or ball changes.
 function observeShotDecisions(m){
- const result={decisions:0,withWindow:0,nearGoal:0,openLane:0,controlledWindow:0,qualityWindow:0,shotChosen:0,qualityWindowPassed:0,qualityWindowCarried:0,qualityWindowOther:0};
- const choose=m.choose,window=m.shotWindow,ownChoose=Object.getOwnPropertyDescriptor(m,'choose'),ownWindow=Object.getOwnPropertyDescriptor(m,'shotWindow');let actor=null,read=null;
- m.shotWindow=function(p,...args){const v=window.call(this,p,...args);if(actor===p&&!read)read=v;return v;};
+ const result={decisions:0,withWindow:0,nearGoal:0,openLane:0,controlledWindow:0,qualityWindow:0,shotChosen:0,qualityWindowPassed:0,qualityWindowCarried:0,qualityWindowOther:0,qualityWindowShotChosen:0,openPlayShotAttempts:0,openPlayShotAccepted:0,openPlayShotRejected:0,openPlayShotReleased:0,openPlayShotInterrupted:0,openPlayShotPending:0};
+ const descriptors=['choose','shotWindow','startKick','release'].map(k=>[k,Object.getOwnPropertyDescriptor(m,k)]),choose=m.choose,window=m.shotWindow,start=m.startKick,release=m.release;
+ let actor=null,read=null,pending=null;
+ m.shotWindow=function(p,...args){const v=window.call(this,p,...args);if(this===m&&actor===p&&!read)read=v;return v;};
  m.choose=function(p,...args){
+  if(this!==m)return choose.call(this,p,...args);
   const previousActor=actor,previousRead=read;actor=p;read=null;
   try{
    const choice=choose.call(this,p,...args);result.decisions++;
@@ -49,7 +51,8 @@ function observeShotDecisions(m){
    if(read.open<.6)return choice;result.openLane++;
    if(read.execution<.68||read.pressure>.65)return choice;result.controlledWindow++;
    if(read.quality<.115)return choice;result.qualityWindow++;
-   if(choice?.kind!=='shot'){
+   if(choice?.kind==='shot')result.qualityWindowShotChosen++;
+   else{
     if(['pass','through','cross','cutback','long-pass'].includes(choice?.kind))result.qualityWindowPassed++;
     else if(['carry','feint'].includes(choice?.kind))result.qualityWindowCarried++;
     else result.qualityWindowOther++;
@@ -57,7 +60,22 @@ function observeShotDecisions(m){
    return choice;
   }finally{actor=previousActor;read=previousRead;}
  };
- return {result,detach(){for(const [k,descriptor] of [['choose',ownChoose],['shotWindow',ownWindow]]){if(descriptor)Object.defineProperty(m,k,descriptor);else delete m[k];}}};
+ function reconcile(){if(pending&&m.kick!==pending){result.openPlayShotInterrupted++;pending=null;}}
+ if(typeof start==='function')m.startKick=function(p,kind,target,point,power,restart,...args){
+  if(this!==m||kind!=='shot'||restart)return start.call(this,p,kind,target,point,power,restart,...args);
+  reconcile();result.openPlayShotAttempts++;
+  const accepted=start.call(this,p,kind,target,point,power,restart,...args);
+  if(accepted&&m.kick?.kind==='shot'){result.openPlayShotAccepted++;pending=m.kick;}else result.openPlayShotRejected++;
+  return accepted;
+ };
+ if(typeof release==='function')m.release=function(...args){
+  if(this!==m)return release.apply(this,args);
+  const current=m.kick,tracked=!!pending&&current===pending;
+  const before=tracked?m.shots[0]+m.shots[1]:0,ret=release.apply(this,args);
+  if(tracked&&m.shots[0]+m.shots[1]>before){result.openPlayShotReleased++;pending=null;}
+  return ret;
+ };
+ return {result,afterStep:reconcile,detach(){reconcile();result.openPlayShotPending=Number(!!pending);for(const [k,descriptor] of descriptors){if(descriptor)Object.defineProperty(m,k,descriptor);else delete m[k];}}};
 }
 function simulate(c){
  const cfg=config(c),configDigest=digest(JSON.stringify(cfg));
@@ -75,7 +93,7 @@ function simulate(c){
    for(const k of ['finalThird','box'])if(z[k]&&!zones[team]?.[k])entries[k][team]++;
    zones[team]=z;lastOwner=team;controlled++;
   }else{loose++;} // retain prior zone while a same-team pass is in flight
-  m.step(DT);ticks++;
+  m.step(DT);observer.afterStep();ticks++;
   assert(Number.isFinite(m.ball.x)&&Number.isFinite(m.ball.y)&&Number.isFinite(m.ball.z),c.id+' nonfinite ball');
   if(ticks%60===0)assert(m.players.every(p=>[p.x,p.z,p.vx,p.vz].every(Number.isFinite)),c.id+' nonfinite player');
  }
@@ -85,6 +103,7 @@ function simulate(c){
  const counters=Object.fromEntries(['offsides','turnovers','duels','crosses','throughBalls','abortedKicks','touchDeferrals','restarts','shotsAfterPasses','progressiveFirstTouches','openShotReleases'].map(k=>[k,m.telemetry[k]??0]));
  for(const [k,v] of Object.entries(counters))assert(Number.isFinite(v)&&v>=0,c.id+' invalid '+k);
  observer.detach();
+ const funnel=observer.result;assert.equal(funnel.openPlayShotAttempts,funnel.openPlayShotAccepted+funnel.openPlayShotRejected);assert.equal(funnel.openPlayShotAccepted,funnel.openPlayShotReleased+funnel.openPlayShotInterrupted+funnel.openPlayShotPending);
  return {...c,configDigest,shotFunnel:observer.result,finishReason:m.finishReason,period:m.period,ticks,elapsed:m.time,seconds:{controlled:controlled*DT,loose:loose*DT,dead:dead*DT},pairs,counters,wallSeconds:Number(process.hrtime.bigint()-started)/1e9,finalSeed:m.seed};
 }
 const sum=a=>a.reduce((x,y)=>x+y,0),round=n=>Math.round(n*1000)/1000,ratio=(a,b)=>b?round(100*a/b):null;
@@ -93,7 +112,7 @@ function summarize(rows){
  const full=rows.filter(r=>r.finishReason==='full-time'),f=full.length;
  const totals=k=>sum(full.map(r=>sum(r.pairs[k]))),counter=k=>sum(full.map(r=>r.counters[k]));
  const mean=k=>f?round(totals(k)/f):null;
- const shotFunnel=Object.fromEntries(['decisions','withWindow','nearGoal','openLane','controlledWindow','qualityWindow','shotChosen','qualityWindowPassed','qualityWindowCarried','qualityWindowOther'].map(k=>[k,sum(full.map(r=>r.shotFunnel?.[k]??0))]));
+ const shotFunnel=Object.fromEntries(['decisions','withWindow','nearGoal','openLane','controlledWindow','qualityWindow','shotChosen','qualityWindowPassed','qualityWindowCarried','qualityWindowOther','qualityWindowShotChosen','openPlayShotAttempts','openPlayShotAccepted','openPlayShotRejected','openPlayShotReleased','openPlayShotInterrupted','openPlayShotPending'].map(k=>[k,sum(full.map(r=>r.shotFunnel?.[k]??0))]));
  return {matches:n,fullTime:f,otherFinishes:n-f,shotFunnel,goalsPerMatch:mean('goals'),shotsPerMatch:mean('shots'),shotsOnTargetPerMatch:mean('onTarget'),passesPerMatch:mean('passes'),passAccuracyPct:ratio(totals('completed'),totals('passes')),onTargetPct:ratio(totals('onTarget'),totals('shots')),goalsPerShotPct:ratio(totals('goals'),totals('shots')),zeroShotMatchPct:ratio(full.filter(r=>sum(r.pairs.shots)===0).length,f),scorelessMatchPct:ratio(full.filter(r=>sum(r.pairs.goals)===0).length,f),foulsPerMatch:mean('fouls'),yellowsPerMatch:mean('yellows'),redsPerMatch:mean('reds'),offsidesPerMatch:f?round(counter('offsides')/f):null,finalThirdEntriesPerMatch:mean('finalThirdEntries'),boxEntriesPerMatch:mean('boxEntries'),xgPerMatch:mean('xg'),controlledPct:ratio(sum(full.map(r=>r.seconds.controlled)),sum(full.map(r=>r.ticks*DT))),homePossessionPct:ratio(sum(full.map(r=>r.pairs.possessionSeconds[0])),totals('possessionSeconds')),abortedKicksPerMatch:f?round(counter('abortedKicks')/f):null,
  sideA:{wins:full.filter(r=>r.pairs.goals[r.swap?1:0]>r.pairs.goals[r.swap?0:1]).length,draws:full.filter(r=>r.pairs.goals[0]===r.pairs.goals[1]).length,losses:full.filter(r=>r.pairs.goals[r.swap?1:0]<r.pairs.goals[r.swap?0:1]).length,goals:sum(full.map(r=>r.pairs.goals[r.swap?1:0])),shots:sum(full.map(r=>r.pairs.shots[r.swap?1:0]))}};
 }
