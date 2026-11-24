@@ -12,6 +12,7 @@ function perspective(fov,aspect,near,far){const f=1/Math.tan(fov/2),nf=1/(near-f
 function matmul(a,b){let o=Array(16).fill(0);for(let col=0;col<4;col++)for(let row=0;row<4;row++)for(let k=0;k<4;k++)o[col*4+row]+=a[k*4+row]*b[col*4+k];return o}
 class Mesh{
 constructor(){this.v=[];this.ct=0}
+appendTranslated(mesh,x,y,z){for(let i=0;i<mesh.v.length;i+=6)this.v.push(mesh.v[i]+x,mesh.v[i+1]+y,mesh.v[i+2]+z,mesh.v[i+3],mesh.v[i+4],mesh.v[i+5]);this.ct+=mesh.ct;}
 shade(normal,color){const n=norm(normal),sun=Math.max(0,n[0]*-.35+n[1]*.85+n[2]*.34),fill=Math.max(0,n[0]*.5+n[2]*-.45);const light=clamp(.57+.43*sun+.10*fill,.48,1.1);return color.map(v=>clamp(v*light,0,1));}
 tri(a,b,c,color,normals=null){const flat=norm(cross(sub(b,a),sub(c,a)));for(let i=0;i<3;i++)this.v.push(...[a,b,c][i],...this.shade(normals?normals[i]:flat,color));this.ct+=3;}
 quad(a,b,c,d,color,normals=null){this.tri(a,b,c,color,normals?[normals[0],normals[1],normals[2]]:null);this.tri(a,c,d,color,normals?[normals[0],normals[2],normals[3]]:null);}
@@ -164,13 +165,19 @@ animationStats(){return this.matchAnimation?.stats()||{players:0,transitions:0,b
 resize(){const c=this.canvas,rect=c.getBoundingClientRect(),profile=this.performance,
  cap=profile.mode==='performance'?.8:profile.mode==='quality'?1.6:1.1,
  dpr=Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,cap)*profile.scale;let w=Math.max(2,Math.floor(rect.width*dpr)),h=Math.max(2,Math.floor(rect.height*dpr));if(c.width!==w||c.height!==h){c.width=w;c.height=h}this.gl.viewport(0,0,w,h)}
+playerGroundGeometry(m,p){
+ if(!this.groundTemplates){const shadow=new Mesh(),blue=new Mesh(),red=new Mesh();shadow.sphere(0,.035,0,.37,.018,.27,[.025,.11,.065],3,10);blue.sphere(0,.025,0,.48,.012,.44,[.12,.42,.60],3,16);red.sphere(0,.025,0,.48,.012,.44,[.55,.16,.12],3,16);this.groundTemplates={shadow,blue,red};}
+ m.appendTranslated(this.groundTemplates.shadow,p.x,0,p.z);
+ if(p.selected)m.appendTranslated(p.team===0?this.groundTemplates.blue:this.groundTemplates.red,p.x,0,p.z);
+}
 render(players,ball,focus,events,dt){if(!this.gl){this.renderFallback(players,ball,focus,dt);return;}let gl=this.gl;this.resize();let target=this.camera==='portrait'?[focus[0],.9,focus[1]]:this.camera==='close'?[clamp(focus[0],-47,47),.8,clamp(focus[1],-27,27)]:this.camera==='tv'?[clamp(focus[0]*.65,-32,32),0,clamp(focus[1]*.3,-10,10)]:[0,0,0];let desire=this.camera==='portrait'?[target[0]+4.4*(this.portraitScale||1),target[1]+2.6*(this.portraitScale||1),target[2]+5.5*(this.portraitScale||1)]:this.camera==='tactical'?[4,116,18]:this.camera==='close'?[target[0]+16,18,target[2]+20]:[target[0]*.65,35,60];let smoothing=clamp(dt*3,0,1);for(let i=0;i<3;i++){this.cameraSmoothing[i]+=(desire[i]-this.cameraSmoothing[i])*smoothing;this.cameraTarget[i]+=(target[i]-this.cameraTarget[i])*smoothing}
 const kickCamera=this.managerKickView?this.managerKickCamera(this.canvas.width/this.canvas.height):null;
 let vp=kickCamera?.matrix||matmul(perspective((this.camera==='portrait'?43:this.camera==='close'?48:54)*Math.PI/180,this.canvas.width/this.canvas.height,.2,400),lookAt(this.cameraSmoothing,this.cameraTarget));gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));const draw=(buffer,count)=>{gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.enableVertexAttribArray(this.aPos);gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(this.aColor);gl.vertexAttribPointer(this.aColor,3,gl.FLOAT,false,24,12);gl.drawArrays(gl.TRIANGLES,0,count)};draw(this.staticBuffer,this.staticCount);
 let m=new Mesh();
 if(this.playerRenderer){
- gl.disableVertexAttribArray(this.aPos);gl.disableVertexAttribArray(this.aColor);this.playerRenderer.draw(players,vp,kickCamera?.eye||this.cameraSmoothing,kickCamera?'close':this.camera,dt,this.matchAnimation,{paletteForPlayer:p=>this.matchPilot?.paletteForPlayer(p,dt,this.matchAnimation,this.playerRenderer.assets)||null});gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));
- for(const p of players){if(!p.active)continue;m.sphere(p.x,.035,p.z,.37,.018,.27,[.025,.11,.065],3,10);if(p.selected)m.sphere(p.x,.025,p.z,.48,.012,.44,p.team===0?[.12,.42,.60]:[.55,.16,.12],3,16);
+ const cull=this.camera==='close'&&!kickCamera&&!this.debugRig;
+ gl.disableVertexAttribArray(this.aPos);gl.disableVertexAttribArray(this.aColor);this.playerRenderer.draw(players,vp,kickCamera?.eye||this.cameraSmoothing,kickCamera?'close':this.camera,dt,this.matchAnimation,{cull,paletteForPlayer:p=>this.matchPilot?.paletteForPlayer(p,dt,this.matchAnimation,this.playerRenderer.assets)||null});gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));
+ for(const p of players){if(!p.active)continue;if(cull&&!p.selected&&!p.referee&&!window.TribunPlayerRenderer.playerInView(p,vp))continue;this.playerGroundGeometry(m,p);
  if(this.debugRig){const pose=window.TribunHumanoidRig.getPose(p),gold=[1,.72,.15];for(const l of pose.legs){m.segment(...l.hip,...l.knee,.014,gold);m.segment(...l.knee,...l.ankle,.014,gold);}for(const a of pose.arms){m.segment(...a.shoulder,...a.elbow,.012,gold);m.segment(...a.elbow,...a.wrist,.012,gold);}}}
 }else for(const p of players)this.figure(m,p,dt);
 if(ball){m.sphere(ball.x,.06,ball.z,.21,.015,.21,[.035,.18,.13],4,8);m.sphere(ball.x,ball.y,ball.z,.11,.11,.11,[.98,.98,.94],6,9);(()=>{const visual=this.ballVisual||(this.ballVisual=window.TribunBallVisual?.create());const normals=visual?.sample(ball,dt)||[[.45,.76,.46]];for(const n of normals)m.sphere(ball.x+n[0]*.107,ball.y+n[1]*.107,ball.z+n[2]*.107,.029,.026,.029,[.07,.07,.08],4,6);})()}if(events?.flash){let pp=events.flash;m.sphere(pp.x,.07,pp.z,2.05,.027,2.05,[.58,.50,.09],3,12)}
