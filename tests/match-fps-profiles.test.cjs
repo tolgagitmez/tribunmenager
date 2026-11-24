@@ -70,3 +70,19 @@ test('ground shadows and selection rings reuse prebuilt geometry at every player
  assert.equal(initial.shadow.ct,180);assert.equal(initial.blue.ct,288);
  assert.equal(initial.shadow.v.length,initial.shadow.ct*6);
 });
+
+
+test('dynamic GPU buffer grows only when required and uploads only live vertices',()=>{
+ const {s}=stadium(),alloc=[],uploads=[];
+ s.dynamicBuffer={};
+ Object.assign(s.gl,{ARRAY_BUFFER:1,DYNAMIC_DRAW:2,bindBuffer(){},bufferData:(target,size)=>alloc.push(size),bufferSubData:(target,offset,data)=>uploads.push(Array.from(data))});
+ s.uploadDynamic({v:[1,2,3,4,5,6]});
+ const initial=s.dynamicVertices;
+ s.uploadDynamic({v:[7,8,9]});
+ assert.equal(s.dynamicVertices,initial);assert.equal(alloc.length,1);
+ assert.deepEqual(uploads,[[1,2,3,4,5,6],[7,8,9]]);
+ s.uploadDynamic({v:Array(1200).fill(1)});
+ assert.notEqual(s.dynamicVertices,initial);assert.equal(alloc.length,2);
+ assert.equal(s.performanceMode().dynamicBuffer.uploadedBytes,4800);
+ assert.equal(s.performanceMode().dynamicBuffer.allocations,2);
+});
