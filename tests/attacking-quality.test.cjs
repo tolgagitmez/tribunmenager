@@ -758,3 +758,36 @@ test('territorial correction defaults off in engine and can be enabled in an act
  m.cfg.territorialProgression=true;
  assert(m.choose(owner).territorialPass);
 });
+
+
+test('territorial press safety preserves explicit escape and ready support outlets under closing pressure',()=>{
+ const {m,owner,link}=fixture();
+ m.cfg.territorialPressSafety=true;m.ball={x:owner.x+.6,z:owner.z,y:.11,vx:1,vz:0,vy:0};
+ Object.assign(owner,{receiveClock:0,duelRecovery:0,shieldUntil:0});
+ const retreat={kind:'pass',q:link,point:{x:owner.x-4,z:0},risk:.1,arrivalRisk:.2,space:5,score:8,distance:5};
+ const carry={kind:'carry',point:{x:owner.x+5,z:0},clearance:3,score:8};
+ m.passPreparation=()=>{assert.fail('intentional escape should not be replaced');};
+ for(const key of ['pressureOutlet','supportContinuation']){
+  const choice={...retreat,[key]:true};
+  assert.equal(m.territorialProgression(owner,choice,[],carry,[],3.8),choice);
+ }
+ assert.equal(m.telemetry.territorialProtectedOutlets,2);
+});
+test('under press retain a physically faster safer release, but accept comparable forward progress',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link}=fixture(side);
+  m.cfg.territorialPressSafety=true;Object.assign(owner,{receiveClock:0,duelRecovery:0,shieldUntil:0});
+  m.ball={x:owner.x+.6*side,z:owner.z,y:.11,vx:side,vz:0,vy:0};
+  m.observedLine=()=>40;
+  const retreat={kind:'pass',q:link,point:{x:owner.x-5*side,z:0},risk:.1,arrivalRisk:.2,space:5,score:8,distance:5};
+  const forward={...retreat,point:{x:owner.x+11*side,z:0},distance:11},carry={kind:'carry',point:{x:owner.x+5*side,z:0},clearance:3,score:8};
+  const safe={feasible:true,contactTime:.18,risk:.1,arrivalRisk:.2};
+  m.passPreparation=(p,o)=>o===retreat?safe:{...safe,contactTime:.31};
+  assert.equal(m.territorialProgression(owner,retreat,[forward],carry,[],3.8),retreat);
+  assert.equal(m.telemetry.territorialRiskRejected,1);
+  m.passPreparation=(p,o)=>o===retreat?safe:{...safe,contactTime:.22,risk:.14,arrivalRisk:.27};
+  assert(m.territorialProgression(owner,retreat,[forward],carry,[],3.8).territorialPass);
+  m.cfg.territorialPressSafety=false;m.passPreparation=(p,o)=>{assert.equal(o,forward);return {...safe,contactTime:.31};};
+  assert(m.territorialProgression(owner,retreat,[forward],carry,[],3.8).territorialPass);
+ }
+});
