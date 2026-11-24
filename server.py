@@ -349,6 +349,8 @@ def live_session(token, round_number, *, watch, now=None):
         side = 0 if person['slot']==fixture['home'] else 1
     return LIVE_MATCHES.get(Path(DATA).resolve(),key,kickoff,config), side
 
+from local_file_guard import blocked_path
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs):super().__init__(*args,directory=str(ROOT),**kwargs)
     def json_response(self, data, code=200):
@@ -378,11 +380,13 @@ class Handler(SimpleHTTPRequestHandler):
             except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
             except sqlite3.Error:return self.json_response({'error':'Canlı maç kaydına ulaşılamadı.'},503)
         if p.path.startswith('/api/'):return self.json_response({'error':'API yolu bulunamadı.'},404)
-        # Development data and server code must never be downloadable as assets.
-        parts=Path(p.path).parts
-        if any(x.startswith('.') or x in ('work','node_modules','__pycache__') for x in parts if x not in ('/','')) or p.path.endswith(('.py','.sqlite','.sqlite3','.db','-wal','-shm')):
-            return self.json_response({'error':'Dosya erişime kapalı.'},403)
         return super().do_GET()
+    def send_head(self):
+        # Common entry for static GET and HEAD, including encoded paths and symlinks.
+        if blocked_path(ROOT,self):
+            self.send_error(403,'Forbidden')
+            return None
+        return super().send_head()
     def transfer_token(self):
         auth=self.headers.get('Authorization','')
         return auth[7:] if auth.startswith('Bearer ') else ''

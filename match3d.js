@@ -282,7 +282,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   return;
  }
  if(catalogMode){
-  if(catalogError){$('sessionTitle').textContent='KATALOG KADROSU BULUNAMADI';liveNotice('Hazırlık merkezine dön ve kadroları yeniden seç.');return;}
+  if(catalogError){$('sessionTitle').textContent='KATALOG KADROSU BULUNAMADI';liveNotice('Hazırlık merkezine dön ve kadroları yeniden seç.');for(const id of ['playButton','speedButton','subButton','restartButton','againButton','resumeHalf','saveSubs'])$(id).disabled=true;const link=document.createElement('a');link.href='catalog-friendly.html';link.textContent=' Hazırlık merkezine dön';$('liveMatchNotice').append(link);return;}
   const back=document.querySelector('#finishScreen a');if(back){back.href='catalog-friendly.html';back.textContent='Hazırlık merkezine dön';}
   const crests=document.querySelectorAll('.scoreboard .crest');if(crests[0])crests[0].textContent='EV';if(crests[1])crests[1].textContent='DEP';
   start();return;

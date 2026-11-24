@@ -8,6 +8,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import sys
 from urllib.parse import unquote, urlsplit
+from local_file_guard import blocked_path
 
 ROOT = Path(__file__).resolve().parent
 
@@ -28,10 +29,13 @@ class LocalHandler(SimpleHTTPRequestHandler):
             return self.reply(200, {'ok': True, 'mode': 'local', 'transfers': False, 'dailyLeague': False})
         if path.startswith('/api/'):
             return self.reply(503, {'error': 'Yerel maç modu açık. Günlük lig için --mode league, transferler için --mode full kullan.'})
-        parts = Path(path).parts
-        if any(p.startswith('.') or p in ('work', 'node_modules', '__pycache__') for p in parts if p not in ('/', '')) or path.endswith(('.py', '.db', '.sqlite', '.sqlite3', '-wal', '-shm', '.key', '.pem')):
-            return self.reply(403, {'error': 'Dosya erişime kapalı.'})
         return super().do_GET()
+
+    def send_head(self):
+        if blocked_path(ROOT, self):
+            self.send_error(403, 'Forbidden')
+            return None
+        return super().send_head()
 
     def do_POST(self):
         self.reply(503, {'error': 'Yerel maç modu açık. Lig hesabı için --mode league, transfer hesabı için --mode full kullan.'})
