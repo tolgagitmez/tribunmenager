@@ -1,0 +1,28 @@
+name: API-Football catalog offline validation
+on:
+  push:
+    branches: ['feature/api-football-access-probe']
+    paths: ['tools/api_football_catalog.py', 'api-football-roster.cjs', 'tests/test_api_football_catalog.py', 'tests/api-football-roster.test.cjs', '.github/workflows/api-football-catalog.yml']
+  pull_request:
+    paths: ['tools/api_football_catalog.py', 'api-football-roster.cjs', 'tests/test_api_football_catalog.py', 'tests/api-football-roster.test.cjs', '.github/workflows/api-football-catalog.yml']
+permissions:
+  contents: read
+concurrency:
+  group: api-football-catalog-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python -m unittest discover -s tests -p 'test_api_football*.py' -v
+      - run: node --test tests/api-football-roster.test.cjs

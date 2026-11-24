@@ -1,0 +1,11 @@
+# API-Football local catalog (development only)
+
+Verified live probe: active free account, current squad endpoint returned 34 records, 2026 league-season query denied by plan. Do not infer league membership from historical season lists.
+
+Set API_FOOTBALL_KEY in the local server environment, never in source code or command arguments. Dry run: `python -m tools.api_football_catalog --team 33`. Add repeat --team arguments only after verifying IDs via the provider dashboard. One status query plus one squad query per team, 20 teams per invocation, seven-second spacing, five-request reserve, no retries. The CLI is designed for one operator/process at a time; it is not a distributed quota lock.
+
+Once local storage and use rights are confirmed, add `--store --rights-confirmed`. SQLite lives in git-ignored work/api-football/catalog.sqlite3. The complete validated batch replaces current snapshots transactionally; failures retain old data. Export one roster locally using `python -m tools.api_football_catalog --export-team 33 --rights-confirmed`. Export is not a public artifact. The flag is an operator acknowledgement, not proof of a license. Do not run storage or export on public CI.
+
+The JS adapter converts a snapshot to dense local player IDs and stable provider UIDs. Broad positions only, unknown foot, neutral 80 rating and position-default skills with explicit synthetic provenance. Unknown roles remain in the catalog but cannot be selected for a match. Neither speed, ability, market value nor fine position is observed. Test fixtures are fictional. The adapter is not wired into UI or persistent league creation yet. Existing manager transfers, active league snapshots, and player progression must not be overwritten by external refreshes. No logos/photos are downloaded. No scheduled live import is enabled.
+
+Source and terms: https://www.api-football.com/documentation-v3 and https://www.api-football.com/terms.
