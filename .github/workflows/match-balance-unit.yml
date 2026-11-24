@@ -1,0 +1,22 @@
+name: Match balance unit validation
+on:
+  push:
+    branches: ['feature/match-balance-audit-20261124']
+    paths: ['tools/audit-match-balance.cjs', 'tools/compare-match-balance.cjs', 'tests/match-balance-audit.test.cjs', '.github/workflows/match-balance-unit.yml']
+  pull_request:
+    paths: ['tools/audit-match-balance.cjs', 'tools/compare-match-balance.cjs', 'tests/match-balance-audit.test.cjs', '.github/workflows/match-balance-unit.yml']
+permissions:
+  contents: read
+concurrency:
+  group: match-balance-unit-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test tests/match-balance-audit.test.cjs
