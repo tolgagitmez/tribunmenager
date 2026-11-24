@@ -10,7 +10,7 @@
 				"interchange_unit":"metre",
 				"interchange_up_axis":"+Y (glTF), +Z (Blender)",
 				"interchange_forward_axis":"+X",
-				"canonical_rig_sha256":"c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
+				"canonical_rig_sha256":"0dc472e9f489106eb32dfff97b9577861552470807eeeca665e45c2d44e862d7",
 				"simulation_hz":60,
 				"keyframe_fps":30
 			},

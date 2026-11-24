@@ -4,7 +4,7 @@
   "version": 2,
   "license": "CC0-1.0",
   "sourceCommit": "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
-  "rigReferenceSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
+  "rigReferenceSHA256": "0dc472e9f489106eb32dfff97b9577861552470807eeeca665e45c2d44e862d7",
   "runtime": "assets/player/player-model-data.js",
   "standardModel": "assets/player/footballer.glb",
   "standardNormalization": {
@@ -99,7 +99,7 @@
     },
     "bindRetarget": "positive axial proportion correction followed by normalized rigid dual quaternion skinning",
     "minimumLimbAxialScale": 0.851972071570447,
-    "maximumLimbAxialScale": 1.2865367083310195,
+    "maximumLimbAxialScale": 1.286536708331019,
     "materials": {
       "skin": 18320,
       "shirt": 4854,
@@ -117,7 +117,7 @@
     {
       "path": "assets/player/CREDITS.md",
       "bytes": 4242,
-      "sha256": "d867534f082b52ea5b7afb586b195daee19da4709d7ba73854006fbaa3f31dc8"
+      "sha256": "ee8d976c194100f99f832ce554887a2cbe250501c6b667b677cd4d1fdfbd5541"
     },
     {
       "path": "assets/player/LICENSE-CC0.txt",
@@ -132,17 +132,17 @@
     {
       "path": "assets/player/footballer.glb",
       "bytes": 1385268,
-      "sha256": "b9ff19673f0561e405f1c88da5acfee51124651aaa8b3df1798301e35b774ee6"
+      "sha256": "4852cf108cec891e24cb03b75f2da3f6eb23d241dca0dbd14dd68c2160929228"
     },
     {
       "path": "assets/player/player-model-data.js",
-      "bytes": 2010998,
-      "sha256": "2e85609fab846a229000981a8dbc0cb5bd10bb356e59c0b27e6003d6be6ad401"
+      "bytes": 2010925,
+      "sha256": "a1b2bb5d370951c5c094ac7c321feb77e170544fb2bb69e60c2101511585b120"
     },
     {
       "path": "assets/player/skeleton.json",
-      "bytes": 18832,
-      "sha256": "8b99e4ea298a885bab5132c886e6f360178d74ecb0ae9761aca8ecf0c2a24a3a"
+      "bytes": 18760,
+      "sha256": "15fafedc497bcf8eefb989c5e055a7a9a221432bf7d822fb96b8829f87372be2"
     },
     {
       "path": "assets/player/source/makehuman-base.obj.gz",
