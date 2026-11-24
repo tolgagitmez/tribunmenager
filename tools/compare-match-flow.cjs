@@ -11,6 +11,7 @@ const scenarios=[
 if(process.argv.includes('--pressure'))scenarios.push(
  {id:'press21',seed:21,away:'press'},{id:'press73',seed:73,away:'press'},{id:'press114',seed:114,away:'press'},{id:'press206',seed:206,away:'press'}
 );
+if(process.argv.includes('--organized'))scenarios.push({id:'overlap21',seed:21,change:{playstyle:'wing',width:'wide',fullbacks:'overlap'}},{id:'overlap73',seed:73,away:'press',change:{playstyle:'wing',width:'wide',fullbacks:'overlap'}},{id:'overlap114',seed:114,change:{playstyle:'wing',fullbacks:'overlap'}},{id:'overlap206',seed:206,away:'press',change:{playstyle:'wing',fullbacks:'overlap'}});
 const sum=a=>a.reduce((n,x)=>n+x,0),round=x=>Math.round(x*1000)/1000;
 const roster=()=>Array.from({length:11},(_,id)=>({id,name:'Synthetic '+id,rating:82,passing:82,shooting:82,tackling:82,vision:82,composure:82,dribbling:82,pace:82,agility:82,fitness:92,preferredFoot:id%2?'right':'left',weakFoot:70}));
 function run(root,s){
@@ -34,7 +35,7 @@ function run(root,s){
  const d=observer.report();assert(d.valid,JSON.stringify(d.errors));observer.detach();
  const counts=k=>sum(d.teams.map(t=>t.stageCounts[k]||0));
  timings.sort((a,b)=>a-b);
- return {id:s.id,elapsed:m.time,inPlay:d.clock.inPlaySeconds,goals:sum(m.score),shots:sum(m.shots),onTarget:sum(m.onTarget),passes:sum(m.passes),completed:sum(m.completed),turnovers:m.telemetry.turnovers,pressEscapeChoices:m.telemetry.pressEscapeChoices||0,pressEscapeReleases:m.telemetry.pressEscapeReleases||0,pressEscapeCompletions:m.telemetry.pressEscapeCompletions||0,pressEscapeForwardCompletions:m.telemetry.pressEscapeForwardCompletions||0,box:counts('box'),finalThird:counts('finalThird'),aimedPasses,backwardPassAims,forwardPassAims,stepMeanMs:round(sum(timings)/timings.length),stepP95Ms:round(timings[Math.floor((timings.length-1)*.95)]),steps:timings.length};
+ return {id:s.id,elapsed:m.time,inPlay:d.clock.inPlaySeconds,goals:sum(m.score),shots:sum(m.shots),onTarget:sum(m.onTarget),passes:sum(m.passes),completed:sum(m.completed),turnovers:m.telemetry.turnovers,pressEscapeChoices:m.telemetry.pressEscapeChoices||0,pressEscapeReleases:m.telemetry.pressEscapeReleases||0,pressEscapeCompletions:m.telemetry.pressEscapeCompletions||0,pressEscapeForwardCompletions:m.telemetry.pressEscapeForwardCompletions||0,insideFlankPlans:m.telemetry.insideFlankPlans||0,insideFlankChoices:m.telemetry.insideFlankChoices||0,insideFlankReleases:m.telemetry.insideFlankReleases||0,insideFlankCompletions:m.telemetry.insideFlankCompletions||0,box:counts('box'),finalThird:counts('finalThird'),aimedPasses,backwardPassAims,forwardPassAims,stepMeanMs:round(sum(timings)/timings.length),stepP95Ms:round(timings[Math.floor((timings.length-1)*.95)]),steps:timings.length};
 }
 const pairs=[];
 for(const s of scenarios){
@@ -42,7 +43,7 @@ for(const s of scenarios){
  const base=run(baseline,s),head=run(candidate,s);
  pairs.push({id:s.id,base,head});
 }
-const keys=['elapsed','inPlay','goals','shots','onTarget','passes','completed','turnovers','pressEscapeChoices','pressEscapeReleases','pressEscapeCompletions','pressEscapeForwardCompletions','box','finalThird','aimedPasses','backwardPassAims','forwardPassAims'];
+const keys=['elapsed','inPlay','goals','shots','onTarget','passes','completed','turnovers','pressEscapeChoices','pressEscapeReleases','pressEscapeCompletions','pressEscapeForwardCompletions','insideFlankPlans','insideFlankChoices','insideFlankReleases','insideFlankCompletions','box','finalThird','aimedPasses','backwardPassAims','forwardPassAims'];
 function aggregate(side){
  const rows=pairs.map(p=>p[side]),r={};
  for(const key of keys)r[key]=round(sum(rows.map(x=>x[key])));

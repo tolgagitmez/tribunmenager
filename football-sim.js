@@ -257,7 +257,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;this.kick.pressEscapeDelivery=choice.pressEscapeDelivery;this.kick.pressEscapeForward=choice.pressEscapeForward;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;this.kick.pressEscapeDelivery=choice.pressEscapeDelivery;this.kick.pressEscapeForward=choice.pressEscapeForward;this.kick.insideFlankDelivery=choice.insideFlankDelivery;
   }
  }
  positionRestartKick(r,aim){
@@ -954,6 +954,17 @@ class Match{
   // Keep any genuinely playable forward connection ahead of the carry.
   return !options.some(o=>(o.point.x-p.x)*side>5&&o.risk<.34&&(o.arrivalRisk??1)<.60&&o.space>2.5&&o.score>0);
  }
+ insideFlankDelivery(p,options){
+  const plan=this.flankPlans[p.team],side=this.direction(p.team);
+  if(!this.playerBrainEnabled(p)||this.owner!==p||this.kick||this.restart||p.receiveClock>0||!plan?.inside||plan.state!=='overlap'||plan.sourceId!==p.id||plan.epoch!==this.attackEpoch[p.team]||plan.until<=this.time)return null;
+  const line=Math.max(this.observedLine(p),this.ball.x*side);
+  const candidates=options.filter(o=>{
+   const q=o.q,task=q?.task;
+   return o.kind==='pass'&&q?.active&&q.team===p.team&&q.id===plan.fullbackId&&task?.state==='overlap'&&task.epoch===plan.epoch&&task.expiresAt>this.time&&task.partnerId===p.id&&dist(task,plan.point)<3&&q.x*side<=line+.05&&o.risk<.28&&o.arrivalRisk<.55&&o.space>3&&o.score>0&&(o.point.x-p.x)*side>=3&&dist(o.point,task)<5&&Math.abs(o.point.z)<Math.abs(p.z)-3;
+  });
+  for(const o of candidates.slice(0,1))if(this.passPreparation(p,o).feasible)return {...o,insideFlankDelivery:true};
+  return null;
+ }
  pressEscapeDelivery(p,options,carry,opponents=this.rivals(p)){
   if(!this.playerBrainEnabled(p)||this.owner!==p||p.role==='GK'||this.restart||this.kick||p.receiveClock>0||p.holdingBall||p.shieldUntil>this.time)return null;
   const side=this.direction(p.team),depth=p.x*side;
@@ -1014,6 +1025,8 @@ class Match{
    this.telemetry.openFieldCarryChoices=(this.telemetry.openFieldCarryChoices||0)+1;
    return {...carry,openFieldCarry:true,commit:.45};
   }
+  const inside=this.insideFlankDelivery(p,options);
+  if(inside){this.telemetry.insideFlankChoices=(this.telemetry.insideFlankChoices||0)+1;return inside;}
   const escape=this.pressEscapeDelivery(p,options,carry,opponents);
   if(escape){this.telemetry.pressEscapeChoices=(this.telemetry.pressEscapeChoices||0)+1;return escape;}
   const pendingRun=this.field(p.team).find(q=>this.giveGoLink(p,q));
@@ -1534,6 +1547,7 @@ class Match{
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
+  if(k.insideFlankDelivery){this.telemetry.insideFlankReleases=(this.telemetry.insideFlankReleases||0)+1;this.flight.insideFlankDelivery=true;}
   if(k.pressEscapeDelivery){this.telemetry.pressEscapeReleases=(this.telemetry.pressEscapeReleases||0)+1;this.flight.pressEscapeDelivery=true;this.flight.pressEscapeForward=k.pressEscapeForward;}
   if(k.attackingRunDelivery){this.telemetry.attackingRunReleases=(this.telemetry.attackingRunReleases||0)+1;this.flight.attackingRunDelivery=true;}
   if(k.kind==='shot'&&k.shotStyle){
@@ -1606,6 +1620,7 @@ class Match{
   const previous=this.lastTouch,flight=this.flight,regained=this.lastTeam!==p.team;
   if(this.rebound?.team===p.team&&this.rebound.until>this.time)this.telemetry.reboundRecoveries=(this.telemetry.reboundRecoveries||0)+1;
   this.rebound=null;
+  if(flight?.insideFlankDelivery&&flight.target===p&&flight.from?.team===p.team)this.telemetry.insideFlankCompletions=(this.telemetry.insideFlankCompletions||0)+1;
   if(flight?.pressEscapeDelivery&&flight.target===p&&flight.from?.team===p.team){this.telemetry.pressEscapeCompletions=(this.telemetry.pressEscapeCompletions||0)+1;if(flight.pressEscapeForward)this.telemetry.pressEscapeForwardCompletions=(this.telemetry.pressEscapeForwardCompletions||0)+1;}
   if(flight?.attackingRunDelivery&&flight.target===p&&flight.from?.team===p.team)this.telemetry.attackingRunCompletions=(this.telemetry.attackingRunCompletions||0)+1;
   if(flight?.thirdManReturn?.runnerId===p.id&&flight.from?.team===p.team&&flight.thirdManReturn.epoch===this.attackEpoch[p.team]){this.telemetry.thirdManCompletions=(this.telemetry.thirdManCompletions||0)+1;this.emit('third-man','Üçüncü adam bağlantısı',p.name+' iki takım arkadaşının hazırladığı pas bağlantısını tamamladı.',p);}
@@ -2122,6 +2137,26 @@ class Match{
   const handoffUntil=arrival?this.time+1.2:old?.ownerId===owner.id&&old.epoch===this.attackEpoch[team]?old.handoffUntil||0:0;
   this.supportPlans[team]={ownerId:owner.id,epoch:this.attackEpoch[team],until:this.time+1.3,arrival,handoffUntil,points};return points;
  }
+ insideFlankRun(source,fullback,line,outer){
+  const side=this.direction(source.team),flank=Math.sign(source.z),depth=source.x*side;
+  if(!this.playerBrainEnabled(source)||!this.playerBrainEnabled(fullback)||depth<8||depth>34||Math.abs(source.z)<16||(fullback.energy??1)<.55||dist(source,fullback)>19)return null;
+  const opponents=this.rivals(source),personal=this.rivals(fullback),laneRisk=point=>this.laneRisk(source,point,this.passSpeed('pass',dist(source,point),this.t[source.team]),'pass',opponents);
+  const outerSpace=Math.min(15,...opponents.map(q=>dist({x:q.x+q.vx*.4,z:q.z+q.vz*.4},outer)));
+  if(outerSpace>=2.5&&laneRisk(outer)<.38)return null;
+  const limit=Math.min(line,Math.max(this.observedLine(fullback),this.ball.x*side))-Brain.runMargin(fullback,side);
+  const reserved=[...this.targets].filter(([p,t])=>p.team===source.team&&p!==source&&p!==fullback&&['penetration','channel-run','box-run','between-lines','support'].includes(t.state)).map(([,t])=>t);
+  let best=null;
+  for(const gain of [5,8])for(const z of [flank*10,flank*14]){
+   const point={x:side*Math.min(39,depth+gain,limit),z},travel=dist(fullback,point),range=dist(source,point);
+   if((point.x-source.x)*side<3||travel>17||range>21||range<5||Math.abs(z-source.z)<4||reserved.some(q=>dist(q,point)<5))continue;
+   const space=Math.min(15,...opponents.map(q=>dist({x:q.x+q.vx*.4,z:q.z+q.vz*.4},point)));
+   const corridor=Math.min(15,...personal.map(q=>segment(q,fullback,point).d)),risk=laneRisk(point);
+   if(space<3||corridor<1.6||risk>=.32)continue;
+   const score=space*.65-risk*12-travel*.25+(point.x-source.x)*side*.2;
+   if(!best||score>best.score)best={...point,score};
+  }
+  return best?{x:best.x,z:best.z}:null;
+ }
  flankSupport(team,owner,line){
   const t=this.t[team],flight=this.flight?.from.team===team?this.flight:null,source=owner?.team===team?owner:flight?.from,side=this.direction(team);
   if(t.fullbacks!=='overlap'||!source||source.role==='DEF'||source.role==='GK'||Math.abs(source.z)<12||source.x*side<-10){this.flankPlans[team]=null;return null;}
@@ -2133,11 +2168,15 @@ class Match{
   if(old&&old.epoch===this.attackEpoch[team]&&old.sourceId===source.id&&old.fullbackId===fullback.id&&(old.until>this.time||inFlight&&flight.age<3.5)&&(inFlight||dist(old.origin,source)<6)){
    const point=safePoint(old.point),blocked=this.rivals(source).some(q=>dist(q,point)<1.4);
    if(!blocked)return this.flankPlans[team]={...old,point};
-   return this.flankPlans[team]={...old,point:safePoint({x:old.origin.x-side*5,z:flank*22}),state:'wide-support',until:this.time+.8};
+   const inside=!old.inside&&owner===source?this.insideFlankRun(source,fullback,line,point):null;
+   if(inside){this.telemetry.insideFlankPlans=(this.telemetry.insideFlankPlans||0)+1;return this.flankPlans[team]={...old,point:inside,inside:true,state:'overlap',until:this.time+2};}
+   return this.flankPlans[team]={...old,point:safePoint({x:old.origin.x-side*5,z:flank*22}),inside:false,state:'wide-support',until:this.time+.8};
   }
   let point=safePoint({x:side*Math.min(44,source.x*side+8),z:Math.sign(fullback.homeZ)*Math.min(31,Math.abs(fullback.homeZ)*1.12)}),state='overlap';
-  if(this.rivals(source).some(q=>dist(q,point)<1.4)){point=safePoint({x:source.x-side*5,z:flank*22});state='wide-support';}
-  return this.flankPlans[team]={sourceId:source.id,fullbackId:fullback.id,epoch:this.attackEpoch[team],origin:{x:source.x,z:source.z},point,state,until:this.time+3.2};
+  const inside=owner===source?this.insideFlankRun(source,fullback,line,point):null;
+  if(inside){point=inside;this.telemetry.insideFlankPlans=(this.telemetry.insideFlankPlans||0)+1;}
+  else if(this.rivals(source).some(q=>dist(q,point)<1.4)){point=safePoint({x:source.x-side*5,z:flank*22});state='wide-support';}
+  return this.flankPlans[team]={sourceId:source.id,fullbackId:fullback.id,epoch:this.attackEpoch[team],origin:{x:source.x,z:source.z},point,state,inside:!!inside,until:this.time+3.2};
  }
  buildOutSupport(team,owner){
   const side=this.direction(team);if(!owner||owner.team!==team||this.ball.x*side>-8)return null;

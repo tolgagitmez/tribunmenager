@@ -1,0 +1,44 @@
+name: Organized attack calibration
+on:
+  pull_request:
+    branches: [feature/press-resistant-progression-20261124]
+    paths:
+      - 'football-sim.js'
+      - 'tests/attacking-quality.test.cjs'
+      - 'tools/compare-match-flow.cjs'
+      - '.github/workflows/organized-attack.yml'
+permissions:
+  contents: read
+jobs:
+  paired-pressure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - working-directory: candidate
+        run: node tools/compare-match-flow.cjs ../baseline . --organized
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: organized-attack-comparison
+          path: candidate/docs/validation/match-flow-comparison.json
+          if-no-files-found: warn
+  pressure-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm run test:collective-ai
+      - run: npm run test:manager-kick
