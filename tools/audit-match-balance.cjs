@@ -31,8 +31,37 @@ function config(c){
  const preset=id=>({...T.presets.find(p=>p.id===id).tactics});
  return {seed:c.seed,matchMinutes:5,formation:home[1],awayFormation:away[1],players,awayPlayers,starters:players.map(p=>p.id),awayStarters:awayPlayers.map(p=>p.id),tactics:preset(home[2]),awayTactics:preset(away[2]),individualAI:true};
 }
+// Observe existing decisions only. The engine still evaluates shotWindow
+// exactly as before; no added tactical queries, random draws or ball changes.
+function observeShotDecisions(m){
+ const result={decisions:0,withWindow:0,nearGoal:0,openLane:0,controlledWindow:0,qualityWindow:0,shotChosen:0,qualityWindowPassed:0,qualityWindowCarried:0,qualityWindowOther:0};
+ const choose=m.choose,window=m.shotWindow;let actor=null,read=null;
+ m.shotWindow=function(p,...args){const v=window.call(this,p,...args);if(actor===p&&!read)read=v;return v;};
+ m.choose=function(p,...args){
+  const previousActor=actor,previousRead=read;actor=p;read=null;
+  try{
+   const choice=choose.call(this,p,...args);result.decisions++;
+   if(choice?.kind==='shot')result.shotChosen++;
+   if(!read||p.role==='GK')return choice;
+   result.withWindow++;
+   if(read.distance>29||Math.abs(p.z)>19)return choice;
+   result.nearGoal++;
+   if(read.open<.6)return choice;result.openLane++;
+   if(read.execution<.68||read.pressure>.65)return choice;result.controlledWindow++;
+   if(read.quality<.115)return choice;result.qualityWindow++;
+   if(choice?.kind!=='shot'){
+    if(['pass','through','cross','cutback','long-pass'].includes(choice?.kind))result.qualityWindowPassed++;
+    else if(['carry','feint'].includes(choice?.kind))result.qualityWindowCarried++;
+    else result.qualityWindowOther++;
+   }
+   return choice;
+  }finally{actor=previousActor;read=previousRead;}
+ };
+ return {result,detach(){m.choose=choose;m.shotWindow=window;}};
+}
 function simulate(c){
- const m=new Match(config(c)),started=process.hrtime.bigint(),max=1200*60;
+ const cfg=config(c),configDigest=digest(JSON.stringify(cfg));
+ const m=new Match(cfg),observer=observeShotDecisions(m),started=process.hrtime.bigint(),max=1200*60;
  let ticks=0,controlled=0,loose=0,dead=0,finalThird=[0,0],box=[0,0],lastOwner=null;
  const zones=[null,null],entries={finalThird:[0,0],box:[0,0]};
  while(!m.done&&ticks<max){
@@ -55,7 +84,8 @@ function simulate(c){
  for(const [k,v] of Object.entries(pairs))assert(v.length===2&&v.every(n=>Number.isFinite(n)&&n>=0),c.id+' invalid '+k);
  const counters=Object.fromEntries(['offsides','turnovers','duels','crosses','throughBalls','abortedKicks','touchDeferrals','restarts','shotsAfterPasses','progressiveFirstTouches','openShotReleases'].map(k=>[k,m.telemetry[k]??0]));
  for(const [k,v] of Object.entries(counters))assert(Number.isFinite(v)&&v>=0,c.id+' invalid '+k);
- return {...c,finishReason:m.finishReason,period:m.period,ticks,elapsed:m.time,seconds:{controlled:controlled*DT,loose:loose*DT,dead:dead*DT},pairs,counters,wallSeconds:Number(process.hrtime.bigint()-started)/1e9,finalSeed:m.seed};
+ observer.detach();
+ return {...c,configDigest,shotFunnel:observer.result,finishReason:m.finishReason,period:m.period,ticks,elapsed:m.time,seconds:{controlled:controlled*DT,loose:loose*DT,dead:dead*DT},pairs,counters,wallSeconds:Number(process.hrtime.bigint()-started)/1e9,finalSeed:m.seed};
 }
 const sum=a=>a.reduce((x,y)=>x+y,0),round=n=>Math.round(n*1000)/1000,ratio=(a,b)=>b?round(100*a/b):null;
 function summarize(rows){
@@ -63,7 +93,8 @@ function summarize(rows){
  const full=rows.filter(r=>r.finishReason==='full-time'),f=full.length;
  const totals=k=>sum(full.map(r=>sum(r.pairs[k]))),counter=k=>sum(full.map(r=>r.counters[k]));
  const mean=k=>f?round(totals(k)/f):null;
- return {matches:n,fullTime:f,otherFinishes:n-f,goalsPerMatch:mean('goals'),shotsPerMatch:mean('shots'),shotsOnTargetPerMatch:mean('onTarget'),passesPerMatch:mean('passes'),passAccuracyPct:ratio(totals('completed'),totals('passes')),onTargetPct:ratio(totals('onTarget'),totals('shots')),goalsPerShotPct:ratio(totals('goals'),totals('shots')),zeroShotMatchPct:ratio(full.filter(r=>sum(r.pairs.shots)===0).length,f),scorelessMatchPct:ratio(full.filter(r=>sum(r.pairs.goals)===0).length,f),foulsPerMatch:mean('fouls'),yellowsPerMatch:mean('yellows'),redsPerMatch:mean('reds'),offsidesPerMatch:f?round(counter('offsides')/f):null,finalThirdEntriesPerMatch:mean('finalThirdEntries'),boxEntriesPerMatch:mean('boxEntries'),xgPerMatch:mean('xg'),controlledPct:ratio(sum(full.map(r=>r.seconds.controlled)),sum(full.map(r=>r.ticks*DT))),homePossessionPct:ratio(sum(full.map(r=>r.pairs.possessionSeconds[0])),totals('possessionSeconds')),abortedKicksPerMatch:f?round(counter('abortedKicks')/f):null,
+ const shotFunnel=Object.fromEntries(['decisions','withWindow','nearGoal','openLane','controlledWindow','qualityWindow','shotChosen','qualityWindowPassed','qualityWindowCarried','qualityWindowOther'].map(k=>[k,sum(full.map(r=>r.shotFunnel?.[k]??0))]));
+ return {matches:n,fullTime:f,otherFinishes:n-f,shotFunnel,goalsPerMatch:mean('goals'),shotsPerMatch:mean('shots'),shotsOnTargetPerMatch:mean('onTarget'),passesPerMatch:mean('passes'),passAccuracyPct:ratio(totals('completed'),totals('passes')),onTargetPct:ratio(totals('onTarget'),totals('shots')),goalsPerShotPct:ratio(totals('goals'),totals('shots')),zeroShotMatchPct:ratio(full.filter(r=>sum(r.pairs.shots)===0).length,f),scorelessMatchPct:ratio(full.filter(r=>sum(r.pairs.goals)===0).length,f),foulsPerMatch:mean('fouls'),yellowsPerMatch:mean('yellows'),redsPerMatch:mean('reds'),offsidesPerMatch:f?round(counter('offsides')/f):null,finalThirdEntriesPerMatch:mean('finalThirdEntries'),boxEntriesPerMatch:mean('boxEntries'),xgPerMatch:mean('xg'),controlledPct:ratio(sum(full.map(r=>r.seconds.controlled)),sum(full.map(r=>r.ticks*DT))),homePossessionPct:ratio(sum(full.map(r=>r.pairs.possessionSeconds[0])),totals('possessionSeconds')),abortedKicksPerMatch:f?round(counter('abortedKicks')/f):null,
  sideA:{wins:full.filter(r=>r.pairs.goals[r.swap?1:0]>r.pairs.goals[r.swap?0:1]).length,draws:full.filter(r=>r.pairs.goals[0]===r.pairs.goals[1]).length,losses:full.filter(r=>r.pairs.goals[r.swap?1:0]<r.pairs.goals[r.swap?0:1]).length,goals:sum(full.map(r=>r.pairs.goals[r.swap?1:0])),shots:sum(full.map(r=>r.pairs.shots[r.swap?1:0]))}};
 }
 function combine(parts){
@@ -88,5 +119,5 @@ function main(){
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2)+'\n');
  console.log('BALANCE_SUMMARY '+JSON.stringify(report.overall??{shard:report.shard,matches:report.rows.length}));
 }
-module.exports={cases,config,summarize,combine,simulate,scenarios,fingerprints};
+module.exports={cases,config,summarize,combine,simulate,scenarios,fingerprints,observeShotDecisions};
 if(require.main===module)main();
