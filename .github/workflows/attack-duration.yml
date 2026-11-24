@@ -1,0 +1,26 @@
+name: Attack duration and final third audit
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/audit-attack-duration.cjs'
+      - '.github/workflows/attack-duration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  duration-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node tools/audit-attack-duration.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: attack-duration
+          path: docs/validation/attack-duration.json
+          if-no-files-found: warn
