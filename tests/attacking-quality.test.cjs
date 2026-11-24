@@ -55,3 +55,39 @@ test('shot read chooses the opposite side of a displaced keeper and a clear fini
   assert.equal(m.choose(owner).kind,'shot');
  }
 });
+
+test('accepted central runs stage onside during through-ball wind-up; stale tasks cannot qualify',()=>{
+ const {m,set,owner,link,back}=fixture();
+ owner.x=28;owner.z=0;m.ball.x=28;link.active=false;back.x=40;
+ const st=set(1,'ATT',34,0,{position:'ST'});
+ const Intent=require('../team-intent');
+ Intent.resolve(st,{x:37,z:0,pace:1.06,state:'box-run',partnerId:owner.id,priority:30},m.taskContext(st));
+ assert(m.acceptedTimedRun(owner,st));
+ const seed=m.seed;
+ st.task.epoch--;assert.equal(m.acceptedTimedRun(owner,st),false);st.task.epoch++;
+ assert.equal(m.seed,seed);
+ assert(m.startKick(owner,'through',st,{x:44,z:0}));
+ assert.equal(m.kick.timedRun,true);
+ m.plan();
+ assert.equal(m.targets.get(st).state,'receive-run');
+ assert(m.targets.get(st).x<=40-Brain.runMargin(st,1)+1e-8);
+});
+test('shot intentions depend on distance, balance and pressure; count only actual releases',()=>{
+ const {m,owner,link,mid,back}=fixture();
+ link.active=mid.active=back.active=false;
+ Object.assign(owner,{x:43,z:0,face:0,speed:0,shooting:90,composure:90});
+ m.ball.x=43.88;m.ball.z=.18;
+ const point={x:52,z:-2};
+ const seed=m.seed,placed=m.openPlayShotProfile(owner,point);
+ assert.equal(placed.style,'placed');assert.equal(m.seed,seed);
+ owner.speed=6;
+ const driven=m.openPlayShotProfile(owner,point);
+ assert.equal(driven.style,'driven');assert(driven.power>placed.power);
+ owner.speed=0;
+ assert(m.startOpenPlayShot(owner,point));
+ assert.equal(m.kick.shotStyle,'placed');assert.equal(m.kick.heightTarget,.65);
+ assert.equal(m.telemetry.placedShotReleases??0,0);
+ m.release();
+ assert.equal(m.flight.shotStyle,'placed');assert.equal(m.telemetry.placedShotReleases,1);
+ assert(Math.abs(Math.hypot(m.ball.vx,m.ball.vz)-placed.power)<1e-8);
+});
