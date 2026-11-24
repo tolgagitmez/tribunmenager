@@ -9,6 +9,10 @@ on:
       - '.github/workflows/offball-intelligence.yml'
   push:
     branches: ['feature/offball-intelligence-20261124']
+concurrency:
+  group: ci-offball-intelligence-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   offball:
     runs-on: ubuntu-latest

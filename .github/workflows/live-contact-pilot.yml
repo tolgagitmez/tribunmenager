@@ -1,4 +1,4 @@
-name: Wing attack, live Blender contact and 22-player frame budgets
+name: One footballer live Blender contact pilot and 22-player frame budgets
 on:
   push:
     branches:
@@ -9,28 +9,32 @@ on:
       - humanoid-rig.js
       - live-match-view.js
       - live-match-worker.cjs
-      - match-contact-pilot.js
       - match-contact-events.js
-      - match-clip-pilot.mjs
       - match-boot-contact.mjs
       - match-first-touch.mjs
-      - ball-visual.js
-      - match.html
-      - match3d.js
-      - player-renderer.js
-      - scene3d.js
       - package.json
-      - tests/live-contact-animation-pilot.test.cjs
       - tests/live-match-presentation.test.cjs
       - tests/match-boot-contact.test.cjs
       - tests/match-clip-pilot.test.cjs
       - tests/match-first-touch.test.cjs
       - tests/first-control.test.cjs
       - 'tests/wing-attack*.cjs'
-      - tools/benchmark-live-contact-pilot.cjs
       - tools/wing-attack-scenario.cjs
+      - match-contact-pilot.js
+      - match-clip-pilot.mjs
+      - ball-visual.js
+      - match.html
+      - match3d.js
+      - player-renderer.js
+      - scene3d.js
+      - tests/live-contact-animation-pilot.test.cjs
+      - tools/benchmark-live-contact-pilot.cjs
       - .github/workflows/live-contact-pilot.yml
   workflow_dispatch:
+concurrency:
+  group: ci-live-contact-pilot-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   physics-and-footlock:
     runs-on: ubuntu-latest
@@ -40,6 +44,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Release/contact event, planted boot, ball spin and read-only match
+        run: node --test tests/live-contact-animation-pilot.test.cjs
       - name: Both feet, ground first control, pressure and deformed boot surface
         run: npm run test:wing-attack
       - name: Existing contact and licensed skeleton invariants

@@ -18,7 +18,8 @@ const playerFields = [
   'kickFoot', 'preferredFoot', 'kickMoving', 'contactTime', 'footTouch', 'touchPosition',
   'dribbleFoot', 'diveSide', 'diveForward', 'diveContactTime', 'saveTarget',
   'catchPoint', 'gatherStart', 'headerHeight', 'jumpHeight', 'chestContactHeight',
-  'personality', 'feintClock', 'feintSign', 'receiveClock', 'receiveMode', 'holdingBall', 'holdClock',
+  'personality', 'feintClock',
+  'feintSign', 'feintStyle', 'receiveClock', 'receiveMode', 'holdingBall', 'holdClock',
   'brainRole', 'touchMode', 'shieldFace',
   'feintResponseClock', 'feintResponseSign', 'wallPassClock', 'wallPassFoot'
 ];

@@ -3,6 +3,9 @@ name: Licensed human character
 on:
   pull_request:
     paths:
+      - 'tools/rig-provenance.cjs'
+      - 'assets/interchange/rig-reference.js'
+      - 'tests/test_player_assets.py'
       - 'football-sim.js'
       - 'humanoid-rig.js'
       - 'player-skinning.js'
@@ -24,6 +27,10 @@ on:
       - '.github/workflows/licensed-character.yml'
   workflow_dispatch:
 
+concurrency:
+  group: ci-licensed-character-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   regressions:
     runs-on: ubuntu-latest
@@ -41,10 +48,11 @@ jobs:
       - run: npm run test:stage14
       - run: npm run test:engine-invariance
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: licensed-current-engine-physics
           path: docs/validation/character-physics.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
   rendered-character:

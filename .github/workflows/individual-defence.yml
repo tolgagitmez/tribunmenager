@@ -9,6 +9,10 @@ on:
       - 'player-perception.js'
       - 'tests/individual-defence.test.cjs'
       - '.github/workflows/individual-defence.yml'
+concurrency:
+  group: ci-individual-defence-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   defence:
     runs-on: ubuntu-latest

@@ -4,10 +4,13 @@ on:
     branches: [feature/roles-season-rotation]
   pull_request:
     paths:
+      - 'economy.py'
+      - 'tests/test_unified_fixtures.py'
+      - 'tests/test_live_match.py'
+      - 'tests/fixture-roster-api.py'
       - 'player-model.js'
       - 'football-sim.js'
       - 'server.py'
-      - 'economy.py'
       - 'season_state.py'
       - 'live_match.py'
       - 'live-match-worker.cjs'
@@ -17,11 +20,12 @@ on:
       - 'league.html'
       - 'league.css'
       - 'tests/test_season_rotation.py'
-      - 'tests/test_unified_fixtures.py'
-      - 'tests/test_live_match.py'
-      - 'tests/fixture-roster-api.py'
       - '.github/workflows/season-rotation.yml'
   workflow_dispatch:
+concurrency:
+  group: ci-season-rotation-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   role-behavior:
     runs-on: ubuntu-latest

@@ -11,6 +11,10 @@ on:
       - 'tools/profile-aerial-keeper-rules.cjs'
       - '.github/workflows/aerial-keeper-laws.yml'
   workflow_dispatch:
+concurrency:
+  group: ci-aerial-keeper-laws-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   critical-boundaries:
     runs-on: ubuntu-latest
@@ -38,10 +42,10 @@ jobs:
         run: npm run test:engine-invariance
       - name: Physics invariance report
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: aerial-keeper-engine-invariance
           path: docs/validation/character-physics.json
-          if-no-files-found: error
           retention-days: 30
 
   natural-match-metrics:

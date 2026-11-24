@@ -3,18 +3,22 @@ on:
   pull_request:
     paths:
       - 'football-sim.js'
-      - 'humanoid-rig.js'
-      - 'match-clip-pilot.mjs'
       - 'match-contact-events.js'
       - 'match-contact-pilot.js'
       - 'match-first-touch.mjs'
+      - 'player-brain.js'
+      - 'humanoid-rig.js'
+      - 'match-clip-pilot.mjs'
       - 'live-match-worker.cjs'
       - 'live-match-view.js'
-      - 'player-brain.js'
       - 'tests/onball-presentation.test.cjs'
       - '.github/workflows/onball-presentation.yml'
   push:
     branches: ['feature/onball-visual-contact-20261124']
+concurrency:
+  group: ci-onball-presentation-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   skill-pose:
     runs-on: ubuntu-latest

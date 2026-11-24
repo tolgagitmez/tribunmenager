@@ -203,9 +203,33 @@ class PlayerAssetBuildTests(unittest.TestCase):
     def test_changed_rig_requires_an_explicit_reference_review(self):
         with tempfile.TemporaryDirectory(prefix='tribun-assets-rig-') as directory:
             root = Path(directory)
-            (root / 'humanoid-rig.js').write_text('unreviewed replacement')
-            with patch.object(builder, 'ROOT', root), self.assertRaisesRegex(ValueError, 'reviewed rig reference'):
-                builder.reference_frames()
+            historical = root / 'assets/interchange/rig-reference.js'
+            runtime = root / 'humanoid-rig.js'
+            helper = root / 'tools/rig-provenance.cjs'
+            for relative in ('assets/interchange/rig-reference.js', 'humanoid-rig.js', 'tools/rig-provenance.cjs'):
+                destination = root / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes((ROOT / relative).read_bytes())
+            expected = builder.reference_frames()
+            with patch.object(builder, 'ROOT', root):
+                actual = builder.reference_frames()
+                self.assertEqual(set(actual), set(expected))
+                for name in expected:
+                    np.testing.assert_array_equal(actual[name], expected[name])
+                runtime.write_text('unreviewed replacement')
+                with self.assertRaisesRegex(ValueError, 'reviewed rig reference'):
+                    builder.reference_frames()
+                runtime.write_bytes((ROOT / 'humanoid-rig.js').read_bytes())
+                historical.write_bytes(historical.read_bytes() + b'// altered')
+                with self.assertRaisesRegex(ValueError, 'Historical reviewed rig reference'):
+                    builder.reference_frames()
+                historical.unlink()
+                with self.assertRaisesRegex(ValueError, 'Historical reviewed rig reference'):
+                    builder.reference_frames()
+                historical.write_bytes((ROOT / 'assets/interchange/rig-reference.js').read_bytes())
+                helper.unlink()
+                with self.assertRaisesRegex(ValueError, 'reviewed rig reference'):
+                    builder.reference_frames()
 
 
 if __name__ == '__main__':

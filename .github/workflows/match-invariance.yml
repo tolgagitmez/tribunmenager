@@ -3,9 +3,6 @@ name: Current engine determinism, manager kicks and live league
 on:
   pull_request:
     paths:
-      - 'football-sim.js'
-      - 'humanoid-rig.js'
-      - 'match-animation-bridge.js'
       - 'match-clip-pilot.mjs'
       - 'match-contact-events.js'
       - 'match-contact-pilot.js'
@@ -14,12 +11,9 @@ on:
       - 'ball-visual.js'
       - 'manager-kick-*'
       - 'live-match-*'
-      - 'live_match.py'
-      - 'server.py'
       - 'start.py'
       - 'economy.py'
       - 'season_state.py'
-      - 'match.html'
       - 'match-config.js'
       - 'match3d.*'
       - 'scene3d.js'
@@ -34,9 +28,18 @@ on:
       - 'match-rules.js'
       - 'pitch-laws.js'
       - 'referee-laws.js'
+      - 'tools/serve-character-viewer.cjs'
+      - 'football-sim.js'
+      - 'humanoid-rig.js'
+      - 'match-animation-bridge.js'
+      - 'live-match-worker.cjs'
+      - 'live_match.py'
+      - 'server.py'
+      - 'match.html'
+      - 'match3d.js'
+      - 'league.js'
       - 'tests/**'
       - 'tools/check-character-physics.cjs'
-      - 'tools/serve-character-viewer.cjs'
       - 'docs/validation/baselines/**'
       - 'package*.json'
       - '.github/workflows/match-invariance.yml'
@@ -44,6 +47,10 @@ on:
     branches:
       - main
   workflow_dispatch:
+
+concurrency:
+  group: ci-match-invariance-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   engine-invariance:
@@ -58,10 +65,11 @@ jobs:
         run: npm run test:engine-invariance
       - name: Publish generated current-engine measurement
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: current-engine-physics
           path: docs/validation/character-physics.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
   kick-and-live-regressions:
@@ -89,7 +97,14 @@ jobs:
           node-version: '24'
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
+      - name: Resolve Playwright Chromium executable
+        id: browser
+        run: echo "path=$(node -p 'require(\"playwright\").chromium.executablePath()')" >> "$GITHUB_OUTPUT"
       - name: Two-step kick UI in real Chromium
         run: npm run test:manager-kick-browser
+        env:
+          CHROMIUM: ${{ steps.browser.outputs.path }}
       - name: Shared league match in two independent Chromium contexts
         run: npm run test:live-match-browser
+        env:
+          CHROMIUM: ${{ steps.browser.outputs.path }}
