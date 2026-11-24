@@ -218,7 +218,7 @@ function keeperCatch(p,{speed,height,lateral,pressure,handHits=2}){
  const capacity=17+handling*.13;
  if(height<.08||height>2.05||lateral>.9||speed>=capacity||pressure<=1.15||handHits<1)return false;
  const difficulty=speed*.65+Math.abs(height-1.05)*2.0+lateral*4+Math.max(0,3-pressure)*2.5+(handHits<2?3:0);
- return difficulty<12+(handling-65)*.17+(positioning-75)*.065;
+ return difficulty<13.5+(handling-65)*.25+(positioning-75)*.065;
 }
 function keeperParry(p,ball,opponents,{forward=1}={}){
  const skill=.65*stat(p,'goalkeeping')+.35*stat(p,'handling');
@@ -233,7 +233,43 @@ function keeperParry(p,ball,opponents,{forward=1}={}){
  }
  return best;
 }
-const api={passBias,canThread,carryBias,shouldDrive,canFeint,canHoldUp,runMargin,offBallOption,decoyOption,decoyOpened,runPassBias,defensiveRead,jockeyOption,screenOption,tackleDecision,keeperReaction,keeperDepth,keeperAngle,keeperArrival,keeperSweep,keeperClaim,keeperCatch,keeperParry};
+// A third player offers a forward triangle after A releases to B.
+// The destination is a staging point; it is not a guaranteed next pass.
+function thirdManOption(p,from,wall,{forward=1,line,opponents=[],reserved=[]}={}){
+ if(!p||!from||!wall||!Number.isFinite(line)||[from.id,wall.id].includes(p.id)||!['ATT','MID'].includes(p.role)||p.position==='DM'||(p.energy??1)<.48)return null;
+ if(stat(p,'vision')<79||stat(p,'acceleration')<78||distance(p,wall)<5||distance(p,wall)>23||distance(from,wall)<5||distance(from,wall)>22)return null;
+ const depth=p.x*forward,max=line-runMargin(p,forward);
+ if(max-depth<1.4||depth<wall.x*forward-5||depth>wall.x*forward+15)return null;
+ let best=null;
+ for(const dz of [-4,4,-6,6]){
+  const point={x:forward*Math.min(max,depth+5.5),z:clamp(p.z+dz,-28,28)};
+  const gain=(point.x-wall.x)*forward,range=distance(wall,point);
+  if(gain<3||range<7||range>23||distance(from,point)<7||reserved.some(q=>distance(q,point)<3.5))continue;
+  const area=Math.abs((wall.x-from.x)*(point.z-from.z)-(wall.z-from.z)*(point.x-from.x))/2;
+  if(area<17)continue;
+  const room=Math.min(12,...opponents.map(q=>distance(q,point))),lane=Math.min(8,...opponents.map(q=>segmentDistance(q,wall,point)));
+  if(room<2.8||lane<1.25)continue;
+  const score=room*.7+lane*.5+Math.min(45,area)*.035+gain*.13-distance(p,point)*.09;
+  if(!best||score>best.score)best={id:p.id,point,score};
+ }
+ return best;
+}
+function thirdManBias(p,{risk=1,arrivalRisk=1,space=0,gain=0}={}){
+ if(stat(p,'vision')<78||risk>.35||arrivalRisk>.63||space<3||gain<2.5)return 0;
+ return clamp(1+(stat(p,'vision')-78)*.08+gain*.035,0,3.2);
+}
+// One presser, one central screen, one extra outlet blocker. No second
+// tackler or forced opponent movement. Only local observations qualify.
+function trapOutlet(p,carrier,receiver,{forward=1,ball,pressPoint,coverPoint}={}){
+ if(!p||!carrier||!receiver||!ball||!pressPoint||!coverPoint||p.role==='GK'||p.role==='DEF'||(p.energy??1)<.48||defensiveRead(p)<76)return null;
+ if((carrier.confidence??1)<.55||(receiver.confidence??1)<.55||(carrier.age??0)>.55||(receiver.age??0)>.55)return null;
+ const range=distance(carrier,receiver);
+ if(range<5||range>19||distance(p,ball)>13)return null;
+ const point={x:carrier.x+(receiver.x-carrier.x)*.60,z:carrier.z+(receiver.z-carrier.z)*.60};
+ if(distance(p,point)>6.5||distance(point,pressPoint)<3.3||distance(point,coverPoint)<3.8||point.x*forward<ball.x*forward-11)return null;
+ return {id:p.id,receiverId:receiver.id,point,score:range*.10-distance(p,point)*.5+Math.max(0,18-Math.abs(receiver.z))*.12};
+}
+const api={passBias,canThread,carryBias,shouldDrive,canFeint,canHoldUp,runMargin,offBallOption,decoyOption,decoyOpened,runPassBias,defensiveRead,jockeyOption,screenOption,tackleDecision,keeperReaction,keeperDepth,keeperAngle,keeperArrival,keeperSweep,keeperClaim,keeperCatch,keeperParry,thirdManOption,thirdManBias,trapOutlet};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 root.TribunPlayerBrain=api;
 })(typeof window!=='undefined'?window:globalThis);
