@@ -4,6 +4,26 @@ on:
     branches: ['feature/match-balance-audit-20261124']
     paths: ['.github/workflows/paired-match-balance.yml']
   workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Exact baseline commit SHA'
+        required: true
+        default: '20a7d0e9447428c48b840a2ef948eb5a6f3af79f'
+        type: string
+      candidate:
+        description: 'Exact candidate commit SHA'
+        required: true
+        default: '9050ba600f42d733daa456208940247503d050f4'
+        type: string
+      seeds:
+        description: 'Seeds per scenario: 1 = 12, 2 = 24 matched games'
+        required: true
+        default: '1'
+        type: choice
+        options: ['1','2','12']
+concurrency:
+  group: paired-balance-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -32,25 +52,26 @@ jobs:
           path: harness
       - uses: actions/checkout@v4
         with:
-          ref: 20a7d0e9447428c48b840a2ef948eb5a6f3af79f
+          ref: ${{ inputs.baseline || '20a7d0e9447428c48b840a2ef948eb5a6f3af79f' }}
           path: baseline
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          ref: cac03f34e9736986949da9929933d6d4c471c12f
+          ref: ${{ inputs.candidate || '9050ba600f42d733daa456208940247503d050f4' }}
           path: candidate
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Compare 12 matched cases per version
+      - name: Compare matched cases per version
         env:
           SHARD: ${{ matrix.shard }}
+          SEEDS: ${{ inputs.seeds || '1' }}
         run: |
           mkdir -p parts
           for version in baseline candidate; do
             cp harness/tools/audit-match-balance.cjs "$version/tools/"
-            (cd "$version" && node tools/audit-match-balance.cjs --seeds 1 --shards 3 --shard "$SHARD" --out "../parts/$version-$SHARD.json")
+            (cd "$version" && node tools/audit-match-balance.cjs --seeds "$SEEDS" --shards 3 --shard "$SHARD" --out "../parts/$version-$SHARD.json")
           done
       - uses: actions/upload-artifact@v4
         with:
