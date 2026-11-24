@@ -2682,7 +2682,11 @@ class Match{
    else if(team===r.team)point=layout.attack.has(p.id)?{...layout.attack.get(p.id)}:{x:side*clamp(r.spot.x*side-(p.role==='DEF'?23:9),-35,24),z:p.homeZ*.85,state:'fk-cover',pace:.9};
    else point=layout.marking.has(p.id)?{...layout.marking.get(p.id)}:{x:side*clamp(r.spot.x*side+13,35,45),z:p.homeZ*.55,state:'fk-cover',pace:.9};
    if(team!==r.team&&layout.distance>=12&&dist(point,r.spot)<9.4){const dx=point.x-r.spot.x,dz=point.z-r.spot.z,d=Math.hypot(dx,dz)||1;point.x=r.spot.x+dx/d*9.4;point.z=r.spot.z+dz/d*9.4;}
-   this.takerSpace(point,r,p);if(p!==r.taker||!r.setupPoint){point.x=clamp(point.x,-51,51);point.z=clamp(point.z,-32,32);}
+   this.takerSpace(point,r,p);
+   // The taker may need to approach from just outside the touchline.
+   // Clamping the initial 0.75m approach to z=32 can strand him more
+   // than the 1.4m restart gate from a perfectly legal near-line foul.
+   if(p!==r.taker){point.x=clamp(point.x,-51,51);point.z=clamp(point.z,-32,32);}
    // Clamping a projected point at the pitch edge can push it back inside
    // the exclusion circle. Re-project to a legal in-bounds destination.
    // The referee still waits for actual positions, not merely commands.
