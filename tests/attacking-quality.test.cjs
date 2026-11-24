@@ -91,3 +91,55 @@ test('shot intentions depend on distance, balance and pressure; count only actua
  assert.equal(m.flight.shotStyle,'placed');assert.equal(m.telemetry.placedShotReleases,1);
  assert(Math.abs(Math.hypot(m.ball.vx,m.ball.vz)-placed.power)<1e-8);
 });
+
+test('a curled strike uses live spin, opposite bend in mirrored halves, and no ball teleport',()=>{
+ const {BallPhysics}=require('../football-sim');
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  link.active=mid.active=back.active=false;
+  Object.assign(owner,{x:34*side,z:11,face:Math.atan2(-11,18*side),shooting:94,composure:94});
+  const point={x:52*side,z:0};
+  m.ball.x=owner.x+.6*side;m.ball.z=owner.z-.4;
+  const profile=m.openPlayShotProfile(owner,point);
+  assert.equal(profile.style,'curled');assert.equal(Math.sign(profile.spin),-side);
+  const before=[m.ball.x,m.ball.y,m.ball.z];
+  assert(m.startOpenPlayShot(owner,point));m.release();
+  assert.equal(m.flight.shotStyle,'curled');assert.equal(m.telemetry.curledShotReleases,1);
+  assert.deepEqual([m.ball.x,m.ball.y,m.ball.z],before);
+  assert.equal(Math.sign(m.ball.spin),-side);
+  const curved=BallPhysics.atX(m.ball,52*side,3),straight=BallPhysics.atX({...m.ball,spin:0},52*side,3);
+  assert(curved&&straight);assert(Math.abs(curved.z-straight.z)>.1);
+ }
+});
+test('chip option needs an advanced keeper and a trajectory that clears him',()=>{
+ const {m,owner,link,mid,back,keeper}=fixture();
+ link.active=mid.active=back.active=false;
+ Object.assign(owner,{z:0,face:0,shooting:94,composure:94});
+ const point={x:52,z:0};
+ let qualified=null;
+ for(const x of [27,29,31,33,35,37])for(const g of [40,41,42,43,44]){
+  owner.x=x;keeper.x=g;
+  const profile=m.openPlayShotProfile(owner,point);
+  if(profile.style==='chip')qualified={x,g,profile};
+ }
+ assert(qualified,'at least one physically reachable lob should exist');
+ owner.x=qualified.x;keeper.x=qualified.g;
+ assert.equal(m.openPlayShotProfile(owner,point).style,'chip');
+ keeper.x=50;assert.notEqual(m.openPlayShotProfile(owner,point).style,'chip');
+});
+test('first-time finish requires actual foot contact and completes the incoming pass before a real shot',()=>{
+ const {m,owner,link,mid,back}=fixture();
+ mid.active=back.active=false;
+ Object.assign(owner,{x:44,z:0,face:0,shooting:94,composure:94,touchClock:0,footTouch:0,receiveClock:0,action:'idle'});
+ m.owner=null;m.lastTouch=link;
+ m.flight={id:17,kind:'pass',from:link,target:owner,age:.5,offsidePlayers:[]};
+ m.ball={x:43.8,y:.11,z:0,vx:9,vy:0,vz:0};
+ assert.equal(m.firstTimeFinish(owner),false);assert.equal(m.shots[0],0);
+ const foot=m.contactPoint({...owner,kickFoot:1},'shot');
+ Object.assign(m.ball,{x:foot[0],z:foot[2]});
+ const before=[m.ball.x,m.ball.y,m.ball.z];
+ m.fieldBallContact({x:m.ball.x-.03,y:m.ball.y,z:m.ball.z});
+ assert.equal(m.completed[0],1);assert.equal(m.shots[0],1);
+ assert.equal(m.telemetry.firstTimeShotReleases,1);assert.equal(m.flight.kind,'shot');
+ assert.deepEqual([m.ball.x,m.ball.y,m.ball.z],before);
+});
