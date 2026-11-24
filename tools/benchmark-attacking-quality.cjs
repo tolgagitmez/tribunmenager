@@ -13,9 +13,10 @@ const scenarios=[
  {seed:5291,tactics:{playstyle:'counter',passing:'direct'},awayTactics:{playstyle:'wing',passing:'mixed'}}
 ];
 const dt=1/60;
+const attackingSupportExperiment=process.argv.includes('--experimental-support');
 function percentile(a,p){const b=a.slice().sort((x,y)=>x-y);return b[Math.floor((b.length-1)*p)]??null;}
 function run(s){
- const m=new Match({...s,individualAI:true,rules:{periodSeconds:seconds/2,halftimeSeconds:8,addedTime:true,maxAddedSeconds:60}});
+ const m=new Match({...s,individualAI:true,attackingSupportExperiment,rules:{periodSeconds:seconds/2,halftimeSeconds:8,addedTime:true,maxAddedSeconds:60}});
  const observer=Diagnostics.attach(m),samples=[];
  let steps=0,activeMin=22,activeMax=0;
  const maxSteps=Math.ceil((seconds+130)*60);
@@ -30,8 +31,8 @@ function run(s){
  return {seed:s.seed,tactics:s.tactics,awayTactics:s.awayTactics,score:m.score,steps,activeMin,activeMax,
   clock:report.clock,teams:report.teams.map((t,i)=>({team:i,attacks:t.attacks,stages:t.stageCounts,eligibleReached:t.eligibleReached,passes:t.passes,shots:t.shots,xg:m.xg[i],rates:t.rates,
    boxRunnerCommands:t.evidence.boxRunnerCommands,boxRunnerArrivals:t.evidence.boxRunnerArrivals})),
-  telemetry:{throughBalls:m.telemetry.throughBalls,alignedThroughBalls:m.telemetry.alignedThroughBalls??0,thirdManCompletions:m.telemetry.thirdManCompletions??0,giveGoCompletions:m.telemetry.giveGoCompletions??0,placedShotReleases:m.telemetry.placedShotReleases??0,drivenShotReleases:m.telemetry.drivenShotReleases??0,curledShotReleases:m.telemetry.curledShotReleases??0,chipShotReleases:m.telemetry.chipShotReleases??0,firstTimeShotReleases:m.telemetry.firstTimeShotReleases??0,directionalCutTouches:m.telemetry.directionalCutTouches??0,accelerationBurstTouches:m.telemetry.accelerationBurstTouches??0,shoulderContests:m.telemetry.shoulderContests??0,pressuredControlDeferrals:m.telemetry.pressuredControlDeferrals??0,stepOverAttempts:m.telemetry.stepOverAttempts??0,progressiveCarryChoices:m.telemetry.progressiveCarryChoices??0,openFieldCarryChoices:m.telemetry.openFieldCarryChoices??0,finalThirdLinkChoices:m.telemetry.finalThirdLinkChoices??0,progressiveFirstTouches:m.telemetry.progressiveFirstTouches??0,diagonalRuns:m.telemetry.diagonalRuns??0,blindSideRuns:m.telemetry.blindSideRuns??0,decoyRuns:m.telemetry.decoyRuns??0,diagonalFeedChoices:m.telemetry.diagonalFeedChoices??0},
+  telemetry:{throughBalls:m.telemetry.throughBalls,alignedThroughBalls:m.telemetry.alignedThroughBalls??0,thirdManCompletions:m.telemetry.thirdManCompletions??0,giveGoCompletions:m.telemetry.giveGoCompletions??0,placedShotReleases:m.telemetry.placedShotReleases??0,drivenShotReleases:m.telemetry.drivenShotReleases??0,curledShotReleases:m.telemetry.curledShotReleases??0,chipShotReleases:m.telemetry.chipShotReleases??0,firstTimeShotReleases:m.telemetry.firstTimeShotReleases??0,directionalCutTouches:m.telemetry.directionalCutTouches??0,accelerationBurstTouches:m.telemetry.accelerationBurstTouches??0,shoulderContests:m.telemetry.shoulderContests??0,pressuredControlDeferrals:m.telemetry.pressuredControlDeferrals??0,stepOverAttempts:m.telemetry.stepOverAttempts??0,progressiveCarryChoices:m.telemetry.progressiveCarryChoices??0,openFieldCarryChoices:m.telemetry.openFieldCarryChoices??0,finalThirdLinkChoices:m.telemetry.finalThirdLinkChoices??0,progressiveFirstTouches:m.telemetry.progressiveFirstTouches??0,diagonalRuns:m.telemetry.diagonalRuns??0,blindSideRuns:m.telemetry.blindSideRuns??0,decoyRuns:m.telemetry.decoyRuns??0,diagonalFeedChoices:m.telemetry.diagonalFeedChoices??0,retainedAttackingDepth:m.telemetry.retainedAttackingDepth??0},
   cpuStepIncludingObserver:{medianMs:percentile(samples,.5),p95Ms:percentile(samples,.95),totalMs:samples.reduce((a,b)=>a+b,0)}};
 }
-const result={kind:'natural matches, CPU step including observer; not GPU or device FPS',node:process.version,nominalMatchSeconds:seconds,runs:scenarios.map(run)};
+const result={kind:'natural matches, CPU step including observer; not GPU or device FPS',node:process.version,nominalMatchSeconds:seconds,attackingSupportExperiment,runs:scenarios.map(run)};
 console.log(JSON.stringify(result,null,2));
