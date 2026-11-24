@@ -685,3 +685,33 @@ test('a saturated pass lane never forecasts later defenders unnecessarily',()=>{
  const second={x:owner.x+8,z:owner.z,vx:0,vz:0,passFuture(){throw Error('fully blocked lane should not need another forecast');}};
  assert.equal(m.laneRisk(owner,point,17,'pass',[first,second]),1);
 });
+
+
+test('spatial control reads arrival time, local numerical support and fresh observations in both halves',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back,set}=fixture(side);
+  Object.assign(owner,{x:8*side,z:0});Object.assign(link,{x:11*side,z:12});
+  set(7,'MID',13,14);Object.assign(mid,{x:12*side,z:0,vx:0,vz:0});
+  Object.assign(back,{x:17*side,z:0,vx:0,vz:0});set(18,'DEF',21,-2);
+  const point={x:11*side,z:12},observed=m.rivals(owner);
+  const read=m.spatialRead(owner,point,link,.6,observed);
+  assert(read.observed);assert(read.margin>.45);assert(read.friends>=1);assert(read.friends+1>read.enemies);
+  const stale=observed.map(q=>({...q,age:1}));assert.equal(m.spatialRead(owner,point,link,.6,stale).observed,false);
+  assert.equal(m.spatialRead(owner,point,link,.6,[]).observed,false);
+  const rushing=[...observed,{id:100,role:'DEF',x:11*side,z:9,vx:0,vz:5,pace:90}];
+  assert(m.spatialRead(owner,point,link,.6,rushing).margin<read.margin);
+ }
+});
+test('spatial outlet requires a supported observed region, not speculative or unsafe recycling',()=>{
+ const {m,owner,link,mid,back,set}=fixture();
+ Object.assign(owner,{x:8,z:0});Object.assign(link,{x:11,z:12});m.ball.x=8;m.ball.z=0;
+ const helper=set(7,'MID',13,14);Object.assign(mid,{x:12,z:0,vx:0,vz:0});Object.assign(back,{x:15,z:1,vx:0,vz:0});set(18,'DEF',21,-2);
+ m.observedLine=()=>40;m.passTime=()=>.6;m.passPreparation=()=>({feasible:true});
+ const option={kind:'pass',q:link,point:{x:11,z:12},risk:.1,arrivalRisk:.2,space:8,score:8,distance:13};
+ const carry={point:{x:10,z:0},clearance:1};
+ assert.equal(m.spatialOutlet(owner,[option],carry)?.spatialOutlet,true);
+ assert.equal(m.spatialOutlet(owner,[{...option,risk:.7}],carry),null);
+ assert.equal(m.spatialOutlet(owner,[option],{point:{x:15,z:0},clearance:5}),null);
+ helper.active=false;assert.equal(m.spatialOutlet(owner,[option],carry),null);
+ helper.active=true;m.passPreparation=()=>({feasible:false});assert.equal(m.spatialOutlet(owner,[option],carry),null);
+});
