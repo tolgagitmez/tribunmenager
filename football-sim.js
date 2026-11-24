@@ -1850,7 +1850,15 @@ class Match{
  interceptPoint(p){
   const f=this.flight,b=this.ball;
   if(!this.restart&&!this.kick?.restartContext&&p.active&&p.role!=='GK'&&f?.target===p&&f.from?.team===p.team&&['pass','cutback'].includes(f.kind)&&b.y<=BallPhysics.radius+.01&&Math.abs(b.vy)<1e-6)return this.receiverInterceptPoint(p);
-  const top=5.35+((p.pace??80)-75)*.035;let q=BallPhysics.copy(b),result={x:b.x,z:b.z,t:0};for(let i=1;i<=24;i++){BallPhysics.step(q,.1);const t=i*.1;result={x:clamp(q.x,-52.5,52.5),z:clamp(q.z,-34.3,34.3),t};if(q.y<1.1&&dist(p,result)<.7+top*t)return result;}return result;
+  const top=5.35+((p.pace??80)-75)*.035,forecast=this.currentBallForecast();let result={x:b.x,z:b.z,t:0};
+  // All players observe the same moving ball. Extend the identical .1s
+  // physical trajectory only when another sample is needed, not per actor.
+  for(let i=1;i<=24;i++){
+   if(forecast.samples.length<i){BallPhysics.step(forecast.sampleBall,.1);const q=forecast.sampleBall;forecast.samples.push({x:clamp(q.x,-52.5,52.5),z:clamp(q.z,-34.3,34.3),y:q.y,t:i*.1});}
+   const q=forecast.samples[i-1];result={x:q.x,z:q.z,t:q.t};
+   if(q.y<1.1&&dist(p,result)<.7+top*q.t)return result;
+  }
+  return result;
  }
  teamRole(p){
   if(p.role==='GK')return 'keeper';
@@ -2864,10 +2872,13 @@ class Match{
   this.phase='open';this.planClock=0;return true;
  }
  integrateBall(dt){BallPhysics.step(this.ball,dt);}
- ballCrossing(x,limit=3){
+ currentBallForecast(){
   const b=this.ball,c=this.ballForecast;
-  if(!c||c.ball!==b||c.time!==this.time||c.x!==b.x||c.y!==b.y||c.z!==b.z||c.vx!==b.vx||c.vy!==b.vy||c.vz!==b.vz||c.spin!==b.spin)this.ballForecast={ball:b,time:this.time,x:b.x,y:b.y,z:b.z,vx:b.vx,vy:b.vy,vz:b.vz,...(b.spin===undefined?{}:{spin:b.spin}),planes:new Map()};
-  const key=x+'|'+limit,cache=this.ballForecast.planes;if(!cache.has(key))cache.set(key,BallPhysics.atX(b,x,limit));return cache.get(key);
+  if(!c||c.ball!==b||c.time!==this.time||c.x!==b.x||c.y!==b.y||c.z!==b.z||c.vx!==b.vx||c.vy!==b.vy||c.vz!==b.vz||c.spin!==b.spin)this.ballForecast={ball:b,time:this.time,x:b.x,y:b.y,z:b.z,vx:b.vx,vy:b.vy,vz:b.vz,...(b.spin===undefined?{}:{spin:b.spin}),planes:new Map(),samples:[],sampleBall:BallPhysics.copy(b)};
+  return this.ballForecast;
+ }
+ ballCrossing(x,limit=3){
+  const key=x+'|'+limit,cache=this.currentBallForecast().planes;if(!cache.has(key))cache.set(key,BallPhysics.atX(this.ball,x,limit));return cache.get(key);
  }
  ballExit(exit){
   const b=this.ball,side=exit.sign;
