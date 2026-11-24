@@ -257,7 +257,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;this.kick.pressEscapeDelivery=choice.pressEscapeDelivery;this.kick.pressEscapeForward=choice.pressEscapeForward;
   }
  }
  positionRestartKick(r,aim){
@@ -954,6 +954,38 @@ class Match{
   // Keep any genuinely playable forward connection ahead of the carry.
   return !options.some(o=>(o.point.x-p.x)*side>5&&o.risk<.34&&(o.arrivalRisk??1)<.60&&o.space>2.5&&o.score>0);
  }
+ pressEscapeDelivery(p,options,carry,opponents=this.rivals(p)){
+  if(!this.playerBrainEnabled(p)||this.owner!==p||p.role==='GK'||this.restart||this.kick||p.receiveClock>0||p.holdingBall||p.shieldUntil>this.time)return null;
+  const side=this.direction(p.team),depth=p.x*side;
+  if(depth>35||dist(p,this.ball)>1.35)return null;
+  // Estimate the time before a locally observed defender closes the carrier.
+  // The pass must still survive the ordinary physical wind-up and reception.
+  let deadline=Infinity;
+  for(const d of opponents){
+   const gap=dist(p,d);if(gap>9||gap<.01)continue;
+   const closing=((p.x-d.x)*(d.vx-p.vx)+(p.z-d.z)*(d.vz-p.vz))/gap;
+   if(gap<=3.2||closing>1.1)deadline=Math.min(deadline,Math.max(0,gap-1.6)/Math.max(2,closing,3.5));
+  }
+  if(deadline>.95)return null;
+  const forward=(carry.point.x-p.x)*side;
+  if(carry.clearance>=3.2&&forward>=3&&deadline>.45)return null;
+  const line=Math.max(this.observedLine(p),this.ball.x*side),ranked=[];
+  for(const o of options){
+   if(o.kind!=='pass'||!o.q?.active||o.q===p||o.q.team!==p.team||o.q.role==='GK'||o.q.x*side>Math.max(0,line)+.05||o.risk>=.30||o.arrivalRisk>=.55||o.space<3||o.distance>22||o.distance<4||o.score< -2)continue;
+   const gain=(o.point.x-p.x)*side,turn=Math.abs(angle(Math.atan2(o.point.z-p.z,o.point.x-p.x),p.face));
+   if(gain< -7||turn>2.2)continue;
+   // A short diagonal exit can be better than a marked forward receiver.
+   const releaseRoom=Math.min(15,...opponents.map(d=>dist(d,p)));
+   if(o.space<releaseRoom+1&&gain<3)continue;
+   ranked.push({o,gain,value:o.score*.35+Math.min(10,gain)*.85+o.space*.65-o.risk*12-o.arrivalRisk*8-turn*1.4});
+  }
+  ranked.sort((a,b)=>b.value-a.value||a.o.q.id-b.o.q.id);
+  for(const {o,gain} of ranked.slice(0,2)){
+   const read=this.passPreparation(p,o);
+   if(read.feasible&&Number.isFinite(read.contactTime)&&read.contactTime<=Math.max(.14,deadline+.08))return {...o,pressEscapeDelivery:true,pressEscapeForward:gain>3};
+  }
+  return null;
+ }
  choose(p){
   const opponents=this.rivals(p),pressure=Math.min(30,...opponents.map(o=>dist(p,o))),goalDist=52-p.x*this.direction(p.team);
   const t=this.t[p.team],shot=this.shotWindow(p);
@@ -982,6 +1014,8 @@ class Match{
    this.telemetry.openFieldCarryChoices=(this.telemetry.openFieldCarryChoices||0)+1;
    return {...carry,openFieldCarry:true,commit:.45};
   }
+  const escape=this.pressEscapeDelivery(p,options,carry,opponents);
+  if(escape){this.telemetry.pressEscapeChoices=(this.telemetry.pressEscapeChoices||0)+1;return escape;}
   const pendingRun=this.field(p.team).find(q=>this.giveGoLink(p,q));
   if(pendingRun&&!best?.movingReturn&&pressure>3.8&&p.carryTime<.9&&(!best||(best.point.x-p.x)*this.direction(p.team)<4))return {kind:'carry',point:{x:clamp(p.x+this.direction(p.team),-49,49),z:p.z},hold:true};
   if(best?.movingReturn&&best.risk<.45&&best.arrivalRisk<.65&&best.space>2.5&&best.score>4)return best;
@@ -1500,6 +1534,7 @@ class Match{
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
+  if(k.pressEscapeDelivery){this.telemetry.pressEscapeReleases=(this.telemetry.pressEscapeReleases||0)+1;this.flight.pressEscapeDelivery=true;this.flight.pressEscapeForward=k.pressEscapeForward;}
   if(k.attackingRunDelivery){this.telemetry.attackingRunReleases=(this.telemetry.attackingRunReleases||0)+1;this.flight.attackingRunDelivery=true;}
   if(k.kind==='shot'&&k.shotStyle){
    this.flight.shotStyle=k.shotStyle;
@@ -1571,6 +1606,7 @@ class Match{
   const previous=this.lastTouch,flight=this.flight,regained=this.lastTeam!==p.team;
   if(this.rebound?.team===p.team&&this.rebound.until>this.time)this.telemetry.reboundRecoveries=(this.telemetry.reboundRecoveries||0)+1;
   this.rebound=null;
+  if(flight?.pressEscapeDelivery&&flight.target===p&&flight.from?.team===p.team){this.telemetry.pressEscapeCompletions=(this.telemetry.pressEscapeCompletions||0)+1;if(flight.pressEscapeForward)this.telemetry.pressEscapeForwardCompletions=(this.telemetry.pressEscapeForwardCompletions||0)+1;}
   if(flight?.attackingRunDelivery&&flight.target===p&&flight.from?.team===p.team)this.telemetry.attackingRunCompletions=(this.telemetry.attackingRunCompletions||0)+1;
   if(flight?.thirdManReturn?.runnerId===p.id&&flight.from?.team===p.team&&flight.thirdManReturn.epoch===this.attackEpoch[p.team]){this.telemetry.thirdManCompletions=(this.telemetry.thirdManCompletions||0)+1;this.emit('third-man','Üçüncü adam bağlantısı',p.name+' iki takım arkadaşının hazırladığı pas bağlantısını tamamladı.',p);}
   if(flight?.giveGoReturn?.passerId===p.id&&flight.from.team===p.team&&flight.giveGoReturn.epoch===this.attackEpoch[p.team])this.telemetry.giveGoCompletions++;
@@ -1947,7 +1983,7 @@ class Match{
   // Preview acceleration, turning and braking at the pressure deadline.
   // A shorter destination alone does not guarantee an earlier open lane.
   const early={x:p.x,z:p.z};let vx=p.vx,vz=p.vz,face=p.face;
-  const lane=q=>this.laneRisk(owner,q,this.passSpeed('pass',dist(owner,q),this.t[owner.team]));
+  const lane=q=>this.laneRisk(owner,q,this.passSpeed('pass',dist(owner,q),this.t[owner.team]),'pass',opponents);
   let earlyRisk=lane(early),readyAt=earlyRisk<.35?0:null;
   const horizon=urgency>0?Math.min(2.4,window+.9):0;
   for(let time=0;time<horizon-1e-7;){
@@ -1961,7 +1997,7 @@ class Match{
    if(time>=window&&readyAt!==null)break;
   }
   const space=Math.min(12,...opponents.map(q=>dist({x:q.x+q.vx*Math.min(eta,.8)*.5,z:q.z+q.vz*Math.min(eta,.8)*.5},point)));
-  return {travel,eta,space,window,urgency,risk:this.laneRisk(owner,point,this.passSpeed('pass',range,this.t[owner.team])),earlyRisk,readyAt:readyAt??horizon+.2};
+  return {travel,eta,space,window,urgency,risk:this.laneRisk(owner,point,this.passSpeed('pass',range,this.t[owner.team]),'pass',opponents),earlyRisk,readyAt:readyAt??horizon+.2};
  }
  supportTargets(owner,supporters,reserved=new Map(),line=Math.max(this.observedLine(owner),this.ball.x*this.direction(owner.team))){
   const result=new Map(),side=this.direction(owner.team),t=this.t[owner.team],opponents=this.rivals(owner),radius=t.passing==='short'?8.5:11.5;
