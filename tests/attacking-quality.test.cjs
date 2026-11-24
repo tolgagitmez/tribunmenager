@@ -190,3 +190,33 @@ test('real touch cues change animation without moving actors or stretching leg b
   p.footTouch=0;assert.equal(Rig.update(p,1/60)[mode+'Weight'],0);
  }
 });
+
+test('preferred foot only wins a physically small preparation trade-off when time is available',()=>{
+ const {m,owner,link,mid,back}=fixture();
+ link.active=mid.active=back.active=false;
+ Object.assign(owner,{x:0,z:0,face:0,shooting:95,preferredFoot:1,footPreference:'right',weakFoot:30});
+ m.ball={x:.88,y:.11,z:-.11,vx:0,vy:0,vz:0};
+ const before=structuredClone(m.ball),seed=m.seed;
+ assert.equal(m.selectKickFoot(owner,0,'shot'),1);
+ mid.active=true;Object.assign(mid,{x:1.8,z:0});
+ assert.equal(m.selectKickFoot(owner,0,'shot'),0);
+ mid.active=false;m.ball.z=-.65;
+ assert.equal(m.selectKickFoot(owner,0,'shot'),0);
+ m.ball.z=before.z;owner.weakFoot=95;
+ assert.equal(m.selectKickFoot(owner,0,'shot'),0);
+ assert.deepEqual(m.ball,before);assert.equal(m.seed,seed);
+});
+test('shoulder challenge needs side-by-side contact and attributes change resistance, not possession',()=>{
+ const {m,owner,back}=fixture();
+ Object.assign(owner,{x:0,z:0,face:0,vx:3,vz:0,strength:95,balance:94});
+ Object.assign(back,{x:.15,z:.8,face:0,vx:3,vz:0,strength:65,balance:65});
+ m.ball={x:.7,y:.11,z:0,vx:3,vy:0,vz:0};
+ const before=structuredClone(m.ball),seed=m.seed;
+ const strong=m.shoulderContest(back,owner);assert(strong&&strong.resistance>.05);
+ owner.strength=45;owner.balance=45;
+ const weak=m.shoulderContest(back,owner);assert(weak&&weak.resistance<0);
+ back.face=Math.PI;assert.equal(m.shoulderContest(back,owner),null);
+ back.face=0;back.x=-.8;assert.equal(m.shoulderContest(back,owner),null);
+ back.x=.15;back.vx=8;assert.equal(m.shoulderContest(back,owner),null);
+ assert.deepEqual(m.ball,before);assert.equal(m.owner,owner);assert.equal(m.seed,seed);
+});
