@@ -19,7 +19,8 @@ const playerFields = [
   'catchPoint', 'gatherStart', 'headerHeight', 'personality', 'feintClock',
   'feintSign', 'feintStyle', 'receiveClock', 'receiveMode', 'holdingBall',
   'brainRole', 'touchMode', 'shieldFace',
-  'feintResponseClock', 'feintResponseSign', 'wallPassClock', 'wallPassFoot'
+  'feintResponseClock', 'feintResponseSign', 'wallPassClock', 'wallPassFoot',
+  'balanceRecoveryClock', 'balanceRecoveryDuration', 'balanceRecoverySeverity', 'balanceRecoverySide'
 ];
 const matchFields = [
   'time', 'duration', 'score', 'cards', 'reds', 'shots', 'onTarget', 'fouls',

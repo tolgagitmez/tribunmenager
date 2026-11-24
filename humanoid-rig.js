@@ -138,6 +138,11 @@ function pose(p,dt=1/60){
  const misreadClock=Number.isFinite(p.feintResponseClock)?clamp(p.feintResponseClock,0,.19):0;
  const defenderMisread=!special&&misreadClock>0?Math.sin(Math.PI*.5*clamp(misreadClock/.19,0,1)):0;
  const defenderSide=(p.feintResponseSign??1)>=0?1:-1;
+ // Read the same decaying contact load as the movement integrator. Active
+ // ball strikes, saves, tackles and recorded dribble contacts keep priority.
+ const recoveryClock=Number.isFinite(p.balanceRecoveryClock)?clamp(p.balanceRecoveryClock,0,.5):0;
+ const recoveryWeight=!special&&!(p.footTouch>0)&&p.role!=='GK'&&recoveryClock>0&&Number.isFinite(p.balanceRecoveryDuration)&&p.balanceRecoveryDuration>0&&Number.isFinite(p.balanceRecoverySeverity)?clamp(recoveryClock/p.balanceRecoveryDuration,0,1)*clamp(p.balanceRecoverySeverity,0,.65):0;
+ const recoverySide=p.balanceRecoverySide===-1?-1:1;
  const wallPassWeight=(act==='pass'||act==='shoot')&&p.actionClock>0&&p.wallPassClock>0&&p.wallPassFoot===p.kickFoot?1:0;
  // Gaze affects the drawn head only. It never turns the physical body or
  // changes contact anchors. Keep draw queries read-only by easing on update.
@@ -153,12 +158,12 @@ function pose(p,dt=1/60){
  const tackle=act==='tackle'?action:0,diving=act==='dive'?action:0,celebrating=act==='celebrate'?action:0,protest=act==='protest'?action:0;
  const bounce=st.activity*(.008+.014*sprint)*Math.sin(st.phase*4*Math.PI);
  const gather=gatherDrop(p),strike=kicking?Math.max(kick,smooth(contact/.9)*(1-smooth(after))):0;
- const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015;
+ const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-recoveryWeight*.045;
  const feint=feintWeight*feintSide*.12;
  const headerU=act==='header'&&p.actionClock>0?clamp((p.actionElapsed||0)/Math.max(.1,p.actionDuration||.5),0,1):0,headerWave=Math.sin(Math.PI*headerU);
  const headerBend=p.headerHeight?clamp((1.77-p.headerHeight)*headerWave,0,.8):0;
  const shieldSide=p.dribbleFoot===0?1:-1;
- const pitch=clamp(st.lean*2+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp(st.turn*.25+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055+cutWeight*cutSide*.045,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
+ const pitch=clamp(st.lean*2+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045+recoveryWeight*.09,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp(st.turn*.25+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055+cutWeight*cutSide*.045+recoveryWeight*recoverySide*.22,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
  const facing=[Math.cos(p.face||0),0,Math.sin(p.face||0)],right=[-facing[2],0,facing[0]];
  const up=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
  const bodyForward=unit(sub(facing,mul(up,dot(facing,up)))),bodyRight=unit(cross(bodyForward,up)),bodyFrame={forward:bodyForward,up,right:bodyRight};
@@ -252,6 +257,12 @@ function pose(p,dt=1/60){
    const target=world(p,side===defenderSide?-.08:.18,side*.22,1.08);
    wrist=blend(wrist,target,defenderMisread*.55);
   }
+  if(recoveryWeight>.001){
+   // Counterbalance the contact-away lean with bent arms. The planted
+   // boot anchors and actual footfall cadence are not replaced.
+   const target=world(p,side===recoverySide?-.14:.10,side*.34,1.12);
+   wrist=blend(wrist,target,recoveryWeight*.85);
+  }
   if(wallPassWeight>.001){
    // The existing kick time/contact anchors remain authoritative; only
    // counterbalance the non-kicking arm during a verified one-touch return.
@@ -268,6 +279,7 @@ function pose(p,dt=1/60){
   arms.push({shoulder,target:wrist});
  }
  let result={pelvis,neck,head,headTop,torsoBase,torsoMid,torsoUpper,legs,arms,activity:st.activity,sprint,kick,tackle,diving,celebrating,protest,face:p.face,action:act,weight:action,turn:st.turn,feintWeight,shieldWeight,defenderMisread,wallPassWeight,cutWeight,burstWeight};
+ if(recoveryClock>0)result.balanceRecoveryWeight=recoveryWeight;
  if(hasScan||st.scanYaw){result.headYaw=st.scanYaw;result.headFace=(p.face||0)+st.scanYaw;}
  let frame=bodyFrame,contactTargets=null;
  const bodyKeys=['pelvis','neck','head','headTop','torsoBase','torsoMid','torsoUpper'];

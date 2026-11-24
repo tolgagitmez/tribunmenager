@@ -55,7 +55,8 @@ test('Blender package pins the licensed originals, tools, editable project and b
   // Draw-only culling, transient upload buffers and animation detail; the
   // unchanged canonical GLB byte comparison below must still pass.
   'player-renderer.js':'f22c829e4bdf05c121aed54b7660e1f28798a041',
-  'humanoid-rig.js':'e7e7a0bdc5d9dfb36acae952aad412cf5c661856',
+  // Runtime-only recovery cue; original canonical baked GLB must still match.
+  'humanoid-rig.js':'2901e6c2e68633bf35810104abc0114666073dcc',
   'tools/bake-licensed-clips.cjs':'64117f50a446c1904bdc6ab48790ae11bbaed971',
   'tools/build-player-assets.py':'98c52e9bf30cd05f5ff51a398b261d10f990dd82'
  };

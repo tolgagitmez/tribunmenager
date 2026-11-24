@@ -163,3 +163,46 @@ test('the real physical kick timer releases exactly one recorded wall return wit
   'the physical release changes velocity at foot contact, not the ball position');
  assert(Math.hypot(m.ball.vx,m.ball.vz)>2,'the actual ball must have a launched pass velocity');
 });
+
+
+test('physical shoulder recovery drives contact-away lean without moving ball or planted boots',()=>{
+ for(const side of [-1,1]){
+  const {m,p,d}=game();m.cfg.physicalDuelExperiment=true;
+  Object.assign(p,{x:0,z:0,face:0,speed:0,vx:0,vz:0,action:'idle',actionClock:0,footTouch:0,balance:55,strength:60,agility:65});
+  Object.assign(d,{x:0,z:.82*side,face:0,vx:0,vz:-1.8*side,strength:90});
+  m.ball={x:.4,y:.11,z:0,vx:0,vy:0,vz:0};
+  const neutral=Rig.update(p,1/60),ball=structuredClone(m.ball);
+  const contest=m.shoulderContest(d,p);assert(contest);
+  assert(m.applyShoulderRecovery(p,d,contest));assert.equal(p.balanceRecoverySide,-side);
+  const before=structuredClone(p),pose=Rig.update(p,1/60);
+  assert(pose.balanceRecoveryWeight>0);
+  assert((pose.neck[2]-pose.pelvis[2])*side<0,'lean away from physical contact');
+  let planted=0;
+  for(let i=0;i<2;i++){
+   const leg=pose.legs[i];assert(Math.abs(gap(leg.hip,leg.knee)-Rig.ANATOMY.thigh)<1e-5);assert(Math.abs(gap(leg.knee,leg.ankle)-Rig.ANATOMY.shin)<1e-5);
+   if(leg.stance&&neutral.legs[i].stance){planted++;assert(gap(leg.ankle,neutral.legs[i].ankle)<1e-4);}
+  }
+  assert(planted>=1,'retain at least one real support boot');
+  assert.deepEqual(p,before);assert.deepEqual(m.ball,ball);
+  p.balanceRecoveryClock*=.5;const half=Rig.update(p,1/60);assert(Math.abs(half.balanceRecoveryWeight-pose.balanceRecoveryWeight*.5)<1e-8);
+  p.footTouch=.12;assert.equal(Rig.update(p,1/60).balanceRecoveryWeight,0,'recorded foot contact takes priority');
+  p.footTouch=0;p.action='shoot';p.actionClock=.3;p.actionDuration=.5;p.contactTime=.2;p.actionElapsed=.2;
+  assert.equal(Rig.update(p,1/60).balanceRecoveryWeight,0,'kick retains priority');
+  p.action='idle';p.actionClock=0;p.balanceRecoveryClock=0;
+  assert.equal(Rig.update(p,1/60).balanceRecoveryWeight,undefined);
+ }
+});
+test('live view decays physical recovery cue without mutating the server snapshot',()=>{
+ const worker=fs.readFileSync(path.join(__dirname,'../live-match-worker.cjs'),'utf8');
+ for(const field of ['balanceRecoveryClock','balanceRecoveryDuration','balanceRecoverySeverity','balanceRecoverySide'])assert(worker.includes("'"+field+"'"));
+ const context={window:{TribunHumanoidRig:{update(){}}},Map,Math,Object,Number};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../live-match-view.js'),'utf8'),context);
+ const view=new context.window.TribunLiveMatchView();
+ const state={time:10,events:[],eventSerial:0,ownerId:0,direction:[1,-1],tactics:[{},{}],ball:{x:0,z:0,y:.11},players:[{id:0,active:true,x:0,z:0,face:0,balanceRecoveryClock:.3,balanceRecoveryDuration:.4,balanceRecoverySeverity:.5,balanceRecoverySide:-1}]};
+ view.ingest(state,1000);view.sample(1120,1/60);
+ assert(Math.abs(view.players[0].balanceRecoveryClock-.18)<1e-8);
+ assert.equal(view.players[0].balanceRecoverySide,-1);assert.equal(state.players[0].balanceRecoveryClock,.3);
+ view.sample(1450,1/60);assert.equal(view.players[0].balanceRecoveryClock,0);
+ const next={...state,time:10.4,players:[{id:0,active:true,x:0,z:0,face:0}]};
+ view.ingest(next,1500);assert.equal(view.players[0].balanceRecoveryClock,undefined);
+});

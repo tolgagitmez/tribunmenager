@@ -1,0 +1,32 @@
+name: Physical contact animation integration
+on:
+  pull_request:
+    branches: [feature/physical-duel-recovery-20261124, main]
+    paths:
+      - 'football-sim.js'
+      - 'humanoid-rig.js'
+      - 'live-match-worker.cjs'
+      - 'live-match-view.js'
+      - 'tests/defender-duel-wallpass.test.cjs'
+      - 'tests/gltf-blender-fixture.test.cjs'
+      - '.github/workflows/physical-animation.yml'
+permissions:
+  contents: read
+jobs:
+  contact-animation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm run test:duel-wallpass
+      - run: npm run test:collective-ai
+      - run: npm run test:character-rig
+      - run: npm run test:character-human
+      - run: npm run test:gltf
+      - run: npm run test:render-budget
+      - run: npm run test:engine-invariance
+      - run: npm run test:live-match
