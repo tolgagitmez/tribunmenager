@@ -1,8 +1,8 @@
-name: Open shot window selection
+name: Open shot and safe progression selection
 on:
   push:
     branches: ['fix/shot-window-selection-20261124']
-    paths: ['.github/workflows/open-shot-window.yml', 'football-sim.js', 'tests/open-shot-window.test.cjs']
+    paths: ['.github/workflows/open-shot-window.yml', 'football-sim.js', 'tests/open-shot-window.test.cjs', 'tools/profile-current-attack-chain.cjs']
 jobs:
   verify:
     runs-on: ubuntu-latest
