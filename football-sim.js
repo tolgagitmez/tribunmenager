@@ -257,7 +257,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;this.kick.adaptiveBias=choice.adaptiveBias;
   }
  }
  positionRestartKick(r,aim){
@@ -407,6 +407,36 @@ class Match{
   }
   return point;
  }
+ // A local tactical read, never an opponent's hidden manager settings.
+ // Treat sparse/stale observations as unknown, not as an empty flank.
+ adaptiveRead(p,opponents=this.rivals(p),context=this.matchContext(p.team)){
+  if(!this.playerBrainEnabled(p)||p.role==='GK')return null;
+  const side=this.direction(p.team),depth=p.x*side,flank=Math.sign(p.z);
+  const fresh=opponents.filter(q=>Number.isFinite(q.x)&&Number.isFinite(q.z)&&(q.age??0)<=.65&&(q.confidence??1)>=.6);
+  if(fresh.length<4||depth< -20||depth>34)return null;
+  const lanes=[-1,1].map(sign=>{
+   const local=fresh.filter(q=>q.z*sign>=3&&q.x*side>=depth-5&&q.x*side<=depth+25);
+   return {sign,count:local.length,weight:local.reduce((n,q)=>n+clamp(1-dist(p,q)/38,.2,1)*(q.confidence??1),0)};
+  });
+  // Require actual observations on both sides, not just one crowded flank.
+  const crowded=lanes.find(a=>a.sign===flank),other=lanes.find(a=>a.sign!==flank);
+  const switchSide=Math.abs(p.z)>=8&&crowded?.count>=3&&other?.count>=1&&crowded.weight-other.weight>=.65?other.sign:0;
+  return {switchSide,urgency:clamp(context.urgency||0,0,1),protect:!!context.protect,depth,pressure:Math.min(20,...fresh.map(q=>dist(q,p)))};
+ }
+ adaptivePassBias(p,o,read){
+  if(!read||!o.q?.active||o.q.role==='GK'||o.kind!=='pass'||o.risk>=.30||o.arrivalRisk>=.58||o.space<3||o.movingReturn)return 0;
+  const side=this.direction(p.team),t=this.t[p.team],gain=(o.point.x-p.x)*side;
+  // Only bounded preferences among already playable passes. Tactical
+  // instructions, offside, preparation and physical release remain binding.
+  let bonus=0;
+  if(read.switchSide&&t.width!=='narrow'&&t.mentality!=='defensive'&&['wing','possession'].includes(t.playstyle)&&o.point.z*read.switchSide>=5&&Math.abs(o.point.z-p.z)>=15&&gain>= -2&&gain<=18&&o.distance<=28&&o.space>=5&&o.space>=read.pressure+1.5){
+   const last=this.lastSwitch[p.team];
+   if(!(last&&this.time-last.time<9&&Math.sign(o.point.z)===Math.sign(last.fromZ)))bonus+=t.playstyle==='wing'?2.4:1.5;
+  }
+  if(read.protect&&o.risk<.18&&o.arrivalRisk<.35&&gain>= -5&&o.distance<=20)bonus+=1.5;
+  if(read.urgency>0&&t.mentality!=='defensive'&&gain>=5&&o.risk<.23&&o.arrivalRisk<.48)bonus+=Math.min(2.2,read.urgency*gain*.18);
+  return bonus;
+ }
  passOptions(p){
   const options=[],forward=this.direction(p.team),t=this.t[p.team],tempo=+t.tempo,line=this.observedLine(p),opponents=this.rivals(p),pressure=Math.min(15,...opponents.map(q=>dist(p,q))),context=this.matchContext(p.team);
   for(const q of this.team(p.team)){
@@ -490,6 +520,10 @@ class Match{
     const defenderArrival=Math.min(10,...rivals.map(o=>dist(o,run)/(5.7+((o.pace??80)-75)*.04)+.18));
     if(open>3&&r<.55&&(!advanced||arrivalRisk<.72&&runSpace>2.4)&&reachTime<flight+.65&&reachTime<defenderArrival+.05&&run.x*forward>line+.8&&line-q.x*forward<9&&p.x*forward>-20&&(t.passing!=='short'||p.x*forward>16||this.playerBrainEnabled(p)&&Brain.canThread(p,{forwardGain:(run.x-p.x)*forward,aligned,pressure})))options.push({kind:'through',q,point:run,risk:advanced?clamp(r+arrivalRisk*.18,0,1):r,space:runSpace,...(advanced?{arrivalRisk}:{}),score:score+(advanced?clamp((reception.risk-arrivalRisk)*9,-9,9)+clamp((lane-r)*20,-20,20):0)+(t.passing==='short'?0:2)+(run.x-point.x)*forward*.30+(line<run.x*forward?2:0)-r*7+(this.playerBrainEnabled(p)?Brain.passBias(p,{kind:'through',forwardGain:(run.x-p.x)*forward,pressure,risk:r,space:runSpace,arrivalRisk}):0)+runBonusSafe,plannedRun:aligned,movingReturn,...(aligned&&offBallKind&&r<.38&&runSpace>3&&runBonusSafe>0?{offBallKind}: {})});
    }
+  }
+  if(this.cfg.adaptiveTacticsExperiment===true){
+   const read=this.adaptiveRead(p,opponents,context);
+   for(const option of options){const bias=this.adaptivePassBias(p,option,read);if(bias>0){option.score+=bias;option.adaptiveBias=bias;}}
   }
   return options.sort((a,b)=>b.score-a.score);
  }
@@ -1521,6 +1555,7 @@ class Match{
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
+  if(k.adaptiveBias>0){this.telemetry.adaptiveReleases=(this.telemetry.adaptiveReleases||0)+1;this.flight.adaptiveBias=k.adaptiveBias;}
   if(k.attackingRunDelivery){this.telemetry.attackingRunReleases=(this.telemetry.attackingRunReleases||0)+1;this.flight.attackingRunDelivery=true;}
   if(k.kind==='shot'&&k.shotStyle){
    this.flight.shotStyle=k.shotStyle;
@@ -1592,6 +1627,7 @@ class Match{
   const previous=this.lastTouch,flight=this.flight,regained=this.lastTeam!==p.team;
   if(this.rebound?.team===p.team&&this.rebound.until>this.time)this.telemetry.reboundRecoveries=(this.telemetry.reboundRecoveries||0)+1;
   this.rebound=null;
+  if(flight?.adaptiveBias>0&&flight.target===p&&flight.from?.team===p.team)this.telemetry.adaptiveCompletions=(this.telemetry.adaptiveCompletions||0)+1;
   if(flight?.attackingRunDelivery&&flight.target===p&&flight.from?.team===p.team)this.telemetry.attackingRunCompletions=(this.telemetry.attackingRunCompletions||0)+1;
   if(flight?.thirdManReturn?.runnerId===p.id&&flight.from?.team===p.team&&flight.thirdManReturn.epoch===this.attackEpoch[p.team]){this.telemetry.thirdManCompletions=(this.telemetry.thirdManCompletions||0)+1;this.emit('third-man','Üçüncü adam bağlantısı',p.name+' iki takım arkadaşının hazırladığı pas bağlantısını tamamladı.',p);}
   if(flight?.giveGoReturn?.passerId===p.id&&flight.from.team===p.team&&flight.giveGoReturn.epoch===this.attackEpoch[p.team])this.telemetry.giveGoCompletions++;
