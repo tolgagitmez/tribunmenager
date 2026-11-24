@@ -257,7 +257,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;this.kick.territorialPass=choice.territorialPass;
   }
  }
  positionRestartKick(r,aim){
@@ -773,6 +773,7 @@ class Match{
    const style=accepted?Brain.dribbleStyle(p,selected,{forward:this.direction(p.team),pressure,clearance:choice.clearance??0}):null;
    if(style)p.carryIntent.style=style;
    if(accepted&&(choice.openFieldCarry||choice.progressiveCarry))p.carryIntent.progressive=true;
+   if(accepted&&choice.territorialCarry)this.telemetry.territorialCarryAccepted=(this.telemetry.territorialCarryAccepted||0)+1;
   }
   // The visual stance switches at the accepted physical carry decision,
   // rather than waiting for the next 160 ms planning refresh.
@@ -981,6 +982,43 @@ class Match{
   // A clear finish wins unconditionally, so skip speculative forecasts.
   if(this.clearFinish(p,shot))return {kind:'shot',point:shot.point};
   const options=this.passOptions(p),best=options[0],cross=this.crossingOption(p),carry=this.carryOption(p);
+  const choice=this.chooseFromOptions(p,opponents,pressure,goalDist,t,shot,options,best,cross,carry);
+  if(this.cfg.territorialProgression!==true)return choice;
+  return this.territorialProgression(p,choice,options,carry,opponents,pressure);
+ }
+ territorialProgression(p,choice,options,carry,opponents,pressure){
+  // Reconsider low-value circulation and stalled carries across the whole
+  // build-up, not only after a rare arrival at the edge of the area.
+  if(!this.playerBrainEnabled(p)||this.owner!==p||p.role==='GK'||this.restart||this.kick||p.receiveClock>0||p.shieldUntil>this.time||p.duelRecovery>0||this.ball.y>.45||dist(p,this.ball)>1.35)return choice;
+  const side=this.direction(p.team),depth=p.x*side,t=this.t[p.team],gain=o=>(o.point.x-p.x)*side;
+  if(depth< -34||depth>43||!choice?.point||choice.movingReturn||choice.duelOutlet||choice.holdUpOutlet||choice.attackingRunDelivery||choice.finalThirdLink||choice.safeForwardBeforeHold||choice.shotAngleCarry||choice.shield||['shot','through','cross','cutback','clearance','feint'].includes(choice.kind))return choice;
+  const low=choice.kind==='carry'&&(choice.hold||gain(choice)<2)||['pass','long-pass'].includes(choice.kind)&&gain(choice)<2;
+  if(!low)return choice;
+  this.telemetry.territorialReads=(this.telemetry.territorialReads||0)+1;
+  const line=Math.max(this.observedLine(p),this.ball.x*side),ranked=[];
+  for(const o of options){
+   if(o.kind!=='pass'||!o.q?.active||o.q.team!==p.team||o.q.role==='GK'||o.q.x*side>Math.max(0,line)+.05||o.distance>28||o.risk>=.32||o.arrivalRisk>=.60||o.space<2.5||o.score<0)continue;
+   const advance=gain(o),box=o.point.x*side>=35.5&&Math.abs(o.point.z)<20.16;
+   if(advance<(box?3:5)||t.mentality==='defensive'&&advance>18||t.passing==='short'&&o.distance>22)continue;
+   if(this.threat(o.point,p.team)<this.threat(p,p.team)*.94&&!box)continue;
+   ranked.push({o,value:o.score+advance*.65+(box?5:0)-o.risk*8-o.arrivalRisk*5});
+  }
+  ranked.sort((a,b)=>b.value-a.value);
+  // A lower-ranked but already feasible progressive pass beats a pause
+  // or retreat. No protection from interceptions or offside is granted.
+  for(const {o} of ranked.slice(0,2)){
+   if(this.passPreparation(p,o).feasible){this.telemetry.territorialPassChoices=(this.telemetry.territorialPassChoices||0)+1;return {...o,territorialPass:true};}
+  }
+  if(!carry?.point||pressure<3.0||carry.clearance<2.5||gain(carry)<3||(p.energy??1)<.45||p.carryTime>3.2||p.role==='DEF'&&depth< -12||t.mentality==='defensive'&&depth<0)return choice;
+  const heading=Math.atan2(carry.point.z-p.z,carry.point.x-p.x);
+  if(Math.abs(angle(heading,p.face))>1.25&&pressure<7||opponents.some(q=>{const h=segment({x:q.x+(q.vx||0)*.35,z:q.z+(q.vz||0)*.35},p,carry.point);return h.u>.04&&h.d<1.65;}))return choice;
+  const proposal={...carry,kind:'carry',hold:false,openFieldCarry:true,territorialCarry:true,commit:.65};
+  const read=this.controlPreparation(p,proposal,null,.45);
+  if(!Number.isFinite(read.firstTouchTime)||read.interventionTime!==null)return choice;
+  this.telemetry.territorialCarryChoices=(this.telemetry.territorialCarryChoices||0)+1;
+  return proposal;
+ }
+ chooseFromOptions(p,opponents,pressure,goalDist,t,shot,options,best,cross,carry){
   if(p.role!=='GK'&&shot.distance<(t.shooting==='early'?31:t.shooting==='patient'?22:29)&&shot.open>=.4&&shot.execution>.68&&shot.pressure<.65&&shot.quality>(t.shooting==='early'?.09:t.shooting==='patient'?.16:.13)&&(p.shooting>=83||pressure<3)&&(!best||best.score<15))return {kind:'shot',point:shot.point};
   // A playable central shot should not lose to a high-scoring recycling pass.
   if(this.playerBrainEnabled(p)&&p.role!=='GK'&&shot.distance<=(t.shooting==='patient'?17:23)&&Math.abs(p.z)<16&&shot.open>=.6&&shot.execution>.62&&shot.quality>.095&&shot.pressure<.55)return {kind:'shot',point:shot.point};
@@ -1521,6 +1559,7 @@ class Match{
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
+  if(k.territorialPass){this.telemetry.territorialPassReleases=(this.telemetry.territorialPassReleases||0)+1;this.flight.territorialPass=true;this.flight.territorialOrigin={x:p.x,z:p.z};}
   if(k.attackingRunDelivery){this.telemetry.attackingRunReleases=(this.telemetry.attackingRunReleases||0)+1;this.flight.attackingRunDelivery=true;}
   if(k.kind==='shot'&&k.shotStyle){
    this.flight.shotStyle=k.shotStyle;
@@ -1592,6 +1631,7 @@ class Match{
   const previous=this.lastTouch,flight=this.flight,regained=this.lastTeam!==p.team;
   if(this.rebound?.team===p.team&&this.rebound.until>this.time)this.telemetry.reboundRecoveries=(this.telemetry.reboundRecoveries||0)+1;
   this.rebound=null;
+  if(flight?.territorialPass&&flight.target===p&&flight.from?.team===p.team){this.telemetry.territorialPassCompletions=(this.telemetry.territorialPassCompletions||0)+1;this.telemetry.territorialCompletedMetres=(this.telemetry.territorialCompletedMetres||0)+Math.max(0,(p.x-flight.territorialOrigin.x)*this.direction(p.team));}
   if(flight?.attackingRunDelivery&&flight.target===p&&flight.from?.team===p.team)this.telemetry.attackingRunCompletions=(this.telemetry.attackingRunCompletions||0)+1;
   if(flight?.thirdManReturn?.runnerId===p.id&&flight.from?.team===p.team&&flight.thirdManReturn.epoch===this.attackEpoch[p.team]){this.telemetry.thirdManCompletions=(this.telemetry.thirdManCompletions||0)+1;this.emit('third-man','Üçüncü adam bağlantısı',p.name+' iki takım arkadaşının hazırladığı pas bağlantısını tamamladı.',p);}
   if(flight?.giveGoReturn?.passerId===p.id&&flight.from.team===p.team&&flight.giveGoReturn.epoch===this.attackEpoch[p.team])this.telemetry.giveGoCompletions++;
