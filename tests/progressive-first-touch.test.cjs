@@ -3,7 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const {Match}=require('../football-sim');
 for(const team of [0,1]){
  function fixture(){
-  const m=new Match({seed:42,individualAI:true}),p=m.players[team*11+5],side=m.direction(team);
+  const m=new Match({seed:42,individualAI:true,progressiveFirstTouch:true}),p=m.players[team*11+5],side=m.direction(team);
   Object.assign(p,{role:'MID',position:'CM',x:10*side,z:0,face:team===0?1.9:Math.PI-1.9,dribbling:85,composure:85,agility:82,energy:1});
   // Equal safety in all directions: the prior fixture actually favoured the lateral exit.
   m.rivals=()=>[];return {m,p,side,outgoing:team===0?Math.PI:0};
@@ -27,3 +27,14 @@ for(const team of [0,1]){
   }
  });
 }
+
+test('progressive first touch requires explicit experimental opt-in even with advanced AI enabled',()=>{
+ for(const team of [0,1]){
+  const m=new Match({seed:42,individualAI:true}),p=m.players[team*11+5],side=m.direction(team),outgoing=team===0?Math.PI:0;
+  Object.assign(p,{role:'MID',position:'CM',x:10*side,z:0,face:team===0?1.9:Math.PI-1.9,dribbling:85,composure:85,agility:82,energy:1});
+  m.rivals=()=>[];const normal=m.controlOption(p,p,outgoing);
+  assert.notEqual(normal.progressive,true);
+  m.cfg.progressiveFirstTouch=false;assert.deepEqual(m.controlOption(p,p,outgoing),normal);
+  m.cfg.progressiveFirstTouch=true;assert.equal(m.controlOption(p,p,outgoing).progressive,true);
+ }
+});
