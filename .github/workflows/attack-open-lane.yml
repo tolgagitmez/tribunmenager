@@ -1,0 +1,26 @@
+name: Open-lane attack stabilization
+on:
+  push:
+    branches: ['fix/attack-open-lane-progress-20261124']
+  pull_request:
+    paths:
+      - 'football-sim.js'
+      - 'tests/attack-breakpoint.test.cjs'
+      - '.github/workflows/attack-open-lane.yml'
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --check football-sim.js
+      - run: node --test tests/attack-breakpoint.test.cjs tests/post-receive-hold.test.cjs tests/touch-feasibility.test.cjs tests/pass-preparation.test.cjs tests/collective-team-ai.test.cjs tests/team-plan-arbitration.test.cjs tests/individual-keeper.test.cjs
+      - name: Natural game replay with attack diagnostics
+        run: node tools/profile-current-attack-chain.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-lane-attack-diagnostics
+          path: docs/validation/current-attack-120s.json

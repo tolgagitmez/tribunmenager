@@ -563,7 +563,7 @@ class Match{
      const target=options.target||p.carryTarget||{x:actor.x+this.direction(p.team)*6,z:actor.z},shield=actor.shieldUntil>context.time;
      const follow=dist(actor,ball)>1.1||actor.receiveMode==='cushion'&&actor.receiveClock>0;
      const pressure=Math.min(20,...rivals.map(q=>Math.hypot(q.x+q.vx*elapsed-actor.x,q.z+q.vz*elapsed-actor.z))),counter=this.transitionUntil[p.team]>context.time&&this.t[p.team].onWin==='counter';
-     const pace=actor.receiveClock>0?.48:shield?.56:actor.settleUntil>context.time?.34:counter?1.04:actor.escapeUntil>context.time?.98:pressure>5&&ball.x*this.direction(p.team)<20?.60:.98;
+     const pace=actor.receiveClock>0?.48:shield?.56:actor.settleUntil>context.time?.34:counter?1.04:actor.escapeUntil>context.time?.98:actor.openLaneUntil>context.time&&pressure>5?.98:pressure>5&&ball.x*this.direction(p.team)<20?.60:.98;
      command={x:follow?ball.x+ball.vx*.12:target.x,z:follow?ball.z+ball.vz*.12:target.z,pace,state:actor.receiveClock>0?'receive':shield?'shield':'dribble'};refresh=.16;
     }
     Match.prototype.move.call(context,actor,command,dt);
@@ -649,6 +649,7 @@ class Match{
   // The visual stance switches at the accepted physical carry decision,
   // rather than waiting for the next 160 ms planning refresh.
   p.brainRole=selected.state;
+  if(choice.openLaneProgress&&selected.state==='dribble'&&dist(selected,choice.point)<.3){p.openLaneUntil=this.time+.65;this.telemetry.openLaneProgressChoices=(this.telemetry.openLaneProgressChoices||0)+1;}else if(p.openLaneUntil!==undefined)p.openLaneUntil=0;
   if(choice.shield){
    if(choice.holdUp&&(!(p.shieldUntil>this.time)||!Number.isFinite(p.holdUpStartedAt)))p.holdUpStartedAt=this.time;
    if(!(p.shieldUntil>this.time)){p.shieldBudgetUntil=this.time+1.1;p.shieldReadyAt=this.time+2;this.telemetry.shieldCarries++;}
@@ -753,6 +754,14 @@ class Match{
   }
   return best;
  }
+ openLaneProgress(p,carry,options,pressure,goalDist){
+  if(!this.playerBrainEnabled(p)||!['MID','ATT'].includes(p.role)||p.position==='DM'||p.energy<.5||p.dribbling<74||p.composure<70||pressure<5.5||goalDist<23||p.x*this.direction(p.team)<-15||carry.clearance<3.2)return false;
+  const side=this.direction(p.team),gain=(carry.point.x-p.x)*side,turn=Math.abs(angle(Math.atan2(carry.point.z-p.z,carry.point.x-p.x),p.face));
+  if(gain<4.1||turn>.8)return false;
+  // Do not replace a useful safe pass, including lower-ranked outlets.
+  if(options.some(o=>['pass','through'].includes(o.kind)&&o.risk<.35&&o.arrivalRisk<.60&&o.space>2.4&&(o.point.x-p.x)*side>4))return false;
+  return true;
+ }
  choose(p){
   const opponents=this.rivals(p),pressure=Math.min(30,...opponents.map(o=>dist(p,o))),goalDist=52-p.x*this.direction(p.team);
   const t=this.t[p.team],shot=this.shotWindow(p),options=this.passOptions(p),best=options[0],cross=this.crossingOption(p),carry=this.carryOption(p);
@@ -817,11 +826,15 @@ class Match{
     this.telemetry.safeForwardBeforeHold=(this.telemetry.safeForwardBeforeHold||0)+1;
     return {...option,safeForwardBeforeHold:true};
    }
+   // A safe forward pass still wins. Otherwise do not stand waiting for
+   // helpers when the ball carrier has a genuine unobstructed forward route.
+   if(this.openLaneProgress(p,carry,options,pressure,goalDist))return {...carry,openLaneProgress:true};
    const outlet=best&&best.risk<.35?best:null,a=outlet?Math.atan2(outlet.point.z-p.z,outlet.point.x-p.x):p.face;
    return {kind:'carry',point:{x:clamp(p.x+Math.cos(a)*2,-49,49),z:clamp(p.z+Math.sin(a)*2,-31,31)},hold:true};
   }
   const supportReady=supports.some(q=>dist(q,this.targets.get(q))<3.0),patience=t.playstyle==='possession'?2.3:t.passing==='mixed'?1.65:.9;
   if(!counter&&pressure>5.5&&p.x*this.direction(p.team)<18&&p.carryTime<patience&&supports.length&&!supportReady&&(!best||best.kind!=='through'&&this.threat(best.point,p.team)-this.threat(p,p.team)<.14)){
+   if(this.openLaneProgress(p,carry,options,pressure,goalDist))return {...carry,openLaneProgress:true};
    return {kind:'carry',point:{x:clamp(p.x+this.direction(p.team)*1.5,-49,49),z:p.z},hold:true};
   }
   const nearbyDefender=nearest(opponents,p);
@@ -965,7 +978,7 @@ class Match{
    }
    const shield=actor.shieldUntil>preview.time,target=dist(actor,preview.ball)>1.1?{x:preview.ball.x+preview.ball.vx*.12,z:preview.ball.z+preview.ball.vz*.12}:choice.point;
    const pressure=Math.min(20,...preview.field(1-p.team).map(q=>dist(q,actor))),counter=preview.transitionUntil[p.team]>preview.time&&preview.t[p.team].onWin==='counter';
-   const pace=actor.receiveClock>0?.48:shield?.56:actor.settleUntil>preview.time?.34:counter?1.04:actor.escapeUntil>preview.time?.98:pressure>5&&actor.x*this.direction(p.team)<20?.60:.98;
+   const pace=actor.receiveClock>0?.48:shield?.56:actor.settleUntil>preview.time?.34:counter?1.04:actor.escapeUntil>preview.time?.98:actor.openLaneUntil>preview.time&&pressure>5?.98:pressure>5&&actor.x*this.direction(p.team)<20?.60:.98;
    preview.move(actor,{...target,state:actor.receiveClock>0?'receive':shield?'shield':'dribble',pace},dt);
    if(actor.touchClock<=0&&actor.receiveClock<=0&&preview.ball.y<.45&&dist(actor,preview.ball)<1.3&&preview.dribbleTouch(actor))firstTouchTime??=elapsed;
    const d=nearest(preview.field(1-p.team),preview.ball);
@@ -1229,7 +1242,7 @@ class Match{
   if(regained&&this.lossUntil[p.team]>this.time&&this.t[p.team].onLoss==='counterpress')this.telemetry.pressRecoveries++;
   if(regained){this.recoveryUntil[1-p.team]=this.time+8;this.recoveryUntil[p.team]=0;this.attackEpoch[p.team]++;this.attackPlans=[null,null];this.flankPlans=[null,null];this.boxPlans=[null,null];this.supportPlans=[null,null];this.pressUnits=[null,null];this.pressAssignments=[null,null];for(const q of this.players){Intent.clear(q,q.team===p.team?'gain':'loss',this.taskContext(q));q.runIntent=null;q.supportIntent=null;q.offerIntent=null;q.connectionIntent=null;q.carryIntent=null;}}
   else Intent.clear(p,'ball-control',this.taskContext(p));
-  p.carryIntent=null;p.supportIntent=null;p.runIntent=null;p.shieldUntil=0;p.dribbleDuel=null;
+  p.carryIntent=null;p.supportIntent=null;p.runIntent=null;p.shieldUntil=0;p.dribbleDuel=null;if(p.openLaneUntil!==undefined)p.openLaneUntil=0;
   this.possessionEpoch++;this.lastGain={player:p.id,team:p.team,time:this.time,x:this.ball.x,z:this.ball.z};
   let reception=flight&&p.reception&&p.reception.flightId===flight.id&&this.time-p.reception.at<.55?p.reception:null;
   const contact=reception&&flight.target===p&&p.role!=='GK'&&['pass','through','cutback'].includes(flight.kind)&&this.ball.y<=BallPhysics.radius+.01&&Math.abs(this.ball.vy)<1e-6?this.firstControlContact(p):null;
@@ -1915,7 +1928,7 @@ class Match{
      // Foot possession is not a ball in the hands. If its cushioning touch
      // rolls beyond kicking reach, approach it before choosing distribution.
      if(owner===p&&!p.holdingBall&&!this.kick&&dist(p,ball)>.95){x=ball.x+ball.vx*.10;z=ball.z+ball.vz*.10;state='keeper-control';pace=1.0;}
-    }else if(p===owner){const target=p.carryTarget||{x:p.x+side*5,z:p.z};x=target.x;z=target.z;if(dist(p,ball)>1.1||p.receiveMode==='cushion'&&p.receiveClock>0){x=ball.x+ball.vx*.12;z=ball.z+ball.vz*.12;}const pressure=Math.min(20,...personal.map(q=>dist(q,p))),shield=p.shieldUntil>this.time;pace=p.receiveClock>0?.48:shield?.56:p.settleUntil>this.time?.34:counter?1.04:p.escapeUntil>this.time?.98:pressure>5&&aBall<20?.60:.98;state=p.receiveClock>0?'receive':shield?'shield':'dribble';}
+    }else if(p===owner){const target=p.carryTarget||{x:p.x+side*5,z:p.z};x=target.x;z=target.z;if(dist(p,ball)>1.1||p.receiveMode==='cushion'&&p.receiveClock>0){x=ball.x+ball.vx*.12;z=ball.z+ball.vz*.12;}const pressure=Math.min(20,...personal.map(q=>dist(q,p))),shield=p.shieldUntil>this.time;pace=p.receiveClock>0?.48:shield?.56:p.settleUntil>this.time?.34:counter?1.04:p.escapeUntil>this.time?.98:p.openLaneUntil>this.time&&pressure>5?.98:pressure>5&&aBall<20?.60:.98;state=p.receiveClock>0?'receive':shield?'shield':'dribble';}
     else if(!owner&&!this.flight){if(p===presser){const q=this.interceptPoint(p);x=q.x;z=q.z;pace=1.12;state='loose-ball';}else if(p===cover){x=ball.x-side*7;z=ball.z*.55+p.homeZ*.45;state='screen';}}
     else if(has){
      if(p.role==='MID'){x=side*(baseLine+(p===holding?15:24)+(counter&&p!==holding?5:0));if(p===holding&&aBall>2)x=Math.min(x*side,aBall-7)*side;
