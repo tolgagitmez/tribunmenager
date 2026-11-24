@@ -51,3 +51,35 @@ for(const team of [0,1]){
   assert.equal(m.telemetry.safeForwardBeforeHold,1);
  });
 }
+
+for(const team of [0,1]){
+ function openFixture(){
+  const {m,p,q,first}=fixture(team),side=m.direction(team);
+  m.cfg.individualAI=true;
+  Object.assign(p,{position:'CM',energy:1,dribbling:82,composure:82});
+  m.rivals=()=>[{id:99,x:2*side,z:8,vx:0,vz:0,face:0,duelRecovery:0}];
+  m.carryOption=()=>({kind:'carry',point:{x:5.3*side,z:1},clearance:4.5,score:12,commit:.65});
+  first.point.x=-9*side;
+  return {m,p,q,first,side};
+ }
+ test('open forward route escapes passive wait without forcing possession, team '+team,()=>{
+  const {m,p,side}=openFixture(),ball={...m.ball},seed=m.seed;
+  const choice=m.choose(p);assert.equal(choice.openLaneProgress,true);
+  assert.equal(choice.kind,'carry');assert(choice.point.x*side>4);
+  assert.deepEqual(m.ball,ball);assert.equal(m.seed,seed);
+  m.startCarry(p,choice);assert(p.openLaneUntil>m.time);
+  assert.equal(m.telemetry.openLaneProgressChoices,1);
+  assert.deepEqual(m.ball,ball);
+ });
+ test('safe forward pass, pressure, anchor, fatigue and disabled feature preserve conservative decisions, team '+team,()=>{
+  const {m,p,first,side}=openFixture();
+  first.point.x=9*side;assert.equal(m.choose(p).kind,'pass');
+  first.point.x=-9*side;
+  for(const change of [{position:'DM'},{energy:.3},{face:team===0?Math.PI:0},{dribbling:60}]){
+   const before={...p};Object.assign(p,change);assert.notEqual(m.choose(p).openLaneProgress,true);Object.assign(p,before);
+  }
+  const carry=m.carryOption(p);assert.equal(m.openLaneProgress(p,carry,[first],3,52),false);
+  assert.equal(m.openLaneProgress(p,{...carry,clearance:1},[first],8,52),false);
+  m.cfg.individualAI=false;assert.notEqual(m.choose(p).openLaneProgress,true);
+ });
+}
