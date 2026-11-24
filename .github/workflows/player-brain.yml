@@ -1,0 +1,31 @@
+name: Individual on-ball decisions
+on:
+  pull_request:
+    paths:
+      - 'football-sim.js'
+      - 'player-brain.js'
+      - 'player-model.js'
+      - 'match.html'
+      - 'tests/player-brain.test.cjs'
+      - '.github/workflows/player-brain.yml'
+  push:
+    branches:
+      - 'feature/individual-onball-decisions-20261124'
+jobs:
+  player-brain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check football-sim.js
+          node --check player-brain.js
+          node --check tests/player-brain.test.cjs
+      - name: Player attributes, tactical attack and continuity
+        run: |
+          node --test tests/player-brain.test.cjs
+          node --test tests/attack-breakpoint.test.cjs tests/player-identity-integration.test.cjs tests/team-intent.test.cjs

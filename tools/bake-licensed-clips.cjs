@@ -11,7 +11,7 @@ const CLIPS=Object.freeze([
  Object.freeze({name:'shoot',duration:1.3,contactTime:.38}),
  Object.freeze({name:'dive-right',duration:1.3,contactTime:.34})
 ]);
-const RIG_SHA256='c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480';
+const RIG_SHA256='0dc472e9f489106eb32dfff97b9577861552470807eeeca665e45c2d44e862d7';
 const sha256=b=>crypto.createHash('sha256').update(b).digest('hex');
 function multiply(a,b){const o=new Float64Array(16);for(let c=0;c<4;c++)for(let r=0;r<4;r++)for(let k=0;k<4;k++)o[c*4+r]+=a[k*4+r]*b[c*4+k];return o;}
 function rigidInverse(m){const o=new Float64Array(16);for(let c=0;c<3;c++)for(let r=0;r<3;r++)o[c*4+r]=m[r*4+c];o[15]=1;for(let r=0;r<3;r++)o[12+r]=-(o[r]*m[12]+o[r+4]*m[13]+o[r+8]*m[14]);return o;}

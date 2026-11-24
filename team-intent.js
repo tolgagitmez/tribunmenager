@@ -2,17 +2,17 @@
 (function(root){
 'use strict';
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z),finitePoint=p=>Number.isFinite(p?.x)&&Number.isFinite(p?.z);
-const attack=new Set(['support','build-support','return-support','between-lines','penetration','channel-run','give-go','overlap','wide-support','inside-support','box-run','cutback-support','receive-run','dribble','receive','shield']);
-const defence=new Set(['press','counterpress','intercept','mark','track-run','cover','screen','recovery-screen','recovery','block','delay']);
+const attack=new Set(['support','build-support','return-support','between-lines','penetration','decoy-run','channel-run','give-go','overlap','wide-support','inside-support','box-run','cutback-support','receive-run','dribble','receive','shield']);
+const defence=new Set(['press','counterpress','intercept','mark','track-run','cover','screen','trap-screen','recovery-screen','recovery','block','delay']);
 const moving=new Set(['press','mark','receive','block','recover','control']);
 const limits={support:[.50,1.8,.32],run:[.70,3.2,.36],press:[.45,1.4,.32],mark:[.60,2.1,.36],cover:[.50,1.8,.32],recover:[.45,1.8,.28],carry:[.45,1.2,.28],receive:[0,2.4,0],block:[0,.8,0],control:[0,1.2,0],shape:[.25,1.2,.24]};
 function phaseFamily(phase){return ['win','possession','gain','in-possession'].includes(phase)?'attack':['loss','defence','defense','out-of-possession'].includes(phase)?'defence':null;}
 function purposeFor(state){
  if(['support','build-support','return-support','between-lines'].includes(state))return 'support';
- if(['penetration','channel-run','give-go','overlap','wide-support','inside-support','box-run','cutback-support'].includes(state))return 'run';
+ if(['penetration','decoy-run','channel-run','give-go','overlap','wide-support','inside-support','box-run','cutback-support'].includes(state))return 'run';
  if(['press','counterpress','intercept','loose-ball'].includes(state))return 'press';
  if(['mark','track-run'].includes(state))return 'mark';
- if(['cover','screen','recovery-screen','delay'].includes(state))return 'cover';
+ if(['cover','screen','trap-screen','recovery-screen','delay'].includes(state))return 'cover';
  if(state==='recovery')return 'recover';if(state==='receive-run')return 'receive';
  if(['dribble','shield'].includes(state))return 'carry';if(state==='receive')return 'control';if(state==='block')return 'block';return 'shape';
 }

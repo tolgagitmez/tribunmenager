@@ -18,8 +18,8 @@
     "Blender GLB and GLTF_SEPARATE export"
   ],
   "canonicalInput": {
-    "bytes": 1513964,
-    "sha256": "4c5ede8e07791d4e7a0495fc65a0cdf03c2c3b8124f08fd59a51c5a2545bcb08"
+    "bytes": 1513960,
+    "sha256": "06e159724d75b3d0d149e3dc1012f9730374b4700734b4684cb7b4266fc1135c"
   },
   "exportOptions": {
     "export_animations": true,
@@ -40,7 +40,7 @@
     {
       "path": "tools/bake-licensed-clips.cjs",
       "bytes": 9339,
-      "sha256": "65e5ae035eefa3b91604bf6fb11953688d4bac8ae1ff43c75d3fc9e12cfc2122"
+      "sha256": "4508f2a65a604f9f3877e1d07489671d7d70b5b1278f655c14fabee74d86817d"
     },
     {
       "path": "tools/build-blender-interchange.py",
@@ -49,13 +49,13 @@
     },
     {
       "path": "humanoid-rig.js",
-      "bytes": 22569,
-      "sha256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480"
+      "bytes": 25582,
+      "sha256": "0dc472e9f489106eb32dfff97b9577861552470807eeeca665e45c2d44e862d7"
     },
     {
       "path": "player-renderer.js",
-      "bytes": 25059,
-      "sha256": "b885b31fcc997d5eb2117f681335ba792eb2688df156f38d328c385b15563e9e"
+      "bytes": 26344,
+      "sha256": "d7bf49c641c87f0b443bf5454391c1eec9cbf19700b0bbce961a6a4638618cb1"
     },
     {
       "path": "animation-scenarios.js",
@@ -64,23 +64,23 @@
     },
     {
       "path": "tools/build-player-assets.py",
-      "bytes": 41382,
-      "sha256": "f6df3a40b953c4805cb2d1e781c9bd3f5c4f09fdcbd890060581ad92145e76ac"
+      "bytes": 41649,
+      "sha256": "622b1daccac4c863d1dc85a55bc09df5dc1c65370775952d87251504bf743327"
     },
     {
       "path": "assets/player/manifest.json",
-      "bytes": 6600,
-      "sha256": "71bbb3fa69153aa9279f97918a3983db0e060eb5c8490266c0ae0641d249f0c4"
+      "bytes": 6599,
+      "sha256": "75ebec4c6cb1ad5534194e2f15ad7feca14bc2bd5d27cf8699271549b4fa3c32"
     },
     {
       "path": "assets/player/footballer.glb",
       "bytes": 1385268,
-      "sha256": "b9ff19673f0561e405f1c88da5acfee51124651aaa8b3df1798301e35b774ee6"
+      "sha256": "4852cf108cec891e24cb03b75f2da3f6eb23d241dca0dbd14dd68c2160929228"
     },
     {
       "path": "assets/player/player-model-data.js",
-      "bytes": 2010998,
-      "sha256": "2e85609fab846a229000981a8dbc0cb5bd10bb356e59c0b27e6003d6be6ad401"
+      "bytes": 2010925,
+      "sha256": "a1b2bb5d370951c5c094ac7c321feb77e170544fb2bb69e60c2101511585b120"
     }
   ],
   "determinism": "Canonical animation GLB is byte deterministic. Blender geometry, textures and sampled poses are checked numerically. editable.blend embeds Blender session metadata and is verified by its packaged hash, not required to rebuild byte identically."

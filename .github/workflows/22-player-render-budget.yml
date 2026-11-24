@@ -1,0 +1,42 @@
+name: 22-player render budget and skill stress
+on:
+  pull_request:
+    paths:
+      - 'player-renderer.js'
+      - 'match3d.js'
+      - 'football-sim.js'
+      - 'tests/22-player-render-budget.test.cjs'
+      - 'tools/benchmark-match-22-browser.cjs'
+      - '.github/workflows/22-player-render-budget.yml'
+  push:
+    branches: ['feature/22-player-render-budget-20261124']
+jobs:
+  exact-render-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --check player-renderer.js && node --check match3d.js && node --check football-sim.js
+      - run: npm run test:render-budget
+      - run: npm run test:duel-wallpass
+      - run: node --test tests/character-licensed-rig.test.cjs tests/character-kick-transition.test.cjs tests/match-animation-bridge.test.cjs tests/player-renderer-lod.test.cjs tests/player-skinning.test.cjs
+  production-webgl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run benchmark:render-budget
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-22-player-skill-stress
+          path: dist/match-animation-benchmark/
+          retention-days: 30

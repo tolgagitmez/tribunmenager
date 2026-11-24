@@ -1,0 +1,23 @@
+name: Off-ball intelligence and timed runs
+on:
+  pull_request:
+    paths:
+      - 'player-brain.js'
+      - 'football-sim.js'
+      - 'team-intent.js'
+      - 'tests/offball-intelligence.test.cjs'
+      - '.github/workflows/offball-intelligence.yml'
+  push:
+    branches: ['feature/offball-intelligence-20261124']
+jobs:
+  offball:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check football-sim.js && node --check player-brain.js && node --check team-intent.js
+      - run: npm run test:offball
+      - run: node --test tests/post-receive-hold.test.cjs tests/pass-preparation.test.cjs tests/aerial-keeper-law-boundaries.test.cjs tests/defender-duel-wallpass.test.cjs tests/22-player-render-budget.test.cjs

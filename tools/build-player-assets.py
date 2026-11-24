@@ -28,7 +28,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 ID = 'tribun-makehuman-footballer-v1'
 COMMIT = 'a8bc2d54ff0ac92e78ff71431b1023eda42bf482'
-RIG_SHA256 = 'c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480'
+RIG_SHA256 = '0dc472e9f489106eb32dfff97b9577861552470807eeeca665e45c2d44e862d7'
 PINNED = {
     'makehuman-base.obj': '8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c',
     'makehuman-default.mhskel': '99f179bce0aa850b45d4191a1d0d234c5851f881c057439470ded3bddf729a24',

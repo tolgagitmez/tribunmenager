@@ -67,7 +67,16 @@
     "test:character-contact": "node --test tests/character-skinned-sole.test.cjs",
     "test:match-animation": "node --test tests/match-animation-bridge.test.cjs",
     "test:integration": "npm run test:character-rig && npm run test:match-animation && node --test tests/player-asset-status.test.cjs tests/player-assets.test.cjs tests/match-startup.test.cjs",
-    "test:match-fps": "node --test tests/match-fps-profiles.test.cjs && node --test tests/player-renderer-lod.test.cjs"
+    "test:match-fps": "node --test tests/match-fps-profiles.test.cjs && node --test tests/player-renderer-lod.test.cjs",
+    "test:player-brain": "node --test tests/player-brain.test.cjs",
+    "test:onball-presentation": "node --test tests/onball-presentation.test.cjs tests/live-contact-animation-pilot.test.cjs tests/match-animation-bridge.test.cjs",
+    "test:duel-wallpass": "node --test tests/defender-duel-wallpass.test.cjs tests/onball-presentation.test.cjs tests/player-brain.test.cjs",
+    "test:render-budget": "node --test tests/22-player-render-budget.test.cjs tests/match-fps-profiles.test.cjs tests/post-receive-hold.test.cjs",
+    "benchmark:render-budget": "node tools/benchmark-match-22-browser.cjs",
+    "test:offball": "node --test tests/offball-intelligence.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-brain.test.cjs",
+    "test:individual-defence": "node --test tests/individual-defence.test.cjs tests/defender-duel-wallpass.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/offball-intelligence.test.cjs",
+    "test:individual-keeper": "node --test tests/individual-keeper.test.cjs tests/aerial-keeper-law-boundaries.test.cjs tests/individual-defence.test.cjs tests/offball-intelligence.test.cjs tests/defender-duel-wallpass.test.cjs",
+    "test:collective-ai": "node --test tests/collective-team-ai.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-identity-integration.test.cjs tests/individual-keeper.test.cjs"
   },
   "devDependencies": {
     "gltf-validator": "2.0.0-dev.3.10",

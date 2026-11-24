@@ -50,6 +50,12 @@ class LiveMatchView {
    display.x=interpolate(start,target,'x');
    display.z=interpolate(start,target,'z');
    display.face=yaw(start.face,target.face,weight);
+   // Server skill clocks are sampled at network intervals. Extrapolate for
+   // presentation only between packets; authoritative snapshot is unchanged.
+   const age=clamp((now-this.arrived)/1000,0,.4);
+   for(const clock of ['feintClock','footTouch','feintResponseClock','wallPassClock']){
+    if(Number.isFinite(target[clock]))display[clock]=Math.max(0,target[clock]-age);
+   }
    if(display.active)window.TribunHumanoidRig.update(display,dt);
   }
   for(const axis of ['x','y','z'])this.visualBall[axis]=interpolate(this.ballStart,this.ball,axis);

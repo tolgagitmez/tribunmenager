@@ -170,7 +170,7 @@ class PlayerRenderer{
   if(!Skinning)throw Error('Oyuncu deri çizim modülü yüklenemedi: player-skinning.js');
   if(!Constraints)throw Error('Oyuncu eklem sınırı modülü yüklenemedi: character-palette-constraints.js');
   this.validation=root.TribunPlayerAssetStatus?.validate(assets);if(this.validation&&!this.validation.ok){const error=Error(this.validation.errors.map(e=>e.code+' '+e.path+': '+e.message).join('; '));error.validation=this.validation;throw error;}
-  this.gl=gl;this.assets=assets;this.options=options;this.studio=false;this.visualQuality='auto';this.lastRenderStats={players:0,fast:0,detailed:0,triangles:0};
+  this.gl=gl;this.assets=assets;this.options=options;this.studio=false;this.visualQuality='auto';this.lastRenderStats={players:0,fast:0,detailed:0,triangles:0,paletteBuilds:0,paletteHits:0,dualBuilds:0,dualHits:0,lodBinds:0};this.poseCache=new WeakMap();
   const shader=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;};
   const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,VS));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,options.standardMaterials?'#define STANDARD_ASSET\n'+FS:FS));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));this.program=program;
   this.loc={};for(const n of ['uVP','uBoneReal[0]','uBoneDual[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uFast','uSkinTexture','uFabricTexture','uStandardAsset','uMaterialBase[0]','uMaterialRoughness[0]'])this.loc[n]=gl.getUniformLocation(program,n);
@@ -223,7 +223,7 @@ class PlayerRenderer{
   const gl=this.gl;gl.useProgram(this.program);gl.uniformMatrix4fv(this.loc.uVP,false,new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
   const standard=this.options.standardMaterials;gl.uniform1f(this.loc.uStandardAsset,standard?1:0);if(standard){gl.uniform3fv(this.loc['uMaterialBase[0]'],standard.baseColors);gl.uniform1fv(this.loc['uMaterialRoughness[0]'],standard.roughness);}
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.textures.skin);gl.uniform1i(this.loc.uSkinTexture,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.textures.fabric);gl.uniform1i(this.loc.uFabricTexture,1);
-  const renderStats={players:0,fast:0,detailed:0,triangles:0};
+  const renderStats={players:0,fast:0,detailed:0,triangles:0,paletteBuilds:0,paletteHits:0,dualBuilds:0,dualHits:0,lodBinds:0};let boundLOD=null;
   for(const p of players){if(!p.active)continue;const d=Math.hypot(p.x-eye[0],p.z-eye[2]),lod=this.lods[this.visualQuality==='detailed'||this.studio||camera==='portrait'?0:camera==='close'&&d<22?1:2]||this.lods[1]||this.lods[2]||this.lods[0],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
    const detailed=this.visualQuality==='detailed'||(this.visualQuality==='auto'&&(this.studio||camera==='portrait'||(camera==='close'&&d<18)));
    gl.uniform1f(this.loc.uFast,detailed?0:1);
@@ -232,14 +232,40 @@ class PlayerRenderer{
    const set=(name,value)=>gl.uniform3fv(this.loc[name],value);set('uSkin',v.skin||p.skin||[.69,.48,.34]);set('uShirt',shirt);set('uShorts',shorts);set('uHair',v.hair||p.hair||[.10,.065,.043]);set('uBoots',v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3]);set('uIris',v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3]);set('uVariant',v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0]);
    gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));let connected;
    if(frameOptions.paletteForPlayer)connected=frameOptions.paletteForPlayer(p);
-   if(!connected){const pose=Rig.getPose(p),rawPalette=v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose),skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;connected=renderPalette(rawPalette,skinPalette,this.assets);}
-   const dual=Skinning.fromMatrices(connected);
+   let dual;
+   if(!connected){
+    // A Rig.update returns a new immutable pose; getPose is a read-only query.
+    // Reuse exact pose matrices on repeated/paused draws, without ever
+    // reusing a mutable transition palette or a custom pilot's result.
+    const pose=Rig.getPose(p);
+    let entry=!v.presentation?this.poseCache.get(p):null;
+    if(!entry||entry.pose!==pose||entry.face!==p.face||entry.assets!==this.assets){
+     entry={pose,face:p.face,assets:this.assets,raw:v.presentation?presentationPalette(p,this.assets):palette(p,this.assets,pose),dual:null};
+     if(!v.presentation)this.poseCache.set(p,entry);
+     renderStats.paletteBuilds++;
+    }else renderStats.paletteHits++;
+    const rawPalette=entry.raw,skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;
+    connected=renderPalette(rawPalette,skinPalette,this.assets);
+    if(connected===rawPalette){
+     if(entry.dual){dual=entry.dual;renderStats.dualHits++;}
+     else{dual=entry.dual=Skinning.fromMatrices(connected);renderStats.dualBuilds++;}
+    }
+   }
+   if(!dual){dual=Skinning.fromMatrices(connected);renderStats.dualBuilds++;}
    gl.uniform4fv(this.loc['uBoneReal[0]'],dual.real);gl.uniform4fv(this.loc['uBoneDual[0]'],dual.dual);
-   gl.bindBuffer(gl.ARRAY_BUFFER,lod.vertex);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lod.index);for(const a of this.attributes){if(a.location<0)continue;gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,80,a.off*4);}gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);for(const a of this.attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);
+   // Preserve draw order and all individual uniforms. Bind vertex attributes
+   // only when LOD actually changes, rather than 23 times per broadcast frame.
+   if(boundLOD!==lod){
+    gl.bindBuffer(gl.ARRAY_BUFFER,lod.vertex);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lod.index);
+    for(const a of this.attributes){if(a.location<0)continue;gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,80,a.off*4);}
+    boundLOD=lod;renderStats.lodBinds++;
+   }
+   gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);
   }
+  if(boundLOD)for(const a of this.attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);
   this.lastRenderStats=renderStats;
  }
- dispose(){if(this.disposed)return;this.disposed=true;const gl=this.gl;for(const lod of this.lods||[])if(lod){gl.deleteBuffer(lod.vertex);gl.deleteBuffer(lod.index);}for(const texture of Object.values(this.textures||{}))gl.deleteTexture(texture);if(this.program){for(const shader of gl.getAttachedShaders(this.program)||[])gl.deleteShader(shader);gl.deleteProgram(this.program);}}
+ dispose(){if(this.disposed)return;this.disposed=true;this.poseCache=new WeakMap();const gl=this.gl;for(const lod of this.lods||[])if(lod){gl.deleteBuffer(lod.vertex);gl.deleteBuffer(lod.index);}for(const texture of Object.values(this.textures||{}))gl.deleteTexture(texture);if(this.program){for(const shader of gl.getAttachedShaders(this.program)||[])gl.deleteShader(shader);gl.deleteProgram(this.program);}}
 }
 PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
 })(typeof window!=='undefined'?window:globalThis);

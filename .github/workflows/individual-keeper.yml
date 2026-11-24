@@ -1,0 +1,22 @@
+name: Individual goalkeeper intelligence
+on:
+  push:
+    branches: ['feature/individual-keeper-20261124']
+  pull_request:
+    paths:
+      - 'football-sim.js'
+      - 'player-brain.js'
+      - 'tests/individual-keeper.test.cjs'
+      - '.github/workflows/individual-keeper.yml'
+jobs:
+  keeper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check football-sim.js && node --check player-brain.js
+      - run: npm run test:individual-keeper
+      - run: node --test tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/post-receive-hold.test.cjs tests/pass-preparation.test.cjs tests/player-brain.test.cjs tests/22-player-render-budget.test.cjs

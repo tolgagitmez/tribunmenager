@@ -1,0 +1,34 @@
+name: On-ball animation and contact synchrony
+on:
+  pull_request:
+    paths:
+      - 'humanoid-rig.js'
+      - 'match-clip-pilot.mjs'
+      - 'live-match-worker.cjs'
+      - 'live-match-view.js'
+      - 'tests/onball-presentation.test.cjs'
+      - '.github/workflows/onball-presentation.yml'
+  push:
+    branches: ['feature/onball-visual-contact-20261124']
+jobs:
+  skill-pose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check humanoid-rig.js
+          node --check live-match-worker.cjs
+          node --check live-match-view.js
+          node --check match-clip-pilot.mjs
+          node --check tests/onball-presentation.test.cjs
+      - name: New on-ball presentation tests
+        run: npm run test:onball-presentation
+      - name: Character geometry and gameplay isolation
+        run: |
+          node --test tests/character-rig-anatomy.test.cjs tests/character-kick-transition.test.cjs
+          node --test tests/match-animation-bridge.test.cjs tests/match-fps-profiles.test.cjs

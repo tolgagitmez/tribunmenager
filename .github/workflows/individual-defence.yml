@@ -1,0 +1,23 @@
+name: Individual defensive intelligence
+on:
+  push:
+    branches: ['feature/individual-defence-20261124']
+  pull_request:
+    paths:
+      - 'football-sim.js'
+      - 'player-brain.js'
+      - 'player-perception.js'
+      - 'tests/individual-defence.test.cjs'
+      - '.github/workflows/individual-defence.yml'
+jobs:
+  defence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check football-sim.js && node --check player-brain.js && node --check player-perception.js
+      - run: npm run test:individual-defence
+      - run: node --test tests/post-receive-hold.test.cjs tests/pass-preparation.test.cjs tests/aerial-keeper-law-boundaries.test.cjs tests/player-brain.test.cjs tests/22-player-render-budget.test.cjs

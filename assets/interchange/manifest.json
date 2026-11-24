@@ -3,9 +3,9 @@
   "modelId": "tribun-blender-interchange-v1",
   "license": "CC0-1.0",
   "sourceModel": "assets/player/footballer.glb",
-  "sourceModelSHA256": "b9ff19673f0561e405f1c88da5acfee51124651aaa8b3df1798301e35b774ee6",
+  "sourceModelSHA256": "4852cf108cec891e24cb03b75f2da3f6eb23d241dca0dbd14dd68c2160929228",
   "sourceCommit": "a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
-  "rigReferenceSHA256": "c66a9fcdb884fdf3cda3f7e92fc4c9ebe1dbbec32fa1bfdb0a8c020099125480",
+  "rigReferenceSHA256": "0dc472e9f489106eb32dfff97b9577861552470807eeeca665e45c2d44e862d7",
   "sourceProvenance": "assets/player/source/provenance.json",
   "originalPinnedSourceFiles": {
     "repository": "https://github.com/makehumancommunity/makehuman",
@@ -119,23 +119,23 @@
   "files": [
     {
       "path": "assets/interchange/editable.blend",
-      "bytes": 1580653,
-      "sha256": "d75c4c9a8b38130c24389619376d823874d05bfdafcd00c8d734bde191750b8a"
+      "bytes": 1607095,
+      "sha256": "ab95e1c67e058a8dfe6002c221302cf8919b9ef3de2ebb572134635ecb9b69c3"
     },
     {
       "path": "assets/interchange/footballer.blender.glb",
       "bytes": 1509524,
-      "sha256": "953804466a77ddaf4ded627ba21aac880c3da41411412fe62387c3557a0e4e5f"
+      "sha256": "749f0d8f2c75978525d736d98b5440d21735fa705a818dff33c84fedb702d5b1"
     },
     {
       "path": "assets/interchange/footballer.blender.gltf",
       "bytes": 103655,
-      "sha256": "1d053f7e17560c3097b86369698f554b859151447c8a3bfe71e6b98617f1bab4"
+      "sha256": "0f47a0191d14e103ef20f353e167decdf026c0ac2e556e3ef824fd314aae82c7"
     },
     {
       "path": "assets/interchange/footballer.blender.bin",
       "bytes": 1365116,
-      "sha256": "207eb214e8956ede471349050f85fccd7cf9a3ec0c09449e2f11b024a9bdfc08"
+      "sha256": "efb78cf786ab26bc61e853fc8e14964c2dc1ef651fb822cad2992e9ef31b3adf"
     },
     {
       "path": "assets/interchange/textures/fabric-detail.png",
@@ -165,12 +165,12 @@
     {
       "path": "assets/interchange/khronos-validation.json",
       "bytes": 1487,
-      "sha256": "f870b1fae6eea14c12766aff2f1c4c8b913fec19ab19ac896c92d7dbdd9e3427"
+      "sha256": "c3cccae934cab8ecdb506b75ec42a842d757fff0f740fed0863f34dd246ce1c8"
     },
     {
       "path": "assets/interchange/rebuild.json",
       "bytes": 3061,
-      "sha256": "1f0958ffc2d88ba35e35c543b533fe8cce33dab5af22db96acae102211f5a4cc"
+      "sha256": "457f524f276540a99d29f9868317fc8865d23a0c2722dbabc435c6f0e666e744"
     }
   ]
 }
