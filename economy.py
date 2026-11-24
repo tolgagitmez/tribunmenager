@@ -148,7 +148,78 @@ def repair_starters(state):
     state["starters"] = valid[:11]
 
 
+def validate_api_football_player(raw):
+    """Local operator import only. Identity is factual; skills/economy are game priors."""
+    external = raw.get("externalId")
+    if not isinstance(external, str) or not re.fullmatch(r"[1-9][0-9]{0,15}", external):
+        raise EconomyError("Invalid API-Football player ID")
+    uid = "api-football:player:" + external
+    if raw.get("uid") != uid or raw.get("providerId") != "api-football":
+        raise EconomyError("Mismatched provider identity")
+    team_uid = raw.get("teamUid")
+    if not isinstance(team_uid, str) or not re.fullmatch(r"api-football:team:[1-9][0-9]{0,15}", team_uid):
+        raise EconomyError("Invalid team identity")
+    pos = raw.get("pos")
+    if pos not in POSITIONS:
+        raise EconomyError("Unknown broad position")
+    updated = text(raw.get("updatedAt"), 40, "updatedAt")
+    try:
+        stamp = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            raise ValueError()
+    except (ValueError, TypeError):
+        raise EconomyError("Invalid snapshot timestamp")
+    age = integer(raw.get("age"), 16, 50, "age")
+    rating = integer(raw.get("rating"), 1, 99, "rating")
+    provenance = raw.get("ratingProvenance")
+    if (not isinstance(provenance, dict) or provenance.get("version") != 1 or
+            provenance.get("observed") is not False or provenance.get("confidence") is not None or
+            provenance.get("mode") not in ("neutral", "synthetic-varied")):
+        raise EconomyError("Unlabelled synthetic rating")
+    mode = provenance["mode"]
+    if mode == "neutral" and rating != 80:
+        raise EconomyError("Invalid neutral rating")
+    attrs = PLAYER_ATTRIBUTES + SET_PIECE_ATTRIBUTES
+    skills = {}
+    if mode == "synthetic-varied":
+        if not isinstance(provenance.get("attributes"), dict) or set(provenance["attributes"]) != set(attrs) or any(v != "synthetic" for v in provenance["attributes"].values()):
+            raise EconomyError("Unlabelled synthetic skills")
+        skills = {k: integer(raw.get(k), 1, 99, k) for k in attrs}
+    p = {"source": "api-football", "providerId": "api-football", "externalId": external,
+         "uid": uid, "teamUid": team_uid, "name": text(raw.get("name"), 150, "name"),
+         "club": text(raw.get("club"), 150, "club"), "league": "", "nationality": None,
+         "pos": pos, "subposition": None, "positions": [], "preferredFoot": "unknown",
+         "age": age, "rating": rating, "updatedAt": updated, "realForm": None,
+         "ratingSource": "synthetic-neutral" if mode == "neutral" else "synthetic-role-weighted",
+         "skillSource": "position-default" if mode == "neutral" else "synthetic-role-mixture",
+         "ratingProvenance": {"version": 1, "mode": mode, "observed": False, "confidence": None,
+                              "attributes": {k: "synthetic" for k in skills}},
+         "fitness": 95, "form": 80, "xp": 0, "face": 0, "dataKind": "catalog", **skills}
+    # Potential and value are calculated by the server, not accepted from import.
+    p.update(game_market_profile(p))
+    return p
+
+
+def game_market_profile(p):
+    # Age only affects simulated growth opportunity and club-credit valuation.
+    # No real-world potential, transfer fee or investment claim.
+    age, rating = p["age"], p["rating"]
+    headroom = 12 if age <= 20 else 8 if age <= 23 else 4 if age <= 27 else 1 if age <= 30 else 0
+    potential = min(99, rating + headroom)
+    return {"potential": potential, "potentialSource": "synthetic-age-band-v1",
+            "value": game_market_value(rating, age, potential), "valueSource": "game-credit-v1"}
+
+
+def game_market_value(rating, age, potential):
+    age_factor = max(.55, 1 + (25 - age) * .025)
+    upside = 1 + max(0, potential - rating) * .015
+    value = 8000000 * (rating / 75) ** 4 * age_factor * upside
+    return min(2000000000, max(100000, math.floor(value / 10000 + .5) * 10000))
+
+
 def validate_catalog_player(raw):
+    if isinstance(raw, dict) and raw.get("source") == "api-football":
+        return validate_api_football_player(raw)
     if not isinstance(raw, dict):
         raise EconomyError("Futbolcu kaydı nesne olmalı.")
     p = {k: text(raw.get(k), n, k) for k, n in (("providerId", 50), ("externalId", 100),
@@ -682,8 +753,10 @@ class TransferService:
                 p[focus] = min(99, player_attribute_value(p, focus) + 3)
                 p["xp"] += 3
                 if p["xp"] >= 6:
-                    p["rating"] = min(99, p["rating"] + 1)
+                    p["rating"] = min(p.get("potential", 99), p["rating"] + 1)
                     p["xp"] -= 6
+                if p.get("valueSource") == "game-credit-v1":
+                    p["value"] = game_market_value(p["rating"], p["age"], p["potential"])
                 p["fitness"] = max(50, p["fitness"] - 2)
             s["trainingUsed"] += 1
             return {"message": p["name"] + " · Antrenman tamamlandı."}

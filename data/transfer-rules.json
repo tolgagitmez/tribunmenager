@@ -1,0 +1,45 @@
+{
+  "startingCash": 25000000,
+  "startingTokens": 120,
+  "maxListings": 4,
+  "minPriceMultiplier": 1,
+  "maxPriceMultiplier": 2.5,
+  "checkMinSeconds": 480,
+  "checkMaxSeconds": 1320,
+  "quickSaleTokens": 5,
+  "minSquad": 14,
+  "maxSquad": 30,
+  "minByPosition": {
+    "GK": 1,
+    "DEF": 3,
+    "MID": 3,
+    "ATT": 1
+  },
+  "marketSize": 24,
+  "scoutCash": 250000,
+  "scoutSeconds": 14400,
+  "scoutResults": 3,
+  "scoutResultSeconds": 86400,
+  "offerSeconds": 21600,
+  "offerCooldownSeconds": 86400,
+  "offerDiscountPercent": 20,
+  "tokenPacks": [
+    {
+      "sku": "tribun.tokens.100",
+      "tokens": 100
+    },
+    {
+      "sku": "tribun.tokens.300",
+      "tokens": 300
+    },
+    {
+      "sku": "tribun.tokens.750",
+      "tokens": 750
+    }
+  ],
+  "rewardTokens": 2,
+  "rewardDailyLimit": 3,
+  "rewardCooldownSeconds": 14400,
+  "baseSaleProbability": 0.22,
+  "priceSensitivity": 1.8
+}
