@@ -818,6 +818,21 @@ class Match{
   }
   return best;
  }
+ finalThirdLink(p,options){
+  const side=this.direction(p.team),depth=p.x*side;
+  if(!this.playerBrainEnabled(p)||p.role==='GK'||depth<24||depth>48||this.kick||this.restart)return null;
+  const inBox=q=>q.x*side>=35.5&&Math.abs(q.z)<20.16;
+  // Prefer a physically playable central delivery over another lateral or
+  // backward circulation pass. Never award a chance before the real strike.
+  const candidates=options.filter(o=>o.kind==='pass'&&o.q?.active&&o.q.role!=='GK'&&inBox(o.point)&&o.distance<=24&&o.distance>=4&&o.risk<.32&&o.arrivalRisk<.60&&o.space>2.4&&o.score>0)
+   .map(o=>({option:o,value:o.score+Math.max(0,Math.abs(p.z)-Math.abs(o.point.z))*.35+(inBox(p)?0:3)+Math.max(0,this.threat(o.point,p.team)-this.threat(p,p.team))*8}))
+   .sort((a,b)=>b.value-a.value);
+  for(const {option} of candidates.slice(0,2)){
+   if(inBox(p)&&Math.abs(option.point.z)>=Math.abs(p.z)-2&&(option.point.x-p.x)*side<2)continue;
+   if(this.passPreparation(p,option).feasible)return {...option,finalThirdLink:true};
+  }
+  return null;
+ }
  openFieldCarryRead(p,carry,options,pressure){
   if(!this.playerBrainEnabled(p)||!['MID','ATT'].includes(p.role)||p.position==='DM'||(p.energy??1)<.48||pressure<6.5||p.carryTime>1.9||p.shieldUntil>this.time||!carry?.point)return false;
   const side=this.direction(p.team),gain=(carry.point.x-p.x)*side;
@@ -857,6 +872,8 @@ class Match{
   const pendingRun=this.field(p.team).find(q=>this.giveGoLink(p,q));
   if(pendingRun&&!best?.movingReturn&&pressure>3.8&&p.carryTime<.9&&(!best||(best.point.x-p.x)*this.direction(p.team)<4))return {kind:'carry',point:{x:clamp(p.x+this.direction(p.team),-49,49),z:p.z},hold:true};
   if(best?.movingReturn&&best.risk<.45&&best.arrivalRisk<.65&&best.space>2.5&&best.score>4)return best;
+  const boxLink=this.finalThirdLink(p,options);
+  if(boxLink){this.telemetry.finalThirdLinkChoices=(this.telemetry.finalThirdLinkChoices||0)+1;return boxLink;}
   const arrivalPlan=this.supportPlans[p.team],counterExit=this.transitionUntil[p.team]>this.time&&t.onWin==='counter';
   const closing=opponents.some(q=>{const gap=dist(q,p);return gap<12&&((p.x-q.x)*(q.vx-p.vx)+(p.z-q.z)*(q.vz-p.vz))/Math.max(.1,gap)>.75;});
   if((pressure<5.5||closing)&&arrivalPlan?.ownerId===p.id&&arrivalPlan.epoch===this.attackEpoch[p.team]&&arrivalPlan.handoffUntil>this.time&&p.carryTime>=.18){
@@ -1918,6 +1935,19 @@ class Match{
    };
    add(near,clamp(source.x*side+8,36,45),[-3,0,3],'near-post');
    add(far,clamp(source.x*side+6,36,43),[-flank*10,-flank*15],'far-post');
+   // When the central carrier reaches the defensive line, retain an
+   // unoccupied backward diagonal instead of demanding an offside run.
+   if(edge&&source.x*side>=30){
+    const depth=Math.min(source.x*side-3,35,Math.max(this.observedLine(edge),this.ball.x*side)-.8);
+    let best=null;
+    for(const z of [-flank*5,-flank*9,flank*7]){
+     const point={x:depth*side,z},space=Math.min(12,...rivals.map(q=>dist(q,point)));
+     if(depth<25||space<2.8||dist(source,point)<4||[...points.values()].some(q=>dist(q,point)<5))continue;
+     const score=space-dist(edge,point)*.2;
+     if(!best||score>best.score)best={...point,score};
+    }
+    if(best)points.set(edge.id,{x:best.x,z:best.z,state:'cutback-support',role:'edge'});
+   }
    return this.boxPlans[team]={source:source.id,flank,central:true,epoch:this.attackEpoch[team],until:this.time+1.2,points};
   }
   if(near)points.set(near.id,{x:side*clamp(source.x*side+6,40,44),z:flank*3.5,state:'box-run',role:'near-post'});
