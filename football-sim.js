@@ -703,9 +703,39 @@ class Match{
   if(burst)this.telemetry.accelerationBurstTouches=(this.telemetry.accelerationBurstTouches||0)+1;
   if(close)this.telemetry.closeControlTouches++;if(stride)this.telemetry.strideTouches++;return true;
  }
+ // Read the defender's observed momentum, not their future tactical task.
+ // The ordinary carry, contact and tackle systems still decide the outcome.
+ momentumFeintOption(p,defender,opponents=this.rivals(p)){
+  if(!this.playerBrainEnabled(p)||this.owner!==p||this.restart||this.kick||p.receiveClock>0||p.shieldUntil>this.time||p.feintCooldown>0||!defender||!Brain.canFeint(p,defender,{pressure:dist(p,defender)}))return null;
+  if((defender.age??0)>.35||(defender.confidence??1)<.7||!this.touchContact(p).ready||this.ball.y>.25||p.speed>4.2)return null;
+  const gap=dist(p,defender),a=Math.atan2(defender.z-p.z,defender.x-p.x),side=this.direction(p.team);
+  if(gap<1.65||Math.abs(angle(a,p.face))>.9||(defender.x-p.x)*side<.7)return null;
+  const lateral=-(defender.vx||0)*Math.sin(a)+(defender.vz||0)*Math.cos(a);
+  if(Math.abs(lateral)<.75)return null;
+  const sign=-Math.sign(lateral);let best=null;
+  for(const width of [.72,.95,1.18]){
+   const heading=a+sign*width,point={x:clamp(p.x+Math.cos(heading)*4.5,-49,49),z:clamp(p.z+Math.sin(heading)*4.5,-31,31)};
+   const range=dist(p,point),gain=(point.x-p.x)*side,turn=Math.abs(angle(heading,p.face));
+   if(gain<1.8||range<3.1||turn>1.45)continue;
+   let clearance=12;
+   for(const t of [.22,.44,.66]){
+    const travel=Math.min(range,Math.max(0,p.speed)*t+2.4*t*t),pos={x:p.x+(point.x-p.x)*travel/range,z:p.z+(point.z-p.z)*travel/range};
+    for(const q of opponents){
+     const future={x:q.x+(q.vx||0)*Math.min(t,.55)*.8,z:q.z+(q.vz||0)*Math.min(t,.55)*.8};
+     clearance=Math.min(clearance,dist(pos,future)-clamp(q.uncertainty||0,0,1));
+    }
+   }
+   const room=Math.min(12,...opponents.map(q=>dist({x:q.x+(q.vx||0)*.4,z:q.z+(q.vz||0)*.4},point)));
+   if(clearance<1.55||room<2.3)continue;
+   const score=clearance*2+room*.5+gain*.35-turn*.7;
+   if(!best||score>best.score)best={kind:'feint',point,defender,sign,score,momentumFeint:true};
+  }
+  return best;
+ }
  feintOption(p,defender){
-  const a=Math.atan2(defender.z-p.z,defender.x-p.x);if(Math.abs(angle(a,p.face))>=1.1)return null;let best=null;
-  for(const sign of [-1,1]){
+  const momentum=this.cfg.momentumDuelExperiment===true?this.momentumFeintOption(p,defender):null;
+  const a=Math.atan2(defender.z-p.z,defender.x-p.x);if(Math.abs(angle(a,p.face))>=1.1)return null;let best=momentum;
+  if(!momentum)for(const sign of [-1,1]){
    const heading=a+sign*.95,point={x:clamp(p.x+Math.cos(heading)*5,-49,49),z:clamp(p.z+Math.sin(heading)*5,-31,31)},others=this.rivals(p).filter(q=>q.id!==defender.id);
    const room=Math.min(10,...others.map(q=>{const h=segment({x:q.x+q.vx*.4,z:q.z+q.vz*.4},p,point);return h.u>.08?h.d:10;})),space=Math.min(12,...this.rivals(p).map(q=>dist(q,point)));
    if(space<2||room<1.25)continue;const score=space+room*.35+(sign===(p.personality>.5?1:-1)?.1:0);
@@ -735,7 +765,9 @@ class Match{
     this.telemetry.feintWrongSteps++;
    }
   }
-  p.dribbleDuel={opponentId:d.id,at:this.time};this.telemetry.feints++;
+  p.dribbleDuel={opponentId:d.id,at:this.time};
+  if(choice.momentumFeint){p.dribbleDuel.momentum=true;p.dribbleDuel.origin={x:p.x,z:p.z};this.telemetry.momentumFeintAttempts=(this.telemetry.momentumFeintAttempts||0)+1;}
+  this.telemetry.feints++;
  }
  canShield(p){return this.time>=(p.shieldReadyAt||0)||p.shieldUntil>this.time&&p.shieldBudgetUntil>this.time;}
  startCarry(p,choice){
@@ -1059,7 +1091,8 @@ class Match{
    return {...this.shieldOption(p,nearbyDefender),holdUp:true};
   }
   if((this.playerBrainEnabled(p)?Brain.canFeint(p,nearbyDefender,{pressure}):pressure>1.35&&pressure<3.1&&p.dribbling>=85)&&p.feintCooldown<=0&&(!best||best.score<17||best.risk>.5)){
-   const feint=this.feintOption(p,nearbyDefender);if(feint)return feint;
+   const feint=this.feintOption(p,nearbyDefender);
+   if(feint&&(!feint.momentumFeint||!options.some(o=>o.risk<.22&&o.arrivalRisk<.45&&o.space>3&&o.score>8&&(o.point.x-p.x)*this.direction(p.team)>6)))return feint;
   }
   if(this.playerBrainEnabled(p)&&Brain.shouldDrive(p,carry,best,{forward:this.direction(p.team),pressure,carryTime:p.carryTime,goalDistance:goalDist})){
    return {...carry,signatureDrive:true};
@@ -3338,7 +3371,14 @@ class Match{
    if(!this.restart&&!this.kick&&!this.pendingManagerKick)this.ballStep(dt);
   }
   const carrier=this.owner,duel=carrier?.dribbleDuel;
-  if(duel){const defender=this.players[duel.opponentId];if(!defender?.active||this.time-duel.at>4.5)carrier.dribbleDuel=null;else if((carrier.x-defender.x)*this.direction(carrier.team)>1.5&&dist(carrier,defender)>2.5&&dist(carrier,this.ball)<1.3){this.telemetry.beatenDefenders++;carrier.dribbleDuel=null;}}
+  if(duel){
+   const defender=this.players[duel.opponentId],side=this.direction(carrier.team);
+   if(!defender?.active||this.time-duel.at>(duel.momentum?2.2:4.5))carrier.dribbleDuel=null;
+   else if((carrier.x-defender.x)*side>1.5&&dist(carrier,defender)>2.5&&dist(carrier,this.ball)<1.3&&(!duel.momentum||(carrier.x-duel.origin.x)*side>=2.5)){
+    this.telemetry.beatenDefenders++;if(duel.momentum)this.telemetry.momentumFeintSuccesses=(this.telemetry.momentumFeintSuccesses||0)+1;
+    carrier.dribbleDuel=null;
+   }
+  }
   this.updateReferee?.(dt);if(!this.done)this.advanceClock(dt,stoppedReason,stoppageId);
  }
  appearanceReport(){

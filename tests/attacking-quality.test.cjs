@@ -685,3 +685,34 @@ test('a saturated pass lane never forecasts later defenders unnecessarily',()=>{
  const second={x:owner.x+8,z:owner.z,vx:0,vz:0,passFuture(){throw Error('fully blocked lane should not need another forecast');}};
  assert.equal(m.laneRisk(owner,point,17,'pass',[first,second]),1);
 });
+
+
+test('momentum feint escapes opposite the observed lateral movement in both attack directions',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,mid,back}=fixture(side);
+  Object.assign(owner,{role:'ATT',position:'LW',x:0,z:0,face:side>0?0:Math.PI,speed:1,vx:side,vz:0,dribbling:96,agility:94,balance:91,energy:1,feintCooldown:0});
+  Object.assign(mid,{x:2.8*side,z:0,vx:-.8*side,vz:2.4,face:side>0?Math.PI:0,tackling:75,composure:75});
+  back.active=false;m.ball={x:.6*side,y:.11,z:0,vx:side,vy:0,vz:0};
+  const seed=m.seed,ball={...m.ball},before={x:mid.x,z:mid.z};
+  const option=m.momentumFeintOption(owner,mid);
+  assert(option?.momentumFeint);assert(option.point.z<0);assert(option.point.x*side>=1.8);
+  assert.deepEqual(m.ball,ball);assert.equal(m.seed,seed);assert.deepEqual({x:mid.x,z:mid.z},before);
+  m.cfg.momentumDuelExperiment=true;assert(m.feintOption(owner,mid).momentumFeint);
+  m.applyFeint(owner,option);
+  assert.equal(m.telemetry.momentumFeintAttempts,1);assert.equal(m.telemetry.momentumFeintSuccesses,undefined);
+  assert.deepEqual({x:mid.x,z:mid.z},before);
+ }
+});
+test('momentum feint rejects stale, slow, blocked and unreachable opportunities',()=>{
+ const {m,owner,mid,back}=fixture();
+ Object.assign(owner,{role:'ATT',position:'LW',x:0,z:0,face:0,speed:1,vx:1,vz:0,dribbling:96,agility:94,balance:91,energy:1,feintCooldown:0});
+ Object.assign(mid,{x:2.8,z:0,vx:-.8,vz:2.4,face:Math.PI,tackling:75,composure:75});
+ back.active=false;m.ball={x:.6,y:.11,z:0,vx:1,vy:0,vz:0};
+ assert(m.momentumFeintOption(owner,mid));
+ assert.equal(m.momentumFeintOption(owner,{...mid,age:.8}),null);
+ assert.equal(m.momentumFeintOption(owner,{...mid,vz:0}),null);
+ back.active=true;Object.assign(back,{x:1.2,z:-1.2,vx:0,vz:0});
+ assert.equal(m.momentumFeintOption(owner,mid),null);
+ back.active=false;owner.dribbling=65;assert.equal(m.momentumFeintOption(owner,mid),null);
+ owner.dribbling=96;m.ball.x=-2;assert.equal(m.momentumFeintOption(owner,mid),null);
+});
