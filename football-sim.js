@@ -518,7 +518,29 @@ class Match{
    const space=Math.min(12,...opponents.map(q=>dist(q,point))),path=Math.max(0,...opponents.map(q=>{const h=segment(q,contact||origin,point);return h.u>.06?clamp((.85-h.d)/.85,0,1):0;}));
    const turn=Math.abs(angle(a,p.face)),score=space*1.5-Math.abs(yaw)*.7+(point.x-origin.x)*this.direction(p.team)*.2-path*8-turn*(100-(p.agility??p.skill))*.008;
    if(!best||score>best.score)best={...point,score,pathRisk:path};
-  }return best;
+  }
+  // A non-urgent first touch should not inherit a backward outlet's
+  // orientation when a physically reachable, equally safe forward lane
+  // exists. The later swept contact and touchPlan still decide the impulse.
+  if(this.playerBrainEnabled(p)&&['MID','ATT'].includes(p.role)&&p.position!=='DM'&&
+   (p.dribbling??0)>=78&&(p.composure??0)>=74&&(p.energy??1)>=.5&&pressure>4.5&&best){
+   const side=this.direction(p.team),depth=origin.x*side,forward=side>0?0:Math.PI;
+   if(depth>-15&&depth<35&&(best.x-origin.x)*side<1.05){
+    const previousRoom=Math.min(12,...opponents.map(q=>dist(q,best)));
+    let progressive=null;
+    for(const yaw of [0,-.38,.38]){
+     const a=forward+yaw,point={x:clamp(origin.x+Math.cos(a)*2.6,-50.5,50.5),z:clamp(origin.z+Math.sin(a)*2.6,-32.5,32.5)};
+     const room=Math.min(12,...opponents.map(q=>dist(q,point)));
+     const path=Math.max(0,...opponents.map(q=>{const h=segment(q,contact||origin,point);return h.u>.06?clamp((1.25-h.d)/1.25,0,1):0;}));
+     const turn=Math.abs(angle(a,p.face));
+     if(room<3.6||room<previousRoom-1.0||path>.08||turn>2.25||(point.x-origin.x)*side<1.9)continue;
+     const score=room*1.5-Math.abs(yaw)*.7+(point.x-origin.x)*side*.8-turn*(100-(p.agility??p.skill))*.008;
+     if(!progressive||score>progressive.score)progressive={...point,score,pathRisk:path,progressive:true};
+    }
+    if(progressive)return progressive;
+   }
+  }
+  return best;
  }
  touchContact(p,b=this.ball,foot=null){
   const dx=b.x-p.x,dz=b.z-p.z,gap=Math.hypot(dx,dz),forward=dx*Math.cos(p.face)+dz*Math.sin(p.face),lateral=-dx*Math.sin(p.face)+dz*Math.cos(p.face);
@@ -1273,6 +1295,7 @@ class Match{
      this.ball.vx=plan?plan.velocity.vx:Math.cos(a)*speed;this.ball.vz=plan?plan.velocity.vz:Math.sin(a)*speed;
      if(plan){this.ball.vy=plan.velocity.vy;p.kickFoot=plan.foot;if(plan.limited)this.telemetry.limitedTouches=(this.telemetry.limitedTouches||0)+1;}
      this.telemetry.directedTouches++;
+     if(plan?.ready&&reception.point?.progressive)this.telemetry.progressiveFirstTouches=(this.telemetry.progressiveFirstTouches||0)+1;
     }else{
      reception={...reception,mode:'cushion',point:null,next:null};p.receiveMode='cushion';p.nextAction=null;p.oneTouchUntil=0;p.carryTarget={x:this.ball.x+this.ball.vx*.12,z:this.ball.z+this.ball.vz*.12};
      this.telemetry.touchDeferrals=(this.telemetry.touchDeferrals||0)+1;
