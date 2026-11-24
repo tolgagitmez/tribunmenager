@@ -164,6 +164,18 @@ function simplifyLOD(sourceVertices,sourceIndices,cell){
  }
  return {vertices,indices:new Uint16Array(indices),indexType:'H',vertexCount:vertices.length/stride,indexCount:indices.length,cell};
 }
+// Conservative world-space sphere covers standing, diving and extended limbs.
+// Invalid matrices fail open; never clip a player merely at the screen edge.
+function playerInView(p,vp,radius=3){
+ if(!vp||vp.length!==16||!Number.isFinite(p?.x)||!Number.isFinite(p?.z))return true;
+ for(const v of vp)if(!Number.isFinite(v))return true;
+ const x=p.x,y=1,z=p.z;
+ for(let row=0;row<3;row++)for(const sign of [-1,1]){
+  const a=vp[3]+sign*vp[row],b=vp[7]+sign*vp[4+row],c=vp[11]+sign*vp[8+row],d=vp[15]+sign*vp[12+row],n=Math.hypot(a,b,c);
+  if(n>1e-9&&a*x+b*y+c*z+d< -radius*n)return false;
+ }
+ return true;
+}
 class PlayerRenderer{
  constructor(gl,assets=root.TribunPlayerAssets,options={}){
   if(!assets)throw Error('Oyuncu modeli yüklenmedi');
@@ -223,16 +235,20 @@ class PlayerRenderer{
   const gl=this.gl;gl.useProgram(this.program);gl.uniformMatrix4fv(this.loc.uVP,false,vp instanceof Float32Array?vp:new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
   const standard=this.options.standardMaterials;gl.uniform1f(this.loc.uStandardAsset,standard?1:0);if(standard){gl.uniform3fv(this.loc['uMaterialBase[0]'],standard.baseColors);gl.uniform1fv(this.loc['uMaterialRoughness[0]'],standard.roughness);}
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.textures.skin);gl.uniform1i(this.loc.uSkinTexture,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.textures.fabric);gl.uniform1i(this.loc.uFabricTexture,1);
-  const renderStats={players:0,fast:0,detailed:0,triangles:0,paletteBuilds:0,paletteHits:0,dualBuilds:0,dualHits:0,lodBinds:0};let boundLOD=null,boundFast=null;
+  const renderStats={players:0,fast:0,detailed:0,triangles:0,paletteBuilds:0,paletteHits:0,dualBuilds:0,dualHits:0,lodBinds:0,culled:0,active:0};let boundLOD=null,boundFast=null;
   const full=this.visualQuality==='detailed'||this.studio||camera==='portrait',close=camera==='close',auto=this.visualQuality==='auto';
   for(const p of players){if(!p.active)continue;const dx=close?p.x-eye[0]:0,dz=close?p.z-eye[2]:0,d2=close?dx*dx+dz*dz:Infinity,lod=this.lods[full?0:close&&d2<484?1:2]||this.lods[1]||this.lods[2]||this.lods[0],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
    const detailed=this.visualQuality==='detailed'||(auto&&(this.studio||camera==='portrait'||(close&&d2<324)));
    const fast=detailed?0:1;
-   if(boundFast!==fast){gl.uniform1f(this.loc.uFast,fast);boundFast=fast;}
+   renderStats.active++;
+   const hidden=frameOptions.cull===true&&!this.studio&&!p.selected&&!p.referee&&!playerInView(p,vp);
+   if(hidden){renderStats.culled++;if(!matchBridge&&!frameOptions.paletteForPlayer)continue;}
+   // Keep the bridge and pilot sampled while offscreen, but skip all GL work.
+   if(!hidden){if(boundFast!==fast){gl.uniform1f(this.loc.uFast,fast);boundFast=fast;}
    renderStats.players++;renderStats[detailed?'detailed':'fast']++;renderStats.triangles+=lod.count/3;
    const shirt=v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts=v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]);
    const set=(name,value)=>gl.uniform3fv(this.loc[name],value);set('uSkin',v.skin||p.skin||[.69,.48,.34]);set('uShirt',shirt);set('uShorts',shorts);set('uHair',v.hair||p.hair||[.10,.065,.043]);set('uBoots',v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3]);set('uIris',v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3]);set('uVariant',v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0]);
-   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));let connected;
+   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));}let connected;
    if(frameOptions.paletteForPlayer)connected=frameOptions.paletteForPlayer(p);
    let dual;
    if(!connected){
@@ -248,11 +264,12 @@ class PlayerRenderer{
     }else renderStats.paletteHits++;
     const rawPalette=entry.raw,skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;
     connected=renderPalette(rawPalette,skinPalette,this.assets);
-    if(connected===rawPalette){
+    if(!hidden&&connected===rawPalette){
      if(entry.dual){dual=entry.dual;renderStats.dualHits++;}
      else{dual=entry.dual=Skinning.fromMatrices(connected);renderStats.dualBuilds++;}
     }
    }
+   if(hidden)continue;
    if(!dual){dual=Skinning.fromMatrices(connected);renderStats.dualBuilds++;}
    gl.uniform4fv(this.loc['uBoneReal[0]'],dual.real);gl.uniform4fv(this.loc['uBoneDual[0]'],dual.dual);
    // Preserve draw order and all individual uniforms. Bind vertex attributes
@@ -269,5 +286,5 @@ class PlayerRenderer{
  }
  dispose(){if(this.disposed)return;this.disposed=true;this.poseCache=new WeakMap();const gl=this.gl;for(const lod of this.lods||[])if(lod){gl.deleteBuffer(lod.vertex);gl.deleteBuffer(lod.index);}for(const texture of Object.values(this.textures||{}))gl.deleteTexture(texture);if(this.program){for(const shader of gl.getAttachedShaders(this.program)||[])gl.deleteShader(shader);gl.deleteProgram(this.program);}}
 }
-PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
+PlayerRenderer.playerInView=playerInView;PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
 })(typeof window!=='undefined'?window:globalThis);
