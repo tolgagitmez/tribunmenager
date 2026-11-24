@@ -3,9 +3,9 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const {cases,config,summarize,combine}=require('../tools/audit-match-balance.cjs');
 const row=(c,goals=[0,0],shots=[0,0])=>({...c,finishReason:'full-time',ticks:18000,seconds:{controlled:200,dead:50,loose:50},pairs:{goals,shots,onTarget:[0,0],passes:[20,30],completed:[10,20],fouls:[1,2],yellows:[0,1],reds:[0,0],xg:[0,0],possessionSeconds:[120,80],finalThirdEntries:[1,2],boxEntries:[0,0]},counters:{offsides:1,abortedKicks:0}});
 test('144 distinct natural cases at twelve seeds; paired side assignments and complete shard partition',()=>{
- const all=cases(12);assert.equal(all.length,144);assert.equal(new Set(all.map(c=>c.id)).size,144);
+ const all=cases(12);assert.equal(all.length,144);assert.equal(new Set(all.map(c=>c.id)).size,144);assert.equal(new Set(all.map(c=>JSON.stringify(config(c)))).size,144);
  assert.deepEqual(Array.from({length:6},(_,i)=>cases(12,6,i)).flat().map(c=>c.id).sort(),all.map(c=>c.id).sort());
- for(let i=0;i<all.length;i+=2){const a=config(all[i]),b=config(all[i+1]);assert.equal(a.seed,b.seed);assert.equal(a.formation,b.awayFormation);assert.equal(a.awayFormation,b.formation);assert.deepEqual(a.tactics,b.awayTactics);assert.deepEqual(a.players.map(p=>p.rating),b.awayPlayers.map(p=>p.rating));assert.equal(a.players.length,11);assert.equal(a.individualAI,true);}
+ for(let i=0;i<all.length;i+=2){const a=config(all[i]),b=config(all[i+1]);if(all[i].scenario==='equal-balanced')assert.notEqual(a.seed,b.seed);else assert.equal(a.seed,b.seed);assert.equal(a.formation,b.awayFormation);assert.equal(a.awayFormation,b.formation);assert.deepEqual(a.tactics,b.awayTactics);assert.deepEqual(a.players.map(p=>p.rating),b.awayPlayers.map(p=>p.rating));assert.equal(a.players.length,11);assert.equal(a.individualAI,true);}
 });
 test('ratio-of-totals and zero denominators, unfinished games excluded from averages',()=>{
  const [a,b,c]=cases(1),report=summarize([row(a,[1,0],[2,1]),row(b),{...row(c,[9,9],[9,9]),finishReason:'minimum-players'}]);
@@ -70,4 +70,14 @@ test('goal classification counts only awarded goals, preserves score, and exclud
  o.detach();assert.deepEqual(m.score,[3,0]);assert.equal(o.result.goalsFromShotFlight,1);assert.equal(o.result.goalsFromOtherFlight,1);assert.equal(o.result.goalsWithoutFlight,1);assert.equal(o.result.goalsWithDefendingLastTouch,1);
  const r=row(cases(1)[0],[3,0],[1,0]);r.shotFunnel=o.result;
  assert.equal(summarize([r]).goalsPerShotPct,100);assert.equal(summarize([r]).rawGoalsPerRecordedShotPct,300);
+});
+
+test('actual configuration digests are unique and aggregation rejects duplicate or tampered input',()=>{
+ const hash=c=>require('node:crypto').createHash('sha256').update(JSON.stringify(config(c))).digest('hex');
+ const rows=cases(1).map(c=>({...row(c),configDigest:hash(c)})),part={schema:1,seeds:1,sources:{engine:'a'},rows};
+ assert.equal(combine([part]).overall.uniqueInputs,12);
+ const duplicate=structuredClone(part);duplicate.rows[1].configDigest=duplicate.rows[0].configDigest;
+ assert.throws(()=>combine([duplicate]),/duplicate match input/);
+ const changed=structuredClone(part);changed.rows[0].configDigest='tampered';
+ assert.throws(()=>combine([changed]),/digest mismatch/);
 });
