@@ -313,3 +313,40 @@ test('progressive carry pace remains physical and returns to ordinary pace when 
  owner.face=0;m.ball.x=2;assert.equal(m.progressiveCarryPace(owner,[],10),null);
  m.ball.x=.65;owner.carryIntent.until=m.time;assert.equal(m.progressiveCarryPace(owner,[],10),null);
 });
+
+test('receiver shoulder scan uses bounded real observations once per flight, not hidden opponent coordinates',()=>{
+ const Perception=require('../player-perception');
+ const {m,owner,link,mid,back}=fixture();
+ Object.assign(link,{x:10,z:0,face:Math.PI,vision:92});
+ Object.assign(mid,{x:18,z:0});back.active=false;
+ m.owner=null;m.flight={id:42,kind:'pass',target:link,from:owner};
+ m.ball={x:3,y:.11,z:0,vx:12,vy:0,vz:0};
+ const request=m.receiveScanRequest();assert(request&&request.id===link.id);
+ Perception.update(m.players,m.time,1/60,{scanAllowed:false});
+ const before=link.face;
+ const t=m.time+.12;
+ Perception.update(m.players,t,1/60,{receiveScan:request});
+ assert.equal(link.perception.lastReceiveScan,42);
+ assert(Math.abs(link.perception.headYaw)<=1.55);
+ assert.equal(link.face,before);
+ assert(Perception.rivals(link,t).some(q=>q.id===mid.id&&q.source==='scan'));
+ const first=link.perception.nextScanAt;
+ Perception.update(m.players,t+.2,1/60,{receiveScan:request});
+ assert.equal(link.perception.nextScanAt,first);assert.equal(link.perception.headYaw,0);
+ m.ball.x=9.5;assert.equal(m.receiveScanRequest(),null);
+});
+test('safe forward first touch is selected for enabled individual AI, but not forced through a closed lane',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,mid,back,keeper}=fixture(side);
+  Object.assign(owner,{x:8*side,z:0,face:side===1?0:Math.PI,dribbling:92,composure:90,position:'AM'});
+  mid.active=back.active=keeper.active=false;
+  const forward=side===1?0:Math.PI;
+  const point=m.controlOption(owner,owner,forward+Math.PI,0);
+  assert(point.progressive);assert((point.x-owner.x)*side>=1.9);
+  m.cfg.progressiveFirstTouch=false;
+  assert(!m.controlOption(owner,owner,forward+Math.PI,0).progressive);
+  m.cfg.progressiveFirstTouch=true;
+  mid.active=true;mid.x=owner.x+side*2;mid.z=0;
+  assert(!m.controlOption(owner,owner,forward+Math.PI,0).progressive);
+ }
+});
