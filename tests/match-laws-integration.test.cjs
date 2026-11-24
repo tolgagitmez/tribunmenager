@@ -95,3 +95,21 @@ test('natural free kick plans near touchlines and goal lines preserve the legal 
   }
  }
 });
+
+
+test('seed 311 touchline free kick approach remains reachable before setup in either half',()=>{
+ for(const side of [1,-1])for(const flank of [1,-1]){
+  const m=game();m.cfg.managerKicks=false;m.period=side===1?1:2;m.matchClock.period=m.period;
+  const spot={x:32.0138864486254*side,z:33.70923399215685*flank},taker=m.field(0)[0];
+  Object.assign(taker,{x:31.609781251230647*side,z:32.02418939927563*flank,vx:0,vz:0,speed:0});
+  m.setRestart('free-kick',0,spot,taker);
+  const r=m.restart,layout=m.freeKickLayout(r);assert(layout);
+  m.planFreeKick(r,layout);
+  const target=m.targets.get(taker),ball={...m.ball};
+  assert(Math.hypot(target.x-spot.x,target.z-spot.z)<1.4);
+  for(let i=0;i<180;i++)m.move(taker,target,dt);
+  assert(Math.hypot(taker.x-spot.x,taker.z-spot.z)<1.4);
+  assert.deepEqual(m.ball,ball);
+  assert.equal(r.setupPoint,undefined);
+ }
+});
