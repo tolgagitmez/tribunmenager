@@ -570,3 +570,54 @@ test('first-time shot uses actual contact foot before computing accuracy',()=>{
  assert.deepEqual(used,{foot:0,style:'first-time'});
  assert.equal(owner.kickFoot,0);
 });
+
+
+test('rebound tracking selects a legal nearby runner, not an offside player or holding midfielder',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{role:'ATT',position:'ST',x:39*side,z:2,face:side===1?0:Math.PI,touchClock:0});
+  Object.assign(link,{role:'MID',position:'DM',x:42*side,z:1,touchClock:0});
+  const shot={kind:'shot',id:42,from:owner};
+  m.owner=null;m.flight=null;m.ball={x:43*side,z:1,y:.11,vx:-2*side,vz:0,vy:0};
+  m.markRebound(shot,'parry');
+  assert.equal(m.reboundRunner(owner.team)?.id,owner.id);
+  m.offsidePhase={team:owner.team,playerIds:[owner.id]};
+  assert.equal(m.reboundRunner(owner.team),null);
+  m.offsidePhase=null;
+  m.time+=3;
+  assert.equal(m.reboundRunner(owner.team),null);
+ }
+});
+
+test('rebound finish requires physical contact and records the actual release',()=>{
+ const {m,owner,link,mid,back}=fixture();
+ mid.active=back.active=false;
+ Object.assign(owner,{x:44,z:0,face:0,shooting:94,composure:94,touchClock:0,footTouch:0,receiveClock:0,action:'idle'});
+ m.owner=null;m.flight=null;m.lastTouch=link;
+ m.markRebound({kind:'shot',id:21,from:link},'block');
+ m.ball={x:43.8,y:.11,z:0,vx:3,vy:0,vz:0};
+ assert.equal(m.firstTimeFinish(owner),false);
+ const foot=m.contactPoint({...owner,kickFoot:1},'shot');
+ Object.assign(m.ball,{x:foot[0],z:foot[2]});
+ assert(m.firstTimeFinish(owner));
+ assert.equal(m.telemetry.reboundFinishReleases,1);
+ assert.equal(m.shots[0],1);
+ assert.equal(m.rebound,null);
+});
+
+test('shot angle carry needs a genuine improvement, an open corridor and no better box pass',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{x:38*side,z:0,face:side===1?0:Math.PI,dribbling:91,carryTime:.4,receiveClock:0,shieldUntil:0});
+  mid.active=back.active=false;
+  const blocked={open:.2,quality:.05};
+  m.shotWindow=p=>({open:Math.abs(p.z)>=2?.8:.2,quality:Math.abs(p.z)>=2?.15:.05});
+  const result=m.shotAngleCarry(owner,blocked,[],8);
+  assert(result?.shotAngleCarry);
+  assert(Math.abs(result.point.z)>=2);
+  assert.equal(m.shotAngleCarry(owner,blocked,[{q:link,point:{x:42*side,z:1},score:10,risk:.1,arrivalRisk:.1,space:6}],8),null);
+  assert.equal(m.shotAngleCarry(owner,blocked,[],1),null);
+  m.shotWindow=()=>blocked;
+  assert.equal(m.shotAngleCarry(owner,blocked,[],8),null);
+ }
+});
