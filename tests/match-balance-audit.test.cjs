@@ -36,3 +36,25 @@ test('paired comparison accepts identical inputs, rejects changes, and excludes 
  const result=compare(a,b);assert.equal(result.overall.fullTimePairs,11);assert.equal(result.overall.shotPairs.improved,1);assert.equal(result.overall.excluded,1);
  b.rows[2].configDigest='wrong';assert.throws(()=>compare(a,b),/different match inputs/);
 });
+
+test('shot attempts, physical releases, rejected and interrupted wind-ups are counted only on the real match',()=>{
+ const {observeShotDecisions}=require('../tools/audit-match-balance.cjs');
+ const p={role:'ATT',z:0},m={shots:[0,0],kick:null,choose(){return {kind:'shot'};},shotWindow(){return {};},
+ startKick(_p,kind){if(this.kick)return false;this.kick={kind};return true;},
+ release(){this.shots[0]++;this.kick=null;return true;}};
+ const observer=observeShotDecisions(m);
+ const preview={...m,kick:null,shots:[0,0]};preview.startKick(p,'shot');preview.release();
+ assert.equal(observer.result.openPlayShotAttempts,0);
+ assert(m.startKick(p,'shot'));assert.equal(m.startKick(p,'shot'),false);m.release();observer.afterStep();
+ assert(m.startKick(p,'shot'));m.kick=null;observer.afterStep();
+ assert(m.startKick(p,'shot',null,null,null,{kind:'free-kick'}));m.release();
+ observer.detach();
+ const r=observer.result;assert.equal(r.openPlayShotAttempts,3);assert.equal(r.openPlayShotAccepted,2);assert.equal(r.openPlayShotRejected,1);assert.equal(r.openPlayShotReleased,1);assert.equal(r.openPlayShotInterrupted,1);
+ assert.equal(r.openPlayShotPending,0);
+});
+test('passive observation preserves complete deterministic real-match state',()=>{
+ const {Match}=require('../football-sim'),{observeShotDecisions}=require('../tools/audit-match-balance.cjs');
+ const cfg=config(cases(1)[0]),a=new Match(structuredClone(cfg)),b=new Match(structuredClone(cfg)),observer=observeShotDecisions(b);
+ for(let i=0;i<720;i++){a.step(1/60);b.step(1/60);observer.afterStep();}
+ observer.detach();assert.deepEqual(structuredClone(b),structuredClone(a));
+});
