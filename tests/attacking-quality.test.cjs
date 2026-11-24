@@ -268,3 +268,36 @@ test('open grass permits forward carrying without a stale pass chain, including 
  owner.face=0;assert.equal(m.openFieldCarryRead(owner,carry,[],7),true);
  owner.position='DM';assert.equal(m.openFieldCarryRead(owner,carry,[],12),false);
 });
+
+test('final-third link prefers a verified box pass and rejects closed preparation or recycled possession',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{x:28*side,z:11,face:side>0?0:Math.PI});
+  Object.assign(link,{x:36*side,z:2});
+  m.ball.x=owner.x;m.ball.z=owner.z;
+  const option={kind:'pass',q:link,point:{x:38*side,z:2},distance:14,risk:.12,arrivalRisk:.2,space:5,score:8};
+  const safe={...option,point:{x:26*side,z:12},score:20};
+  let checked=0;m.passPreparation=()=>{checked++;return {feasible:true};};
+  assert.equal(m.finalThirdLink(owner,[safe,option]).finalThirdLink,true);
+  assert.equal(checked,1);
+  m.passPreparation=()=>({feasible:false});
+  assert.equal(m.finalThirdLink(owner,[option]),null);
+  m.passPreparation=()=>{throw Error('unsafe option should not be previewed');};
+  assert.equal(m.finalThirdLink(owner,[{...option,risk:.5}]),null);
+  assert.equal(m.finalThirdLink(owner,[{...option,arrivalRisk:.8}]),null);
+  owner.x=15*side;assert.equal(m.finalThirdLink(owner,[option]),null);
+ }
+});
+test('central carrier at the defensive line retains an onside diagonal cutback outlet',()=>{
+ for(const side of [1,-1]){
+  const {m,set,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{x:39*side,z:1});m.ball.x=owner.x;m.ball.z=owner.z;
+  Object.assign(back,{x:38*side,z:0});
+  const edge=set(7,'MID',29,-9,{position:'AM'});
+  link.active=false;mid.active=false;
+  const plan=m.boxAttack(0,owner),point=plan.points.get(edge.id);
+  assert(point&&point.role==='edge');
+  assert(point.x*side<=35&&point.x*side<owner.x*side);
+  assert(Math.abs(point.z)>3);
+ }
+});
