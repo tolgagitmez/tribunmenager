@@ -1711,6 +1711,13 @@ class Match{
    }
   }
   const points=new Map([[runner.p.id,runner.point]]);if(edge)points.set(edge.p.id,edge.point);
+  // Revalidate the previous destinations against the current owner, legal
+  // line and actual lane. Never preserve a stale or newly closed run.
+  if(old?.central&&old.source===source.id&&old.epoch===this.attackEpoch[team]&&old.until>this.time&&old.points.size===points.size){
+   const retained=new Map();for(const [id,q] of old.points){const p=eligible.find(a=>a.id===id),fresh=p&&evaluate(p,q,q.role);if(!fresh)break;retained.set(id,fresh);}
+   if(retained.size===points.size&&[...retained.values()].reduce((n,q)=>n+q.score,0)>[...points.values()].reduce((n,q)=>n+q.score,0)-1.4&&
+    (retained.size<2||dist(...retained.values())>7))return {...old,points:retained};
+  }
   return {source:source.id,flank:0,central:true,epoch:this.attackEpoch[team],until:this.time+1.4,points};
  }
  boxAttack(team,owner,pattern=null,flankPlan=null,build=null){
