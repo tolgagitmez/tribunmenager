@@ -220,3 +220,25 @@ test('shoulder challenge needs side-by-side contact and attributes change resist
  back.x=.15;back.vx=8;assert.equal(m.shoulderContest(back,owner),null);
  assert.deepEqual(m.ball,before);assert.equal(m.owner,owner);assert.equal(m.seed,seed);
 });
+
+test('skilled stationary player chooses a step-over, with no separate ball impulse',()=>{
+ const {m,owner,link,mid,back}=fixture();
+ link.active=mid.active=false;
+ Object.assign(owner,{x:0,z:0,face:0,speed:0,dribbling:95,agility:95,balance:92,feintCooldown:0,footTouch:0});
+ Object.assign(back,{x:2,z:0,face:Math.PI,vx:-1,vz:0,tackling:45,composure:65});
+ m.ball={x:.65,y:.11,z:.18,vx:0,vy:0,vz:0};
+ const choice=m.feintOption(owner,back);assert(choice);assert.equal(choice.feintStyle,'step-over');
+ const before=structuredClone(m.ball),seed=m.seed;
+ m.startCarry(owner,choice);
+ assert.equal(owner.feintStyle,'step-over');assert.equal(m.telemetry.stepOverAttempts,1);
+ assert.deepEqual(m.ball,before);assert.equal(m.seed,seed);
+ owner.feintClock=.175;const Rig=require('../humanoid-rig');
+ const step=Rig.update(owner,1/60),plain=Rig.update({...owner,feintStyle:'body'},1/60);
+ const foot=owner.feintSign>0?1:0;
+ assert.notDeepEqual(step.legs[foot].ankle,plain.legs[foot].ankle);
+ assert.deepEqual(m.ball,before);
+ owner.balance=60;
+ assert.notEqual(m.feintOption(owner,back)?.feintStyle,'step-over');
+ const source=require('node:fs').readFileSync(require('node:path').join(__dirname,'../live-match-worker.cjs'),'utf8');
+ assert(source.includes("'feintStyle'"));
+});
