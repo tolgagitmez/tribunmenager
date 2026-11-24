@@ -1,12 +1,12 @@
 {
   "version": "1.35.0",
   "simulationStage": 16,
-  "upstreamCommit": "4b27d12590f6776d13855f42a82f5ce31578adc5",
+  "upstreamCommit": "df8f5f0672bf682e92eeb26043716cedc1f41ce3",
   "simulationSHA256": "4fabedbb84f4b82af5fc7b44836e9995851396450b771d2eec30c58cc2290f03",
   "rigSHA256": "a2ac63e8b871be602fb5d95a00951a142889ce6f9944d00f85280d52ed893326",
   "playerAssetManifestSHA256": "75ebec4c6cb1ad5534194e2f15ad7feca14bc2bd5d27cf8699271549b4fa3c32",
   "interchangeManifestSHA256": "e55fd2854f0085abae2685a1ffeacc86a5c1a43dfdcec18481c97fffbc69459d",
-  "description": "Distribution inventory for the #44 integration candidate with #42 and #43 compatibility; unchanged files retain their matching source-blob digests and changed files were rehashed. Integration validation pending.",
+  "description": "Distribution inventory for the current #44 integration and read-only match balance audit. Changed audit files are hashed; engine and asset digests remain those of the integration candidate. Validation pending.",
   "files": [
     {
       "path": ".github/workflows/22-player-render-budget.yml",
@@ -84,6 +84,16 @@
       "sha256": "6105ba5d173797caa409c0d1bde35c4f31fe18dc6a074347747d266de06aa698"
     },
     {
+      "path": ".github/workflows/match-balance-audit.yml",
+      "bytes": 2218,
+      "sha256": "c1ec4ff88268dc51221dd0e5afa56090435f1712ef3e334892dead567c479b6d"
+    },
+    {
+      "path": ".github/workflows/match-balance-unit.yml",
+      "bytes": 661,
+      "sha256": "c07a83d97ddaf88cd2cbe6b4e19a81b6de95b9b455fa1a04f673ca6f90607967"
+    },
+    {
       "path": ".github/workflows/match-invariance.yml",
       "bytes": 3297,
       "sha256": "a086abd47d92bdd3aaf1121784876290b70b3bf1554bc2a73d2b48eefa205ff1"
@@ -97,6 +107,11 @@
       "path": ".github/workflows/onball-presentation.yml",
       "bytes": 1497,
       "sha256": "b07da14b226bb1ae969932d3afda6d7043ef10da0e2efeedcb0421ae558865d5"
+    },
+    {
+      "path": ".github/workflows/paired-match-balance.yml",
+      "bytes": 2921,
+      "sha256": "30d24470542ad12ec55ea545c3f05e7397acec76ef02238b2bc3985b76345871"
     },
     {
       "path": ".github/workflows/pass-trajectory-safety.yml",
@@ -1729,6 +1744,11 @@
       "sha256": "00347453ffc68e323215ba9e1241a32d1a99d2c2fbb45c892c3903548eb377e4"
     },
     {
+      "path": "tests/match-balance-audit.test.cjs",
+      "bytes": 7492,
+      "sha256": "0933ed42bc9066dae30decef5095659843629f1bf9309194bc4fd8a034257406"
+    },
+    {
       "path": "tests/match-boot-contact.test.cjs",
       "bytes": 1995,
       "sha256": "0165ecdc2bdb7a9a0d7b8d0b6f010471e5a114b0e8ccfc2d8fbbedea436be0fd"
@@ -1939,6 +1959,11 @@
       "sha256": "fa9bca4d9a5ea5a67a037a29d16cf67b1cf075079f08276bdfb3e28e0b60d772"
     },
     {
+      "path": "tools/audit-match-balance.cjs",
+      "bytes": 14604,
+      "sha256": "692cf27b7afa62e7859afdceae693eb3f49e42cf741f1b7670648d0b1d02e814"
+    },
+    {
       "path": "tools/bake-licensed-clips.cjs",
       "bytes": 9269,
       "sha256": "240589e28efeb2860294e1791b6cb4881815ba44c0ea20e071d736f1bd77aad2"
@@ -2082,6 +2107,11 @@
       "path": "tools/check-touch-physics.cjs",
       "bytes": 15779,
       "sha256": "7e977a036628aa446b1f85b59915fd879c42806831b5b000b56137a17305f1af"
+    },
+    {
+      "path": "tools/compare-match-balance.cjs",
+      "bytes": 2906,
+      "sha256": "5dc9b5c7004784ca9fb7438ef9051697798b85da8e6676d6588270d825dde729"
     },
     {
       "path": "tools/compare-pass-arrival-controlled.cjs",
