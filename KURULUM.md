@@ -4,17 +4,17 @@ Yerel futbol simülasyonu için **Python 3.10 veya üzeri** ve güncel Chrome, E
 
 ## 1. Oyunu indir
 
-Menajer vuruşlarını ve canlı ligi içeren sürüm `codex/manager-kick-control` dalındadır.
+Doğrulanmış güncel oyun sürümü `main` dalındadır. Açık deneysel Pull Request'ler bu sürüme otomatik olarak dahil değildir.
 
-- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/codex/manager-kick-control.zip), ZIP'i çıkar ve içindeki klasörü aç.
+- [Güncel sürümü ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/main.zip), ZIP'i çıkar ve içindeki klasörü aç.
 - Git kullanıyorsan:
 
 ```sh
-git clone --branch codex/manager-kick-control https://github.com/tolgagitmez/tribunmenager.git
+git clone --branch main https://github.com/tolgagitmez/tribunmenager.git
 cd tribunmenager
 ```
 
-`main` önceki geliştirme aşamalarını içerir. [Dal karşılaştırması](https://github.com/tolgagitmez/tribunmenager/compare/main...codex/manager-kick-control).
+Mevcut Git kopyasını güncellemek için, kaydedilmemiş yerel değişikliklerin varsa önce koru; ardından `git switch main` ve `git pull --ff-only origin main` çalıştır. ZIP ile kurduysan yeni ZIP'i ayrı bir klasöre çıkar. Mevcut SQLite veritabanını silme.
 
 ## 2. Python'u kontrol et
 
@@ -53,6 +53,17 @@ python3 start.py
 ```
 
 Tarayıcıda **http://127.0.0.1:8000/** adresini aç. **Kadro → Taktik → Maçı başlat** yolunu izle. Sunucu açık kaldığı sürece oyun çalışır; kapatmak için terminalde **Ctrl+C** kullan. HTML dosyalarını çift tıklayarak `file://` üzerinden açmak yerine bu adresi kullan.
+
+## Yerel karşılaştırmalı maç testi
+
+Sunucuyu varsayılan yerel modda aç. Aynı deneme kadrosu ve taktiklerle karşılaştırmak için hesabına bağlı olmayan temiz bir tarayıcı profili kullan. Aşağıdaki iki adres mevcut maç yapılandırmasının URL fragment desteğini kullanır. Her ikisi de seed 301 ile beş dakikalık yerel maç açar; menajer vuruşları otomatik kullanılır. Canlı lig maçının sonucu etkilenmez.
+
+- [Normal motor](http://127.0.0.1:8000/match.html#%7B%22seed%22%3A301%2C%22matchMinutes%22%3A5%2C%22managerKicks%22%3Afalse%2C%22technicalTouchExperiment%22%3Afalse%7D)
+- [Deneysel teknik kontrol](http://127.0.0.1:8000/match.html#%7B%22seed%22%3A301%2C%22matchMinutes%22%3A5%2C%22managerKicks%22%3Afalse%2C%22technicalTouchExperiment%22%3Atrue%7D)
+
+Adres değişince sayfayı yeniden yükle; yalnızca fragment değiştirmek çalışan motoru yeniden başlatmaz. İki maçta aynı kadroyu, dizilişi ve taktiği koru. Skor, şut, isabet, pas ve hücum analizi verilerini karşılaştır. FPS için aynı kamera, grafik profili ve maç hızını kullan. Tek maçtan kalite artışı sonucu çıkarma. Teknik kontrol varsayılan olarak kapalıdır; diğer açık PR'lerdeki deneyler bu sürümde bulunmayabilir.
+
+Geri bildirim verirken maç bağlantısını (seed ve deney ayarı), bilgisayar/telefon modelini, tarayıcıyı, grafik profilini, maç içi dakikayı ve mümkünse ekran kaydını belirt. Grafik performansı için TV kamera ve Performans profiliyle başla; GPU instancing ayrı deneysel bir seçenektir ve normal kullanımda kapalı kalmalıdır.
 
 ## Çalışma modları
 
