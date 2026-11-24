@@ -235,7 +235,7 @@ class PlayerRenderer{
   const gl=this.gl;gl.useProgram(this.program);gl.uniformMatrix4fv(this.loc.uVP,false,vp instanceof Float32Array?vp:new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
   const standard=this.options.standardMaterials;gl.uniform1f(this.loc.uStandardAsset,standard?1:0);if(standard){gl.uniform3fv(this.loc['uMaterialBase[0]'],standard.baseColors);gl.uniform1fv(this.loc['uMaterialRoughness[0]'],standard.roughness);}
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.textures.skin);gl.uniform1i(this.loc.uSkinTexture,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.textures.fabric);gl.uniform1i(this.loc.uFabricTexture,1);
-  const renderStats={players:0,fast:0,detailed:0,triangles:0,paletteBuilds:0,paletteHits:0,dualBuilds:0,dualHits:0,lodBinds:0,culled:0,active:0};let boundLOD=null,boundFast=null;
+  const renderStats={players:0,fast:0,detailed:0,triangles:0,paletteBuilds:0,paletteHits:0,dualBuilds:0,dualHits:0,lodBinds:0,culled:0,active:0,lowAnimationDetail:0,drawCalls:0};let boundLOD=null,boundFast=null;
   const full=this.visualQuality==='detailed'||this.studio||camera==='portrait',close=camera==='close',auto=this.visualQuality==='auto';
   for(const p of players){if(!p.active)continue;const dx=close?p.x-eye[0]:0,dz=close?p.z-eye[2]:0,d2=close?dx*dx+dz*dz:Infinity,lod=this.lods[full?0:close&&d2<484?1:2]||this.lods[1]||this.lods[2]||this.lods[0],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
    const detailed=this.visualQuality==='detailed'||(auto&&(this.studio||camera==='portrait'||(close&&d2<324)));
@@ -262,7 +262,10 @@ class PlayerRenderer{
      if(!v.presentation)this.poseCache.set(p,entry);
      renderStats.paletteBuilds++;
     }else renderStats.paletteHits++;
-    const rawPalette=entry.raw,skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action):rawPalette;
+    const far=frameOptions.animationLOD===true&&!this.studio&&!p.selected&&!p.referee&&!isGK&&Math.hypot(p.x-eye[0],p.z-eye[2])>38&&(!frameOptions.ball||Math.hypot(p.x-frameOptions.ball.x,p.z-frameOptions.ball.z)>12);
+    if(far)renderStats.lowAnimationDetail++;
+    const rawPalette=entry.raw,skinPalette=matchBridge?matchBridge.sample(p,rawPalette,dt,pose.action,{lowDetail:far}):rawPalette;
+    if(hidden)continue;
     connected=renderPalette(rawPalette,skinPalette,this.assets);
     if(!hidden&&connected===rawPalette){
      if(entry.dual){dual=entry.dual;renderStats.dualHits++;}
@@ -270,7 +273,7 @@ class PlayerRenderer{
     }
    }
    if(hidden)continue;
-   if(!dual){dual=Skinning.fromMatrices(connected);renderStats.dualBuilds++;}
+   if(!dual){dual=this.transientDual=Skinning.fromMatrices(connected,this.transientDual);renderStats.dualBuilds++;}
    gl.uniform4fv(this.loc['uBoneReal[0]'],dual.real);gl.uniform4fv(this.loc['uBoneDual[0]'],dual.dual);
    // Preserve draw order and all individual uniforms. Bind vertex attributes
    // only when LOD actually changes, rather than 23 times per broadcast frame.
@@ -279,12 +282,12 @@ class PlayerRenderer{
     for(const a of this.attributes){if(a.location<0)continue;gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,80,a.off*4);}
     boundLOD=lod;renderStats.lodBinds++;
    }
-   gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);
+   gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);renderStats.drawCalls++;
   }
   if(boundLOD)for(const a of this.attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);
   this.lastRenderStats=renderStats;
  }
- dispose(){if(this.disposed)return;this.disposed=true;this.poseCache=new WeakMap();const gl=this.gl;for(const lod of this.lods||[])if(lod){gl.deleteBuffer(lod.vertex);gl.deleteBuffer(lod.index);}for(const texture of Object.values(this.textures||{}))gl.deleteTexture(texture);if(this.program){for(const shader of gl.getAttachedShaders(this.program)||[])gl.deleteShader(shader);gl.deleteProgram(this.program);}}
+ dispose(){if(this.disposed)return;this.disposed=true;this.poseCache=new WeakMap();this.transientDual=null;const gl=this.gl;for(const lod of this.lods||[])if(lod){gl.deleteBuffer(lod.vertex);gl.deleteBuffer(lod.index);}for(const texture of Object.values(this.textures||{}))gl.deleteTexture(texture);if(this.program){for(const shader of gl.getAttachedShaders(this.program)||[])gl.deleteShader(shader);gl.deleteProgram(this.program);}}
 }
 PlayerRenderer.playerInView=playerInView;PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
 })(typeof window!=='undefined'?window:globalThis);
