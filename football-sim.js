@@ -773,6 +773,7 @@ class Match{
    const style=accepted?Brain.dribbleStyle(p,selected,{forward:this.direction(p.team),pressure,clearance:choice.clearance??0}):null;
    if(style)p.carryIntent.style=style;
    if(accepted&&(choice.openFieldCarry||choice.progressiveCarry))p.carryIntent.progressive=true;
+   if(accepted&&choice.boxEntryCarry){this.telemetry.boxEntryCarryAccepted=(this.telemetry.boxEntryCarryAccepted||0)+1;p.carryIntent.boxEntry=true;}
   }
   // The visual stance switches at the accepted physical carry decision,
   // rather than waiting for the next 160 ms planning refresh.
@@ -925,6 +926,24 @@ class Match{
   }
   return null;
  }
+ // Close the gap between the broad open-field carry gate (4.5 m)
+ // and a reachable box-entry lane under moderate pressure. No new ball
+ // impulse, opponent reaction or forced shot is introduced.
+ boxEntryCarry(p,carry,options,pressure){
+  const fail=reason=>({choice:null,reason});
+  if(!this.playerBrainEnabled(p)||this.owner!==p||!['MID','ATT'].includes(p.role)||p.position==='DM'||this.restart||this.kick||p.receiveClock>0||p.shieldUntil>this.time||p.duelRecovery>0||(p.energy??1)<.5)return fail('state');
+  const side=this.direction(p.team),depth=p.x*side,point=carry?.point;
+  if(depth<29||depth>=35.5||Math.abs(p.z)>19||pressure<3.2||pressure>=4.5||p.carryTime>2.4)return fail('region');
+  if(!point||carry.clearance<2.4||point.x*side<35.7||Math.abs(point.z)>18||point.x*side-depth<2.5||Math.abs(angle(Math.atan2(point.z-p.z,point.x-p.x),p.face))>1.05)return fail('lane');
+  if(this.ball.y>.25||dist(p,this.ball)>1.1||p.touchClock>.16)return fail('contact');
+  if(options.some(o=>o.q?.active&&o.risk<.30&&o.arrivalRisk<.58&&o.space>2.5&&o.score>0&&(o.point.x-p.x)*side>=3&&o.point.x*side>=35.5&&Math.abs(o.point.z)<18))return fail('boxPass');
+  const rivals=this.rivals(p);
+  if(rivals.some(q=>{const h=segment({x:q.x+(q.vx||0)*.35,z:q.z+(q.vz||0)*.35},p,point);return h.u>.04&&h.d<1.55;}))return fail('lane');
+  const choice={...carry,kind:'carry',openFieldCarry:true,boxEntryCarry:true,commit:.55};
+  const read=this.controlPreparation(p,choice,null,.55);
+  if(!Number.isFinite(read.firstTouchTime)||read.interventionTime!==null)return fail('forecast');
+  return {choice,reason:'eligible'};
+ }
  finalThirdLink(p,options){
   const side=this.direction(p.team),depth=p.x*side;
   if(!this.playerBrainEnabled(p)||p.role==='GK'||depth<24||depth>48||this.kick||this.restart)return null;
@@ -998,6 +1017,11 @@ class Match{
   if(penetration){this.telemetry.attackingRunChoices=(this.telemetry.attackingRunChoices||0)+1;return penetration;}
   const boxLink=this.finalThirdLink(p,options);
   if(boxLink){this.telemetry.finalThirdLinkChoices=(this.telemetry.finalThirdLinkChoices||0)+1;return boxLink;}
+  if(this.cfg.boxEntryExperiment===true){
+   const read=this.boxEntryCarry(p,carry,options,pressure),key='boxEntryGate_'+read.reason;
+   this.telemetry[key]=(this.telemetry[key]||0)+1;
+   if(read.choice)return read.choice;
+  }
   // Read open grass before support-waiting, backwards circulation and stale tasks.
   if(this.directProgressRead(p,carry,options,pressure)){
    this.telemetry.openFieldCarryChoices=(this.telemetry.openFieldCarryChoices||0)+1;
@@ -3347,6 +3371,7 @@ class Match{
     if(!p.active||dist(p,this.ball)>3.2){this.owner=null;this.phase='open';this.telemetry.looseBalls++;this.planClock=0;}
     else if(p.holdingBall){/* Hands retain a caught ball until the keeper drops it. */}
     else{
+     if(p.carryIntent?.boxEntry&&p.carryIntent.until>this.time&&p.x*this.direction(p.team)>=35.5&&Math.abs(p.z)<20.16&&dist(p,this.ball)<1.3){this.telemetry.boxEntryCarryCompleted=(this.telemetry.boxEntryCarryCompleted||0)+1;p.carryIntent.boxEntry=false;}
      p.decision-=dt;
      if(p.decision<=0&&p.receiveClock<=0&&this.ball.y<.45&&dist(p,this.ball)<1.45){
       const choice=this.postReceiveHold(p,this.preparedChoice(p)||this.choose(p));p.decision=.16+(100-(+this.t[p.team].tempo))*.004+this.random()*.10;
