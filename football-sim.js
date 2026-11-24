@@ -1585,8 +1585,32 @@ class Match{
   const side=this.direction(owner.team),depth=Math.min(line-1.0,Math.max(owner.x*side+6,baseLine+27)),ideal=clamp(owner.z*.4+Math.sign(p.homeZ||-owner.z||1)*9,-18,18);let best=null;
   const evaluate=point=>{const risk=this.laneRisk(owner,point,17),space=Math.min(12,...this.rivals(owner).map(q=>dist(q,point))),score=space*.5-risk*11-dist(p,point)*.16-Math.abs(point.z-ideal)*.035;return {...point,score,risk,space};};
   for(const z of [ideal,ideal-4,ideal+4,clamp(p.z,-20,20)]){const point=evaluate({x:side*depth,z:clamp(z,-22,22)});if(!best||point.score>best.score)best=point;}
+  // The default formation-relative depth can be behind a cover shadow even
+  // when a nearby diagonal connection is available. Only compare bounded,
+  // reachable alternatives with safe reception and onside staging.
+  if(this.playerBrainEnabled(p)&&owner.x*side>-12&&owner.x*side<26&&p.role==='MID'&&p.position!=='DM'&&p.energy>.45&&this.t[owner.team].playstyle==='possession'){
+   const rivals=this.rivals(owner),pressure=Math.min(20,...rivals.map(q=>dist(q,owner)));
+   if(pressure>3.5&&(best.risk>.28||dist(p,best)>7||best.space<3)){
+    const assess=q=>{
+     const gain=(q.x-owner.x)*side,range=dist(owner,q),travel=dist(p,q);
+     if(gain<4||gain>14||range<5||range>23||travel>8||q.x*side>line-Brain.runMargin(p,side)||Math.abs(q.z)>20)return null;
+     const speed=this.passSpeed('pass',range,this.t[owner.team]),eta=this.passTime('pass',range,speed);
+     if(!Number.isFinite(eta))return null;
+     const reception=this.receptionSafety(owner,p,q,eta),risk=this.laneRisk(owner,q,speed,'pass');
+     if(risk>.30||reception.risk>.52||reception.pressure<3)return null;
+     const score=reception.pressure*.55-risk*12-reception.risk*5-travel*.42+gain*.18;
+     return {...q,score,risk,space:reception.pressure};
+    };
+    let reachable=null;
+    for(const forward of [4,7,10])for(const lateral of [-4,0,4]){
+     const point={x:side*Math.min(line-Brain.runMargin(p,side),owner.x*side+forward),z:clamp(p.z+lateral,-20,20)},q=assess(point);
+     if(q&&(!reachable||q.score>reachable.score))reachable=q;
+    }
+    if(reachable){const baseline=assess(best);if(!baseline||reachable.score>baseline.score+1.2)best=reachable;}
+   }
+  }
   const intent=p.connectionIntent,old=intent?.ownerId===owner.id&&intent.epoch===this.attackEpoch[owner.team]&&intent.until>this.time&&(intent.point.x-owner.x)*side>3&&intent.point.x*side<line-.7?evaluate(intent.point):null;
-  if(old&&old.risk<.55&&old.space>1.8&&old.score>best.score-1.5)best=old;
+  if(old&&old.risk<.55&&old.space>1.8&&old.score>best.score-1.5&&(!this.playerBrainEnabled(p)||best.risk>.30||old.risk<.30&&dist(p,old)<=8))best=old;
   const same=old&&dist(old,best)<.1;p.connectionIntent={ownerId:owner.id,epoch:this.attackEpoch[owner.team],point:{x:best.x,z:best.z},until:same?intent.until:this.time+1.4};return best;
  }
  supportUnit(team,owner,pool,holding,build,pattern,flank,box,line,connection=null,meeting=null){
