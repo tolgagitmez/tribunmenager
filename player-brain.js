@@ -149,7 +149,7 @@ function jockeyOption(p,carrier,ball,{forward=1,cover=null,receiver=null}={}){
 }
 function screenOption(p,carrier,receiver,base,{forward=1}={}){
  if(!carrier||!receiver||!base||defensiveRead(p)<80||(p.energy??1)<.35||p.role==='GK'||
-  (carrier.confidence??1)<.55||(receiver.confidence??1)<.55||(receiver.age??0)>.5)return null;
+  (carrier.confidence??1)<.55||(carrier.age??0)>.5||(receiver.confidence??1)<.55||(receiver.age??0)>.5)return null;
  const dx=receiver.x-carrier.x,dz=receiver.z-carrier.z,range=Math.hypot(dx,dz);
  if(range<5||range>24||dx*forward>=-.6||distance(p,base)>10)return null;
  const t=clamp(((p.x-carrier.x)*dx+(p.z-carrier.z)*dz)/(range*range),.2,.65);
