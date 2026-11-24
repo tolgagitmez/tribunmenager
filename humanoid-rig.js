@@ -218,7 +218,10 @@ function pose(p,dt=1/60){
   // The feint is a fake step, not a second ball impulse. Preserve the
   // unselected support foot and solve the lifted ankle through bounded IK.
   if(!kicking&&feintWeight>.001&&i===feintFoot&&p.footTouch<=0){
-   const target=world(p,.11,side*.24,GROUND+.075);
+   const stepOver=p.feintStyle==='step-over';
+   // Swing around the ball-side corridor without adding a second impulse;
+   // the support boot stays under the same bounded leg solver.
+   const target=stepOver?world(p,.21+.19*Math.sin(feintU*Math.PI),side*mix(.12,.32,smooth(feintU)),GROUND+.12):world(p,.11,side*.24,GROUND+.075);
    foot=blend(foot,target,feintWeight*.8);footFace=p.face;stance=false;
   }
   // A deceived defender takes a visible preparatory shuffle in the same
