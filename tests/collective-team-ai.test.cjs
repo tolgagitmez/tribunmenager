@@ -31,7 +31,7 @@ function fixture(){
  for(const p of m.players)p.active=false;
  const a=m.players[3],b=m.players[5],c=m.players[1],g=m.players[21],d=m.players[18];
  const set=(p,v)=>Object.assign(p,actor({id:p.id,team:p.team,rosterId:p.rosterId}),{active:true,task:null,runIntent:null,supportIntent:null,duelRecovery:0,receiveClock:0,touchClock:0,comboCooldown:0,speed:0},v);
- set(a,{x:0,z:0,homeX:0,homeZ:-10});set(b,{x:9,z:3,homeX:7,homeZ:10});set(c,{role:'ATT',position:'ST',x:13,z:-6,homeX:22,homeZ:0});
+ set(a,{x:0,z:0,homeX:0,homeZ:-10,detailedRole:true,position:'AM'});set(b,{x:9,z:3,homeX:7,homeZ:10});set(c,{role:'ATT',position:'ST',x:13,z:-6,homeX:22,homeZ:0});
  set(g,{role:'GK',x:49,z:0});set(d,{role:'DEF',x:25,z:18});
  m.restart=null;m.kick=null;m.flight=null;m.goalPause=null;m.owner=a;m.lastTeam=0;m.lastTouch=a;m.time=10;m.ball={x:.88,y:.11,z:.18,vx:0,vy:0,vz:0};m.targets=new Map();m.updateTeamPhases();
  m.t[0].playstyle='possession';return {m,a,b,c};
