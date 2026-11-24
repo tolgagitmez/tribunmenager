@@ -242,3 +242,18 @@ test('skilled stationary player chooses a step-over, with no separate ball impul
  const source=require('node:fs').readFileSync(require('node:path').join(__dirname,'../live-match-worker.cjs'),'utf8');
  assert(source.includes("'feintStyle'"));
 });
+
+test('stalled completed circulation allows a safe carry but not a blocked route or a good forward pass',()=>{
+ const {m,owner,link}=fixture();
+ Object.assign(owner,{x:0,z:0,face:0,dribbling:85,carryTime:.5,energy:1,position:'AM'});
+ m.recentPasses=[{from:owner.id,to:link.id,time:5,progress:1},{from:link.id,to:owner.id,time:7,progress:-2},{from:owner.id,to:link.id,time:9,progress:1}];
+ const carry={kind:'carry',point:{x:5,z:0},clearance:4};
+ assert.equal(m.progressiveCarryRead(owner,carry,[],8),true);
+ assert.equal(m.progressiveCarryRead(owner,{...carry,clearance:1},[],8),false);
+ assert.equal(m.progressiveCarryRead(owner,carry,[],3),false);
+ assert.equal(m.progressiveCarryRead(owner,carry,[{point:{x:9,z:0},risk:.1,arrivalRisk:.1,space:5,score:8}],8),false);
+ m.recentPasses[0].progress=9;
+ assert.equal(m.progressiveCarryRead(owner,carry,[],8),false);
+ m.recentPasses[0].progress=0;m.recentPasses[0].time=0;
+ assert.equal(m.progressiveCarryRead(owner,carry,[],8),false);
+});
