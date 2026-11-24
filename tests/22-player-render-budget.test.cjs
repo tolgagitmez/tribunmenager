@@ -74,3 +74,56 @@ test('broadcast quality uniform is sent once per frame, but close camera transit
  assert.equal(r.lastRenderStats.players,22);assert.equal(r.lastRenderStats.detailed,11);
  assert.deepEqual(fast,Array.from({length:22},(_,i)=>i%2));
 });
+
+
+test('conservative frustum culling keeps edge actors, selected players and live blend state',()=>{
+ const players=actors(),{r}=renderer(),bridge=Bridge.create();
+ const vp=new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+ for(const p of players){p.x=30;p.z=0;Rig.update(p,1/60);}
+ Object.assign(players[0],{x:0,z:0});Object.assign(players[1],{x:3.8,z:0});
+ players[2].selected=true;
+ assert(Renderer.playerInView(players[0],vp));assert(Renderer.playerInView(players[1],vp));
+ assert(!Renderer.playerInView(players[3],vp));
+ assert(Renderer.playerInView(players[3],new Float32Array(16)));
+ assert(Renderer.playerInView(players[3],Array(16).fill(NaN)));
+ r.draw(players,vp,[0,0,0],'close',1/60,bridge,{cull:true});
+ assert.equal(r.lastRenderStats.active,22);assert.equal(r.lastRenderStats.players,3);assert.equal(r.lastRenderStats.culled,19);
+ assert.equal(r.lastRenderStats.dualBuilds,3);assert.equal(bridge.stats().players,22);
+ players[3].x=0;Rig.update(players[3],1/60);
+ r.draw(players,vp,[0,0,0],'close',1/60,bridge,{cull:true});
+ assert.equal(r.lastRenderStats.players,4);assert.equal(bridge.stats().players,22);
+ r.draw(players,vp,[0,0,60],'tv',0,bridge,{});
+ assert.equal(r.lastRenderStats.players,22);assert.equal(r.lastRenderStats.culled,0);
+});
+
+
+test('instanced broadcast packs distinct footballer poses and appearances into one draw',()=>{
+ const players=actors(),{r,draw}=renderer(),bridge=Bridge.create();
+ for(const p of players)Rig.update(p,1/60);
+ const baseline=draw(players,0,bridge),batch={data:new Float32Array(45*32*4)};
+ r.initBatch=()=>batch;let calls=0;
+ r.drawBatch=(b,lod,count)=>{calls++;assert.equal(b,batch);assert.equal(count,22);};
+ const result=draw(players,0,bridge,{instancing:true});
+ assert.equal(calls,1);assert.equal(result.stats.drawCalls,1);assert.equal(result.stats.instanced,22);
+ assert.equal(result.calls.draws,0);assert.equal(result.stats.triangles,baseline.stats.triangles);
+ for(let i=0;i<22;i++){
+  const row=i*45*4;
+  assert.deepEqual(Array.from(batch.data.slice(row,row+76)),baseline.captures[i].real);
+  assert.deepEqual(Array.from(batch.data.slice(row+76,row+152)),baseline.captures[i].dual);
+ }
+ assert.notDeepEqual(batch.data.slice(39*4,39*4+3),batch.data.slice(11*45*4+39*4,11*45*4+39*4+3));
+ assert.equal(batch.data[44*4+3],1);
+ assert.equal(batch.data[45*4+44*4+3],0);
+ r.initBatch=()=>null;
+ const fallback=draw(players,0,bridge,{instancing:true});
+ assert.equal(fallback.stats.drawCalls,22);assert.equal(fallback.stats.instanced,0);
+ assert.deepEqual(fallback.captures,baseline.captures);
+});
+test('batch shader uses per-instance texture rows rather than shared uniform bone arrays',()=>{
+ const {vertex,fragment,width,rows}=Renderer.batchShaders;
+ assert.equal(width,45);assert.equal(rows,32);
+ assert(!vertex.includes('uBoneReal[')&&!vertex.includes('uBoneDual['));
+ assert(vertex.includes('instanceData(19.+aJoints.w)'));assert(fragment.includes('vInstance'));
+ const {r}=renderer();r.gl.getExtension=()=>null;
+ assert.equal(r.initBatch(),null);
+});

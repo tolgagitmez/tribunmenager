@@ -54,3 +54,35 @@ test('TV and tactical camera can skip expensive multi-light PBR without changing
  assert(file.includes('scene.observeFrame(dt,paused)'),'FPS regulator must be updated every frame');
  assert(file.includes("now-lastPauseDraw>=120"),'paused stadium must not render at 60+ FPS');
 });
+
+
+test('ground shadows and selection rings reuse prebuilt geometry at every player position',()=>{
+ const {s}=stadium(),calls=[];
+ const m={appendTranslated:(mesh,x,y,z)=>calls.push({mesh,x,y,z})};
+ s.playerGroundGeometry(m,{x:10,z:2,team:0,selected:true});
+ const initial=s.groundTemplates;
+ s.playerGroundGeometry(m,{x:-6,z:11,team:1,selected:true});
+ s.playerGroundGeometry(m,{x:3,z:-2,team:1,selected:false});
+ assert.equal(s.groundTemplates,initial);
+ assert.equal(calls.length,5);assert.equal(calls[0].mesh,calls[2].mesh);assert.equal(calls[0].mesh,calls[4].mesh);
+ assert.notEqual(calls[1].mesh,calls[3].mesh);
+ assert.deepEqual(calls.map(({x,y,z})=>[x,y,z]),[[10,0,2],[10,0,2],[-6,0,11],[-6,0,11],[3,0,-2]]);
+ assert.equal(initial.shadow.ct,180);assert.equal(initial.blue.ct,288);
+ assert.equal(initial.shadow.v.length,initial.shadow.ct*6);
+});
+
+
+test('dynamic GPU buffer grows only when required and uploads only live vertices',()=>{
+ const {s}=stadium(),alloc=[],uploads=[];
+ s.dynamicBuffer={};
+ Object.assign(s.gl,{ARRAY_BUFFER:1,DYNAMIC_DRAW:2,bindBuffer(){},bufferData:(target,size)=>alloc.push(size),bufferSubData:(target,offset,data)=>uploads.push(Array.from(data))});
+ s.uploadDynamic({v:[1,2,3,4,5,6]});
+ const initial=s.dynamicVertices;
+ s.uploadDynamic({v:[7,8,9]});
+ assert.equal(s.dynamicVertices,initial);assert.equal(alloc.length,1);
+ assert.deepEqual(uploads,[[1,2,3,4,5,6],[7,8,9]]);
+ s.uploadDynamic({v:Array(1200).fill(1)});
+ assert.notEqual(s.dynamicVertices,initial);assert.equal(alloc.length,2);
+ assert.equal(s.performanceMode().dynamicBuffer.uploadedBytes,4800);
+ assert.equal(s.performanceMode().dynamicBuffer.allocations,2);
+});

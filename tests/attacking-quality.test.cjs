@@ -424,3 +424,264 @@ test('advanced carrier receives a nearby diagonal support target without displac
   assert.equal(m.supportTargets(owner,[link],reserved,40).size,0);
  }
 });
+
+
+test('open lane wins over backwards recycling and survives both playing directions',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  owner.x=31*side;owner.z=0;owner.face=side===1?0:Math.PI;owner.carryTime=3;owner.receiveClock=0;owner.shieldUntil=0;
+  m.ball.x=owner.x+.5*side;m.ball.z=0;
+  const carry={kind:'carry',point:{x:36*side,z:0},clearance:4.5};
+  const retreat={kind:'pass',q:link,point:{x:19*side,z:0},risk:.05,arrivalRisk:.1,space:8,score:30};
+  assert(m.directProgressRead(owner,carry,[retreat],8));
+  assert(!m.directProgressRead(owner,carry,[retreat],2));
+  assert(!m.directProgressRead(owner,{...carry,clearance:1},[retreat],8));
+  assert(!m.directProgressRead(owner,carry,[{...retreat,point:{x:40*side,z:0}}],8));
+  m.shotWindow=()=>({distance:24,quality:.04,open:.2,execution:.8,pressure:.2,point:{x:52*side,z:0}});
+  m.passOptions=()=>[retreat];m.carryOption=()=>carry;m.crossingOption=()=>null;
+  const selected=m.choose(owner);
+  assert.equal(selected.kind,'carry');assert(selected.openFieldCarry);
+ }
+});
+
+test('safe central shot is not suppressed by a high-value recycling pass',()=>{
+ const {m,owner,link}=fixture();
+ owner.x=32;owner.z=2;
+ m.shotWindow=()=>({distance:20,quality:.12,open:.8,execution:.8,pressure:.2,point:{x:52,z:1}});
+ m.t[owner.team].shooting='early';
+ m.passOptions=()=>[{kind:'pass',q:link,point:{x:19,z:0},score:50,risk:.05,arrivalRisk:.1}];
+ m.carryOption=()=>({kind:'carry',point:{x:37,z:2},clearance:5});m.crossingOption=()=>null;
+ assert.equal(m.choose(owner).kind,'shot');
+});
+
+test('keeper advances for an uncontested slow ground ball but not into an arriving rival',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back,keeper}=fixture(side);
+  owner.active=link.active=mid.active=back.active=false;
+  Object.assign(keeper,{x:49*side,z:0,touchClock:0,duelRecovery:0});
+  m.owner=null;m.flight=null;m.ball={x:43*side,y:.11,z:0,vx:.5*side,vy:0,vz:0};
+  const pickup=m.keeperGroundPickup(keeper);
+  assert(pickup&&pickup.x*side<48);
+  owner.active=true;owner.x=43*side;owner.z=2;
+  assert.equal(m.keeperGroundPickup(keeper),null);
+ }
+});
+
+test('ordinary free kicks use a shorter preparation without bypassing exclusion distance',()=>{
+ const {m,owner,mid}=fixture();
+ m.setRestart('free-kick',0,{x:0,z:0},owner);
+ assert.equal(m.restart.clock,2);
+ mid.x=2;mid.z=0;
+ assert.equal(m.restartReady(m.restart),false);
+ mid.x=12;mid.z=0;
+ // Other opponents in the fixture are already beyond the exclusion radius.
+ assert.equal(m.restartReady(m.restart),true);
+ m.setRestart('free-kick',0,{x:29,z:0},owner);
+ assert.equal(m.restart.clock,4);
+});
+
+test('carry forecast rejects an unnecessarily wide gap and accepts a recoverable softer touch',()=>{
+ const {m,owner}=fixture();
+ m.touchContact=()=>({ready:true,gap:.6,foot:1,technique:80});
+ owner.touchClock=owner.receiveClock=0;
+ m.touchRecovery=(p,v)=>({ready:true,maxGap:v.vx>3?2.1:1.1});
+ m.ball.vx=0;m.ball.vz=0;m.ball.vy=0;
+ const plan=m.touchPlan(owner,{vx:6,vz:0,vy:0},{mode:'carry',interval:.25,maxGap:1.3});
+ assert(plan.ready&&plan.limited);assert(plan.velocity.vx<=3);
+});
+
+
+test('second-wave midfielder chooses a distinct onside half-space and preserves the anchor',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back,keeper}=fixture(side);
+  Object.assign(owner,{x:28*side,z:2});
+  Object.assign(link,{x:27*side,z:6,position:'AM',homeX:19*side,energy:1});
+  mid.active=false;back.x=44*side;back.z=23;keeper.x=49*side;
+  m.ball.x=owner.x;m.ball.z=owner.z;
+  const occupied=new Map([[1,{x:39*side,z:0}],[2,{x:40*side,z:-12}]]);
+  const point=m.secondWavePoint(owner,link,occupied,44);
+  assert(point);assert(point.x*side>=35.5);assert(point.x*side<=44-Brain.runMargin(link,side)+1e-8);
+  assert([...occupied.values()].every(q=>Math.hypot(q.x-point.x,q.z-point.z)>=5.5));
+  assert.equal(m.secondWavePoint(owner,link,occupied,35),null);
+  link.position='DM';assert.equal(m.secondWavePoint(owner,link,occupied,44),null);
+ }
+});
+
+test('run delivery prefers an accepted box entry over recycling, but rejects stale, offside or blocked options',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{x:28*side,z:0,receiveClock:0});
+  Object.assign(link,{role:'MID',position:'AM',x:32*side,z:7});
+  back.x=44*side;back.z=20;mid.active=false;
+  m.ball.x=owner.x;m.ball.z=0;
+  const Intent=require('../team-intent');
+  Intent.resolve(link,{x:38*side,z:8,state:'box-run',pace:1.06,partnerId:owner.id,priority:30},m.taskContext(link));
+  const feed={kind:'pass',q:link,point:{x:37*side,z:8},risk:.10,arrivalRisk:.25,space:5,score:8,distance:12};
+  const recycle={...feed,point:{x:18*side,z:0},score:30};
+  m.passPreparation=()=>({feasible:true});
+  assert(m.attackingRunDelivery(owner,[recycle,feed])?.attackingRunDelivery);
+  assert.equal(m.attackingRunDelivery(owner,[{...feed,risk:.65}]),null);
+  assert.equal(m.attackingRunDelivery(owner,[{...feed,kind:'through',plannedRun:false}]),null);
+  assert(m.attackingRunDelivery(owner,[{...feed,kind:'through',plannedRun:true}]));
+  m.passPreparation=()=>({feasible:false});assert.equal(m.attackingRunDelivery(owner,[feed]),null);
+  m.passPreparation=()=>({feasible:true});
+  link.task.epoch--;assert.equal(m.attackingRunDelivery(owner,[feed]),null);
+  link.task.epoch++;link.x=46*side;assert.equal(m.attackingRunDelivery(owner,[feed]),null);
+ }
+});
+
+
+test('isolated keeper read chooses the opposite side of a displaced or moving keeper in both halves',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back,keeper}=fixture(side);
+  link.active=mid.active=back.active=false;
+  Object.assign(owner,{x:40*side,z:0,face:side===1?0:Math.PI,shooting:94,composure:94});
+  Object.assign(keeper,{x:49*side,z:1.5,vz:2});
+  const seed=m.seed,read=m.finishingRead(owner,{x:52*side,z:0});
+  assert(read&&read.point.z<0);assert.equal(read.point.x,52*side);assert.equal(m.seed,seed);
+  keeper.z=-1.5;keeper.vz=-2;
+  assert(m.finishingRead(owner,{x:52*side,z:0}).point.z>0);
+  mid.active=true;mid.x=owner.x+side*1.5;mid.z=0;
+  assert.equal(m.finishingRead(owner,{x:52*side,z:0}),null);
+ }
+});
+test('placed-shot dispersion responds to composure and leaves the ordinary shot path unchanged',()=>{
+ const {m,owner,link,mid,back}=fixture();
+ link.active=mid.active=back.active=false;
+ Object.assign(owner,{x:42,z:0,face:0,shooting:90,composure:94,kickFoot:1,preferredFoot:1,footPreference:'right',weakFoot:50});
+ const point={x:52,z:0};
+ m.random=()=>.8;
+ const good=Math.abs(m.aimShot(owner,point,owner,'placed').z);
+ owner.composure=65;
+ const poor=Math.abs(m.aimShot(owner,point,owner,'placed').z);
+ assert(good<poor);
+ owner.composure=94;
+ assert(good<Math.abs(m.aimShot(owner,point).z));
+ owner.kickFoot=0;
+ assert(Math.abs(m.aimShot(owner,point,owner,'placed').z)>good);
+});
+test('first-time shot uses actual contact foot before computing accuracy',()=>{
+ const {m,owner}=fixture();
+ owner.x=44;owner.z=0;owner.face=0;owner.kickFoot=1;
+ let used;
+ m.aimShot=(p,point,origin,style)=>{used={foot:p.kickFoot,style};return point;};
+ m.selectKickFoot=()=>1;
+ assert(m.startKick(owner,'shot',null,{x:52,z:0},25,null,null,{foot:0,style:'first-time'}));
+ assert.deepEqual(used,{foot:0,style:'first-time'});
+ assert.equal(owner.kickFoot,0);
+});
+
+
+test('rebound tracking selects a legal nearby runner, not an offside player or holding midfielder',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{role:'ATT',position:'ST',x:39*side,z:2,face:side===1?0:Math.PI,touchClock:0});
+  Object.assign(link,{role:'MID',position:'DM',x:42*side,z:1,touchClock:0});
+  const shot={kind:'shot',id:42,from:owner};
+  m.owner=null;m.flight=null;m.ball={x:43*side,z:1,y:.11,vx:-2*side,vz:0,vy:0};
+  m.markRebound(shot,'parry');
+  assert.equal(m.reboundRunner(owner.team)?.id,owner.id);
+  m.offsidePhase={team:owner.team,playerIds:[owner.id]};
+  assert.equal(m.reboundRunner(owner.team),null);
+  m.offsidePhase=null;
+  m.time+=3;
+  assert.equal(m.reboundRunner(owner.team),null);
+ }
+});
+
+test('rebound finish requires physical contact and records the actual release',()=>{
+ const {m,owner,link,mid,back}=fixture();
+ mid.active=back.active=false;
+ Object.assign(owner,{x:44,z:0,face:0,shooting:94,composure:94,touchClock:0,footTouch:0,receiveClock:0,action:'idle'});
+ m.owner=null;m.flight=null;m.lastTouch=link;
+ m.markRebound({kind:'shot',id:21,from:link},'block');
+ m.ball={x:43.8,y:.11,z:0,vx:3,vy:0,vz:0};
+ assert.equal(m.firstTimeFinish(owner),false);
+ const foot=m.contactPoint({...owner,kickFoot:1},'shot');
+ Object.assign(m.ball,{x:foot[0],z:foot[2]});
+ assert(m.firstTimeFinish(owner));
+ assert.equal(m.telemetry.reboundFinishReleases,1);
+ assert.equal(m.shots[0],1);
+ assert.equal(m.rebound,null);
+});
+
+test('shot angle carry needs a genuine improvement, an open corridor and no better box pass',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{x:38*side,z:0,face:side===1?0:Math.PI,dribbling:91,carryTime:.4,receiveClock:0,shieldUntil:0});
+  mid.active=back.active=false;
+  const blocked={open:.2,quality:.05};
+  m.shotWindow=p=>({open:Math.abs(p.z)>=2?.8:.2,quality:Math.abs(p.z)>=2?.15:.05});
+  const result=m.shotAngleCarry(owner,blocked,[],8);
+  assert(result?.shotAngleCarry);
+  assert(Math.abs(result.point.z)>=2);
+  assert.equal(m.shotAngleCarry(owner,blocked,[{q:link,point:{x:42*side,z:1},score:10,risk:.1,arrivalRisk:.1,space:6}],8),null);
+  assert.equal(m.shotAngleCarry(owner,blocked,[],1),null);
+  m.shotWindow=()=>blocked;
+  assert.equal(m.shotAngleCarry(owner,blocked,[],8),null);
+ }
+});
+
+
+test('shared interception trajectory is identical to independent physical forecasts and invalidates on ball change',()=>{
+ const {BallPhysics}=require('../football-sim');
+ const {m,owner,link,mid,back}=fixture();
+ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+ function reference(p){
+  const top=5.35+((p.pace??80)-75)*.035,q=BallPhysics.copy(m.ball);
+  let result;
+  for(let i=1;i<=24;i++){
+   BallPhysics.step(q,.1);const t=i*.1;
+   result={x:clamp(q.x,-52.5,52.5),z:clamp(q.z,-34.3,34.3),t};
+   if(q.y<1.1&&Math.hypot(p.x-result.x,p.z-result.z)<.7+top*t)return result;
+  }
+  return result;
+ }
+ for(const ball of [{x:30,z:4,y:.11,vx:7,vz:1,vy:0},{x:26,z:-4,y:1.4,vx:12,vz:2,vy:4,spin:.24},{x:47,z:29,y:.11,vx:10,vz:5,vy:0}]){
+  m.ball={...ball};const before={...m.ball};
+  const first=m.interceptPoint(owner),cache=m.ballForecast;
+  assert.deepEqual(first,reference(owner));
+  for(const p of [link,mid,back,owner])assert.deepEqual(m.interceptPoint(p),reference(p));
+  assert.equal(m.ballForecast,cache);assert(cache.samples.length<=24);
+  first.x=999;assert.deepEqual(m.interceptPoint(owner),reference(owner));
+  assert.deepEqual(m.ball,before);
+  m.ball.vx=-m.ball.vx;
+  assert.deepEqual(m.interceptPoint(owner),reference(owner));assert.notEqual(m.ballForecast,cache);
+  const changed=m.ballForecast;m.time+=1/60;m.interceptPoint(owner);assert.notEqual(m.ballForecast,changed);
+ }
+});
+
+test('interception forecasts reuse physical integration work instead of recomputing for each actor',()=>{
+ const {BallPhysics}=require('../football-sim');
+ const {m,owner,link}=fixture();
+ m.ball={x:40,z:15,y:2,vx:10,vz:1,vy:4};
+ Object.assign(owner,{x:-20,z:0});Object.assign(link,{x:-20,z:0});
+ const step=BallPhysics.step;let calls=0;
+ BallPhysics.step=function(...args){calls++;return step.apply(this,args);};
+ try {
+  const first=m.interceptPoint(owner);const initial=calls;
+  assert(initial>0);assert.deepEqual(m.interceptPoint(link),first);
+  assert.equal(calls,initial);
+  m.ball.vz+=1;m.interceptPoint(link);assert(calls>initial);
+ }finally{BallPhysics.step=step;}
+});
+
+
+test('pass scoring shares an observed opponent list across lane and reception forecasts',()=>{
+ const {m,owner}=fixture();
+ const lane=m.laneRisk.bind(m),reception=m.receptionSafety.bind(m),context=m.matchContext.bind(m);
+ const lists=[];let contexts=0;
+ m.laneRisk=(p,point,power,kind,opponents)=>{if(p===owner&&opponents)lists.push(opponents);return lane(p,point,power,kind,opponents);};
+ m.receptionSafety=(p,q,point,seconds,opponents)=>{if(p===owner&&opponents)lists.push(opponents);return reception(p,q,point,seconds,opponents);};
+ m.matchContext=team=>{contexts++;return context(team);};
+ const options=m.passOptions(owner);
+ assert(options.length>0);assert(lists.length>=2);
+ assert(lists.every(list=>list===lists[0]));assert.equal(contexts,1);
+});
+test('a saturated pass lane never forecasts later defenders unnecessarily',()=>{
+ const {m,owner}=fixture();
+ const point={x:owner.x+15,z:owner.z};
+ const first={x:owner.x+7,z:owner.z,vx:0,vz:0};
+ const second={x:owner.x+8,z:owner.z,vx:0,vz:0,passFuture(){throw Error('fully blocked lane should not need another forecast');}};
+ assert.equal(m.laneRisk(owner,point,17,'pass',[first,second]),1);
+});

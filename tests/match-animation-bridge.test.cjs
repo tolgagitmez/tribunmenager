@@ -96,3 +96,22 @@ test('licensed rig retains calibrated non-unit bind length without snapping on f
  near(Math.hypot(end[4],end[5],end[6]),1.48,2e-5);
  basisCheck(mid,true);basisCheck(end,true);
 });
+
+
+test('distant animation detail simplifies only ordinary idle and locomotion transitions',()=>{
+ const p={x:0,z:0,action:'idle'},a=group(0),b=group(.6),bridge=Bridge.create();
+ bridge.sample(p,a,1/60);
+ p.action='run';
+ assert.equal(bridge.sample(p,b,1/60,p.action,{lowDetail:true}),b);
+ assert.equal(bridge.stats().lowDetailSkips,1);
+ p.action='shoot';
+ const blend=bridge.sample(p,a,.05,p.action,{lowDetail:true});
+ assert.notEqual(blend,a);basisCheck(blend);
+ assert.equal(bridge.stats().lowDetailSkips,1);
+ p.action='idle';
+ assert.notEqual(bridge.sample(p,b,.05,p.action,{lowDetail:true}),b);
+ assert.equal(bridge.stats().lowDetailSkips,1);
+ const nearBridge=Bridge.create();p.action='idle';nearBridge.sample(p,a,0);p.action='run';
+ assert.notEqual(nearBridge.sample(p,b,.05),b);
+ assert.equal(nearBridge.stats().lowDetailSkips,0);
+});

@@ -77,6 +77,36 @@ async function main(){
   const pixels=mode=>results[mode].profile.canvas.reduce((a,b)=>a*b,1);
   assert(pixels('performance')<pixels('quality')*.55,'performance mode must reduce GPU fragment count');
 
+  const batch=await page.evaluate(()=>{
+   const api=window.TRIBUN_MATCH_TEST;api.setGraphicsMode('performance');
+   function measure(enabled){api.setInstancing(enabled);const samples=[];for(let i=0;i<5;i++)samples.push(api.renderProbe().cpuGpuMs);return {samples,profile:api.performanceStats()};}
+   try{
+    const legacy=measure(false),instanced=measure(true);
+    api.setInstancing(false);const first=api.renderPixels();
+    api.setInstancing(true);const second=api.renderPixels();
+    if(first.length!==second.length)throw Error('Framebuffer size changed');
+    let sum=0,changed=0;
+    for(let i=0;i<first.length;i+=4){const delta=Math.abs(first[i]-second[i])+Math.abs(first[i+1]-second[i+1])+Math.abs(first[i+2]-second[i+2]);sum+=delta;if(delta>24)changed++;}
+    return {legacy,instanced,visual:{meanChannelDifference:sum/(first.length/4*3),changedPixelFraction:changed/(first.length/4)},clock:api.getState().time,score:[...api.getState().score]};
+   }
+   finally{api.setInstancing(false);}
+  });
+  assert.equal(batch.clock,frozen.clock);assert.deepEqual(batch.score,frozen.score);
+  assert(batch.legacy.profile.players.drawCalls>=22);
+  const instanced=batch.instanced.profile.players;
+  assert.equal(instanced.players,batch.legacy.profile.players.players);
+  assert.equal(instanced.triangles,batch.legacy.profile.players.triangles);
+  if(instanced.instancingSupported){assert.equal(instanced.drawCalls,1);assert.equal(instanced.instanced,instanced.players);}
+  else assert.equal(instanced.drawCalls,batch.legacy.profile.players.drawCalls);
+  assert(batch.visual.meanChannelDifference<1&&batch.visual.changedPixelFraction<.01,'batch visual equivalence: '+JSON.stringify(batch.visual));
+  report.instancing={visual:batch.visual,supported:instanced.instancingSupported,legacy:{...summary(batch.legacy.samples),profile:batch.legacy.profile},candidate:{...summary(batch.instanced.samples),profile:batch.instanced.profile},method:'same paused match, opt-in WebGL1 instancing, synchronous render+finish; no hardware FPS claim'};
+  console.log('INSTANCING_PILOT '+JSON.stringify(report.instancing));
+  const close=await page.evaluate(()=>{const api=window.TRIBUN_MATCH_TEST;api.setGraphicsMode('performance');return Array.from({length:5},()=>api.closeViewProbe());});
+  assert(close.every(x=>x.profile.players.active>=22&&x.profile.players.players+x.profile.players.culled===x.profile.players.active));
+  assert(close.some(x=>x.profile.players.culled>0),'close view must avoid offscreen draw calls');
+  assert(close.every(x=>x.clock===frozen.clock&&JSON.stringify(x.score)===JSON.stringify(frozen.score)));
+  report.closeCamera={method:'same paused match, close view, synchronous render+finish',...summary(close.map(x=>x.cpuGpuMs)),profile:close.at(-1).profile};
+  await page.evaluate(()=>window.TRIBUN_MATCH_TEST.setGraphicsMode('balanced'));
   // No synthetic simulation mutations: sample an isolated set of visual clones
   // in the production stadium renderer while the real match is paused.
   const skill=await page.evaluate(()=>window.TRIBUN_MATCH_TEST.skillRenderProbe());

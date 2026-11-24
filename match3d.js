@@ -8,6 +8,8 @@ function config(){if(window.MATCH_CFG)return window.MATCH_CFG;let explicit=null,
 function label(id,text,name){const el=$(id);if(window.TribunUI){el.innerHTML=(name?window.TribunUI.icon(name):'')+'<span>'+text+'</span>';el.setAttribute('aria-label',text);}else el.textContent=text;}
 const cfg=config(),scene=new Stadium3D($('stadiumCanvas'));
 const liveRound=new URLSearchParams(location.search).get('live');
+// Experimental opt-in until real device measurements validate the batch path.
+scene.instancingEnabled=new URLSearchParams(location.search).get('instancing')==='1';
 let game,attackObserver,attackView,paused=false,speed=1,accumulator=0,lastMetric=-1,lastMetricWall=0,simOverloadFrames=0,shownFinish=false,overlayTime=0,lastFrameCost=null;
 let kickPanel,kickAim,visibleKick=null,kickStage=0,kickFollow=null;
 let live,liveSide=0,liveKickSending=false;
@@ -322,7 +324,14 @@ function skillRenderProbe(){
   scoreUnchanged:JSON.stringify(game.score)===before.score,
   positionsUnchanged:JSON.stringify(game.players.map(p=>[p.id,p.x,p.z,p.face,p.action]))===before.players&&JSON.stringify(game.ball)===before.ball};
 }
-window.TRIBUN_MATCH_TEST={skillRenderProbe,attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||{status:'not-loaded'},ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
+window.TRIBUN_MATCH_TEST={skillRenderProbe,attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||{status:'not-loaded'},ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setInstancing:enabled=>{scene.instancingEnabled=!!enabled;},setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
+ closeViewProbe:()=>{const previous={camera:scene.camera,eye:scene.cameraSmoothing,target:scene.cameraTarget,kick:scene.managerKickView},b=game.ball;
+  try{scene.camera='close';scene.cameraSmoothing=[16,18,20];scene.cameraTarget=[0,.8,0];scene.managerKickView=null;
+   const start=performance.now();scene.render(game.players,b,[0,0],{},0);scene.gl?.finish();
+   return {cpuGpuMs:performance.now()-start,profile:scene.performanceMode(),clock:game.time,score:[...game.score]};
+  }finally{scene.camera=previous.camera;scene.cameraSmoothing=previous.eye;scene.cameraTarget=previous.target;scene.managerKickView=previous.kick;}
+ },
+ renderPixels:()=>{const gl=scene.gl,b=game.ball;if(!gl)throw Error('WebGL required');scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);const data=new Uint8Array(scene.canvas.width*scene.canvas.height*4);gl.readPixels(0,0,scene.canvas.width,scene.canvas.height,gl.RGBA,gl.UNSIGNED_BYTE,data);const error=gl.getError();if(error!==gl.NO_ERROR)throw Error('Render readback GL error '+error);return data;},
  renderProbe:()=>{const b=game.ball,start=performance.now();scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);if(scene.gl)scene.gl.finish();return {cpuGpuMs:performance.now()-start,active:game.players.filter(p=>p.active&&!p.referee).length,bridge:scene.animationStats(),webgl:!!scene.gl};},
  advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();

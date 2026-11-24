@@ -38,8 +38,8 @@ function slerp(a,b,u){
  let dot=a.reduce((s,v,i)=>s+v*b[i],0);
  if(dot<0){b=b.map(x=>-x);dot=-dot;}
  if(dot>.9995)return normalize(a.map((v,i)=>v+(b[i]-v)*u));
- const angle=Math.acos(clamp(dot,-1,1)),sin=Math.sin(angle);
- return a.map((v,i)=>(v*Math.sin((1-u)*angle)+b[i]*Math.sin(u*angle))/sin);
+ const angle=Math.acos(clamp(dot,-1,1)),sin=Math.sin(angle),left=Math.sin((1-u)*angle),right=Math.sin(u*angle);
+ return a.map((v,i)=>(v*left+b[i]*right)/sin);
 }
 function writeRotation(out,o,q){
  const [x,y,z,w]=q,xx=x*x,yy=y*y,zz=z*z,xy=x*y,xz=x*z,yz=y*z,wx=w*x,wy=w*y,wz=w*z;
@@ -68,8 +68,8 @@ function mixRigid(source,destination,out,t,deltaX=0,deltaZ=0){
 }
 function create({duration=.28,enabled=true}={}){
  if(!Number.isFinite(duration)||duration<0||duration>1.5)throw Error('Invalid blending duration');
- let cached=new WeakMap(),live=0,changes=0,frameBlends=0;
- function sample(player,palette,dt=1/60,rawAction=player?.action){
+ let cached=new WeakMap(),live=0,changes=0,frameBlends=0,lowDetailSkips=0;
+ function sample(player,palette,dt=1/60,rawAction=player?.action,options={}){
   if(!player||typeof player!=='object')throw Error('Player must be an object');
   if(!palette||palette.length%16)throw Error('Bone palette invalid');
   if(!Number.isFinite(dt)||dt<0)throw Error('Frame delta invalid');
@@ -81,7 +81,14 @@ function create({duration=.28,enabled=true}={}){
    c.action=action;c.from=null;c.display.set(palette);c.elapsed=duration;c.x=Number(player.x)||0;c.z=Number(player.z)||0;return palette;
   }
   if(c.action!==action){
-   c.from=c.display.slice();c.fromX=c.x;c.fromZ=c.z;c.elapsed=0;c.action=action;changes++;
+   // Only simplify distant idle/locomotion transitions. A tackle, shot,
+   // catch, turn or other skill keeps the normal full transition.
+   const simple=a=>a==='idle'||a==='locomotion';
+   if(options.lowDetail===true&&simple(c.action)&&simple(action)&&!c.from){
+    c.action=action;c.display.set(palette);c.elapsed=duration;c.x=Number(player.x)||0;c.z=Number(player.z)||0;changes++;lowDetailSkips++;return palette;
+   }
+   if(!c.sourceBuffer||c.sourceBuffer.length!==c.display.length)c.sourceBuffer=new Float32Array(c.display.length);
+   c.sourceBuffer.set(c.display);c.from=c.sourceBuffer;c.fromX=c.x;c.fromZ=c.z;c.elapsed=0;c.action=action;changes++;
   }
   if(c.from){
    c.elapsed=Math.min(duration,c.elapsed+Math.min(dt,.25));
@@ -95,8 +102,8 @@ function create({duration=.28,enabled=true}={}){
   c.display.set(palette);c.x=Number(player.x)||0;c.z=Number(player.z)||0;
   return palette;
  }
- function reset(){cached=new WeakMap();live=0;changes=0;frameBlends=0;}
- function stats(){return {players:live,transitions:changes,blendedFrames:frameBlends,duration,enabled};}
+ function reset(){cached=new WeakMap();live=0;changes=0;frameBlends=0;lowDetailSkips=0;}
+ function stats(){return {players:live,transitions:changes,blendedFrames:frameBlends,lowDetailSkips,duration,enabled};}
  return {sample,reset,stats,setEnabled:v=>{enabled=!!v;},isEnabled:()=>enabled};
 }
 const API={create,mixRigid,quat,slerp,category};
