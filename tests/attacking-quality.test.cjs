@@ -529,3 +529,44 @@ test('run delivery prefers an accepted box entry over recycling, but rejects sta
   link.task.epoch++;link.x=46*side;assert.equal(m.attackingRunDelivery(owner,[feed]),null);
  }
 });
+
+
+test('isolated keeper read chooses the opposite side of a displaced or moving keeper in both halves',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back,keeper}=fixture(side);
+  link.active=mid.active=back.active=false;
+  Object.assign(owner,{x:40*side,z:0,face:side===1?0:Math.PI,shooting:94,composure:94});
+  Object.assign(keeper,{x:49*side,z:1.5,vz:2});
+  const seed=m.seed,read=m.finishingRead(owner,{x:52*side,z:0});
+  assert(read&&read.point.z<0);assert.equal(read.point.x,52*side);assert.equal(m.seed,seed);
+  keeper.z=-1.5;keeper.vz=-2;
+  assert(m.finishingRead(owner,{x:52*side,z:0}).point.z>0);
+  mid.active=true;mid.x=owner.x+side*1.5;mid.z=0;
+  assert.equal(m.finishingRead(owner,{x:52*side,z:0}),null);
+ }
+});
+test('placed-shot dispersion responds to composure and leaves the ordinary shot path unchanged',()=>{
+ const {m,owner,link,mid,back}=fixture();
+ link.active=mid.active=back.active=false;
+ Object.assign(owner,{x:42,z:0,face:0,shooting:90,composure:94,kickFoot:1,preferredFoot:1,footPreference:'right',weakFoot:50});
+ const point={x:52,z:0};
+ m.random=()=>.8;
+ const good=Math.abs(m.aimShot(owner,point,owner,'placed').z);
+ owner.composure=65;
+ const poor=Math.abs(m.aimShot(owner,point,owner,'placed').z);
+ assert(good<poor);
+ owner.composure=94;
+ assert(good<Math.abs(m.aimShot(owner,point).z));
+ owner.kickFoot=0;
+ assert(Math.abs(m.aimShot(owner,point,owner,'placed').z)>good);
+});
+test('first-time shot uses actual contact foot before computing accuracy',()=>{
+ const {m,owner}=fixture();
+ owner.x=44;owner.z=0;owner.face=0;owner.kickFoot=1;
+ let used;
+ m.aimShot=(p,point,origin,style)=>{used={foot:p.kickFoot,style};return point;};
+ m.selectKickFoot=()=>1;
+ assert(m.startKick(owner,'shot',null,{x:52,z:0},25,null,null,{foot:0,style:'first-time'}));
+ assert.deepEqual(used,{foot:0,style:'first-time'});
+ assert.equal(owner.kickFoot,0);
+});

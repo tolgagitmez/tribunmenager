@@ -1069,6 +1069,29 @@ class Match{
   if(best&&pressure<1.7&&best.risk<.88&&best.arrivalRisk<.85)return best;
   return carry;
  }
+ finishingRead(p,point){
+  // A local, deterministic read of an isolated keeper. Do not give the
+  // shooter hidden defender coordinates or guarantee a scoring outcome.
+  const side=this.direction(p.team),depth=52-p.x*side,keeper=this.rivals(p,true).find(q=>q.role==='GK');
+  if(!keeper||p.role==='GK'||depth<4||depth>21||Math.abs(p.z)>13||(p.composure??p.skill)<73)return null;
+  const ahead=(keeper.x-p.x)*side;
+  if(ahead<2||ahead>depth+.2)return null;
+  const rivals=this.rivals(p),gap=Math.min(20,...rivals.map(q=>dist(p,q)));
+  if(gap<2.7||rivals.some(q=>{const h=segment(q,p,keeper);return h.u>.04&&h.u<.96&&h.d<2.2;}))return null;
+  const speed=clamp(20+(p.shooting??p.skill)*.045,22,25),u=clamp(ahead/depth,0,1),eta=ahead/speed;
+  const keeperZ=keeper.z+clamp((keeper.vz||0)*Math.min(eta,.45),-1.4,1.4);
+  let best=null;
+  for(const z of [-2.55,-1.65,0,1.65,2.55]){
+   const target={x:52*side,z},crossing=p.z+(z-p.z)*u;
+   const blocked=rivals.some(q=>{const h=segment(q,p,target);return h.u>.035&&h.u<.97&&h.d<1.25;});
+   if(blocked)continue;
+   // Margin at the keeper plane, with a conservative near-post safety cost.
+   const margin=Math.abs(crossing-keeperZ)-(.75+Math.max(0,eta-.16)*3.7),turn=Math.abs(angle(Math.atan2(z-p.z,target.x-p.x),p.face));
+   const value=margin-Math.abs(z)*.07-turn*.22;
+   if(!best||value>best.value)best={point:target,value,margin,keeperGap:ahead};
+  }
+  return best&&best.margin>.05?best:null;
+ }
  openPlayShotProfile(p,point){
   const side=this.direction(p.team),depth=52-p.x*side,distance=Math.hypot(depth,p.z),heading=Math.atan2(point.z-p.z,point.x-p.x);
   const turn=Math.abs(angle(heading,p.face??heading)),pressure=Math.min(10,...this.rivals(p).map(q=>dist(q,p)));
@@ -1092,8 +1115,10 @@ class Match{
  }
  startOpenPlayShot(p,point){
   if(!this.playerBrainEnabled(p))return this.startKick(p,'shot',null,point);
-  const profile=this.openPlayShotProfile(p,point);
-  if(!this.startKick(p,'shot',null,point,profile.power))return false;
+  const read=this.finishingRead(p,point),aim=read?.point||point;
+  const profile=this.openPlayShotProfile(p,aim);
+  if(!this.startKick(p,'shot',null,aim,profile.power,null,null,{style:profile.style}))return false;
+  if(read)this.kick.isolatedFinish=true;
   this.kick.heightTarget=profile.height;
   this.kick.shotStyle=profile.style;
   if(profile.spin)this.kick.shotSpin=profile.spin;
@@ -1132,21 +1157,25 @@ class Match{
   const advantage=footSkill(p,skill,preferred)-footSkill(p,skill,natural);
   return pressure>3.4&&advantage>5&&preferredGap<.95&&preferredGap-naturalGap<Math.min(.23,advantage*.012)?preferred:natural;
  }
- aimShot(p,point,origin=p){
+ aimShot(p,point,origin=p,style=null){
   const preferred=point?.z??this.shotWindow(p).point.z,pressure=Math.min(20,...this.rivals(p).map(q=>dist(p,q)));
   const distance=this.shotWindow(p).distance,turn=Math.abs(angle(Math.atan2(preferred-origin.z,52*this.direction(p.team)-origin.x),p.face));
   const technique=footSkill(p,p.shooting,p.kickFoot);
   const stress=Math.max(0,3-pressure)*(1.15-(p.composure??p.skill)*.005);
-  const error=(this.random()-.5)*(1.4+distance*.14+(100-technique)*.12+stress+turn*.65+Math.max(0,.65-(p.energy??1))*2);
+  const rawSpread=1.4+distance*.14+(100-technique)*.12+stress+turn*.65+Math.max(0,.65-(p.energy??1))*2;
+  // Placement benefits from composure and technique, not a guaranteed goal.
+  // A first-time strike adds difficulty; the actual contact foot is used.
+  const factor=style==='placed'?clamp(1.08-((p.composure??p.skill)-65)*.009,.72,1.18):style==='first-time'?1.12:style==='chip'?1.08:1;
+  const error=(this.random()-.5)*rawSpread*factor;
   const toPlane=Math.max(1,52-origin.x*this.direction(p.team)),beyond=(54-origin.x*this.direction(p.team))/toPlane;
   return {x:54*this.direction(p.team),z:origin.z+(preferred-origin.z)*beyond+error};
  }
- startKick(p,kind,target=null,point=null,powerOverride=null,restartContext=null,managerControl=null){
+ startKick(p,kind,target=null,point=null,powerOverride=null,restartContext=null,managerControl=null,shotRead=null){
   if(this.kick||!p.active||target===p)return false;
   let aim=point;
   if(kind==='shot'){
-   if(!restartContext){const raw=point||this.shotWindow(p).point,a=Math.atan2(raw.z-p.z,raw.x-p.x);p.kickFoot=this.selectKickFoot(p,a,kind);}
-   if(!managerControl)aim=restartContext?.shotAim?{...restartContext.shotAim}:this.aimShot(p,aim);
+   if(!restartContext){const raw=point||this.shotWindow(p).point,a=Math.atan2(raw.z-p.z,raw.x-p.x);p.kickFoot=[0,1].includes(shotRead?.foot)?shotRead.foot:this.selectKickFoot(p,a,kind);}
+   if(!managerControl)aim=restartContext?.shotAim?{...restartContext.shotAim}:this.aimShot(p,aim,p,shotRead?.style);
    this.emit('shot','Kaleyi deniyor',`${p.name} boşluğu gördü ve şutunu hazırladı.`,p);
   }
   if(!aim&&target)aim={x:target.x,z:target.z};if(!aim)return false;
@@ -1429,7 +1458,7 @@ class Match{
    const aimed={x:k.point.x-(k.point.z-this.ball.z)/d*accuracy,z:k.point.z+(k.point.x-this.ball.x)/d*accuracy};
    const length=dist(this.ball,aimed)||1;
    this.ball.vx=(aimed.x-this.ball.x)/length*power;this.ball.vz=(aimed.z-this.ball.z)/length*power;
-   if(k.kind==='shot'){const pressure=Math.min(10,...this.field(1-p.team).map(q=>dist(q,p))),spread=1.6+(100-p.shooting)*.09+Math.max(0,d-12)*.08+(pressure<3?1:0),height=clamp(k.heightTarget!==undefined?k.heightTarget+(this.random()-.5)*(.8+(100-p.shooting)*.04):.85+(this.random()-.5)*spread,.12,3.6);this.ball.vy=BallPhysics.verticalLaunch(k.shotStyle?Math.abs((52*this.direction(p.team)-this.ball.x)/(this.ball.vx/power||.01)):d,power,this.ball.y,height,10,.4);
+   if(k.kind==='shot'){const pressure=Math.min(10,...this.field(1-p.team).map(q=>dist(q,p))),spread=1.6+(100-p.shooting)*.09+Math.max(0,d-12)*.08+(pressure<3?1:0),height=clamp(k.heightTarget!==undefined?k.heightTarget+(this.random()-.5)*(.8+(100-(k.shotStyle?footSkill(p,p.shooting,p.kickFoot):p.shooting))*.04)*(k.shotStyle==='placed'?clamp(1.1-((p.composure??p.skill)-65)*.008,.78,1.2):1):.85+(this.random()-.5)*spread,.12,3.6);this.ball.vy=BallPhysics.verticalLaunch(k.shotStyle?Math.abs((52*this.direction(p.team)-this.ball.x)/(this.ball.vx/power||.01)):d,power,this.ball.y,height,10,.4);
     if(k.shotStyle==='curled'){const curved=this.curvedShotVelocity(k,power,height);if(curved)Object.assign(this.ball,curved);}
    }
    else if(k.kind==='cross'){this.ball.vy=BallPhysics.verticalLaunch(d,power,this.ball.y,1.75,11,4);}
@@ -1456,6 +1485,7 @@ class Match{
    this.flight.shotStyle=k.shotStyle;
    const key={placed:'placedShotReleases',driven:'drivenShotReleases',curled:'curledShotReleases',chip:'chipShotReleases'}[k.shotStyle];
    if(k.firstTime)this.telemetry.firstTimeShotReleases=(this.telemetry.firstTimeShotReleases||0)+1;
+   if(k.isolatedFinish)this.telemetry.isolatedFinishReleases=(this.telemetry.isolatedFinishReleases||0)+1;
    this.telemetry[key]=(this.telemetry[key]||0)+1;
   }
   if(k.moving&&k.kind==='shot')this.telemetry.movingShots++;
@@ -2869,7 +2899,7 @@ class Match{
   // A physical receiving contact completes the delivery. It is immediately
   // redirected as a shot; there is no invented setup touch or ball relocation.
   if(!this.acquire(p))return false;
-  if(!this.startKick(p,'shot',null,window.point,clamp(20+p.shooting*.065,23,27)))return false;
+  if(!this.startKick(p,'shot',null,window.point,clamp(20+footSkill(p,p.shooting,foot.foot)*.065,23,27),null,null,{foot:foot.foot,style:'first-time'}))return false;
   p.kickFoot=foot.foot;p.receiveClock=0;p.oneTouchUntil=0;p.nextAction=null;
   this.kick.heightTarget=.75;this.kick.shotStyle='driven';this.kick.firstTime=true;
   this.release();
