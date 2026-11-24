@@ -143,3 +143,50 @@ test('first-time finish requires actual foot contact and completes the incoming 
  assert.equal(m.telemetry.firstTimeShotReleases,1);assert.equal(m.flight.kind,'shot');
  assert.deepEqual([m.ball.x,m.ball.y,m.ball.z],before);
 });
+
+test('carry style distinguishes skilled sharp cuts and straight bursts from tired or blocked routes',()=>{
+ const p={role:'ATT',x:0,z:0,face:0,speed:1,energy:1,dribbling:94,agility:92,acceleration:95,pace:94};
+ const cut={x:3,z:4},straight={x:5,z:0},input={forward:1,pressure:3.6,clearance:3.5};
+ assert.equal(Brain.dribbleStyle(p,cut,input),'cut');
+ assert.equal(Brain.dribbleStyle(p,straight,input),'burst');
+ assert.equal(Brain.dribbleStyle({...p,agility:60},cut,input),null);
+ assert.equal(Brain.dribbleStyle({...p,energy:.2},straight,input),null);
+ assert.equal(Brain.dribbleStyle(p,straight,{...input,clearance:1}),null);
+ assert.equal(Brain.dribbleStyle({...p,face:Math.PI},{x:-5,z:0},{...input,forward:-1}),'burst');
+});
+test('accepted carry requests a skill touch, but a rejected recovery does not award it',()=>{
+ const {m,owner,link,mid,back}=fixture();
+ link.active=mid.active=back.active=false;
+ Object.assign(owner,{x:0,z:0,face:0,speed:1,dribbling:94,agility:92,acceleration:95,pace:94,touchClock:0});
+ m.ball={x:.6,y:.11,z:.18,vx:0,vy:0,vz:0};
+ m.startCarry(owner,{kind:'carry',point:{x:5,z:0},clearance:4,commit:.65});
+ assert.equal(owner.carryIntent.style,'burst');
+ const before=structuredClone(m.ball);
+ m.touchPlan=()=>({ready:false});
+ assert.equal(m.dribbleTouch(owner),false);
+ assert.equal(m.telemetry.accelerationBurstTouches??0,0);
+ assert.deepEqual(m.ball,before);
+ m.touchPlan=()=>({ready:true,velocity:{vx:3,vy:.16,vz:0}});
+ assert.equal(m.dribbleTouch(owner),true);
+ assert.equal(m.telemetry.accelerationBurstTouches,1);
+ assert.equal(owner.touchMode,'burst');
+ assert.equal(owner.footTouch,.14);
+ assert.deepEqual([m.ball.x,m.ball.y,m.ball.z],[before.x,before.y,before.z]);
+});
+test('real touch cues change animation without moving actors or stretching leg bones',()=>{
+ const Rig=require('../humanoid-rig');
+ const base={x:0,z:0,face:0,speed:0,action:'idle',actionClock:0,kickFoot:1,dribbleFoot:1,footTouch:.14,touchPosition:{x:.5,z:.18}};
+ const plain=Rig.update({...base,touchMode:'close'},1/60);
+ for(const mode of ['cut','burst']){
+  const p={...base,touchMode:mode},before=structuredClone(p),pose=Rig.update(p,1/60);
+  assert.equal(pose[mode+'Weight'],1);
+  assert.notDeepEqual(pose.torsoUpper,plain.torsoUpper);
+  assert.deepEqual(p,before);
+  for(const l of pose.legs){
+   const gap=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i]));
+   assert(Math.abs(gap(l.hip,l.knee)-Rig.ANATOMY.thigh)<1e-5);
+   assert(Math.abs(gap(l.knee,l.ankle)-Rig.ANATOMY.shin)<1e-5);
+  }
+  p.footTouch=0;assert.equal(Rig.update(p,1/60)[mode+'Weight'],0);
+ }
+});
