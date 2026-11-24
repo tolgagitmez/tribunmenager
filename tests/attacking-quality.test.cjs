@@ -665,3 +665,23 @@ test('interception forecasts reuse physical integration work instead of recomput
   m.ball.vz+=1;m.interceptPoint(link);assert(calls>initial);
  }finally{BallPhysics.step=step;}
 });
+
+
+test('pass scoring shares an observed opponent list across lane and reception forecasts',()=>{
+ const {m,owner}=fixture();
+ const lane=m.laneRisk.bind(m),reception=m.receptionSafety.bind(m),context=m.matchContext.bind(m);
+ const lists=[];let contexts=0;
+ m.laneRisk=(p,point,power,kind,opponents)=>{if(p===owner&&opponents)lists.push(opponents);return lane(p,point,power,kind,opponents);};
+ m.receptionSafety=(p,q,point,seconds,opponents)=>{if(p===owner&&opponents)lists.push(opponents);return reception(p,q,point,seconds,opponents);};
+ m.matchContext=team=>{contexts++;return context(team);};
+ const options=m.passOptions(owner);
+ assert(options.length>0);assert(lists.length>=2);
+ assert(lists.every(list=>list===lists[0]));assert.equal(contexts,1);
+});
+test('a saturated pass lane never forecasts later defenders unnecessarily',()=>{
+ const {m,owner}=fixture();
+ const point={x:owner.x+15,z:owner.z};
+ const first={x:owner.x+7,z:owner.z,vx:0,vz:0};
+ const second={x:owner.x+8,z:owner.z,vx:0,vz:0,passFuture(){throw Error('fully blocked lane should not need another forecast');}};
+ assert.equal(m.laneRisk(owner,point,17,'pass',[first,second]),1);
+});
