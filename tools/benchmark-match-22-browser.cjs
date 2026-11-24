@@ -77,6 +77,12 @@ async function main(){
   const pixels=mode=>results[mode].profile.canvas.reduce((a,b)=>a*b,1);
   assert(pixels('performance')<pixels('quality')*.55,'performance mode must reduce GPU fragment count');
 
+  const close=await page.evaluate(()=>{const api=window.TRIBUN_MATCH_TEST;api.setGraphicsMode('performance');return Array.from({length:5},()=>api.closeViewProbe());});
+  assert(close.every(x=>x.profile.players.active>=22&&x.profile.players.players+x.profile.players.culled===x.profile.players.active));
+  assert(close.some(x=>x.profile.players.culled>0),'close view must avoid offscreen draw calls');
+  assert(close.every(x=>x.clock===frozen.clock&&JSON.stringify(x.score)===JSON.stringify(frozen.score)));
+  report.closeCamera={method:'same paused match, close view, synchronous render+finish',...summary(close.map(x=>x.cpuGpuMs)),profile:close.at(-1).profile};
+  await page.evaluate(()=>window.TRIBUN_MATCH_TEST.setGraphicsMode('balanced'));
   // No synthetic simulation mutations: sample an isolated set of visual clones
   // in the production stadium renderer while the real match is paused.
   const skill=await page.evaluate(()=>window.TRIBUN_MATCH_TEST.skillRenderProbe());
