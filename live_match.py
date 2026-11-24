@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS live_matches(
     kickoff REAL NOT NULL, config TEXT NOT NULL, final_state TEXT,
     PRIMARY KEY(league, round, home, away)
 );
+CREATE TABLE IF NOT EXISTS live_match_lineup_issues(
+    league TEXT NOT NULL, round INT NOT NULL, home INT NOT NULL, away INT NOT NULL,
+    message TEXT NOT NULL,
+    PRIMARY KEY(league, round, home, away)
+);
 CREATE TABLE IF NOT EXISTS live_match_operations(
     seq INTEGER PRIMARY KEY, league TEXT NOT NULL, round INT NOT NULL,
     home INT NOT NULL, away INT NOT NULL, operation TEXT NOT NULL
@@ -46,6 +51,26 @@ class LiveMatchError(Exception):
     def __init__(self, message, status=503):
         super().__init__(message)
         self.status = status
+
+
+class ReplayMismatch(LiveMatchError):
+    def __init__(self):
+        super().__init__("Kayıtlı canlı maç bu motor sürümüyle aynı konumdan devam edemiyor. Maç kaydı korunuyor.", 409)
+
+
+def matches_checkpoint(expected, actual):
+    if actual is None:
+        return False
+    try:
+        exact = ("score", "cards", "reds", "ownerId", "period")
+        if any(expected[key] != actual[key] for key in exact):
+            return False
+        if not math.isclose(expected["time"], actual["time"], rel_tol=0, abs_tol=1e-7):
+            return False
+        return all(math.isclose(expected["ball"][axis], actual["ball"][axis], rel_tol=0, abs_tol=1e-7)
+                   for axis in ("x", "y", "z", "vx", "vy", "vz"))
+    except (KeyError, TypeError):
+        return False
 
 
 def connect(path):
@@ -121,10 +146,13 @@ class LiveMatch:
         self.catchup_steps = 0
         self.step_index = 0
         self.last_frame_step = -120
+        self.replay_incompatible = False
 
     def initialize(self, now):
         if self.state is not None:
             return
+        if self.replay_incompatible:
+            raise ReplayMismatch()
         with closing(connect(self.path)) as database:
             final, = database.execute(
                 f"SELECT final_state FROM live_matches WHERE {FIXTURE_KEY}", self.key
@@ -132,10 +160,10 @@ class LiveMatch:
             operations = database.execute(
                 f"SELECT operation FROM live_match_operations WHERE {FIXTURE_KEY} ORDER BY seq", self.key
             ).fetchall()
-            latest_frame, = database.execute(
-                f"SELECT MAX(step) FROM live_match_frames WHERE {FIXTURE_KEY}", self.key
+            latest_frame = database.execute(
+                f"SELECT step,snapshot FROM live_match_frames WHERE {FIXTURE_KEY} ORDER BY step DESC LIMIT 1", self.key
             ).fetchone()
-        self.last_frame_step = latest_frame if latest_frame is not None else -120
+        self.last_frame_step = latest_frame[0] if latest_frame else -120
         if final is not None:
             self.state = json.loads(final)
             return
@@ -143,13 +171,25 @@ class LiveMatch:
         advanced = 0
         try:
             state = self.worker.request({"op": "init", "config": self.config})["state"]
+            checkpoint = state if self.last_frame_step == 0 else None
             for raw, in operations:
                 operation = json.loads(raw)
-                state = self.worker.request(operation)["state"]
+                reply = self.worker.request(operation)
+                state = reply["state"]
                 if operation["op"] == "advance":
+                    if reply.get("steps") != operation["steps"]:
+                        raise ReplayMismatch()
                     advanced += operation["steps"]
-        except Exception:
+                elif operation["op"] != "kick" or reply.get("accepted") is not True:
+                    raise ReplayMismatch()
+                if advanced == self.last_frame_step:
+                    checkpoint = state  # a kick can update the frame at the same step
+            if state.get("done") or (latest_frame and not matches_checkpoint(json.loads(latest_frame[1]), checkpoint)):
+                raise ReplayMismatch()
+        except Exception as exc:
             self.discard_worker()
+            if isinstance(exc, ReplayMismatch):
+                self.replay_incompatible = True
             raise
         self.state = state
         self.step_index = advanced
@@ -243,6 +283,8 @@ class LiveMatch:
 
     def tick(self):
         with self.lock:
+            if self.replay_incompatible:
+                return False
             now = time.monotonic()
             self.initialize(now)
             if self.state["done"]:

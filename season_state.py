@@ -37,7 +37,8 @@ def status(db,league,slot,player,round_number):
     key=player_key(player)
     row=db.execute("SELECT * FROM season_player_state WHERE league=? AND slot=? AND player_key=?",
                    (league,slot,key)).fetchone()
-    original=clamp(float(player.get("fitness",95) or 95),0,100)
+    fitness=player.get("fitness")
+    original=clamp(float(95 if fitness is None else fitness),0,100)
     if not row:
         return {**player,"fitness":original,"season":{
             "appearances":0,"minutes":0,"yellows":0,"reds":0,

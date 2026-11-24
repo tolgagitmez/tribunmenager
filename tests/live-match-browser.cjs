@@ -14,6 +14,7 @@ const teams = ['Saha FK', 'Tribün SK'];
 const tokens = ['browser-home', 'browser-away'];
 const panel = '#managerKickPanel';
 const endpoint = '/api/league/live-match';
+const skillTotals = { dribbleTouches: 18, signatureDrives: 4, feints: 3, beatenDefenders: 1, holdUpPlays: 2, throughBalls: 5 };
 
 function initialSnapshot() {
   const worker = path.resolve(__dirname, '../live-match-worker.cjs');
@@ -44,6 +45,7 @@ function testServer() {
     state.time = frame.time;
     state.score = frame.score;
     state.done = !!frame.done;
+    if (frame.done) state.telemetry = skillTotals;
     state.lifecycle = frame.done ? 'finished' : 'playing';
     state.phase = frame.done ? 'finished' : frame.kind ? 'restart' : 'open';
     state.clock = { ...state.clock, display, nominalElapsed: frame.time, remaining: 300 - frame.time, phase: state.lifecycle };
@@ -175,6 +177,7 @@ async function main() {
     const [home, away] = views;
     const shared = (...args) => Promise.all(views.map(view => see(view, ...args)));
     await shared('00:29', [0, 0]);
+    for (const view of views) assert.equal(await view.page.locator('#individualSkills').isVisible(), true);
     await Promise.all(views.map(assertReadOnlyControls));
     for (const view of views) {
       assert.equal(await view.page.locator('.scoreboard .club:not(.away) strong').textContent(), teams[0]);
@@ -220,6 +223,8 @@ async function main() {
       assert.equal(await view.page.locator('#finishScreen').isVisible(), true);
       assert.match(await view.page.locator('#finishScore').textContent(), /1\s*[–-]\s*1/);
       assert.equal(await view.page.locator(panel).isVisible(), false);
+      assert.deepEqual(await view.page.locator('#individualSkills div b').allTextContents(),
+        Object.values(skillTotals).map(String));
       assert.deepEqual(view.errors, []);
     }
     const timelines = await Promise.all(views.map(view => view.page.locator('#eventList .incident b').allTextContents()));
@@ -233,7 +238,7 @@ async function main() {
     await home.page.locator('#results .result-row').waitFor({ state: 'visible' });
     assert.equal(await home.page.locator('#results .result-row b').textContent(), '1 – 1');
     await Promise.all(views.map(view => view.context.close()));
-    console.log('Live match browser: both sessions shared one score/clock/timeline; each owned its decision and saw the same full-time result.');
+    console.log('Live match browser: both sessions shared score, clock, skill counts and timeline, with independent kick controls.');
   } finally {
     await browser?.close();
     await new Promise(resolve => server.close(resolve));

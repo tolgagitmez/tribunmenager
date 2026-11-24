@@ -46,7 +46,7 @@
     "test:preparation": "node tests/pass-preparation.test.cjs",
     "test:match-startup": "node tests/match-startup.test.cjs",
     "test:stage1": "npm run test:preparation && npm run test:match-startup",
-    "test:ui": "node tests/tactics-ui.test.cjs && node tests/design-system.test.cjs",
+    "test:ui": "node tests/tactics-ui.test.cjs && node tests/design-system.test.cjs && node --test tests/match-startup.test.cjs tests/fixture-roster.test.cjs tests/attack-analysis-ui.test.cjs tests/league-rotation-ui.test.cjs",
     "test:transfers": "python3 -m unittest discover -s tests -p \"test_economy*.py\" -v && node tests/transfers-ui.test.cjs",
     "test:ball-physics": "node tests/ball-physics.test.cjs",
     "test:press-support": "node tests/press-support.test.cjs",
@@ -76,7 +76,9 @@
     "test:offball": "node --test tests/offball-intelligence.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-brain.test.cjs",
     "test:individual-defence": "node --test tests/individual-defence.test.cjs tests/defender-duel-wallpass.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/offball-intelligence.test.cjs",
     "test:individual-keeper": "node --test tests/individual-keeper.test.cjs tests/aerial-keeper-law-boundaries.test.cjs tests/individual-defence.test.cjs tests/offball-intelligence.test.cjs tests/defender-duel-wallpass.test.cjs",
-    "test:collective-ai": "node --test tests/attacking-quality.test.cjs tests/collective-team-ai.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-identity-integration.test.cjs tests/individual-keeper.test.cjs"
+    "test:collective-ai": "node --test tests/attacking-quality.test.cjs tests/progressive-first-touch.test.cjs tests/collective-team-ai.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-identity-integration.test.cjs tests/individual-keeper.test.cjs",
+    "test:wing-attack": "node --test tests/wing-attack.test.cjs tests/first-control.test.cjs tests/live-contact-animation-pilot.test.cjs tests/live-match-presentation.test.cjs tests/match-first-touch.test.cjs tests/match-boot-contact.test.cjs tests/match-clip-pilot.test.cjs",
+    "test:wing-attack-browser": "node tests/wing-attack-browser.cjs"
   },
   "devDependencies": {
     "gltf-validator": "2.0.0-dev.3.10",

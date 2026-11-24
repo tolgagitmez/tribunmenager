@@ -2,6 +2,11 @@ name: On-ball animation and contact synchrony
 on:
   pull_request:
     paths:
+      - 'football-sim.js'
+      - 'match-contact-events.js'
+      - 'match-contact-pilot.js'
+      - 'match-first-touch.mjs'
+      - 'player-brain.js'
       - 'humanoid-rig.js'
       - 'match-clip-pilot.mjs'
       - 'live-match-worker.cjs'

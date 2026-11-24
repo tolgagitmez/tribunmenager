@@ -89,9 +89,13 @@ test('network render extrapolates only visual skill clocks between snapshots',()
  assert.equal(view.players[0].footTouch,0);
 });
 test('server snapshot transmits feint, shield and touch cues for the same match actor',()=>{
- const src=fs.readFileSync(path.join(__dirname,'../live-match-worker.cjs'),'utf8');
- for(const field of ['brainRole','touchMode','touchPosition','feintClock','feintSign','shieldFace','footTouch'])
-  assert(src.includes("'"+field+"'"),'missing wire field: '+field);
+ const {snapshot}=require('../live-match-worker.cjs');
+ const match=new Match({seed:19}),actor=match.players[1];
+ const cues={brainRole:'shield',touchMode:'close',touchPosition:{x:.5,z:.18},
+  feintClock:.30,feintSign:-1,shieldFace:Math.PI/2,footTouch:.14};
+ Object.assign(actor,cues);
+ const wire=JSON.parse(JSON.stringify(snapshot(match))).players.find(p=>p.id===actor.id);
+ for(const [field,value] of Object.entries(cues))assert.deepEqual(wire[field],value,field);
 });
 test('existing Match physics and deterministic chosen actions are unaffected by rig reads',()=>{
  const m=new Match({seed:19,rules:{periodSeconds:35}}),copy=new Match({seed:19,rules:{periodSeconds:35}});

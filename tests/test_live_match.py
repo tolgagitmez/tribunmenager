@@ -1,4 +1,5 @@
 """Real HTTP, worker and SQLite verification for a shared fixture."""
+from contextlib import closing
 import json
 from pathlib import Path
 import shutil
@@ -12,6 +13,89 @@ from urllib.request import Request, urlopen
 
 import live_match
 import server
+
+
+class LiveReplayCompatibilityTest(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.path = Path(temp.name) / "replay.sqlite3"
+        self.key = ("REPLAY", 0, 0, 1)
+        self.kickoff = time.time()
+        with closing(live_match.connect(self.path)) as database, database:
+            database.executescript(live_match.SCHEMA)
+            database.execute("INSERT INTO live_matches VALUES(?,?,?,?,?,?,?)",
+                             (*self.key, self.kickoff, "{}", None))
+
+    def fixture_state(self, seconds, *, x=0, score=None):
+        return {"time": seconds, "score": score or [0, 0], "cards": [0, 0], "reds": [0, 0],
+                "ownerId": 1, "period": 1, "done": False,
+                "ball": {"x": x, "y": .11, "z": 0, "vx": 1, "vy": 0, "vz": 0}}
+
+    def load_replay(self, operations, step, checkpoint):
+        with closing(live_match.connect(self.path)) as database, database:
+            database.execute("DELETE FROM live_match_operations")
+            database.execute("DELETE FROM live_match_frames")
+            database.executemany("""INSERT INTO live_match_operations(league,round,home,away,operation)
+                VALUES(?,?,?,?,?)""", [(*self.key, live_match.encode(item)) for item in operations])
+            database.execute("INSERT INTO live_match_frames VALUES(?,?,?,?,?,?)",
+                             (*self.key, step, live_match.encode(checkpoint)))
+        return live_match.LiveMatch(self.path, self.key, self.kickoff, {})
+
+    def test_replay_keeps_the_latest_same_step_checkpoint_and_allows_visual_changes(self):
+        operations = [{"op": "advance", "steps": 60, "teams": [0]},
+                      {"op": "kick", "id": 1, "input": None},
+                      {"op": "advance", "steps": 12, "teams": []}]
+        stored = self.fixture_state(1, x=4)
+        session = self.load_replay(operations, 60, stored)
+        final = self.fixture_state(1.2, x=4.1)
+        with patch.object(live_match, "Worker") as worker:
+            worker.return_value.request.side_effect = [
+                {"state": self.fixture_state(0)},
+                {"steps": 60, "state": self.fixture_state(1, x=2)},
+                {"accepted": True, "state": {**self.fixture_state(1, x=4 + 1e-8), "contacts": [], "telemetry": {}}},
+                {"steps": 12, "state": final},
+            ]
+            session.initialize(0)
+            self.assertEqual(session.state, final)
+            self.assertEqual(session.step_index, 72)
+            self.assertEqual(session.last_frame_step, 60)
+            worker.return_value.close.assert_not_called()
+            session.discard_worker()
+
+    def test_replay_refuses_divergent_results_without_touching_the_saved_fixture(self):
+        advance = {"op": "advance", "steps": 60, "teams": [0]}
+        kick = {"op": "kick", "id": 1, "input": None}
+        stored = self.fixture_state(1, x=4)
+        cases = (
+            ([advance], [{"steps": 59, "state": stored}]),
+            ([advance, kick], [{"steps": 60, "state": stored}, {"accepted": False, "state": stored}]),
+            ([advance], [{"steps": 60, "state": self.fixture_state(1, x=4.03)}]),
+            ([advance], [{"steps": 60, "state": self.fixture_state(1, x=4, score=[1, 0])}]),
+            ([advance], [{"steps": 60, "state": {**stored, "done": True}}]),
+        )
+        for index, (operations, replies) in enumerate(cases):
+            with self.subTest(case=index):
+                session = self.load_replay(operations, 60, stored)
+                with patch.object(live_match, "Worker") as worker:
+                    worker.return_value.request.side_effect = [{"state": self.fixture_state(0)}, *replies]
+                    with self.assertRaises(live_match.ReplayMismatch) as problem:
+                        session.initialize(0)
+                    self.assertEqual(problem.exception.status, 409)
+                    self.assertIsNone(session.state)
+                    self.assertIsNone(session.worker)
+                    self.assertEqual(session.step_index, 0)
+                    worker.return_value.close.assert_called_once()
+                    with self.assertRaises(live_match.ReplayMismatch):
+                        session.initialize(1)
+                    self.assertFalse(session.tick())
+                    worker.assert_called_once()
+                with closing(live_match.connect(self.path)) as database:
+                    self.assertEqual(database.execute("SELECT final_state FROM live_matches").fetchone(), (None,))
+                    self.assertEqual(database.execute("SELECT snapshot FROM live_match_frames").fetchone(),
+                                     (live_match.encode(stored),))
+                    self.assertEqual(database.execute("SELECT operation FROM live_match_operations ORDER BY seq").fetchall(),
+                                     [(live_match.encode(item),) for item in operations])
 
 
 @unittest.skipUnless(shutil.which("node"), "Node.js is required for the live fixture")
@@ -113,7 +197,8 @@ class LiveMatchTest(unittest.TestCase):
                    "contactX": .4, "contactY": -.55}
         accepted = self.kick(self.away, away_offer["id"], control)
         self.assertIsNone(accepted["state"]["pendingManagerKick"])
-        self.assertEqual(accepted["state"], self.get(self.home)["state"])
+        with patch.object(server, "settle_due", side_effect=AssertionError("already running")):
+            self.assertEqual(accepted["state"], self.get(self.home)["state"])
         self.assert_http(409, self.kick, self.away, away_offer["id"], control)
         self.session.discard_worker()
         self.assertEqual(accepted["state"], self.get(self.home)["state"])
@@ -135,10 +220,13 @@ class LiveMatchTest(unittest.TestCase):
 
     def test_authoritative_fixture_kicks_disconnect_and_table(self):
         self.original_config = server.live_config
-        with patch.object(server, "live_config", self.scenario):
+        # Invalid requests and kicks for a fixture that has not started must
+        # not run kickoff scheduling before the request is authorized.
+        with patch.object(server, "settle_due", side_effect=AssertionError("cannot schedule")):
             self.assert_http(403, self.get, "not-a-token")
             self.assert_http(409, self.get, self.home, 1)
             self.assert_http(409, self.kick, self.home, 1, None)
+        with patch.object(server, "live_config", self.scenario):
             home = self.get(self.home)
             away = self.get(self.away)
         self.session = self.registry.matches[(self.path, self.key)]

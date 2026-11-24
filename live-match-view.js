@@ -4,65 +4,187 @@
 const clamp=(value,min,max)=>Math.min(max,Math.max(min,value));
 const mix=(from,to,weight)=>from+(to-from)*weight;
 const yaw=(from,to,weight)=>from+Math.atan2(Math.sin(to-from),Math.cos(to-from))*weight;
-const position=(p)=>({x:p.x,y:p.y,z:p.z,face:p.face});
+const epsilon=1e-6;
+const poseFields=window.TribunContactEvents?.poseFields??[
+ 'face','vx','vz','speed','action','actionClock','actionDuration','actionElapsed',
+ 'kickFoot','kickMoving','contactTime','footTouch','touchPosition','dribbleFoot',
+ 'diveSide','diveForward','diveContactTime','saveTarget','catchPoint','gatherStart',
+ 'headerHeight','jumpHeight','chestContactHeight','receiveClock','receiveMode','holdingBall','holdClock',
+ 'brainRole','touchMode','shieldFace','feintClock','feintSign',
+ 'feintResponseClock','feintResponseSign','wallPassClock','wallPassFoot'
+];
+const skillClocks=['feintClock','footTouch','feintResponseClock','wallPassClock'];
 
-// The displayed positions blend between server samples. Rules, clocks, badges
-// and the kick chooser always read the latest authoritative state.
+function bracket(frames,time){
+ for(let i=1;i<frames.length;i++){
+  const later=frames[i];
+  if(later.time>time+epsilon){
+   const earlier=frames[i-1];
+   return {earlier,later,u:clamp((time-earlier.time)/(later.time-earlier.time),0,1)};
+  }
+ }
+ const last=frames.at(-1);
+ return {earlier:last,later:last,u:1};
+}
+
+function blend(earlier,later,u,key){
+ const a=earlier[key],b=later[key];
+ return Number.isFinite(a)&&Number.isFinite(b)?mix(a,b,u):b;
+}
+
+function applyPose(display,frames,time,skillExtrapolation){
+ const {earlier,later,u}=bracket(frames,time),a=earlier.value,b=later.value;
+ // Untagged movements can still change action between two packets. The
+ // target actor's elapsed time tells us when its current action began.
+ const began=later.time-(b.actionElapsed||0);
+ const atContact=earlier.kind&&time<=earlier.time+epsilon;
+ const state=!atContact&&a.action!==b.action&&b.actionClock>0&&time>=began-epsilon?later:earlier;
+ const p=state.value,age=time-state.time;
+ for(const field of poseFields){
+  if(p[field]===undefined)delete display[field];
+  else display[field]=p[field];
+ }
+ for(const key of ['x','z','speed','vx','vz'])display[key]=blend(a,b,u,key);
+ display.face=yaw(a.face,b.face,u);
+ if(p.actionClock>0){
+  display.actionElapsed=Math.max(0,(p.actionElapsed||0)+age);
+  display.actionClock=Math.max(0,p.actionClock-age);
+  if(display.actionClock===0)display.action='idle';
+ }
+ if(p.receiveClock>0)display.receiveClock=Math.max(0,p.receiveClock-age);
+ if(p.holdClock>0)display.holdClock=Math.max(0,p.holdClock-age);
+ for(const clock of skillClocks){
+  if(Number.isFinite(p[clock]))display[clock]=Math.max(0,p[clock]-age-skillExtrapolation);
+ }
+}
+
+// Only presentation is buffered; rules, scores and the kick chooser use
+// authoritative snapshots immediately. Both pose and ball are drawn on the
+// same clock, with real contact keyframes between network packets.
 class LiveMatchView {
  constructor(){
   this.actors=new Map();
   this.queue=[];
   this.eventSerial=0;
   this.visualBall={};
+  this.presentation={};
  }
  ingest(snapshot,now){
-  const {players,ball,ownerId,direction,tactics,...state}=snapshot;
-  const delta=this.time===undefined?0:snapshot.time-this.time;
+  if(this.time!==undefined&&(snapshot.time+epsilon<this.time||snapshot.eventSerial<this.eventSerial))return;
+  const {players,ball,ownerId,direction,tactics,flight=null,contacts=[],...state}=snapshot;
+  const first=this.time===undefined;
+  const sameTime=this.time===snapshot.time;
+  const priorPeriod=this.period;
+  const priorKickId=this.pendingManagerKick?.id;
+  const wasDone=this.done;
+  if(!first)this.sample(now,0);
   const eventCount=Math.max(0,snapshot.eventSerial-this.eventSerial);
   if(eventCount)this.queue.push(...snapshot.events.slice(-eventCount));
   Object.assign(this,state);
   this.t=tactics;
   this.attackDirections=direction;
   this.ball=ball;
-  this.blendMs=this.pendingManagerKick||this.done?0:clamp(delta*1000,0,230);
+  this.flight=flight;
+  this.owner=players.find(p=>p.id===ownerId)??null;
+  this.contacts=contacts;
+  const changedPeriod=this.period!==priorPeriod;
+  const changedKick=this.pendingManagerKick?.id!==priorKickId;
+  if(sameTime&&!changedPeriod&&!changedKick&&this.done===wasDone)return;
+  const from=first?this.time:this.presentationTime;
+  const jumped=first||changedPeriod||this.pendingManagerKick||this.done||this.time-from>.8;
+  this.blendMs=jumped?0:clamp((this.time-from)*1000,0,230);
   this.arrived=now;
-  this.ballStart=position(this.visualBall);
-  Object.assign(this.visualBall,ball);
+  this.startTime=this.blendMs?from:this.time;
+
+  const inSegment=this.segmentContacts=contacts.filter(cue=>cue.time>this.startTime+epsilon&&cue.time<=this.time+epsilon);
+  const newRestart=this.restart&&this.priorRestartId!==this.restart.id;
+  this.startFlight=this.blendMs&&(!newRestart||inSegment.length)?this.presentation.flight:null;
+  const endpoint=(value,kind)=>({time:this.time,value,kind});
+  const frames=(initial,points,key,final,kind)=>[
+   ...(this.blendMs?[{time:this.startTime,value:initial},...points.map(point=>({time:point.time,value:point[key],kind:point.kind}))]:[]),
+   endpoint(final,kind)
+  ];
+  const replacedBall=newRestart&&
+   Math.hypot(ball.x-this.visualBall.x,ball.z-this.visualBall.z)>5;
+  this.priorRestartId=this.restart?.id;
+  this.ballFrames=replacedBall&&!inSegment.length?[endpoint(ball)]:
+   frames({...this.visualBall},inSegment,'ball',ball,replacedBall?'placement':undefined);
+
   this.players=players.map(row=>{
    let actor=this.actors.get(row.id);
    if(!actor){
-    actor={display:{},start:position(row),target:row};
+    actor={display:{},target:{}};
     this.actors.set(row.id,actor);
-   }else actor.start=position(actor.display);
+   }
    const display=actor.display;
+   actor.frames=Object.hasOwn(display,'x')
+    ?frames({...display},inSegment.filter(cue=>cue.playerId===row.id),'actor',row)
+    :[endpoint(row)];
    for(const field of Object.keys(actor.target))if(!Object.hasOwn(row,field))delete display[field];
    Object.assign(display,row);
    actor.target=row;
    return display;
   });
-  this.owner=this.actors.get(ownerId)?.display??null;
-  this.sample(now,0);
+  // A frozen prompt or final whistle still needs one fresh skeletal pose.
+  // The rig otherwise reuses its last pose when sampled with a zero delta.
+  this.sample(now,!first&&(jumped||sameTime)?1/60:0);
  }
  sample(now,dt){
-  const weight=this.blendMs?clamp((now-this.arrived)/this.blendMs,0,1):1;
-  const interpolate=(start,end,key)=>Number.isFinite(start[key])&&Math.abs(end[key]-start[key])<5?mix(start[key],end[key],weight):end[key];
-  for(const {display,start,target} of this.actors.values()){
-   display.x=interpolate(start,target,'x');
-   display.z=interpolate(start,target,'z');
-   display.face=yaw(start.face,target.face,weight);
-   // Server skill clocks are sampled at network intervals. Extrapolate for
-   // presentation only between packets; authoritative snapshot is unchanged.
-   const age=clamp((now-this.arrived)/1000,0,.4);
-   for(const clock of ['feintClock','footTouch','feintResponseClock','wallPassClock']){
-    if(Number.isFinite(target[clock]))display[clock]=Math.max(0,target[clock]-age);
-   }
+  if(!this.ballFrames)return;
+  const u=this.blendMs?clamp((now-this.arrived)/this.blendMs,0,1):1;
+  const previous=this.presentationTime??this.startTime;
+  const target=Math.max(previous,mix(this.startTime,this.time,u));
+  // A slow frame still draws one exact contact before catching up. Ingest
+  // samples with dt=0 cannot consume a contact before a frame can display it.
+  const contact=this.segmentContacts.find(c=>c.time>previous+epsilon&&c.time<=target+epsilon);
+  const time=this.presentationTime=contact?(dt>0?contact.time:previous):target;
+  // Within the buffer skill clocks follow the recorded match time. Once
+  // it runs out, short gestures can finish while the next packet is in flight.
+  const skillExtrapolation=dt>0&&!contact&&time>=this.time-epsilon&&
+   !this.pendingManagerKick&&!this.done&&this.lifecycle!=='halftime'?
+   clamp((now-this.arrived-this.blendMs)/1000,0,.4):0;
+  for(const {display,frames} of this.actors.values()){
+   applyPose(display,frames,time,skillExtrapolation);
    if(display.active)window.TribunHumanoidRig.update(display,dt);
   }
-  for(const axis of ['x','y','z'])this.visualBall[axis]=interpolate(this.ballStart,this.ball,axis);
+  const {earlier,later,u:weight}=bracket(this.ballFrames,time);
+  const a=earlier.value,b=later.value;
+  const ballWeight=later.kind==='placement'?0:weight;
+  for(const key of ['x','y','z'])this.visualBall[key]=blend(a,b,ballWeight,key);
+  const impact=later.kind==='release'||later.kind==='receive'||later.kind==='keeper-contact';
+  for(const key of ['vx','vy','vz'])this.visualBall[key]=blend(a,b,impact?0:ballWeight,key);
+  if(a.spin===undefined&&(b.spin===undefined||impact))delete this.visualBall.spin;
+  else this.visualBall.spin=mix(a.spin||0,b.spin||0,impact?0:ballWeight);
+  Object.assign(this.presentation,{
+   time,players:this.players,ball:this.visualBall,
+   flight:this.flightAt(time),
+   releaseSerial:this.releaseSerial,contacts:this.contacts.filter(cue=>cue.time<=time+epsilon)
+  });
+ }
+ flightAt(time){
+  const latest=this.flight;
+  if(!this.blendMs||time>=this.time-epsilon)return latest?{...latest,age:latest.age??0}:null;
+  let flight=this.startFlight,launch=this.startTime-(flight?.age??0);
+  for(const cue of this.segmentContacts){
+   if(cue.time>time+epsilon)break;
+   if(cue.kind==='release'&&cue.flightId!=null){
+    flight={id:cue.flightId,kind:cue.kickKind,fromId:cue.playerId,targetId:cue.targetId??null};
+    launch=cue.time;
+   }else if(flight?.id===cue.flightId&&(cue.kind==='receive'||cue.kind==='keeper-contact'))flight=null;
+  }
+  // Older snapshots may supply a flight's age without a release cue.
+  if(latest&&(!flight||latest.id!==flight.id)&&!this.segmentContacts.some(cue=>cue.kind==='release'&&cue.flightId===latest.id)){
+   const latestLaunch=this.time-(latest.age??0);
+   if(time>=latestLaunch-epsilon){flight=latest;launch=latestLaunch;}
+  }
+  return flight?{...flight,age:Math.max(0,time-launch)}:null;
  }
  clockState(){return this.clock;}
  direction(team){return this.attackDirections[team];}
- drain(){return this.queue.splice(0);}
+ drain(){
+  const pending=this.queue.findIndex(event=>event.time>this.presentationTime+epsilon);
+  return this.queue.splice(0,pending<0?this.queue.length:pending);
+ }
 }
 window.TribunLiveMatchView=LiveMatchView;
 })();

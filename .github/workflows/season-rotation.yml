@@ -4,6 +4,10 @@ on:
     branches: [feature/roles-season-rotation]
   pull_request:
     paths:
+      - 'economy.py'
+      - 'tests/test_unified_fixtures.py'
+      - 'tests/test_live_match.py'
+      - 'tests/fixture-roster-api.py'
       - 'player-model.js'
       - 'football-sim.js'
       - 'server.py'

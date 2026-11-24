@@ -10,7 +10,7 @@ from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
-from economy import TransferService, EconomyError, SET_PIECE_ATTRIBUTES
+from economy import TransferService, EconomyError, SET_PIECE_ATTRIBUTES, active_fixture_kickoff
 from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_control
 import season_state
 
@@ -24,6 +24,11 @@ LOCK=threading.RLock()
 ECONOMY = None
 TRANSFERS_ENABLED = True
 LIVE_MATCHES = Registry()
+
+
+class FixtureLineupError(LiveMatchError):
+    """A team must repair its squad before this fixture can start."""
+
 
 def transfer_service():
     global ECONOMY
@@ -112,13 +117,13 @@ def update_tactics(token, tactics, formation=None):
     settle_due()  # finalize old days before accepting edits
     with LOCK,db() as c:
         person=identified(c,token)
-        active=c.execute('SELECT 1 FROM fixtures WHERE league=? AND kickoff<=? AND home_score IS NULL LIMIT 1',(person['league'],time.time())).fetchone()
-        if active:raise ValueError('Maç oynanırken taktikler kilitlidir; maç bitince değiştirebilirsin.')
+        if active_fixture_kickoff(c,person['league'],person['slot'],time.time()) is not None:
+            raise ValueError('Maç oynanırken taktikler kilitlidir; maç bitince değiştirebilirsin.')
         formation=formation if formation in ('4-3-3','4-2-3-1','4-4-2','3-5-2','5-3-2','4-5-1') else person['formation']
         c.execute('UPDATE teams SET formation=?,tactics=? WHERE token=?',(formation,serialize_tactics(tactics),token))
         return {'ok':True,'formation':formation}
 
-def settle_due(now=None):
+def settle_due(now=None, *, requested=None):
     """Freeze EVERY due fixture once; results come only from the real Match worker.
 
     Configuration is persisted before a worker is made visible. A watcher and
@@ -127,6 +132,7 @@ def settle_due(now=None):
     """
     now=time.time() if now is None else now
     created=[]
+    requested_error=None
     with LOCK:
         with db() as c:
             # Acquire the SQLite write lock before reading any squad. Linked
@@ -152,10 +158,23 @@ def settle_due(now=None):
                 if prior:continue
                 key=tuple(fixture[field] for field in ('league','round','home','away'))
                 kickoff=fixture['kickoff']
-                config=live_config(c,key,now,kickoff)
+                try:
+                    config=live_config(c,key,now,kickoff)
+                except FixtureLineupError as exc:
+                    # The failed fixture has no snapshot, so a roster repair
+                    # can be picked up on the next pass. Other matches retain
+                    # their own authoritative kickoff.
+                    c.execute('''INSERT INTO live_match_lineup_issues
+                        (league,round,home,away,message) VALUES(?,?,?,?,?)
+                        ON CONFLICT(league,round,home,away) DO UPDATE SET message=excluded.message
+                        WHERE message!=excluded.message''',(*key,str(exc)))
+                    if key == requested:
+                        requested_error=exc
+                    continue
                 c.execute('''INSERT INTO live_matches
                     (league,round,home,away,kickoff,config) VALUES(?,?,?,?,?,?)''',
                     (*key,kickoff,json.dumps(config,ensure_ascii=False)))
+                c.execute('DELETE FROM live_match_lineup_issues WHERE league=? AND round=? AND home=? AND away=?',key)
                 created.append((key,kickoff,config))
             pending=c.execute('''SELECT league,round,home,away,kickoff,config
                 FROM live_matches WHERE final_state IS NULL AND kickoff<=?
@@ -167,6 +186,8 @@ def settle_due(now=None):
         for item in pending:
             key=tuple(item[field] for field in ('league','round','home','away'))
             LIVE_MATCHES.get(registry_path,key,item['kickoff'],json.loads(item['config']))
+    if requested_error:
+        raise requested_error
     return len(created)
 
 def status(token, now=None):
@@ -175,10 +196,14 @@ def status(token, now=None):
     with db() as c:
         person=identified(c,token)
         code=person['league'];teams=[dict(t) for t in c.execute('SELECT * FROM teams WHERE league=? ORDER BY slot',(code,))]
-        fix=[dict(f) for f in c.execute('SELECT * FROM fixtures WHERE league=? ORDER BY round,home',(code,))]
-        current_round=max(0,min(9,int((now-fix[0]['kickoff'])//86400))) if now>=fix[0]['kickoff'] else 0
+        fix=[dict(f) for f in c.execute('''SELECT f.*, issue.message AS lineup_issue, EXISTS(
+            SELECT 1 FROM live_matches l WHERE l.league=f.league AND l.round=f.round
+            AND l.home=f.home AND l.away=f.away) AS prepared
+            FROM fixtures f LEFT JOIN live_match_lineup_issues issue ON issue.league=f.league
+            AND issue.round=f.round AND issue.home=f.home AND issue.away=f.away
+            WHERE f.league=? ORDER BY f.round,f.home''',(code,))]
         next_time=min((f['kickoff'] for f in fix if f['kickoff']>now),default=None)
-        active=[f for f in fix if f['kickoff']<=now and f['home_score'] is None]
+        active=[f for f in fix if f['kickoff']<=now and f['home_score'] is None and f['prepared']]
         standings=[]
         for t in teams:
             item={'slot':t['slot'],'club':t['name'],'manager':t['manager'],'played':0,'w':0,'d':0,'l':0,'gf':0,'ga':0,'points':0}
@@ -189,15 +214,20 @@ def status(token, now=None):
         standings.sort(key=lambda a:(-a['points'],-(a['gf']-a['ga']),-a['gf'],a['slot']))
         # The league screen displays *its own* roster, including currently
         # benched players, not stale or other-manager wallet data.
+        own_fixtures=[f for f in fix if person['slot'] in (f['home'],f['away'])]
+        match=next((f for f in own_fixtures if f['home_score'] is None),own_fixtures[-1] if own_fixtures else None)
+        current_round=match['round'] if match else 0
         roster=football_team_snapshot(c,person,current_round)
+        if match and match['home_score'] is None and match['kickoff']<=now and not match['prepared']:
+            prior_running=any(f['round']<current_round and f['home_score'] is None for f in fix)
+            match['watch_blocked']=(match['lineup_issue'] or ('Önceki maç günü tamamlanıyor.' if prior_running
+                                     else 'Maç hazırlanıyor. Biraz sonra yeniden dene.'))
         own_players=roster['players'] if roster['players'] else [
             season_state.status(c,code,person['slot'],p,current_round)
             for p in season_state.demo_roster(person['formation'])]
         rotation=[{'name':p.get('name','Oyuncu'),'position':p.get('subposition') or p.get('pos'),
                    'rating':p.get('rating',80),'fitness':p.get('fitness',95),
                    **p.get('season',{})} for p in own_players]
-        match=next((f for f in fix if f['round']==current_round and person['slot'] in (f['home'],f['away'])),None)
-        if not match:match=next((f for f in fix if f['round']==9 and person['slot'] in (f['home'],f['away'])),None)
         return {'server_time':now,'code':code,'manager':person['manager'],'my_slot':person['slot'],'my_club':person['name'],'my_formation':person['formation'],'my_tactics':json.loads(person['tactics']),
             'next_kickoff':next_time,'first_kickoff':fix[0]['kickoff'],'day':min(10,current_round+1),'active':active,'my_match':match,'standings':standings,
             'my_rotation':rotation,'my_rotation_source':roster['source'],
@@ -246,7 +276,7 @@ def eligible_team_snapshot(c,team,result,round_number,fixture_ready):
     try:
         result['starters'],replacements=season_state.check_lineup(projected,result['starters'])
     except ValueError as exc:
-        if fixture_ready:raise LiveMatchError(str(exc),409) from exc
+        if fixture_ready:raise FixtureLineupError(f"{team['name']}: {exc}",409) from exc
         result['lineupError']=str(exc)
         return result
     result['automaticReplacements']=replacements
@@ -327,10 +357,7 @@ def live_session(token, round_number, *, watch, now=None):
     if type(round_number) is not int or not 0 <= round_number < 10:
         raise LiveMatchError('Maç günü geçersiz.',400)
     now = time.time() if now is None else now
-    # Provisioning is independent of the viewer. On the usual background
-    # scheduler path the record already exists before a page is opened.
-    settle_due(now)
-    with LOCK, closing(db()) as c, c:
+    with closing(db()) as c:
         try:
             person = identified(c,token)
         except ValueError as exc:
@@ -343,10 +370,19 @@ def live_session(token, round_number, *, watch, now=None):
         kickoff = fixture['kickoff']
         stored = c.execute('SELECT config FROM live_matches WHERE league=? AND round=? AND home=? AND away=?',
                            key).fetchone()
-        if stored is None or (watch and now < kickoff):
-            raise LiveMatchError('Bu karşılaşma şu anda canlı izlenemiyor.',409)
-        config = json.loads(stored['config'])
         side = 0 if person['slot']==fixture['home'] else 1
+    if now < kickoff:
+        raise LiveMatchError('Bu karşılaşma şu anda canlı izlenemiyor.',409)
+    if stored is None and watch and fixture['home_score'] is None:
+        # A watch request can arrive before the kickoff scheduler's next
+        # pass. Only this authorized first read takes the scheduling lock.
+        settle_due(now, requested=key)
+        with closing(db()) as c:
+            stored = c.execute('SELECT config FROM live_matches WHERE league=? AND round=? AND home=? AND away=?',
+                               key).fetchone()
+    if stored is None:
+        raise LiveMatchError('Bu karşılaşma şu anda canlı izlenemiyor.',409)
+    config = json.loads(stored['config'])
     return LIVE_MATCHES.get(Path(DATA).resolve(),key,kickoff,config), side
 
 class Handler(SimpleHTTPRequestHandler):
