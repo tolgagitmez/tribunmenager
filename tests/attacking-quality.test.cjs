@@ -721,3 +721,37 @@ test('pressure escape rejects offside, unsafe reception and excessive recycling'
  assert.equal(m.pressEscapeDelivery(owner,[make(off),make(back),unsafe],carry),null);
  assert.equal(calls,0);
 });
+
+
+test('blocked wide lane opens an onside inside fullback run in either direction',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,mid,back,set}=fixture(side);
+  Object.assign(owner,{x:20*side,z:22});m.ball.x=owner.x;m.ball.z=22;
+  const fb=set(2,'DEF',17,23,{position:'RB',detailedRole:true});
+  const outer={x:28*side,z:27};Object.assign(back,outer);mid.active=false;
+  m.observedLine=()=>40;
+  m.laneRisk=(p,point)=>Math.abs(point.z)>20?.7:.1;
+  const q=m.insideFlankRun(owner,fb,40,outer);
+  assert(q,'available inside lane');assert(q.x*side>=23&&q.x*side<40);assert(q.z>=10&&q.z<=14);
+  assert.equal(m.insideFlankRun(owner,fb,21,outer),null,'cannot stage offside');
+  fb.energy=.3;assert.equal(m.insideFlankRun(owner,fb,40,outer),null);fb.energy=1;
+  m.targets.set(set(7,'MID',26,12),{x:26*side,z:12,state:'support'});
+  assert.equal(m.insideFlankRun(owner,fb,40,outer),null,'avoid occupied central lane');
+  m.targets.clear();back.active=false;m.laneRisk=()=>.1;
+  assert.equal(m.insideFlankRun(owner,fb,40,outer),null,'retain the available outer overlap');
+ }
+});
+test('inside delivery requires accepted current task and feasible physical release',()=>{
+ const {m,owner,set}=fixture();Object.assign(owner,{x:20,z:22});m.ball.x=20;m.ball.z=22;
+ const fb=set(2,'DEF',24,14,{position:'RB',detailedRole:true});
+ const point={x:28,z:14},epoch=m.attackEpoch[0];
+ m.observedLine=()=>40;
+ m.flankPlans[0]={sourceId:owner.id,fullbackId:fb.id,epoch,point,state:'overlap',inside:true,until:m.time+2};
+ const o={kind:'pass',q:fb,point:{x:27,z:14},risk:.1,arrivalRisk:.2,space:5,score:8};
+ m.passPreparation=()=>({feasible:true});
+ assert.equal(m.insideFlankDelivery(owner,[o]),null);
+ fb.task={...point,state:'overlap',partnerId:owner.id,epoch,expiresAt:m.time+1};
+ assert.equal(m.insideFlankDelivery(owner,[o]).insideFlankDelivery,true);
+ assert.equal(m.insideFlankDelivery(owner,[{...o,risk:.6}]),null);
+ m.passPreparation=()=>({feasible:false});assert.equal(m.insideFlankDelivery(owner,[o]),null);
+});
