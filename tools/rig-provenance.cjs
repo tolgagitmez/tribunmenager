@@ -5,7 +5,8 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..');
 const historicalSHA256='0dc472e9f489106eb32dfff97b9577861552470807eeeca665e45c2d44e862d7';
-const reviewedRuntimeSHA256='a2ac63e8b871be602fb5d95a00951a142889ce6f9944d00f85280d52ed893326';
+// Explicitly reviewed runtime-only recovery pose; historical bind and baked bytes still verified.
+const reviewedRuntimeSHA256='af30606b8991fc2397e0853a8abf92a20e545270139098bff7ecbde0eff388ed';
 const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 function verifyRigReference(expected){
  const historical=hash(fs.readFileSync(path.join(root,'assets/interchange/rig-reference.js')));
