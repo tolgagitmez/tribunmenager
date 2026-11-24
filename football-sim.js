@@ -786,6 +786,7 @@ class Match{
   if(choice.holdUpTurn)this.telemetry.holdUpTurns++;
   if(choice.kind==='feint'&&dist(selected,choice.point)<.1){
    this.applyFeint(p,choice);
+   if(choice.calibratedTakeOn){this.telemetry.calibratedTakeOnAttempts=(this.telemetry.calibratedTakeOnAttempts||0)+1;if(p.dribbleDuel)p.dribbleDuel.calibrated=true;}
    this.emit('feint','Çalım denemesi',`${p.name}, savunmacıyı bir vücut hareketiyle geçmeye çalışıyor.`,p);
   }
   if(choice.signatureDrive){
@@ -975,6 +976,32 @@ class Match{
   // Keep any genuinely playable forward connection ahead of the carry.
   return !options.some(o=>(o.point.x-p.x)*side>5&&o.risk<.34&&(o.arrivalRisk??1)<.60&&o.space>2.5&&o.score>0);
  }
+ // An isolated, physically playable take-on must compete with circulation,
+ // without taking priority over a clear finish or a penetrating pass.
+ calibratedTakeOn(p,options,opponents=this.rivals(p)){
+  const fail=reason=>({choice:null,reason});
+  if(!this.playerBrainEnabled(p)||this.owner!==p||!['MID','ATT'].includes(p.role)||p.position==='DM'||this.restart||this.kick||p.receiveClock>0||p.shieldUntil>this.time||p.escapeUntil>this.time||p.feintCooldown>0||p.duelRecovery>0)return fail('state');
+  const side=this.direction(p.team),depth=p.x*side;
+  if(depth<0||depth>40||p.carryTime>2.8||p.speed>4.2||(p.energy??1)<.48)return fail('context');
+  const defender=nearest(opponents,p);
+  if(!defender)return fail('noRival');
+  const gap=dist(defender,p);
+  if(gap<1.65||gap>3.35)return fail('range');
+  if((defender.age??0)>.4||(defender.confidence??1)<.65)return fail('observation');
+  if(!Brain.canFeint(p,defender,{pressure:gap}))return fail('skill');
+  if(this.ball.y>.25||!this.touchContact(p).ready||dist(p,this.ball)>1.1||p.touchClock>.12)return fail('contact');
+  if((defender.x-p.x)*side<.7||Math.abs(angle(Math.atan2(defender.z-p.z,defender.x-p.x),p.face))>.95)return fail('orientation');
+  if(p.duelMemory?.count>=2&&this.time-p.duelMemory.at<6&&dist(p,p.duelMemory.origin)<5)return fail('repeat');
+  if(options.some(o=>o.q?.active&&o.risk<.27&&o.arrivalRisk<.52&&o.space>=3&&o.score>4&&(o.point.x-p.x)*side>=5))return fail('forwardPass');
+  // Keep the existing feint animation and arbitration. Preview an ordinary
+  // carry, not a fake reaction or emitted event, so the forecast is conservative.
+  const choice=this.feintOption(p,defender);
+  if(!choice||(choice.point.x-p.x)*side<2.3)return fail('lane');
+  if(opponents.some(q=>{const h=segment({x:q.x+(q.vx||0)*.25,z:q.z+(q.vz||0)*.25},p,choice.point);return h.u>.04&&h.u<.98&&h.d<1.35;}))return fail('lane');
+  const read=this.controlPreparation(p,{kind:'carry',point:choice.point,commit:.4},null,.35);
+  if(read.firstTouchTime===null||read.interventionTime!==null)return fail('forecast');
+  return {choice:{...choice,calibratedTakeOn:true,commit:.4},reason:'eligible'};
+ }
  choose(p){
   const opponents=this.rivals(p),pressure=Math.min(30,...opponents.map(o=>dist(p,o))),goalDist=52-p.x*this.direction(p.team);
   const t=this.t[p.team],shot=this.shotWindow(p);
@@ -1002,6 +1029,11 @@ class Match{
   if(this.directProgressRead(p,carry,options,pressure)){
    this.telemetry.openFieldCarryChoices=(this.telemetry.openFieldCarryChoices||0)+1;
    return {...carry,openFieldCarry:true,commit:.45};
+  }
+  if(this.cfg.takeOnCalibration===true){
+   const read=this.calibratedTakeOn(p,options,opponents);
+   const key='takeOnGate_'+read.reason;this.telemetry[key]=(this.telemetry[key]||0)+1;
+   if(read.choice)return read.choice;
   }
   const pendingRun=this.field(p.team).find(q=>this.giveGoLink(p,q));
   if(pendingRun&&!best?.movingReturn&&pressure>3.8&&p.carryTime<.9&&(!best||(best.point.x-p.x)*this.direction(p.team)<4))return {kind:'carry',point:{x:clamp(p.x+this.direction(p.team),-49,49),z:p.z},hold:true};
@@ -3367,7 +3399,7 @@ class Match{
    if(!this.restart&&!this.kick&&!this.pendingManagerKick)this.ballStep(dt);
   }
   const carrier=this.owner,duel=carrier?.dribbleDuel;
-  if(duel){const defender=this.players[duel.opponentId];if(!defender?.active||this.time-duel.at>4.5)carrier.dribbleDuel=null;else if((carrier.x-defender.x)*this.direction(carrier.team)>1.5&&dist(carrier,defender)>2.5&&dist(carrier,this.ball)<1.3){this.telemetry.beatenDefenders++;carrier.dribbleDuel=null;}}
+  if(duel){const defender=this.players[duel.opponentId];if(!defender?.active||this.time-duel.at>4.5)carrier.dribbleDuel=null;else if((carrier.x-defender.x)*this.direction(carrier.team)>1.5&&dist(carrier,defender)>2.5&&dist(carrier,this.ball)<1.3){this.telemetry.beatenDefenders++;if(duel.calibrated)this.telemetry.calibratedTakeOnSuccesses=(this.telemetry.calibratedTakeOnSuccesses||0)+1;carrier.dribbleDuel=null;}}
   this.updateReferee?.(dt);if(!this.done)this.advanceClock(dt,stoppedReason,stoppageId);
  }
  appearanceReport(){

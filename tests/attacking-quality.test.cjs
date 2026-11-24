@@ -721,3 +721,37 @@ test('technical cut is accepted only by the real touch forecast and never bypass
   assert.equal(m.dribbleTouch(owner),false);assert.deepEqual(m.ball,ball);
  }
 });
+
+
+test('calibrated take-on competes with circulation but preserves a safe progressive pass in both halves',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{role:'ATT',position:'LW',dribbling:95,agility:93,balance:90,energy:1,face:side>0?0:Math.PI,speed:1,vx:side,vz:0,carryTime:.5,feintCooldown:0,touchClock:0,shieldUntil:0,escapeUntil:0});
+  Object.assign(mid,{x:owner.x+2.8*side,z:0,vx:0,vz:0,tackling:75,composure:75});back.active=false;
+  m.ball={x:owner.x+.6*side,y:.11,z:0,vx:side,vy:0,vz:0};
+  let calls=0;
+  m.controlPreparation=(p,c,read,horizon)=>{calls++;assert.equal(c.kind,'carry');assert.equal(horizon,.35);return {firstTouchTime:.1,interventionTime:null};};
+  const seed=m.seed,ball={...m.ball},before={x:owner.x,z:owner.z};
+  const chosen=m.calibratedTakeOn(owner,[]);
+  assert.equal(chosen.reason,'eligible');assert(chosen.choice.calibratedTakeOn);assert((chosen.choice.point.x-owner.x)*side>=2.3);
+  assert.equal(calls,1);assert.deepEqual(m.ball,ball);assert.equal(m.seed,seed);assert.deepEqual({x:owner.x,z:owner.z},before);
+  const pass={kind:'pass',q:link,point:{x:link.x,z:link.z},risk:.1,arrivalRisk:.2,space:5,score:10};
+  assert.equal(m.calibratedTakeOn(owner,[pass]).reason,'forwardPass');assert.equal(calls,1);
+  m.controlPreparation=()=>({firstTouchTime:.1,interventionTime:.15});
+  assert.equal(m.calibratedTakeOn(owner,[]).reason,'forecast');
+  owner.dribbling=60;assert.equal(m.calibratedTakeOn(owner,[]).reason,'skill');owner.dribbling=95;
+  m.ball.x=owner.x-2*side;assert.equal(m.calibratedTakeOn(owner,[]).reason,'contact');
+ }
+});
+test('calibrated take-on stays opt-in and preserves clear finishing priority',()=>{
+ const {m,owner,mid,back}=fixture();m.cfg.takeOnCalibration=true;
+ Object.assign(owner,{role:'ATT',position:'LW',dribbling:95,agility:93,energy:1,face:0,speed:1,vx:1,carryTime:.5,feintCooldown:0,touchClock:0,shieldUntil:0,escapeUntil:0});
+ Object.assign(mid,{x:owner.x+2.8,z:0,tackling:75,composure:75});back.active=false;
+ m.ball={x:owner.x+.6,y:.11,z:0,vx:1,vy:0,vz:0};
+ m.passOptions=()=>[];m.crossingOption=()=>null;m.carryOption=()=>({kind:'carry',point:{x:owner.x+1,z:0},clearance:1,score:1});
+ m.shotWindow=()=>({distance:44,open:0,execution:0,pressure:0,quality:0,point:{x:52,z:0}});
+ m.controlPreparation=()=>({firstTouchTime:.1,interventionTime:null});
+ m.clearFinish=()=>true;assert.equal(m.choose(owner).kind,'shot');assert.equal(m.telemetry.takeOnGate_eligible,undefined);
+ m.clearFinish=()=>false;assert(m.choose(owner).calibratedTakeOn);assert.equal(m.telemetry.takeOnGate_eligible,1);
+ m.cfg.takeOnCalibration=false;assert.notEqual(m.choose(owner).calibratedTakeOn,true);assert.equal(m.telemetry.takeOnGate_eligible,1);
+});
