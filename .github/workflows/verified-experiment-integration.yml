@@ -1,0 +1,48 @@
+name: Verified experiment integration
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'football-sim.js'
+      - 'tests/attacking-quality.test.cjs'
+      - 'tools/compare-experiment-integration.cjs'
+      - '.github/workflows/verified-experiment-integration.yml'
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm run test:collective-ai
+      - run: npm run test:touch-feasibility
+      - run: npm run test:first-control
+      - run: npm run test:manager-kick
+      - run: npm run test:match-laws
+      - run: npm run test:engine-invariance
+  experiment-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - working-directory: candidate
+        run: node tools/compare-experiment-integration.cjs ../baseline .
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verified-experiment-matrix
+          path: candidate/docs/validation/experiment-integration.json
+          if-no-files-found: warn
