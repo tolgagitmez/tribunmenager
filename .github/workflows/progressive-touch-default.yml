@@ -1,0 +1,33 @@
+name: Progressive first touch default recovery
+on:
+  push:
+    branches: ['fix/progressive-touch-default-20261124']
+    paths: ['.github/workflows/progressive-touch-default.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test tests/progressive-first-touch.test.cjs tests/first-control.test.cjs tests/reception-facing.test.cjs tests/pass-trajectory-safety.test.cjs tests/touch-feasibility.test.cjs
+      - name: Verify exact default source equivalence to pre-experiment engine
+        run: |
+          git fetch --no-tags --depth=1 origin 20a7d0e9447428c48b840a2ef948eb5a6f3af79f
+          git show FETCH_HEAD:football-sim.js > /tmp/pre-first-touch.js
+          node - <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const prior=fs.readFileSync('/tmp/pre-first-touch.js','utf8');
+          let now=fs.readFileSync('football-sim.js','utf8');
+          const a=now.indexOf('  // A non-urgent first touch should not inherit');
+          const b=now.indexOf('  return best;\n }\n touchContact(',a);
+          assert(a>=0&&b>a);
+          assert(now.slice(a,b).includes('this.cfg.progressiveFirstTouch===true&&'));
+          now=now.slice(0,a).replace(/  }\n$/,'  }')+now.slice(b).replace(/^  return best;/,'return best;');
+          now=now.replace(/^\s*if\(plan\?\.ready&&reception\.point\?\.progressive\)this\.telemetry\.progressiveFirstTouches=.*\n/m,'\n');
+          assert.equal(now.replace(/\s+/g,''),prior.replace(/\s+/g,''),'only the disabled feature and unreachable telemetry may differ');
+          NODE
