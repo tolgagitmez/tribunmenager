@@ -150,7 +150,6 @@ function metrics(){
  if($('playState'))$('playState').textContent=halftime?'Maç saati durdu · İkinci devrede kaleler değişecek':m.goalPause?'Gol kutlaması · Santra hazırlanıyor':r?`${r.team===0?(cfg.homeName||'Takımın'):(cfg.awayName||'Rakip')} · ${labels[r.kind]||'Duran top'}`:m.referee?.pendingAdvantage?'Hakem avantajı izliyor · Oyun sürüyor':m.owner?`${m.owner.name} · ${m.owner.holdingBall?'Topu tuttu':m.owner.receiveClock>0?(m.owner.receiveMode==='one-touch'?'Tek pas hazırlığı':m.owner.receiveMode==='open'?'Boşluğa ilk kontrol':'İlk kontrol'):'Topla ilerliyor'}`:m.flight?.kind==='shot'?'Top kaleye gidiyor':m.flight?.kind==='cross'?'Ceza sahasına orta':m.flight?.kind==='through'?'Savunma arkasına pas':'Top oyunda · Takımlar yerleşiyor';
  let left=Number($('momentum').dataset.left||50),target=m.ball.x*(typeof m.direction==='function'?m.direction(0):1)>0?60:40;left+=(target-left)*.12;$('momentum').dataset.left=left;$('momentum').style.setProperty('--homeWidth',left+'%');
  if(!$('subPanel').hidden)renderSubs();
- if(!$('subPanel').hidden)renderSubs();
  if(m.done&&!shownFinish){shownFinish=true;$('finishScreen').hidden=false;$('finishScore').textContent=m.score.join(' – ');document.querySelector('#finishScreen .result-top').textContent=m.finishReason==='minimum-players'?'MAÇ TATİL EDİLDİ':'MAÇ SONA ERDİ';$('finishText').textContent=(m.finishReason==='minimum-players'?'Asgari oyuncu sayısının altına düşüldü. ':'')+`${m.shots.join('–')} şut · ${m.completed.join('–')} başarılı pas · ${m.fouls.join('–')} faul. `+(live?'Sonuç lig tablosuna işlendi.':'Yerel gösterim maçıdır; günlük lig sonucunu değiştirmez.');}
 }
 function tick(dt){
@@ -158,9 +157,13 @@ function tick(dt){
  // Never execute an unbounded backlog on the render thread. Under severe
  // load the match slows gracefully instead of freezing the whole browser.
  const budget=speed>=8?14:speed>=4?10:6;
+ // A wall-clock cap complements the fixed-step count on slow phones. Never
+ // skip or resize a physics tick; yield AFTER a completed 60 Hz step.
+ const workBudgetMs=scene.performance.mode==='quality'?13:scene.performance.mode==='balanced'?11:9;
+ const deadline=performance.now()+workBudgetMs;
  let steps=0;
- while(accumulator+1e-10>=1/60&&!game.done&&steps<budget&&!game.pendingManagerKick){steps++;accumulator-=1/60;attackObserver.step();for(const p of game.players){p.selected=p===game.owner;if(p.active)Rig.update(p,1/60);}if(overlayTime>0){overlayTime-=1/60;if(overlayTime<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}}}
- if(steps===budget&&accumulator>=1/60){accumulator=Math.min(accumulator,2/60);simOverloadFrames++;}
+ while(accumulator+1e-10>=1/60&&!game.done&&steps<budget&&!game.pendingManagerKick&&(steps===0||performance.now()<deadline)){steps++;accumulator-=1/60;attackObserver.step();for(const p of game.players){p.selected=p===game.owner;if(p.active)Rig.update(p,1/60);}if(overlayTime>0){overlayTime-=1/60;if(overlayTime<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}}}
+ if(accumulator>=1/60&&!game.done&&!game.pendingManagerKick&&(steps===budget||performance.now()>=deadline)){accumulator=Math.min(accumulator,2/60);simOverloadFrames++;}
  consume();const metric=Math.floor(game.time*5+1e-7),wall=performance.now();
  if(game.pendingManagerKick){syncKickControls();metrics();}
  else if(game.done||(metric!==lastMetric&&(speed<4||wall-lastMetricWall>=120))){
