@@ -2155,7 +2155,7 @@ class Match{
   }
   // A committed low sliding challenge carries existing momentum and a
   // finite braking/recovery interval; no teleport or new ball contact.
-  if(p.slideUntil>this.time&&p.action==='tackle'&&p.actionClock>0){
+  if(!this.restart&&!this.goalPause&&!this.kick?.restartContext&&p.slideUntil>this.time&&p.action==='tackle'&&p.actionClock>0){
    const speed=Math.hypot(p.vx,p.vz),next=Math.max(0,speed-11*dt),ratio=speed>0?next/speed:0;
    p.vx*=ratio;p.vz*=ratio;p.speed=next;p.x=clamp(p.x+p.vx*dt,-53.5,53.5);p.z=clamp(p.z+p.vz*dt,-35,35);
    p.anim+=next*dt*2.3;p.brainRole='tackle';return;
