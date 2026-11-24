@@ -1,0 +1,26 @@
+name: Press progression audit
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/audit-press-progression.cjs'
+      - '.github/workflows/press-progression-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired-press:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node tools/audit-press-progression.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: press-progression-audit
+          path: docs/validation/press-progression-audit.json
+          if-no-files-found: warn
