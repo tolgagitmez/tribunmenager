@@ -35,7 +35,7 @@ function config(c){
 // exactly as before; no added tactical queries, random draws or ball changes.
 function observeShotDecisions(m){
  const result={decisions:0,withWindow:0,nearGoal:0,openLane:0,controlledWindow:0,qualityWindow:0,shotChosen:0,qualityWindowPassed:0,qualityWindowCarried:0,qualityWindowOther:0};
- const choose=m.choose,window=m.shotWindow;let actor=null,read=null;
+ const choose=m.choose,window=m.shotWindow,ownChoose=Object.getOwnPropertyDescriptor(m,'choose'),ownWindow=Object.getOwnPropertyDescriptor(m,'shotWindow');let actor=null,read=null;
  m.shotWindow=function(p,...args){const v=window.call(this,p,...args);if(actor===p&&!read)read=v;return v;};
  m.choose=function(p,...args){
   const previousActor=actor,previousRead=read;actor=p;read=null;
@@ -57,7 +57,7 @@ function observeShotDecisions(m){
    return choice;
   }finally{actor=previousActor;read=previousRead;}
  };
- return {result,detach(){m.choose=choose;m.shotWindow=window;}};
+ return {result,detach(){for(const [k,descriptor] of [['choose',ownChoose],['shotWindow',ownWindow]]){if(descriptor)Object.defineProperty(m,k,descriptor);else delete m[k];}}};
 }
 function simulate(c){
  const cfg=config(c),configDigest=digest(JSON.stringify(cfg));
