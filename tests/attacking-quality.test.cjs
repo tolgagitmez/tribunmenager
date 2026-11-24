@@ -721,3 +721,48 @@ test('technical cut is accepted only by the real touch forecast and never bypass
   assert.equal(m.dribbleTouch(owner),false);assert.deepEqual(m.ball,ball);
  }
 });
+
+
+test('box-entry carry considers moderate pressure and preserves a viable box pass in either direction',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{x:32*side,z:4,face:side>0?0:Math.PI,role:'ATT',position:'LW',energy:1,carryTime:.4,touchClock:0,receiveClock:0,duelRecovery:0,shieldUntil:0});
+  Object.assign(mid,{x:32*side,z:8,vx:0,vz:0});back.active=false;
+  Object.assign(link,{x:38*side,z:-5});
+  m.ball={x:32.6*side,z:4,y:.11,vx:side,vz:0,vy:0};
+  const carry={kind:'carry',point:{x:37*side,z:4},clearance:3,score:8};
+  let forecasts=0;
+  m.controlPreparation=(p,c,read,horizon)=>{forecasts++;assert.equal(c.openFieldCarry,true);assert.equal(horizon,.55);return {firstTouchTime:.12,interventionTime:null};};
+  const before={ball:{...m.ball},x:owner.x,z:owner.z,seed:m.seed};
+  const result=m.boxEntryCarry(owner,carry,[],4);
+  assert.equal(result.reason,'eligible');assert(result.choice.boxEntryCarry);assert.equal(forecasts,1);
+  assert.deepEqual({ball:m.ball,x:owner.x,z:owner.z,seed:m.seed},before);
+  const pass={kind:'pass',q:link,point:{x:38*side,z:-5},risk:.1,arrivalRisk:.2,space:5,score:8};
+  assert.equal(m.boxEntryCarry(owner,carry,[pass],4).reason,'boxPass');
+  assert.equal(m.boxEntryCarry(owner,carry,[],2).reason,'region');
+  assert.equal(m.boxEntryCarry(owner,carry,[],5).reason,'region');
+  assert.equal(m.boxEntryCarry(owner,{...carry,point:{x:30*side,z:4}},[],4).reason,'lane');
+  back.active=true;Object.assign(back,{x:34*side,z:4,vx:0,vz:0});
+  assert.equal(m.boxEntryCarry(owner,carry,[],4).reason,'lane');assert.equal(forecasts,1);
+  back.active=false;
+  m.controlPreparation=()=>({firstTouchTime:.12,interventionTime:.2});
+  assert.equal(m.boxEntryCarry(owner,carry,[],4).reason,'forecast');
+  m.controlPreparation=()=>({firstTouchTime:null,interventionTime:null});
+  assert.equal(m.boxEntryCarry(owner,carry,[],4).reason,'forecast');
+ }
+});
+test('box-entry choice retains finishing priority and defaults to existing decisions',()=>{
+ const {m,owner,mid,back}=fixture();
+ Object.assign(owner,{x:32,z:4,face:0,role:'ATT',position:'LW',energy:1,carryTime:.4,touchClock:0,receiveClock:0,duelRecovery:0,shieldUntil:0});
+ Object.assign(mid,{x:32,z:8,vx:0,vz:0});back.active=false;
+ m.ball={x:32.6,z:4,y:.11,vx:1,vz:0,vy:0};
+ m.passOptions=()=>[];m.crossingOption=()=>null;
+ m.carryOption=()=>({kind:'carry',point:{x:37,z:4},clearance:3,score:8});
+ m.shotWindow=()=>({distance:21,quality:0,execution:0,pressure:0,open:0,point:{x:52,z:0}});
+ m.controlPreparation=()=>({firstTouchTime:.12,interventionTime:null});
+ m.cfg.boxEntryExperiment=true;m.clearFinish=()=>true;
+ assert.equal(m.choose(owner).kind,'shot');assert.equal(m.telemetry.boxEntryGate_eligible,undefined);
+ m.clearFinish=()=>false;assert(m.choose(owner).boxEntryCarry);assert.equal(m.telemetry.boxEntryGate_eligible,1);
+ m.cfg.boxEntryExperiment=false;assert.notEqual(m.choose(owner).boxEntryCarry,true);
+ assert.equal(m.telemetry.boxEntryGate_eligible,1);
+});
