@@ -522,7 +522,7 @@ class Match{
   // A non-urgent first touch should not inherit a backward outlet's
   // orientation when a physically reachable, equally safe forward lane
   // exists. The later swept contact and touchPlan still decide the impulse.
-  if(this.playerBrainEnabled(p)&&['MID','ATT'].includes(p.role)&&p.position!=='DM'&&
+  if(this.cfg.progressiveFirstTouch===true&&this.playerBrainEnabled(p)&&['MID','ATT'].includes(p.role)&&p.position!=='DM'&&
    (p.dribbling??0)>=78&&(p.composure??0)>=74&&(p.energy??1)>=.5&&pressure>4.5&&best){
    const side=this.direction(p.team),depth=origin.x*side,forward=side>0?0:Math.PI;
    if(depth>-15&&depth<35&&(best.x-origin.x)*side<1.05){
