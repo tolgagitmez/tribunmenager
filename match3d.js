@@ -323,6 +323,12 @@ function skillRenderProbe(){
   positionsUnchanged:JSON.stringify(game.players.map(p=>[p.id,p.x,p.z,p.face,p.action]))===before.players&&JSON.stringify(game.ball)===before.ball};
 }
 window.TRIBUN_MATCH_TEST={skillRenderProbe,attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||{status:'not-loaded'},ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
+ closeViewProbe:()=>{const previous={camera:scene.camera,eye:scene.cameraSmoothing,target:scene.cameraTarget,kick:scene.managerKickView},b=game.ball;
+  try{scene.camera='close';scene.cameraSmoothing=[16,18,20];scene.cameraTarget=[0,.8,0];scene.managerKickView=null;
+   const start=performance.now();scene.render(game.players,b,[0,0],{},0);scene.gl?.finish();
+   return {cpuGpuMs:performance.now()-start,profile:scene.performanceMode(),clock:game.time,score:[...game.score]};
+  }finally{scene.camera=previous.camera;scene.cameraSmoothing=previous.eye;scene.cameraTarget=previous.target;scene.managerKickView=previous.kick;}
+ },
  renderProbe:()=>{const b=game.ball,start=performance.now();scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);if(scene.gl)scene.gl.finish();return {cpuGpuMs:performance.now()-start,active:game.players.filter(p=>p.active&&!p.referee).length,bridge:scene.animationStats(),webgl:!!scene.gl};},
  advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();
