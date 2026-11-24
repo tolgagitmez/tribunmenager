@@ -19,6 +19,7 @@ function reset(players,time=0,epoch=null){for(const p of players)if(live(p))clea
 function snapshot(p,time,source){
  const out={id:p.id,team:p.team,role:p.role,rosterId:p.rosterId??p.id,active:true,x:p.x,z:p.z,vx:number(p.vx),vz:number(p.vz),face:number(p.face),speed:Math.hypot(number(p.vx),number(p.vz)),seenAt:time,source};
  for(const k of physical)if(Number.isFinite(p[k]))out[k]=p[k];
+ if(['left','right','both'].includes(p.footPreference))out.footPreference=p.footPreference;
  for(const k of clocks)out[k]=Math.max(0,number(p[k]));
  return out;
 }
