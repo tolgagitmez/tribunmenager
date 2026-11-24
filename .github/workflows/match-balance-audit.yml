@@ -2,7 +2,7 @@ name: Match balance audit
 on:
   push:
     branches: ['feature/match-balance-audit-20261124']
-    paths: ['.github/workflows/match-balance-audit.yml']
+    paths: ['.github/workflows/match-balance-audit.yml', 'tools/audit-match-balance.cjs', 'tests/match-balance-audit.test.cjs']
   workflow_dispatch:
     inputs:
       seeds:
@@ -21,7 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: node --test tests/match-balance-audit.test.cjs
+      - name: Verify goal attribution and passive diagnostics
+        run: node --test tests/match-balance-audit.test.cjs
   simulate:
     needs: unit
     runs-on: ubuntu-latest
