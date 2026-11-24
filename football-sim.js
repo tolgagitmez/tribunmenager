@@ -2168,7 +2168,9 @@ class Match{
   if(old&&old.epoch===this.attackEpoch[team]&&old.sourceId===source.id&&old.fullbackId===fullback.id&&(old.until>this.time||inFlight&&flight.age<3.5)&&(inFlight||dist(old.origin,source)<6)){
    const point=safePoint(old.point),blocked=this.rivals(source).some(q=>dist(q,point)<1.4);
    if(!blocked)return this.flankPlans[team]={...old,point};
-   return this.flankPlans[team]={...old,point:safePoint({x:old.origin.x-side*5,z:flank*22}),state:'wide-support',until:this.time+.8};
+   const inside=!old.inside&&owner===source?this.insideFlankRun(source,fullback,line,point):null;
+   if(inside){this.telemetry.insideFlankPlans=(this.telemetry.insideFlankPlans||0)+1;return this.flankPlans[team]={...old,point:inside,inside:true,state:'overlap',until:this.time+2};}
+   return this.flankPlans[team]={...old,point:safePoint({x:old.origin.x-side*5,z:flank*22}),inside:false,state:'wide-support',until:this.time+.8};
   }
   let point=safePoint({x:side*Math.min(44,source.x*side+8),z:Math.sign(fullback.homeZ)*Math.min(31,Math.abs(fullback.homeZ)*1.12)}),state='overlap';
   const inside=owner===source?this.insideFlankRun(source,fullback,line,point):null;
