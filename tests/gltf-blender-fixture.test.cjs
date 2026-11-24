@@ -125,3 +125,20 @@ for(const model of outputs){
   assert(maxWorld<manifest.validationTolerances.jointWorldMetres,`world matrix max error ${maxWorld}`);assert(maxSkin<manifest.validationTolerances.skinMatrixElement,`skin matrix max error ${maxSkin}`);assert(maxVertex<manifest.validationTolerances.skinnedVertexMetres,`skinned vertex max error ${maxVertex}`);
  });
 }
+
+test('reviewed live rig preserves every canonical joint endpoint at 60 Hz',()=>{
+ const vm=require('node:vm'),sandbox={module:{exports:{}}};
+ vm.runInNewContext(read('assets/interchange/rig-reference.js').toString(),sandbox,{filename:'historical-rig-reference.js'});
+ const historical=sandbox.module.exports;
+ for(const [name,duration] of [['idle',1],['run',2],['shoot',1.3],['dive-right',1.3]]){
+  const live=Scenarios.create(name==='idle'?'walk':name),original=Scenarios.create(name==='idle'?'walk':name);
+  for(let tick=0;tick<=Math.round(duration*60);tick++){
+   for(const [s,rig] of [[live,Rig],[original,historical]]){
+    if(name==='idle')Object.assign(s.p,{x:0,z:0,face:0,speed:0,action:'idle',actionClock:0});
+    else Scenarios.sample(s,tick/60,rig);
+   }
+   const current=Rig.boneFrames(Rig.update(live.p,1/60)),reference=historical.boneFrames(historical.update(original.p,1/60));
+   assert.equal(JSON.stringify(current),JSON.stringify(reference),name+' canonical frame '+tick);
+  }
+ }
+});
