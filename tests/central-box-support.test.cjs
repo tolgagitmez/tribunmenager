@@ -36,3 +36,18 @@ for(const team of [0,1]){
   }
  });
 }
+
+for(const team of [0,1]){
+ test('screened formation-relative connection selects a reachable alternative, team '+team,()=>{
+  const m=new Match({seed:93,individualAI:true}),side=m.direction(team),owner=m.players[team*11+3],p=m.players[team*11+5];
+  Object.assign(owner,{x:0,z:0,role:'MID',face:team?Math.PI:0});
+  Object.assign(p,{x:8*side,z:0,homeZ:12,role:'MID',position:'CM',energy:1,vx:0,vz:0,connectionIntent:null});
+  m.t[team].playstyle='possession';m.rivals=()=>[];
+  m.laneRisk=(_owner,q)=>Math.abs(q.x*side-6)<.5?.8:.1;
+  m.receptionSafety=()=>({risk:.1,pressure:8});
+  const seed=m.seed,ball={...m.ball},point=m.connectionPoint(owner,p,-25,20);
+  assert(point.risk<.3);assert(point.x*side>=4&&point.x*side<=14);assert(Math.hypot(point.x-p.x,point.z-p.z)<=8);assert(point.x*side<=20-Brain.runMargin(p,side));
+  assert.equal(m.seed,seed);assert.deepEqual(m.ball,ball);
+  p.connectionIntent=null;m.cfg.individualAI=false;const legacy=m.connectionPoint(owner,p,-25,20);assert.equal(legacy.x*side,6);
+ });
+}
