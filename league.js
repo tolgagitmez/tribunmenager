@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id),key='tribun-league-token';
 const storage={get:k=>{try{return localStorage.getItem(k);}catch{return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);return true;}catch{return false;}},remove:k=>{try{localStorage.removeItem(k);}catch{}}};
-let token=storage.get(key),data=null,refreshing=false,serverOffset=0;
+let token=storage.get(key),data=null,refreshing=false,serverOffset=0,lobbyCode='',catalogRevision=null;
 const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function message(text,kind='error'){$('error').textContent=text;$('error').dataset.kind=kind;}
 function busy(button,value){button.disabled=value;button.setAttribute('aria-busy',String(value));}
@@ -17,10 +17,25 @@ async function req(path,body){
  }finally{clearTimeout(timeout);}
 }
 async function linkRoster(){
+ if(data?.catalog)return;
  if(!window.TribunTransfers?.hasSession())return;
  const health=await req('/api/health');
  if(health.transfers!==false)await window.TribunTransfers.linkLeague(token);
 }
+async function findClubs(){
+ const code=$('joinCode').value.trim().toUpperCase();
+ if(!/^[A-F0-9]{6}$/.test(code)){message('Geçerli davet kodu gir.');return;}
+ try{
+  const result=await req('/api/league/lobby?code='+encodeURIComponent(code));
+  if($('joinCode').value.trim().toUpperCase()!==code)return;
+  lobbyCode=code;$('joinClubLabel').hidden=false;
+  const available=result.clubs.filter(c=>!c.claimed&&result.open);
+  $('joinClub').replaceChildren(...available.map(c=>new Option(c.name,c.slot)));
+  message(available.length?'Boş takımlardan birini seç.':'Katılıma açık takım yok.','info');
+ }catch(e){message(e.message);}
+}
+$('findClubs').onclick=findClubs;
+$('joinCode').oninput=()=>{lobbyCode='';$('joinClubLabel').hidden=true;$('joinClub').replaceChildren();};
 async function lobby(action){
  const name=$(action==='create'?'createName':'joinName'),manager=name.value.trim(),code=$('joinCode').value.trim().toUpperCase();
  if(!manager){message('Devam etmek için menajer adını yaz.');name.focus();return;}
@@ -28,10 +43,10 @@ async function lobby(action){
  if($('createBtn').disabled||$('joinBtn').disabled)return;
  busy($('createBtn'),true);busy($('joinBtn'),true);message(action==='create'?'Ligin oluşturuluyor…':'Lige katılıyorsun…','info');
  try{
-  const result=await req('/api/league/'+action,{manager,...(action==='join'?{code}:{})});
+  const result=await req('/api/league/'+action,{manager,...(action==='join'?{code,...(lobbyCode===code&&$('joinClub').value!==''?{slot:Number($('joinClub').value)}:{})}:{})});
   token=result.token;const persisted=storage.set(key,token);
-  await linkRoster();
   await refresh();
+  if(!data?.catalog){await linkRoster();await refresh();}
   if(!persisted)message('Lige katıldın. Tarayıcı kayıt izni vermediği için bu oturumu kapatırsan lig erişimin kaybolabilir.','info');
  }catch(e){message(e.message);}
  finally{busy($('createBtn'),false);busy($('joinBtn'),false);}
@@ -49,6 +64,36 @@ function timer(){
  else if(next){const seconds=Math.max(0,Math.ceil(next-now)),days=Math.floor(seconds/86400);$('countdown').textContent=`${days?days+'g ':''}${String(Math.floor(seconds%86400/3600)).padStart(2,'0')}:${String(Math.floor(seconds%3600/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;$('matchInfo').textContent=`Sıradaki maç günü: ${data.day}/10 · ${new Date(next*1000).toLocaleString('tr-TR')}`;}
  else{$('countdown').textContent='SEZON TAMAMLANDI';$('matchInfo').textContent='10. maç gününün sonuçlarını tabloda inceleyebilirsin.';}
 }
+function renderCatalogPlan(){
+ const panel=$('catalogPlan'),plan=data.catalogPlan;
+ panel.hidden=!data.catalog||!plan;$('leaguePreview').hidden=!!data.catalog;
+ if(!data.catalog||!plan)return;
+ const M=window.TribunPlayerModel,T=window.TribunTactics,form=$('catalogFormation'),tactic=$('catalogTactic');
+ if(!form.options.length){
+  form.replaceChildren(...Object.keys(M.slots).map(f=>new Option(f,f)));
+  tactic.replaceChildren(...T.presets.map(p=>new Option(p.name,p.id)));
+  form.onchange=()=>renderXI([]);
+ }
+ function renderXI(ids){
+  const used=new Set(),box=$('catalogXI');box.replaceChildren();
+  M.slots[form.value].forEach((position,i)=>{
+   const role=Object.keys(M.groups).find(k=>M.groups[k].includes(position));
+   const pool=plan.players.filter(p=>p.pos===role&&!p.season?.suspended).sort((a,b)=>b.rating-a.rating||a.id-b.id);
+   const select=document.createElement('select'),label=document.createElement('label');
+   select.replaceChildren(...pool.map(p=>new Option(p.name+' · '+p.rating,p.id)));
+   const chosen=pool.find(p=>p.id===ids[i]&&!used.has(p.id))||pool.find(p=>!used.has(p.id));
+   if(chosen){select.value=chosen.id;used.add(chosen.id);}else select.value='';
+   label.append(position,select);box.append(label);
+  });
+ }
+ // Do not overwrite a user's in-progress selection during periodic refresh.
+ if(catalogRevision!==plan.revision){
+  catalogRevision=plan.revision;form.value=data.my_formation;
+  const preset=T.presets.find(p=>JSON.stringify(T.normalize(p.tactics))===JSON.stringify(T.normalize(data.my_tactics)));
+  tactic.value=preset?.id||'balanced';renderXI(plan.starters);
+ }else form.onchange=()=>renderXI([]);
+ $('catalogPlanError').textContent=plan.lineupError||'';
+}
 function render(){
  $('lobby').hidden=true;$('status').hidden=false;
  $('leagueCode').textContent=data.code;$('myClub').textContent=data.my_club;$('managerName').textContent=data.manager;
@@ -64,7 +109,7 @@ function render(){
   (average===null?'':` · Ortalama kondisyon %${average} · Cezalı ${suspended}`);
  const panel=$('rotationList');
  if(panel)panel.innerHTML=rotation.length?rotation.map(p=>`<div class="rotation-row" data-suspended="${!!p.suspended}"><strong title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</strong><small>${escapeHtml(p.position||'—')}</small><span>${Math.round(Number(p.fitness)||0)}% · ${Math.round(Number(p.minutes)||0)} dk${p.suspended?' · CEZALI':''}${(p.yellows||p.reds)?` · ${p.yellows||0}S/${p.reds||0}K`:''}</span></div>`).join(''):'<p>Henüz sezon oyuncu kaydı yok.</p>';
- timer();
+ renderCatalogPlan();timer();
 }
 async function refresh(){
  if(!token||refreshing)return false;
@@ -81,11 +126,21 @@ async function copyCode(){
 async function sendTactics(){
  if(!token||$('sendTactics').disabled)return;
  busy($('sendTactics'),true);message('Oyun planın kaydediliyor…','info');
- try{let saved;try{saved=JSON.parse(storage.get('tribun-manager-pro09')||'{}');}catch{saved={};}await req('/api/league/tactics',{token,formation:saved?.formation||'4-3-3',tactics:saved?.tactics||{}});await linkRoster();if(await refresh())message('Oyun planın lige kaydedildi.','success');}
+ try{
+  if(data?.catalog){
+   const selects=[...$('catalogXI').querySelectorAll('select')],ids=selects.map(s=>s.value===''?null:Number(s.value));
+   const preset=window.TribunTactics.presets.find(p=>p.id===$('catalogTactic').value);
+   await req('/api/league/tactics',{token,formation:$('catalogFormation').value,tactics:preset?.tactics||{},starters:ids,revision:catalogRevision});
+  }else{
+   let saved;try{saved=JSON.parse(storage.get('tribun-manager-pro09')||'{}');}catch{saved={};}
+   await req('/api/league/tactics',{token,formation:saved?.formation||'4-3-3',tactics:saved?.tactics||{}});await linkRoster();
+  }
+  if(await refresh())message('Oyun planın lige kaydedildi.','success');
+ }
  catch(e){message(e.message);}
  finally{busy($('sendTactics'),false);}
 }
 document.querySelectorAll('[data-league-action]').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();lobby(form.dataset.leagueAction);}));
 $('refreshBtn').onclick=refresh;$('copyCode').onclick=copyCode;$('sendTactics').onclick=sendTactics;
 setInterval(timer,1000);setInterval(()=>{if(token&&!document.hidden)refresh();},30000);
-if(token){linkRoster().then(refresh).catch(e=>{message(e.message);refresh();});}else req('/api/health').catch(()=>message('Günlük lig için yerel oyun sunucusunu başlat. Kurulum bilgisi aşağıdaki bağlantıda.','info'));
+if(token){refresh().then(ok=>{if(ok&&!data?.catalog)return linkRoster().then(refresh);}).catch(e=>message(e.message));}else req('/api/health').catch(()=>message('Günlük lig için yerel oyun sunucusunu başlat. Kurulum bilgisi aşağıdaki bağlantıda.','info'));

@@ -64,3 +64,5 @@
 .rotation-row[data-suspended="true"]{background:#3e2725}
 .rotation-row[data-suspended="true"] span{color:#ffb4a6;font-weight:700}
 @media(max-width:650px){.rotation-row{grid-template-columns:minmax(85px,1fr) 28px minmax(105px,1.1fr);font-size:10px}}
+
+#catalogPlan{margin:12px 0;display:grid;gap:8px}#catalogPlan[hidden],#joinClubLabel[hidden],#leaguePreview[hidden]{display:none}#catalogPlan select,#joinClub{width:100%;min-width:0;background:#14271b;color:var(--text);border:1px solid var(--line-soft);padding:8px;border-radius:6px}#catalogXI{display:grid;gap:5px}#catalogXI label{display:grid;grid-template-columns:40px 1fr;align-items:center;gap:7px}

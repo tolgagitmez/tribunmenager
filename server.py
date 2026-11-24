@@ -13,6 +13,7 @@ from urllib.parse import urlsplit, parse_qs
 from economy import TransferService, EconomyError, SET_PIECE_ATTRIBUTES
 from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_control
 import season_state
+import catalog_league
 
 ROOT=Path(__file__).resolve().parent
 DATA=Path(os.environ.get('TRIBUN_DB',str(ROOT/'tribun-dev.sqlite3')))
@@ -48,7 +49,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS fixtures(
         league TEXT NOT NULL,round INT NOT NULL,home INT NOT NULL,away INT NOT NULL,
         kickoff REAL NOT NULL,home_score INT,away_score INT,home_yellows INT,away_yellows INT,
-        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA + season_state.SCHEMA)
+        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA + season_state.SCHEMA + catalog_league.SCHEMA)
 
 def rounds():
     # 6-team double round robin: 5 rounds each leg, 3 matches per day.
@@ -93,28 +94,76 @@ def new_league(manager):
             for a,b in pairs:c.execute('INSERT INTO fixtures(league,round,home,away,kickoff) VALUES(?,?,?,?,?)',(code,r,a,b,kickoff+r*86400))
     return {'code':code,'token':token,'club':TEAMS[0]}
 
-def join_league(code,manager):
+def new_catalog_league(snapshots, mode="neutral"):
+    # Operator-only entry, never exposed as an HTTP upload or public API.
+    teams=catalog_league.convert(snapshots,mode)
+    with LOCK,db() as c:
+        c.execute("BEGIN IMMEDIATE")
+        while True:
+            code=secrets.token_hex(3).upper()
+            if not c.execute("SELECT 1 FROM leagues WHERE code=?",(code,)).fetchone():break
+        created=time.time();kickoff=created+86400
+        c.execute("INSERT INTO leagues VALUES(?,?,?)",(code,created,kickoff))
+        for i,t in enumerate(teams):
+            quality=sum(t["players"][j]["rating"] for j in t["starters"])/11
+            c.execute("INSERT INTO teams VALUES(?,?,?,?,?,?,?,?)",
+                (code,i,t["name"],"Bilgisayar",None,DEFAULT["formation"],serialize_tactics(DEFAULT),quality))
+            c.execute("INSERT INTO catalog_league_rosters VALUES(?,?,?,?,?,?,1)",
+                (code,i,t["teamUid"],t["fetchedAt"],json.dumps(t["players"],ensure_ascii=False),json.dumps(t["starters"])))
+        for r,pairs in enumerate(rounds()):
+            for a,b in pairs:c.execute("INSERT INTO fixtures(league,round,home,away,kickoff) VALUES(?,?,?,?,?)",(code,r,a,b,kickoff+r*86400))
+    return {"code":code,"clubs":len(teams),"fixtures":30,"firstKickoff":kickoff}
+
+
+def league_lobby(code):
+    code=str(code or "").strip().upper()
+    with db() as c:
+        league=c.execute("SELECT first_kickoff FROM leagues WHERE code=?",(code,)).fetchone()
+        if not league:raise ValueError("Lig kodu bulunamadı.")
+        catalog=catalog_league.is_catalog(c,code)
+        return {"catalog":catalog,"open":not catalog or time.time()<league["first_kickoff"],
+                "clubs":[{"slot":t["slot"],"name":t["name"],"claimed":bool(t["token"])}
+                    for t in c.execute("SELECT slot,name,token FROM teams WHERE league=? ORDER BY slot",(code,))]}
+
+
+def join_league(code,manager,slot=None):
     code=str(code or '').strip().upper()
     with LOCK,db() as c:
-        if not c.execute('SELECT 1 FROM leagues WHERE code=?',(code,)).fetchone():raise ValueError('Lig kodu bulunamadı.')
-        row=c.execute('SELECT slot,name FROM teams WHERE league=? AND token IS NULL ORDER BY slot LIMIT 1',(code,)).fetchone()
-        if not row:raise ValueError('Bu ligdeki altı takımın tamamı dolu.')
+        c.execute("BEGIN IMMEDIATE")
+        league=c.execute("SELECT first_kickoff FROM leagues WHERE code=?",(code,)).fetchone()
+        if not league:raise ValueError('Lig kodu bulunamadı.')
+        catalog=catalog_league.is_catalog(c,code)
+        if catalog and time.time()>=league["first_kickoff"]:raise ValueError("Katalog sezonu başladı; yeni menajer alınamaz.")
+        if catalog and slot is None:raise ValueError("Katalog liginde takımını seç.")
+        if slot is not None and (type(slot) is not int or not 0<=slot<6):raise ValueError("Geçersiz takım seçimi.")
+        row=(c.execute("SELECT slot,name FROM teams WHERE league=? AND slot=? AND token IS NULL",(code,slot)).fetchone()
+             if slot is not None else c.execute('SELECT slot,name FROM teams WHERE league=? AND token IS NULL ORDER BY slot LIMIT 1',(code,)).fetchone())
+        if not row:raise ValueError('Seçilen takım dolu veya ligde boş takım kalmadı.')
         tok=secrets.token_urlsafe(26)
         c.execute('UPDATE teams SET manager=?, token=? WHERE league=? AND slot=?',(str(manager or 'Menajer')[:35],tok,code,row['slot']))
-        return {'code':code,'token':tok,'club':row['name']}
+        return {'code':code,'token':tok,'club':row['name'],'catalog':catalog}
 
 def identified(c,token):
     row=c.execute('SELECT * FROM teams WHERE token=?',(token,)).fetchone()
     if not row:raise ValueError('Geçersiz veya süresi dolmuş menajer anahtarı.')
     return row
 
-def update_tactics(token, tactics, formation=None):
+def update_tactics(token, tactics, formation=None, starters=None, revision=None):
     settle_due()  # finalize old days before accepting edits
     with LOCK,db() as c:
         person=identified(c,token)
         active=c.execute('SELECT 1 FROM fixtures WHERE league=? AND kickoff<=? AND home_score IS NULL LIMIT 1',(person['league'],time.time())).fetchone()
         if active:raise ValueError('Maç oynanırken taktikler kilitlidir; maç bitince değiştirebilirsin.')
         formation=formation if formation in ('4-3-3','4-2-3-1','4-4-2','3-5-2','5-3-2','4-5-1') else person['formation']
+        frozen=catalog_league.row(c,person["league"],person["slot"])
+        if frozen:
+            if type(revision) is not int or revision!=frozen["revision"]:raise ValueError("Kadro değişti; sayfayı yenile.")
+            next_round=c.execute("SELECT MIN(round) FROM fixtures WHERE league=? AND home_score IS NULL",(person["league"],)).fetchone()[0]
+            if next_round is None:raise ValueError("Sezon tamamlandı.")
+            players=[season_state.status(c,person["league"],person["slot"],p,next_round) for p in json.loads(frozen["players"])]
+            ids=catalog_league.validate_lineup(players,formation,starters)
+            c.execute("UPDATE catalog_league_rosters SET starters=?,revision=revision+1 WHERE league=? AND slot=?",
+                (json.dumps(ids),person["league"],person["slot"]))
         c.execute('UPDATE teams SET formation=?,tactics=? WHERE token=?',(formation,serialize_tactics(tactics),token))
         return {'ok':True,'formation':formation}
 
@@ -201,8 +250,11 @@ def status(token, now=None):
         return {'server_time':now,'code':code,'manager':person['manager'],'my_slot':person['slot'],'my_club':person['name'],'my_formation':person['formation'],'my_tactics':json.loads(person['tactics']),
             'next_kickoff':next_time,'first_kickoff':fix[0]['kickoff'],'day':min(10,current_round+1),'active':active,'my_match':match,'standings':standings,
             'my_rotation':rotation,'my_rotation_source':roster['source'],
+            'catalog':roster['source']=='catalog-roster',
+            'catalogPlan':{'players':roster['players'],'starters':roster['starters'],'revision':roster['revision'],
+                           'lineupError':roster.get('lineupError')} if roster['source']=='catalog-roster' else None,
             'teams':[{'slot':t['slot'],'name':t['name'],'manager':t['manager'],'claimed':bool(t['token'])} for t in teams],
-            'recent':[{**f,'home_name':TEAMS[f['home']],'away_name':TEAMS[f['away']]} for f in fix if f['home_score'] is not None][-12:]}
+            'recent':[{**f,'home_name':teams[f['home']]['name'],'away_name':teams[f['away']]['name']} for f in fix if f['home_score'] is not None][-12:]}
 
 # This projection is deliberately separate from the transfer-account view. A
 # local opponent needs football data, never the other manager's wallet, offers,
@@ -218,6 +270,10 @@ def football_team_snapshot(c, team, round_number=None, *, fixture_ready=False):
     result={'slot':team['slot'],'name':team['name'],'formation':team['formation'],
             'tactics':json.loads(team['tactics']),'source':'missing-roster',
             'players':[],'starters':[],'revision':None}
+    frozen=catalog_league.row(c,team['league'],team['slot'])
+    if frozen:
+        result.update(source='catalog-roster',players=json.loads(frozen['players']),starters=json.loads(frozen['starters']),revision=frozen['revision'])
+        return eligible_team_snapshot(c,team,result,round_number,fixture_ready)
     exists=c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='transfer_league_links'").fetchone()
     if not exists:return eligible_team_snapshot(c,team,result,round_number,fixture_ready)
     row=c.execute('''SELECT p.state FROM transfer_league_links l
@@ -244,7 +300,16 @@ def eligible_team_snapshot(c,team,result,round_number,fixture_ready):
     projected=[season_state.status(c,team['league'],team['slot'],p,round_number) for p in result['players']]
     result={**result,'players':projected}
     try:
-        result['starters'],replacements=season_state.check_lineup(projected,result['starters'])
+        if result['source']=='catalog-roster':
+            try:
+                repaired=catalog_league.repair(projected,team['formation'],result['starters'])
+                replacements=[{'out':a,'in':b,'reason':'suspension-or-role'} for a,b in zip(result['starters'],repaired) if a!=b]
+                result['starters']=repaired
+            except ValueError:
+                # A depleted sector must not strand every fixture. Use the
+                # existing emergency rotation with any available outfielder.
+                result['starters'],replacements=season_state.check_lineup(projected,result['starters'])
+        else:result['starters'],replacements=season_state.check_lineup(projected,result['starters'])
     except ValueError as exc:
         if fixture_ready:raise LiveMatchError(str(exc),409) from exc
         result['lineupError']=str(exc)
@@ -363,6 +428,9 @@ class Handler(SimpleHTTPRequestHandler):
             try:return self.json_response(transfer_service().status(self.transfer_token()))
             except EconomyError as e:return self.json_response({'error':str(e)},403)
         if p.path=='/api/health':return self.json_response({'ok':True,'mode':'development' if TRANSFERS_ENABLED else 'league','daily_match_seconds':300,'dailyLeague':True,'transfers':TRANSFERS_ENABLED})
+        if p.path=='/api/league/lobby':
+            try:return self.json_response(league_lobby(parse_qs(p.query).get('code',[''])[0]))
+            except ValueError as e:return self.json_response({'error':str(e)},404)
         if p.path=='/api/league/status':
             try:return self.json_response(status(parse_qs(p.query).get('token',[''])[0]))
             except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
@@ -424,8 +492,8 @@ class Handler(SimpleHTTPRequestHandler):
             if not 0<length<12000:raise ValueError('Geçersiz istek boyutu.')
             body=json.loads(self.rfile.read(length))
             if p.endswith('create'):data=new_league(body.get('manager'))
-            elif p.endswith('join'):data=join_league(body.get('code'),body.get('manager'))
-            else:data=update_tactics(body.get('token'),body.get('tactics'),body.get('formation'))
+            elif p.endswith('join'):data=join_league(body.get('code'),body.get('manager'),body.get('slot'))
+            else:data=update_tactics(body.get('token'),body.get('tactics'),body.get('formation'),body.get('starters'),body.get('revision'))
             return self.json_response(data)
         except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
         except (ValueError,json.JSONDecodeError) as e:return self.json_response({'error':str(e)},400)

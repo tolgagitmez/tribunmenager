@@ -644,6 +644,8 @@ class TransferService:
             person = c.execute("SELECT league,slot FROM teams WHERE token=?", (text(d.get("leagueToken"), 100, "Lig oturumu"),)).fetchone()
             if not person:
                 raise EconomyError("Lig oturumu geçersiz.")
+            if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='catalog_league_rosters'").fetchone() and c.execute("SELECT 1 FROM catalog_league_rosters WHERE league=? AND slot=?",(person["league"],person["slot"])).fetchone():
+                raise EconomyError("Katalog ligi kendi sezon kadrosunu kullanır; eski transfer profili bağlanamaz.")
             target = c.execute("SELECT profile FROM transfer_league_links WHERE league=? AND slot=?", (person["league"], person["slot"])).fetchone()
             if target and target["profile"] != s["profileId"]:
                 raise EconomyError("Bu lig kulübü başka transfer profiline bağlı.")
