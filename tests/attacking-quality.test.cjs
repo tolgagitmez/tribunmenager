@@ -621,3 +621,47 @@ test('shot angle carry needs a genuine improvement, an open corridor and no bett
   assert.equal(m.shotAngleCarry(owner,blocked,[],8),null);
  }
 });
+
+
+test('shared interception trajectory is identical to independent physical forecasts and invalidates on ball change',()=>{
+ const {BallPhysics}=require('../football-sim');
+ const {m,owner,link,mid,back}=fixture();
+ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+ function reference(p){
+  const top=5.35+((p.pace??80)-75)*.035,q=BallPhysics.copy(m.ball);
+  let result;
+  for(let i=1;i<=24;i++){
+   BallPhysics.step(q,.1);const t=i*.1;
+   result={x:clamp(q.x,-52.5,52.5),z:clamp(q.z,-34.3,34.3),t};
+   if(q.y<1.1&&Math.hypot(p.x-result.x,p.z-result.z)<.7+top*t)return result;
+  }
+  return result;
+ }
+ for(const ball of [{x:30,z:4,y:.11,vx:7,vz:1,vy:0},{x:26,z:-4,y:1.4,vx:12,vz:2,vy:4,spin:.24},{x:47,z:29,y:.11,vx:10,vz:5,vy:0}]){
+  m.ball={...ball};const before={...m.ball};
+  const first=m.interceptPoint(owner),cache=m.ballForecast;
+  assert.deepEqual(first,reference(owner));
+  for(const p of [link,mid,back,owner])assert.deepEqual(m.interceptPoint(p),reference(p));
+  assert.equal(m.ballForecast,cache);assert(cache.samples.length<=24);
+  first.x=999;assert.deepEqual(m.interceptPoint(owner),reference(owner));
+  assert.deepEqual(m.ball,before);
+  m.ball.vx=-m.ball.vx;
+  assert.deepEqual(m.interceptPoint(owner),reference(owner));assert.notEqual(m.ballForecast,cache);
+  const changed=m.ballForecast;m.time+=1/60;m.interceptPoint(owner);assert.notEqual(m.ballForecast,changed);
+ }
+});
+
+test('interception forecasts reuse physical integration work instead of recomputing for each actor',()=>{
+ const {BallPhysics}=require('../football-sim');
+ const {m,owner,link}=fixture();
+ m.ball={x:40,z:15,y:2,vx:10,vz:1,vy:4};
+ Object.assign(owner,{x:-20,z:0});Object.assign(link,{x:-20,z:0});
+ const step=BallPhysics.step;let calls=0;
+ BallPhysics.step=function(...args){calls++;return step.apply(this,args);};
+ try {
+  const first=m.interceptPoint(owner);const initial=calls;
+  assert(initial>0);assert.deepEqual(m.interceptPoint(link),first);
+  assert.equal(calls,initial);
+  m.ball.vz+=1;m.interceptPoint(link);assert(calls>initial);
+ }finally{BallPhysics.step=step;}
+});
