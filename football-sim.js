@@ -2565,6 +2565,7 @@ class Match{
   // redirected as a shot; there is no invented setup touch or ball relocation.
   if(!this.acquire(p))return false;
   if(!this.startKick(p,'shot',null,window.point,clamp(20+p.shooting*.065,23,27)))return false;
+  p.kickFoot=foot.foot;p.receiveClock=0;p.oneTouchUntil=0;p.nextAction=null;
   this.kick.heightTarget=.75;this.kick.shotStyle='driven';this.kick.firstTime=true;
   this.release();
   return true;
