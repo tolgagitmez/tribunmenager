@@ -28,7 +28,7 @@ test('an actual perceived fake can make a defender take a bounded wrong-foot ste
  assert(d.feintResponseClock>.11);
  const original={x:d.x,z:d.z},snapshot=structuredClone(m.ball);
  m.move(d,{x:0,z:0,state:'press',pace:1.05},1/60);
- assert(d.z>original.z,'the misread must produce real lateral motion, not just rig animation');
+ assert(d.z<original.z,'the defender steps toward the actual fake (negative world Z), not the positive-Z escape');
  assert(Math.hypot(d.x-original.x,d.z-original.z)<.15,'no defender teleportation');
  assert.deepEqual(m.ball,snapshot,'defender movement cannot rewrite ball physics');
  const pose=Rig.update(d,1/60);
