@@ -190,3 +190,16 @@ test('actual human joint sections retain their silhouette through ordinary footb
  // strict lower bound. These assertions do not claim zero self penetration or
  // preservation of closed anatomical tissue volume in extreme overhead poses.
 });
+
+
+test('transient dual quaternion buffers can be reused without touching retained pose palettes',()=>{
+ const a=join([matrix([1,2,3],.6,[2,3,4]),matrix([0,1,0],-2,[1,0,3])]);
+ const b=join([matrix([1,0,0],.2,[4,5,6]),matrix([0,0,1],Math.PI,[0,2,3])]);
+ const retained=Skinning.fromMatrices(a),before={real:retained.real.slice(),dual:retained.dual.slice()};
+ const temporary=Skinning.fromMatrices(a),updated=Skinning.fromMatrices(b,temporary),expected=Skinning.fromMatrices(b);
+ assert.equal(updated.real,temporary.real);assert.equal(updated.dual,temporary.dual);
+ assert.deepEqual(updated.real,expected.real);assert.deepEqual(updated.dual,expected.dual);
+ assert.deepEqual(retained.real,before.real);assert.deepEqual(retained.dual,before.dual);
+ const wrongSize=Skinning.fromMatrices(matrix(),updated);
+ assert.notEqual(wrongSize.real,updated.real);assert.equal(wrongSize.count,1);
+});
