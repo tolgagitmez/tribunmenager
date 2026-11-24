@@ -755,3 +755,39 @@ test('inside delivery requires accepted current task and feasible physical relea
  assert.equal(m.insideFlankDelivery(owner,[{...o,risk:.6}]),null);
  m.passPreparation=()=>({feasible:false});assert.equal(m.insideFlankDelivery(owner,[o]),null);
 });
+
+
+test('marked striker can drop while a non-holding midfielder attacks a separate onside lane',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back,set}=fixture(side);
+  const striker=set(9,'ATT',24,0,{position:'ST',detailedRole:true,energy:1});
+  Object.assign(link,{x:17*side,z:-8,position:'AM',detailedRole:true});
+  Object.assign(back,{x:25*side,z:0});
+  mid.active=false;
+  m.t[0].playstyle='possession';m.observedLine=()=>38;m.laneRisk=()=>.1;
+  const plan=m.rotationAttack(0,owner,38);
+  assert(plan);assert.equal(plan.connectorId,striker.id);assert.equal(plan.runner.id,link.id);
+  assert(plan.connectorPoint.x*side<striker.x*side);
+  assert(plan.runner.point.x*side>link.x*side+3);
+  assert(Math.hypot(plan.runner.point.x-plan.connectorPoint.x,plan.runner.point.z-plan.connectorPoint.z)>=8);
+  assert.equal(m.rotationAttack(0,owner,18),null,'no legal forward lane');
+  link.position='DM';assert.equal(m.rotationAttack(0,owner,38),null,'protect holding midfielder');
+  link.position='AM';back.active=false;assert.equal(m.rotationAttack(0,owner,38),null,'unmarked striker need not rotate');
+ }
+});
+test('a rotation delivery is not prioritized before both actors accept current tasks',()=>{
+ const {m,owner,link,set}=fixture();
+ Object.assign(owner,{x:16,z:0});m.ball.x=16;
+ const striker=set(9,'ATT',25,1,{position:'ST',detailedRole:true});
+ Object.assign(link,{x:22,z:-8});
+ const epoch=m.attackEpoch[0],point={x:31,z:-8},drop={x:20,z:5};
+ m.observedLine=()=>40;m.passPreparation=()=>({feasible:true});
+ m.attackPlans[0]={runner:{id:link.id,kind:'rotation-run',point,accepted:true},connectorId:striker.id,connectorPoint:drop,epoch,ownerId:owner.id,until:m.time+2};
+ link.task={...point,state:'penetration',purpose:'run',partnerId:owner.id,epoch,expiresAt:m.time+1};
+ const option={kind:'pass',q:link,point:{x:26,z:-8},risk:.1,arrivalRisk:.2,space:6,score:12};
+ assert.equal(m.attackingRunDelivery(owner,[option]),null);
+ striker.task={...drop,state:'between-lines',purpose:'support',partnerId:owner.id,epoch,expiresAt:m.time+1};
+ assert.equal(m.attackingRunDelivery(owner,[option]).rotationDelivery,true);
+ striker.task.expiresAt=m.time;
+ assert.equal(m.attackingRunDelivery(owner,[option]),null);
+});
