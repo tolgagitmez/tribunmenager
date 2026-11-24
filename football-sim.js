@@ -818,6 +818,17 @@ class Match{
   }
   return best;
  }
+ openFieldCarryRead(p,carry,options,pressure){
+  if(!this.playerBrainEnabled(p)||!['MID','ATT'].includes(p.role)||p.position==='DM'||(p.energy??1)<.48||pressure<6.5||p.carryTime>1.9||p.shieldUntil>this.time||!carry?.point)return false;
+  const side=this.direction(p.team),gain=(carry.point.x-p.x)*side;
+  const turn=Math.abs(angle(Math.atan2(carry.point.z-p.z,carry.point.x-p.x),p.face));
+  if(p.x*side<-24||p.x*side>30||gain<4.5||carry.clearance<4.2||(p.dribbling??p.skill)<68)return false;
+  // A backward-facing receiver may turn into truly open grass, but needs
+  // more time and space than an already open body. Normal movement and
+  // foot recovery remain the only way to execute the decision.
+  if(turn>1.15&&(pressure<8||carry.clearance<5.5))return false;
+  return !options.some(o=>(o.point.x-p.x)*side>5&&o.risk<.34&&(o.arrivalRisk??1)<.60&&o.space>2.5&&o.score>0);
+ }
  progressiveCarryRead(p,carry,options,pressure){
   if(!this.playerBrainEnabled(p)||!['MID','ATT'].includes(p.role)||p.position==='DM'||(p.energy??1)<.48||pressure<5||p.carryTime>1.7||p.shieldUntil>this.time||!carry?.point)return false;
   const side=this.direction(p.team),gain=(carry.point.x-p.x)*side,turn=Math.abs(angle(Math.atan2(carry.point.z-p.z,carry.point.x-p.x),p.face));
@@ -882,6 +893,10 @@ class Match{
   // Circulate at the chosen tempo when the block is closed. A clear shot,
   // through-ball, urgent outlet or counter already took priority above.
   const progress=best?(best.point.x-p.x)*this.direction(p.team):0,gain=best?this.threat(best.point,p.team)-this.threat(p,p.team):0;
+  if(this.openFieldCarryRead(p,carry,options,pressure)){
+   this.telemetry.openFieldCarryChoices=(this.telemetry.openFieldCarryChoices||0)+1;
+   return {...carry,openFieldCarry:true};
+  }
   if(this.progressiveCarryRead(p,carry,options,pressure)){
    this.telemetry.progressiveCarryChoices=(this.telemetry.progressiveCarryChoices||0)+1;
    return {...carry,progressiveCarry:true};
