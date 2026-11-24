@@ -104,3 +104,36 @@ test('browser UMD export has the same observation API',()=>{
  const sandbox={window:{}};vm.runInNewContext(fs.readFileSync(require.resolve('../player-perception'),'utf8'),sandbox);
  for(const key of ['update','rivals','clear','reset'])assert.equal(typeof sandbox.window.TribunPerception[key],'function');
 });
+
+
+test('shared scalar snapshot is read once per observed rival and observer memories remain independent',()=>{
+ const {p,q,players}=fixture();
+ const second={...p,id:2,rosterId:102,x:8.8,z:0,face:Math.PI};
+ players.push(second);
+ let reads=0;
+ Object.defineProperty(q,'pace',{get(){reads++;return 86;},configurable:true});
+ Perception.update(players,0);
+ const a=p.perception.records[q.id],b=second.perception.records[q.id];
+ assert.equal(a.source,'vision');assert.equal(b.source,'contact');
+ assert.equal(a.pace,86);assert.equal(b.pace,86);
+ assert.equal(reads,2,'one snapshot, with the existing finite check and property read');
+ assert.notEqual(a,b);
+ a.x=999;assert.equal(b.x,10);
+ q.x=60;Perception.update(players,.1,1/60,{scanAllowed:false});
+ assert.equal(second.perception.records[q.id].x,10);
+});
+test('range and field-angle boundaries preserve the original visibility rule',()=>{
+ for(const side of [1,-1]){
+  const {p,q,players}=fixture(side),c=Perception.limits(p);
+  for(const radius of [1.64,1.66,c.range-.001,c.range+.001]){
+   for(const offset of [0,c.halfAngle-.001,c.halfAngle+.001,Math.PI]){
+    const heading=p.face+offset;
+    q.x=radius*Math.cos(heading);q.z=radius*Math.sin(heading);
+    Perception.clear(p,0);Perception.update(players,0,0,{scanAllowed:false});
+    const d=Math.hypot(q.x-p.x,q.z-p.z),h=Math.atan2(q.z-p.z,q.x-p.x),angle=Math.abs(Math.atan2(Math.sin(h-p.face),Math.cos(h-p.face)));
+    const expected=d<=1.65?'contact':d<=c.range&&angle<=c.halfAngle?'vision':undefined;
+    assert.equal(p.perception.records[q.id]?.source,expected);
+   }
+  }
+ }
+});
