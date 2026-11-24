@@ -76,7 +76,7 @@
     "test:offball": "node --test tests/offball-intelligence.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-brain.test.cjs",
     "test:individual-defence": "node --test tests/individual-defence.test.cjs tests/defender-duel-wallpass.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/offball-intelligence.test.cjs",
     "test:individual-keeper": "node --test tests/individual-keeper.test.cjs tests/aerial-keeper-law-boundaries.test.cjs tests/individual-defence.test.cjs tests/offball-intelligence.test.cjs tests/defender-duel-wallpass.test.cjs",
-    "test:collective-ai": "node --test tests/attacking-quality.test.cjs tests/collective-team-ai.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-identity-integration.test.cjs tests/individual-keeper.test.cjs"
+    "test:collective-ai": "node --test tests/attacking-quality.test.cjs tests/progressive-first-touch.test.cjs tests/collective-team-ai.test.cjs tests/team-plan-arbitration.test.cjs tests/team-continuity-integration.test.cjs tests/player-identity-integration.test.cjs tests/individual-keeper.test.cjs"
   },
   "devDependencies": {
     "gltf-validator": "2.0.0-dev.3.10",

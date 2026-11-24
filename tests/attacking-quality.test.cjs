@@ -335,17 +335,19 @@ test('receiver shoulder scan uses bounded real observations once per flight, not
  assert.equal(link.perception.nextScanAt,first);assert.equal(link.perception.headYaw,0);
  m.ball.x=9.5;assert.equal(m.receiveScanRequest(),null);
 });
-test('safe forward first touch is selected for enabled individual AI, but not forced through a closed lane',()=>{
+test('safe forward first touch requires opt-in and never forces a closed lane',()=>{
  for(const side of [1,-1]){
   const {m,owner,mid,back,keeper}=fixture(side);
   Object.assign(owner,{x:8*side,z:0,face:side===1?0:Math.PI,dribbling:92,composure:90,position:'AM'});
   mid.active=back.active=keeper.active=false;
   const forward=side===1?0:Math.PI;
+  const defaultPoint=m.controlOption(owner,owner,forward+Math.PI,0);
+  assert.notEqual(defaultPoint.progressive,true);
+  m.cfg.progressiveFirstTouch=false;
+  assert.deepEqual(m.controlOption(owner,owner,forward+Math.PI,0),defaultPoint);
+  m.cfg.progressiveFirstTouch=true;
   const point=m.controlOption(owner,owner,forward+Math.PI,0);
   assert(point.progressive);assert((point.x-owner.x)*side>=1.9);
-  m.cfg.progressiveFirstTouch=false;
-  assert(!m.controlOption(owner,owner,forward+Math.PI,0).progressive);
-  m.cfg.progressiveFirstTouch=true;
   mid.active=true;mid.x=owner.x+side*2;mid.z=0;
   assert(!m.controlOption(owner,owner,forward+Math.PI,0).progressive);
  }
