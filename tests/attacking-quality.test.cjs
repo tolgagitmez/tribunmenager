@@ -350,3 +350,20 @@ test('safe forward first touch is selected for enabled individual AI, but not fo
   assert(!m.controlOption(owner,owner,forward+Math.PI,0).progressive);
  }
 });
+
+test('early diagonal runs create a reachable onside passing lane before the last defensive line',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(link,{x:17*side,z:2,role:'ATT',position:'ST',pace:83,vision:83,face:side===1?0:Math.PI});
+  Object.assign(mid,{x:14*side,z:-8});
+  Object.assign(back,{x:33*side,z:10});
+  m.laneRisk=()=>.1;
+  const option=m.earlyDiagonalRun(link,owner,33);
+  assert(option&&option.kind==='diagonal');
+  assert((option.point.x-link.x)*side>=3);
+  assert(option.point.x*side<=33-Brain.runMargin(link,side));
+  assert(Math.abs(option.point.z-link.z)>=3);
+  m.laneRisk=()=>.6;assert.equal(m.earlyDiagonalRun(link,owner,33),null);
+  m.laneRisk=()=>.1;link.position='DM';assert.equal(m.earlyDiagonalRun(link,owner,33),null);
+ }
+});
