@@ -1731,6 +1731,29 @@ class Match{
   const plan=this.supportPlans[p.team];
   return !!owner&&plan?.ownerId===owner.id&&plan.epoch===this.attackEpoch[p.team]&&plan.handoffUntil>this.time&&plan.points.has(p.id);
  }
+ earlyDiagonalRun(p,owner,line){
+  if(!this.playerBrainEnabled(p)||!owner||!['MID','ATT'].includes(p.role)||p.position==='DM'||(p.energy??1)<.52||(p.pace??p.skill)<76||(p.vision??p.skill)<74)return null;
+  const side=this.direction(p.team),depth=p.x*side,source=owner.x*side,legal=line-Brain.runMargin(p,side);
+  if(source<-8||source>28||depth<source-1||depth>source+22||legal-depth<3||dist(p,owner)>27)return null;
+  const observed=this.rivals(p).filter(q=>q.role!=='GK'&&(q.confidence??1)>.5&&(q.age??0)<.65);
+  if(!observed.length)return null;
+  const forward=Math.min(legal,depth+7,source+21);
+  if(forward-depth<3)return null;
+  let best=null;
+  for(const dz of [-6,-3.5,3.5,6]){
+   const point={x:side*forward,z:clamp(p.z+dz,-24,24)};
+   const space=Math.min(12,...observed.map(q=>dist({x:q.x+q.vx*.3,z:q.z+q.vz*.3},point)));
+   const corridor=Math.min(12,...observed.map(q=>segment(q,p,point).d));
+   if(space<3.2||corridor<1.4||Math.abs(point.z-p.z)<3)continue;
+   const angleCost=Math.abs(angle(Math.atan2(point.z-p.z,point.x-p.x),p.face));
+   if(angleCost>1.9)continue;
+   const risk=this.laneRisk(owner,point,this.passSpeed('pass',dist(owner,point),this.t[p.team]));
+   if(risk>.38)continue;
+   const score=space*.82+(forward-depth)*.3+corridor*.2-risk*9-angleCost*.8-Math.abs(dz)*.1;
+   if(!best||score>best.score)best={point,score,kind:'diagonal',markerId:null};
+  }
+  return best;
+ }
  coordinatedAttack(team,owner,line){
   if(!owner)return null;
   const side=this.direction(team),zone=Math.abs(owner.z)>15?Math.sign(owner.z):0,old=this.attackPlans[team];
@@ -1739,7 +1762,7 @@ class Match{
   const candidates=pool.filter(p=>p!==owner&&!this.taskReserved(p,['penetration'])&&!this.arrivalHelper(p,owner)&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)&&(p.role==='ATT'||p.role==='MID'&&p.homeX*side>7)&&p.x*side>owner.x*side-3);
   let runner=null;
   for(const p of candidates){
-   const special=this.playerBrainEnabled(p)?Brain.offBallOption(p,owner,{forward:side,line,opponents:this.rivals(p)}):null;
+   const special=this.playerBrainEnabled(p)?Brain.offBallOption(p,owner,{forward:side,line,opponents:this.rivals(p)})||this.earlyDiagonalRun(p,owner,line):null;
    const channels=this.t[team].width==='wide'&&Math.abs(p.homeZ)>18?[p.homeZ*1.05,p.homeZ*.85]:[p.homeZ*.65,p.homeZ>=0?12:-12,p.homeZ>=0?-10:10];
    for(const z of channels){
     const point={x:side*Math.min(line-.75,ballDepth+(counter?27:19)),z:clamp(z,-25,25)},space=Math.min(15,...opponents.map(q=>dist({x:q.x+q.vx*.6,z:q.z+q.vz*.6},point)));
@@ -1758,7 +1781,13 @@ class Match{
    }
   }
   const links=pool.filter(p=>p!==owner&&p.id!==decoy?.id&&!this.taskReserved(p,['between-lines'])&&!this.arrivalHelper(p,owner)&&p.id!==runner?.id&&p.role!=='DEF'&&p.role!=='GK'&&this.teamRole(p)!=='anchor'&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)),centralLinks=links.filter(p=>p.role==='MID'&&Math.abs(p.homeZ)<19);
-  const connector=(centralLinks.length?centralLinks:links).sort((a,b)=>(Math.abs(a.x*side-(ballDepth+7))+Math.abs(a.z-owner.z)*.25)-(Math.abs(b.x*side-(ballDepth+7))+Math.abs(b.z-owner.z)*.25))[0];
+  const connectorCost=p=>{
+   const base=Math.abs(p.x*side-(ballDepth+7))+Math.abs(p.z-owner.z)*.25;
+   if(!runner?.kind||!this.playerBrainEnabled(owner))return base;
+   const separation=dist(p,runner.point),angleGap=Math.abs(angle(Math.atan2(p.z-owner.z,p.x-owner.x),Math.atan2(runner.point.z-owner.z,runner.point.x-owner.x)));
+   return base+Math.max(0,7-separation)*1.1+Math.max(0,.55-angleGap)*5;
+  };
+  const connector=(centralLinks.length?centralLinks:links).sort((a,b)=>connectorCost(a)-connectorCost(b))[0];
   const result={ownerTeam:this.lastTeam,epoch:this.attackEpoch[team],zone,until:this.time+2.6,runner,connectorId:connector?.id,...(runner?.kind?{ownerId:owner.id}:{}),...(decoy?{decoy}:{})};
   this.attackPlans[team]=result;
   if(runner)this.telemetry.coordinatedRuns=(this.telemetry.coordinatedRuns||0)+1;
