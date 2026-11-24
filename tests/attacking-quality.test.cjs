@@ -257,3 +257,14 @@ test('stalled completed circulation allows a safe carry but not a blocked route 
  m.recentPasses[0].progress=0;m.recentPasses[0].time=0;
  assert.equal(m.progressiveCarryRead(owner,carry,[],8),false);
 });
+
+test('open grass permits forward carrying without a stale pass chain, including a safe turn from back to goal',()=>{
+ const {m,owner}=fixture();Object.assign(owner,{x:0,z:0,face:Math.PI,position:'AM',dribbling:76,carryTime:.3,energy:1});
+ const carry={kind:'carry',point:{x:5.5,z:0},clearance:7};
+ assert.equal(m.openFieldCarryRead(owner,carry,[],12),true);
+ assert.equal(m.openFieldCarryRead(owner,carry,[],7),false);
+ assert.equal(m.openFieldCarryRead(owner,{...carry,clearance:3},[],12),false);
+ assert.equal(m.openFieldCarryRead(owner,carry,[{point:{x:9,z:0},risk:.1,arrivalRisk:.1,space:5,score:8}],12),false);
+ owner.face=0;assert.equal(m.openFieldCarryRead(owner,carry,[],7),true);
+ owner.position='DM';assert.equal(m.openFieldCarryRead(owner,carry,[],12),false);
+});
