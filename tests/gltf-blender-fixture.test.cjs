@@ -55,6 +55,7 @@ test('Blender package pins the licensed originals, tools, editable project and b
   'player-renderer.js':'762ed23958c932c2160e957d359bd67bc69f8ddc',
   'humanoid-rig.js':'e7e7a0bdc5d9dfb36acae952aad412cf5c661856',
   'tools/bake-licensed-clips.cjs':'64117f50a446c1904bdc6ab48790ae11bbaed971',
+  'tools/build-player-assets.py':'98c52e9bf30cd05f5ff51a398b261d10f990dd82',
   'tools/build-player-assets.py':'01ab3038a3564173fd0e95ccc8d564452da64a6a'
  };
  const blobSHA1=bytes=>crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
