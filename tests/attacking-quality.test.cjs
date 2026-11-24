@@ -424,3 +424,68 @@ test('advanced carrier receives a nearby diagonal support target without displac
   assert.equal(m.supportTargets(owner,[link],reserved,40).size,0);
  }
 });
+
+
+test('open lane wins over backwards recycling and survives both playing directions',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  owner.x=31*side;owner.z=0;owner.face=side===1?0:Math.PI;owner.carryTime=3;owner.receiveClock=0;owner.shieldUntil=0;
+  m.ball.x=owner.x+.5*side;m.ball.z=0;
+  const carry={kind:'carry',point:{x:36*side,z:0},clearance:4.5};
+  const retreat={kind:'pass',q:link,point:{x:19*side,z:0},risk:.05,arrivalRisk:.1,space:8,score:30};
+  assert(m.directProgressRead(owner,carry,[retreat],8));
+  assert(!m.directProgressRead(owner,carry,[retreat],2));
+  assert(!m.directProgressRead(owner,{...carry,clearance:1},[retreat],8));
+  assert(!m.directProgressRead(owner,carry,[{...retreat,point:{x:40*side,z:0}}],8));
+  m.shotWindow=()=>({distance:24,quality:.04,open:.2,execution:.8,pressure:.2,point:{x:52*side,z:0}});
+  m.passOptions=()=>[retreat];m.carryOption=()=>carry;m.crossingOption=()=>null;
+  const selected=m.choose(owner);
+  assert.equal(selected.kind,'carry');assert(selected.openFieldCarry);
+ }
+});
+
+test('safe central shot is not suppressed by a high-value recycling pass',()=>{
+ const {m,owner,link}=fixture();
+ owner.x=32;owner.z=2;
+ m.shotWindow=()=>({distance:20,quality:.12,open:.8,execution:.8,pressure:.2,point:{x:52,z:1}});
+ m.t[owner.team].shooting='early';
+ m.passOptions=()=>[{kind:'pass',q:link,point:{x:19,z:0},score:50,risk:.05,arrivalRisk:.1}];
+ m.carryOption=()=>({kind:'carry',point:{x:37,z:2},clearance:5});m.crossingOption=()=>null;
+ assert.equal(m.choose(owner).kind,'shot');
+});
+
+test('keeper advances for an uncontested slow ground ball but not into an arriving rival',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back,keeper}=fixture(side);
+  owner.active=link.active=mid.active=back.active=false;
+  Object.assign(keeper,{x:49*side,z:0,touchClock:0,duelRecovery:0});
+  m.owner=null;m.flight=null;m.ball={x:43*side,y:.11,z:0,vx:.5*side,vy:0,vz:0};
+  const pickup=m.keeperGroundPickup(keeper);
+  assert(pickup&&pickup.x*side<48);
+  owner.active=true;owner.x=43*side;owner.z=2;
+  assert.equal(m.keeperGroundPickup(keeper),null);
+ }
+});
+
+test('ordinary free kicks use a shorter preparation without bypassing exclusion distance',()=>{
+ const {m,owner,mid}=fixture();
+ m.setRestart('free-kick',0,{x:0,z:0},owner);
+ assert.equal(m.restart.clock,2);
+ mid.x=2;mid.z=0;
+ assert.equal(m.restartReady(m.restart),false);
+ mid.x=12;mid.z=0;
+ // Other opponents in the fixture are already beyond the exclusion radius.
+ assert.equal(m.restartReady(m.restart),true);
+ m.setRestart('free-kick',0,{x:29,z:0},owner);
+ assert.equal(m.restart.clock,4);
+});
+
+test('carry forecast rejects an unnecessarily wide gap and accepts a recoverable softer touch',()=>{
+ const {m,owner}=fixture();
+ m.touchContact=()=>({ready:true,gap:.6,foot:1,technique:80});
+ owner.touchClock=owner.receiveClock=0;
+ m.touchRecovery=(p,v)=>({ready:true,maxGap:v.vx>3?2.1:1.1});
+ m.ball.vx=0;m.ball.vz=0;m.ball.vy=0;
+ const plan=m.touchPlan(owner,{vx:6,vz:0,vy:0},{mode:'carry',interval:.25,maxGap:1.3});
+ assert(plan.ready&&plan.limited);assert(plan.velocity.vx<=3);
+});
