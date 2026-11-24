@@ -1,0 +1,77 @@
+name: Paired match balance
+on:
+  push:
+    branches: ['feature/match-balance-audit-20261124']
+    paths: ['.github/workflows/paired-match-balance.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test tests/match-balance-audit.test.cjs
+  simulate:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        shard: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: harness
+      - uses: actions/checkout@v4
+        with:
+          ref: 20a7d0e9447428c48b840a2ef948eb5a6f3af79f
+          path: baseline
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: cac03f34e9736986949da9929933d6d4c471c12f
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compare 12 matched cases per version
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          mkdir -p parts
+          for version in baseline candidate; do
+            cp harness/tools/audit-match-balance.cjs "$version/tools/"
+            (cd "$version" && node tools/audit-match-balance.cjs --seeds 1 --shards 3 --shard "$SHARD" --out "../parts/$version-$SHARD.json")
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paired-part-${{ matrix.shard }}
+          path: parts/*.json
+  aggregate:
+    needs: simulate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: paired-part-*
+          path: parts
+          merge-multiple: true
+      - run: |
+          node tools/audit-match-balance.cjs --merge parts/baseline-*.json --out parts/baseline.json
+          node tools/audit-match-balance.cjs --merge parts/candidate-*.json --out parts/candidate.json
+          node tools/compare-match-balance.cjs parts/baseline.json parts/candidate.json parts/comparison.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paired-balance-report
+          path: parts/*.json
