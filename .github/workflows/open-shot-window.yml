@@ -1,0 +1,21 @@
+name: Open shot window selection
+on:
+  push:
+    branches: ['fix/shot-window-selection-20261124']
+    paths: ['.github/workflows/open-shot-window.yml', 'football-sim.js', 'tests/open-shot-window.test.cjs']
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --check football-sim.js
+      - run: node --test tests/open-shot-window.test.cjs tests/attack-breakpoint.test.cjs tests/collective-team-ai.test.cjs tests/individual-keeper.test.cjs tests/pass-trajectory-safety.test.cjs tests/first-control.test.cjs tests/kick-skill-parity.test.cjs
+      - run: node tools/profile-current-attack-chain.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-shot-window-audit
+          path: docs/validation/current-attack-120s.json
