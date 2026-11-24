@@ -480,6 +480,21 @@ class Match{
   }
   return options.sort((a,b)=>b.score-a.score);
  }
+ receiveScanRequest(){
+  const f=this.flight,p=f?.target,b=this.ball;
+  if(!p?.active||p.role==='GK'||!this.playerBrainEnabled(p)||this.restart||this.kick||this.goalPause||this.owner||!['pass','through','cutback'].includes(f.kind)||f.from?.team!==p.team||!Number.isFinite(f.id)||b.y>.45)return null;
+  if((p.vision??p.skill)<74||(p.energy??1)<.45)return null;
+  const dx=b.x-p.x,dz=b.z-p.z,gap=Math.hypot(dx,dz),closing=-(dx*(b.vx-p.vx)+dz*(b.vz-p.vz))/Math.max(.1,gap);
+  if(gap<3||gap>22||closing<1)return null;
+  const eta=(gap-1)/closing;
+  if(eta<.34||eta>1.15)return null;
+  // Scan the attacking side if the body faces the pass; otherwise check
+  // the ball-side shoulder. Neither choice reads a hidden opponent.
+  const forward=this.direction(p.team)>0?0:Math.PI;
+  const forwardYaw=angle(forward,p.face),ballYaw=angle(Math.atan2(dz,dx),p.face);
+  const yaw=Math.abs(forwardYaw)>.55?forwardYaw:ballYaw;
+  return Math.abs(yaw)>.55?{id:p.id,flightId:f.id,yaw}:null;
+ }
  prepareReception(p,meeting=null){
   const f=this.flight;
   if(!f||f.target!==p||f.from.team!==p.team||!['pass','through','cutback','long-pass','cross'].includes(f.kind))return;
@@ -494,10 +509,16 @@ class Match{
   let outlet=options.find(o=>o.risk<.36&&o.space>2.4&&o.score>1);
   const pendingRun=this.giveGoLink(p,f.from);
   if(pendingRun&&pressure>3.6&&outlet&&!outlet.movingReturn&&(outlet.point.x-future.x)*this.direction(p.team)<-2)outlet=null;
-  const incoming=Math.atan2(this.ball.vz,this.ball.vx),outgoing=outlet?Math.atan2(outlet.point.z-future.z,outlet.point.x-future.x):this.direction(p.team)>0?0:Math.PI;
+  const incoming=Math.atan2(this.ball.vz,this.ball.vx),side=this.direction(p.team);
+  let outgoing=outlet?Math.atan2(outlet.point.z-future.z,outlet.point.x-future.x):side>0?0:Math.PI;
   const redirect=Math.abs(angle(outgoing,incoming));
-  const oneTouch=!!outlet&&f.kind!=='cross'&&f.kind!=='long-pass'&&p.passing>=78&&(p.vision??p.skill)>=74&&redirect<2.15&&(pressure<3.6||this.t[p.team].playstyle==='possession'&&p.passing>=83);
+  let oneTouch=!!outlet&&f.kind!=='cross'&&f.kind!=='long-pass'&&p.passing>=78&&(p.vision??p.skill)>=74&&redirect<2.15&&(pressure<3.6||this.t[p.team].playstyle==='possession'&&p.passing>=83);
   const control=this.controlOption(p,future,outgoing,eta);
+  // A safe forward receiving lane can beat a non-urgent backward outlet,
+  // but never break a genuine moving wall return or a pressured quick pass.
+  if(control?.progressive&&pressure>4.5&&!outlet?.movingReturn&&(!outlet||(outlet.point.x-future.x)*side<1)){
+   outgoing=Math.atan2(control.z-future.z,control.x-future.x);oneTouch=false;
+  }
   const next=oneTouch?{kind:outlet.kind,qId:outlet.q.id,point:{...outlet.point}}:null;
   p.reception={flightId:f.id,fromId:f.from.id,refreshAt:this.time+clamp(.30-((p.vision??p.skill)-60)*.003,.12,.28),at:this.time,mode:oneTouch?'one-touch':pressure<3?'protect':'open',point:control,face:outgoing,next};
  }
@@ -538,7 +559,7 @@ class Match{
   // A non-urgent first touch should not inherit a backward outlet's
   // orientation when a physically reachable, equally safe forward lane
   // exists. The later swept contact and touchPlan still decide the impulse.
-  if(this.cfg.progressiveFirstTouch===true&&this.playerBrainEnabled(p)&&['MID','ATT'].includes(p.role)&&p.position!=='DM'&&
+  if(this.cfg.progressiveFirstTouch!==false&&this.playerBrainEnabled(p)&&['MID','ATT'].includes(p.role)&&p.position!=='DM'&&
    (p.dribbling??0)>=78&&(p.composure??0)>=74&&(p.energy??1)>=.5&&pressure>4.5&&best){
    const side=this.direction(p.team),depth=origin.x*side,forward=side>0?0:Math.PI;
    if(depth>-15&&depth<35&&(best.x-origin.x)*side<1.05){
@@ -555,6 +576,9 @@ class Match{
     }
     if(progressive)return progressive;
    }
+   // The ordinary candidate may already be a safe forward touch. Mark it
+   // as such so the later physical contact can retain its orientation.
+   if(depth>-15&&depth<35&&(best.x-origin.x)*side>=1.9&&best.pathRisk<.08&&Math.min(12,...opponents.map(q=>dist(q,best)))>=3.6&&Math.abs(angle(Math.atan2(best.z-origin.z,best.x-origin.x),p.face))<=2.25)return {...best,progressive:true};
   }
   return best;
  }
@@ -1423,6 +1447,7 @@ class Match{
   if(regained){this.recoveryUntil[1-p.team]=this.time+8;this.recoveryUntil[p.team]=0;this.attackEpoch[p.team]++;this.attackPlans=[null,null];this.flankPlans=[null,null];this.boxPlans=[null,null];this.supportPlans=[null,null];this.pressUnits=[null,null];this.pressAssignments=[null,null];for(const q of this.players){Intent.clear(q,q.team===p.team?'gain':'loss',this.taskContext(q));q.runIntent=null;q.supportIntent=null;q.offerIntent=null;q.connectionIntent=null;q.carryIntent=null;}}
   else Intent.clear(p,'ball-control',this.taskContext(p));
   p.carryIntent=null;p.supportIntent=null;p.runIntent=null;p.shieldUntil=0;p.dribbleDuel=null;
+  if(p.progressiveReceiveUntil!==undefined)p.progressiveReceiveUntil=0;
   this.possessionEpoch++;this.lastGain={player:p.id,team:p.team,time:this.time,x:this.ball.x,z:this.ball.z};
   let reception=flight&&p.reception&&p.reception.flightId===flight.id&&this.time-p.reception.at<.55?p.reception:null;
   const contact=reception&&flight.target===p&&p.role!=='GK'&&['pass','through','cutback'].includes(flight.kind)&&this.ball.y<=BallPhysics.radius+.01&&Math.abs(this.ball.vy)<1e-6?this.firstControlContact(p):null;
@@ -1468,7 +1493,13 @@ class Match{
      this.ball.vx=plan?plan.velocity.vx:Math.cos(a)*speed;this.ball.vz=plan?plan.velocity.vz:Math.sin(a)*speed;
      if(plan){this.ball.vy=plan.velocity.vy;p.kickFoot=plan.foot;if(plan.limited)this.telemetry.limitedTouches=(this.telemetry.limitedTouches||0)+1;}
      this.telemetry.directedTouches++;
-     if(plan?.ready&&reception.point?.progressive)this.telemetry.progressiveFirstTouches=(this.telemetry.progressiveFirstTouches||0)+1;
+     if(plan?.ready&&reception.point?.progressive){
+      const side=this.direction(p.team);
+      if((this.ball.vx-p.vx*.25)*side>.5){
+       this.telemetry.progressiveFirstTouches=(this.telemetry.progressiveFirstTouches||0)+1;
+       p.progressiveReceiveUntil=this.time+.55;
+      }
+     }
     }else{
      reception={...reception,mode:'cushion',point:null,next:null};p.receiveMode='cushion';p.nextAction=null;p.oneTouchUntil=0;p.carryTarget={x:this.ball.x+this.ball.vx*.12,z:this.ball.z+this.ball.vz*.12};
      this.telemetry.touchDeferrals=(this.telemetry.touchDeferrals||0)+1;
@@ -1478,7 +1509,7 @@ class Match{
   p.reception=null;
   if(reception?.mode!=='one-touch'){
    const pressure=Math.min(20,...this.rivals(p).map(q=>dist(q,p))),counter=this.transitionUntil[p.team]>this.time&&this.t[p.team].onWin==='counter';
-   if(pressure>5&&!counter)p.decision+=p.role==='DEF'?.65:.30;
+   if(pressure>5&&!counter&&!(p.progressiveReceiveUntil>this.time))p.decision+=p.role==='DEF'?.65:.30;
   }
   this.action(p,'receive',p.receiveClock);if(p.escapeUntil>this.time){p.carryTarget=p.escapeTarget;p.decision=.20;}this.planClock=0;return true;
  }
@@ -3010,7 +3041,7 @@ class Match{
     if(p.gatherLift&&this.owner===p){const t=clamp((.75-p.holdClock)/.60,0,1),u=t*t*(3-2*t),height=p.gatherLift.height+(.95-p.gatherLift.height)*u;this.ball.y+=clamp(height-this.ball.y,-1.8*dt,1.8*dt);if(p.catchPoint)p.catchPoint.y=this.ball.y;}
     if(!p.holdClock){p.holdingBall=false;p.catchPoint=null;p.gatherLift=null;p.gatherStart=null;p.receiveClock=.15;p.decision=.18;if(this.owner===p)this.ball.vy=-.3;}}
   }
-  Perception.update(this.players,this.time,dt,{scanAllowed:!this.restart&&!this.kick?.restartContext&&!this.goalPause});this._perceptionActive=true;
+  Perception.update(this.players,this.time,dt,{scanAllowed:!this.restart&&!this.kick?.restartContext&&!this.goalPause,receiveScan:this.receiveScanRequest()});this._perceptionActive=true;
   this.planClock-=dt;
   if(this.planClock<=0){this.plan();this.planClock=.16;}
   for(const [p,target] of this.targets)this.move(p,target,dt);
