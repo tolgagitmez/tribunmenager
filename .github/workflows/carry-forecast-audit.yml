@@ -1,0 +1,27 @@
+name: Consistent carry forecast calibration
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/audit-carry-forecast.cjs'
+      - '.github/workflows/carry-forecast-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired-press:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm run test:collective-ai
+      - run: node tools/audit-carry-forecast.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: carry-forecast-audit
+          path: docs/validation/carry-forecast-audit.json
+          if-no-files-found: warn

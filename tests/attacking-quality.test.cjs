@@ -758,3 +758,33 @@ test('territorial correction defaults off in engine and can be enabled in an act
  m.cfg.territorialProgression=true;
  assert(m.choose(owner).territorialPass);
 });
+
+
+test('progressive carry pace uses the supplied actor, ball and deadline without changing the live player',()=>{
+ for(const side of [1,-1]){
+  const {m,owner}=fixture(side);
+  Object.assign(owner,{x:8*side,z:0,face:side>0?0:Math.PI,receiveClock:0,shieldUntil:0,settleUntil:0,escapeUntil:0,carryTarget:{x:14*side,z:0},carryIntent:{progressive:true,until:m.time+1}});
+  const ball={x:8.6*side,z:0,y:.11,vx:side,vz:0,vy:0},rivals=[{x:8*side,z:7,vx:0,vz:0}];
+  const before=structuredClone(owner);
+  assert.equal(m.ownerCarryPace(owner,rivals,7,ball,m.time),.96);
+  assert.equal(m.ownerCarryPace(owner,rivals,7,ball,m.time+2),.60);
+  assert.equal(m.ownerCarryPace(owner,[{x:11*side,z:1,vx:0,vz:0}],7,ball,m.time),.60);
+  assert.equal(m.ownerCarryPace({...owner,receiveClock:.1},rivals,7,ball,m.time),.48);
+  assert.equal(m.ownerCarryPace(owner,rivals,7,{...ball,x:21*side},m.time),.98);
+  assert.equal(m.ownerCarryPace({...owner,x:12.9*side},rivals,7,{...ball,x:13.4*side},m.time),.60);
+  assert.deepEqual(owner,before);
+ }
+});
+test('control preparation uses the copied actor and the same progressive speed rule as live planning',()=>{
+ const {m,owner,mid,back,link,keeper}=fixture();
+ m.cfg.consistentCarryForecast=true;
+ mid.x=8;mid.z=8;back.active=link.active=keeper.active=false;
+ Object.assign(owner,{face:0,speed:1,vx:1,vz:0,receiveClock:0,duelRecovery:0,shieldUntil:0,settleUntil:0,escapeUntil:0,touchClock:0,carryTime:.2});
+ m.ball={x:8.6,z:0,y:.11,vx:1,vy:0,vz:0};
+ const before=structuredClone({owner,ball:m.ball,seed:m.seed});
+ const reads=[],pace=m.ownerCarryPace;
+ m.ownerCarryPace=function(p,r,pressure,ball,time,target){const result=pace.call(this,p,r,pressure,ball,time,target);reads.push({copied:p!==owner,progressive:!!p.carryIntent?.progressive,result});return result;};
+ m.controlPreparation(owner,{kind:'carry',point:{x:14,z:0},clearance:5,openFieldCarry:true,commit:.65},null,.45);
+ assert(reads.some(r=>r.copied&&r.progressive&&r.result===.96));
+ assert.deepEqual({owner,ball:m.ball,seed:m.seed},before);
+});

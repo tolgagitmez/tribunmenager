@@ -644,7 +644,7 @@ class Match{
      const target=options.target||p.carryTarget||{x:actor.x+this.direction(p.team)*6,z:actor.z},shield=actor.shieldUntil>context.time;
      const follow=dist(actor,ball)>1.1||actor.receiveMode==='cushion'&&actor.receiveClock>0;
      const pressure=Math.min(20,...rivals.map(q=>Math.hypot(q.x+q.vx*elapsed-actor.x,q.z+q.vz*elapsed-actor.z))),counter=this.transitionUntil[p.team]>context.time&&this.t[p.team].onWin==='counter';
-     const pace=actor.receiveClock>0?.48:shield?.56:actor.settleUntil>context.time?.34:counter?1.04:actor.escapeUntil>context.time?.98:pressure>5&&ball.x*this.direction(p.team)<20?(this.progressiveCarryPace(p,rivals,pressure)??.60):.98;
+     const pace=this.cfg.consistentCarryForecast===true?this.ownerCarryPace(actor,rivals.map(q=>({...q,x:q.x+q.vx*elapsed,z:q.z+q.vz*elapsed})),pressure,ball,context.time,target):actor.receiveClock>0?.48:shield?.56:actor.settleUntil>context.time?.34:counter?1.04:actor.escapeUntil>context.time?.98:pressure>5&&ball.x*this.direction(p.team)<20?(this.progressiveCarryPace(p,rivals,pressure)??.60):.98;
      command={x:follow?ball.x+ball.vx*.12:target.x,z:follow?ball.z+ball.vz*.12:target.z,pace,state:actor.receiveClock>0?'receive':shield?'shield':'dribble'};refresh=.16;
     }
     Match.prototype.move.call(context,actor,command,dt);
@@ -940,6 +940,23 @@ class Match{
    if(this.passPreparation(p,option).feasible)return {...option,finalThirdLink:true};
   }
   return null;
+ }
+ // One shared movement pace rule for the live owner and isolated forecasts.
+ // The snapshot supplies its own time, ball, actor and observed opponents.
+ ownerCarryPace(p,personal,pressure,ball=this.ball,time=this.time,target=p.carryTarget){
+  const shield=p.shieldUntil>time,counter=this.transitionUntil[p.team]>time&&this.t[p.team].onWin==='counter';
+  if(p.receiveClock>0)return .48;
+  if(shield)return .56;
+  if(p.settleUntil>time)return .34;
+  if(counter)return 1.04;
+  if(p.escapeUntil>time)return .98;
+  if(pressure>5&&ball.x*this.direction(p.team)<20){
+   const gain=target?(target.x-p.x)*this.direction(p.team):0,heading=target?Math.atan2(target.z-p.z,target.x-p.x):0;
+   if(this.playerBrainEnabled(p)&&p.carryIntent?.progressive&&p.carryIntent.until>time&&pressure>=5.5&&gain>=1.2&&Math.abs(angle(heading,p.face))<=1.05&&dist(p,ball)<=1.1&&
+    !personal.some(q=>{const h=segment({x:q.x+q.vx*.35,z:q.z+q.vz*.35},p,target);return h.u>.04&&h.d<2.6;}))return .96;
+   return .60;
+  }
+  return .98;
  }
  progressiveCarryPace(p,personal,pressure){
   if(!this.playerBrainEnabled(p)||this.owner!==p||!(p.carryIntent?.until>this.time)||!p.carryIntent.progressive||p.receiveClock>0||p.shieldUntil>this.time||pressure<5.5||!p.carryTarget)return null;
@@ -1362,7 +1379,7 @@ class Match{
    }
    const shield=actor.shieldUntil>preview.time,target=dist(actor,preview.ball)>1.1?{x:preview.ball.x+preview.ball.vx*.12,z:preview.ball.z+preview.ball.vz*.12}:choice.point;
    const pressure=Math.min(20,...preview.field(1-p.team).map(q=>dist(q,actor))),counter=preview.transitionUntil[p.team]>preview.time&&preview.t[p.team].onWin==='counter';
-   const pace=actor.receiveClock>0?.48:shield?.56:actor.settleUntil>preview.time?.34:counter?1.04:actor.escapeUntil>preview.time?.98:pressure>5&&actor.x*this.direction(p.team)<20?.60:.98;
+   const pace=this.cfg.consistentCarryForecast===true?preview.ownerCarryPace(actor,preview.field(1-p.team),pressure,preview.ball,preview.time,actor.carryTarget):actor.receiveClock>0?.48:shield?.56:actor.settleUntil>preview.time?.34:counter?1.04:actor.escapeUntil>preview.time?.98:pressure>5&&actor.x*this.direction(p.team)<20?.60:.98;
    preview.move(actor,{...target,state:actor.receiveClock>0?'receive':shield?'shield':'dribble',pace},dt);
    if(actor.touchClock<=0&&actor.receiveClock<=0&&preview.ball.y<.45&&dist(actor,preview.ball)<1.3&&preview.dribbleTouch(actor))firstTouchTime??=elapsed;
    const d=nearest(preview.field(1-p.team),preview.ball);
@@ -2500,7 +2517,7 @@ class Match{
      // Foot possession is not a ball in the hands. If its cushioning touch
      // rolls beyond kicking reach, approach it before choosing distribution.
      if(owner===p&&!p.holdingBall&&!this.kick&&dist(p,ball)>.95){x=ball.x+ball.vx*.10;z=ball.z+ball.vz*.10;state='keeper-control';pace=1.0;}
-    }else if(p===owner){const target=p.carryTarget||{x:p.x+side*5,z:p.z};x=target.x;z=target.z;if(dist(p,ball)>1.1||p.receiveMode==='cushion'&&p.receiveClock>0){x=ball.x+ball.vx*.12;z=ball.z+ball.vz*.12;}const pressure=Math.min(20,...personal.map(q=>dist(q,p))),shield=p.shieldUntil>this.time;pace=p.receiveClock>0?.48:shield?.56:p.settleUntil>this.time?.34:counter?1.04:p.escapeUntil>this.time?.98:pressure>5&&aBall<20?(this.progressiveCarryPace(p,personal,pressure)??.60):.98;state=p.receiveClock>0?'receive':shield?'shield':'dribble';}
+    }else if(p===owner){const target=p.carryTarget||{x:p.x+side*5,z:p.z};x=target.x;z=target.z;if(dist(p,ball)>1.1||p.receiveMode==='cushion'&&p.receiveClock>0){x=ball.x+ball.vx*.12;z=ball.z+ball.vz*.12;}const pressure=Math.min(20,...personal.map(q=>dist(q,p))),shield=p.shieldUntil>this.time;pace=this.cfg.consistentCarryForecast===true?this.ownerCarryPace(p,personal,pressure,ball,this.time,p.carryTarget):p.receiveClock>0?.48:shield?.56:p.settleUntil>this.time?.34:counter?1.04:p.escapeUntil>this.time?.98:pressure>5&&aBall<20?(this.progressiveCarryPace(p,personal,pressure)??.60):.98;state=p.receiveClock>0?'receive':shield?'shield':'dribble';}
     else if(!owner&&!this.flight){if(p===presser&&(!rebound||rebound.id===p.id)){const q=this.interceptPoint(p);x=q.x;z=q.z;pace=1.12;state='loose-ball';}else if(p===cover){x=ball.x-side*7;z=ball.z*.55+p.homeZ*.45;state='screen';}}
     else if(has){
      if(p.role==='MID'){x=side*(baseLine+(p===holding?15:24)+(counter&&p!==holding?5:0));if(p===holding&&aBall>2)x=Math.min(x*side,aBall-7)*side;
