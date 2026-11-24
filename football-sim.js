@@ -282,7 +282,7 @@ class Match{
   this.owner=null;this.kick=null;this.flight=null;this.goalPause=null;this.phase='restart';this.planClock=0;
   this.attackPlans=[null,null];this.flankPlans=[null,null];this.activeWall=null;this.recoveryUntil=[0,0];
   this.supportPlans=[null,null];this.pressUnits=[null,null];this.pressAssignments=[null,null];
-  for(const p of this.players){p.reception=null;p.nextAction=null;p.holdingBall=false;p.holdClock=0;p.runIntent=null;p.supportIntent=null;p.offerIntent=null;p.connectionIntent=null;p.carryIntent=null;p.keeperRead=null;p.shieldUntil=0;p.duelMemory=null;p.dribbleDuel=null;p.passReviewUntil=0;}
+  for(const p of this.players){p.reception=null;p.nextAction=null;p.holdingBall=false;p.holdClock=0;p.runIntent=null;p.supportIntent=null;p.offerIntent=null;p.connectionIntent=null;p.carryIntent=null;p.keeperRead=null;p.shieldUntil=0;p.duelMemory=null;p.dribbleDuel=null;p.passReviewUntil=0;if(p.balanceRecoveryUntil!==undefined)p.balanceRecoveryUntil=0;}
   this.ball={x:spot.x,y:.11,z:spot.z,vx:0,vy:0,vz:0};
   const pool=kind==='goal-kick'?this.team(team).filter(p=>p.role==='GK'):this.field(team);
   const roleKey=kind==='corner'?'corner':kind==='free-kick'?'free':kind==='penalty'?'penalty':null,special=team===0?this.cfg.special:this.cfg.awaySpecial;
@@ -1773,6 +1773,30 @@ class Match{
   // contest cannot move the ball, award possession or suppress fouls.
   return {resistance,lateral,approach};
  }
+ // A legal shoulder contact transfers load, not a scripted position or ball.
+ // Only observed physical contact qualifies; no change to the foul decision.
+ shoulderRecoveryRead(actor,other,contest){
+  if(!contest||!Number.isFinite(contest.approach)||contest.approach<.55)return null;
+  const dx=other.x-actor.x,dz=other.z-actor.z,gap=Math.hypot(dx,dz);
+  if(gap<.35||gap>1.15)return null;
+  const closing=((actor.vx-other.vx)*dx+(actor.vz-other.vz)*dz)/gap;
+  if(closing<.35)return null;
+  const stability=clamp(((actor.balance??75)*.55+(actor.strength??75)*.30+(actor.agility??75)*.15-50)/50,0,1);
+  const fatigue=clamp((.75-(actor.energy??1))/.5,0,1);
+  const load=clamp((closing*.20+(contest.approach-closing)*.06)*(.70+(other.strength??75)/200),0,.8);
+  const severity=clamp(load*(1.1-stability*.65+fatigue*.25),0,.65);
+  if(severity<.12)return null;
+  return {severity,duration:clamp(.14+severity*.55,.18,.50)};
+ }
+ applyShoulderRecovery(actor,other,contest){
+  const read=this.shoulderRecoveryRead(actor,other,contest);
+  if(!read)return false;
+  // Do not compound repeated contacts into an indefinite movement penalty.
+  if(actor.balanceRecoveryUntil>this.time)return false;
+  actor.balanceRecoveryUntil=this.time+read.duration;
+  actor.balanceRecoveryDuration=read.duration;actor.balanceRecoverySeverity=read.severity;
+  this.telemetry.balanceRecoveries=(this.telemetry.balanceRecoveries||0)+1;return true;
+ }
  doTackle(p,carrier){
   const access=this.tackleAccess(p,carrier);if(!access.attempt){if(access.retry)p.tackleClock=access.retry;if(access.patient)this.telemetry.patientChallenges=(this.telemetry.patientChallenges||0)+1;return;}
   const gap=dist(p,this.ball);
@@ -1795,10 +1819,14 @@ class Match{
    const away=Math.atan2(p.z-carrier.z,p.x-carrier.x),sign=p.personality>.5?1:-1,a=away+sign*.55;
    this.owner=null;this.phase='open';this.flight=null;this.ball.vx=Math.cos(a)*3.7;this.ball.vz=Math.sin(a)*3.7;this.ball.vy=.22;this.lastTouch=p;p.touchClock=.10;
    if(this.kick?.p===carrier)this.kick=null;carrier.duelRecovery=.52;carrier.touchClock=.60;carrier.tackleClock=Math.max(carrier.tackleClock,1.15);p.escapeUntil=this.time+1.45;p.escapeTarget={x:clamp(p.x+Math.cos(a)*6,-49,49),z:clamp(p.z+Math.sin(a)*6,-31,31)};
+   if(this.cfg.physicalDuelExperiment===true&&sideContest)this.applyShoulderRecovery(carrier,p,sideContest);
    this.telemetry.looseBalls++;if(sliding)this.telemetry.slidingWins=(this.telemetry.slidingWins||0)+1;this.planClock=0;
   }else if(this.random()<.22+aggression*.2+(sliding?.09:0)){
    const impact=Math.hypot(p.vx-carrier.vx,p.vz-carrier.vz),reckless=this.random()<.10+aggression*.12+(fromBehind?.16:0)+(sliding?.12:0),serious=impact>7.5&&fromBehind&&aggression>.7;
    this.adjudicateFoul(p,carrier,{attemptedBall:!fromBehind,reckless,serious});
+  }else if(this.cfg.physicalDuelExperiment===true&&sideContest){
+   // Both bodies can be affected on a legal retained-ball challenge.
+   this.applyShoulderRecovery(carrier,p,sideContest);this.applyShoulderRecovery(p,carrier,sideContest);
   }
  }
  passSpeed(kind,d,t){return kind==='through'?21:kind==='cutback'?18:kind==='long-pass'?clamp(24+d*.13,25,33):clamp(14.5+d*.12+(t.tempo-55)*.025,13,24);}
@@ -2756,7 +2784,8 @@ class Match{
   }
   const dx=target.x-p.x,dz=target.z-p.z,d=Math.hypot(dx,dz),heading=Math.atan2(dz,dx);
   const fatigue=p.model?(p.fitness>0?clamp(p.stamina/p.fitness,0,1):1):p.stamina/100;
-  const turn=Math.abs(angle(heading,p.face)),top=(p.role==='GK'?4.4+((p.pace??75)-75)*.025:5.7+((p.pace??p.skill)-75)*.040)*(.78+.22*fatigue)*(.83+.17*(p.energy??1))*target.pace*(p.duelRecovery>0?.20:1)*(p.feintReaction>0?.82:1);
+  const balanceLoad=!this.restart&&!this.goalPause&&!this.kick?.restartContext&&p.balanceRecoveryUntil>this.time?clamp((p.balanceRecoveryUntil-this.time)/Math.max(.01,p.balanceRecoveryDuration),0,1)*(p.balanceRecoverySeverity||0):0;
+  const turn=Math.abs(angle(heading,p.face)),top=(p.role==='GK'?4.4+((p.pace??75)-75)*.025:5.7+((p.pace??p.skill)-75)*.040)*(.78+.22*fatigue)*(.83+.17*(p.energy??1))*target.pace*(p.duelRecovery>0?.20:1)*(p.feintReaction>0?.82:1)*(1-balanceLoad*.42);
   const wanted=d>(['restart','penalty-keeper'].includes(target.state)?.025:.16)?Math.min(top,d*2,Math.sqrt(16*d))*(1-.45*turn/Math.PI):0;
   let vx=d?dx/d*wanted:0,vz=d?dz/d*wanted:0;
   if(!['restart','goal','wall'].includes(target.state))for(const q of this.players){if(q===p||!q.active||q.referee||q.team!==p.team)continue;const ax=(p.x+p.vx*.28)-(q.x+q.vx*.28),az=(p.z+p.vz*.28)-(q.z+q.vz*.28);if(Math.abs(ax)>=1.5||Math.abs(az)>=1.5)continue;const gap=Math.hypot(ax,az);if(gap>.05&&gap<1.5){const push=(1.5-gap)*1.9;vx+=ax/gap*push;vz+=az/gap*push;}}
@@ -2771,7 +2800,7 @@ class Match{
    }
   }
   const magnitude=Math.hypot(vx,vz);if(magnitude>top){vx*=top/magnitude;vz*=top/magnitude;}
-  const acc=(wanted<p.speed?11:7.8*clamp(.70+(p.acceleration??75)*.004,.70,1.10))*dt,dvx=vx-p.vx,dvz=vz-p.vz,delta=Math.hypot(dvx,dvz)||1;
+  const acc=(wanted<p.speed?11:7.8*clamp(.70+(p.acceleration??75)*.004,.70,1.10))*dt*(1-balanceLoad*.32),dvx=vx-p.vx,dvz=vz-p.vz,delta=Math.hypot(dvx,dvz)||1;
   p.vx+=dvx*Math.min(1,acc/delta);p.vz+=dvz*Math.min(1,acc/delta);p.x+=p.vx*dt;p.z+=p.vz*dt;p.speed=Math.hypot(p.vx,p.vz);
   // Decelerate into the field, without repositioning a player to the ball.
   p.x=clamp(p.x,-53.5,53.5);p.z=clamp(p.z,-35,35);
@@ -2779,7 +2808,7 @@ class Match{
   if((p.role==='GK'&&target.state!=='keeper-recovery')||target.state==='delay'||p===this.owner&&p.receiveClock>0||target.state==='press'&&dist(p,this.ball)<4.5&&p.speed<3.2||['mark','cover','screen','trap-screen','recovery-screen','build-support','support','wall','fk-mark','fk-attack','fk-cover'].includes(target.state)&&p.speed<2.8)facing=Math.atan2(this.ball.z-p.z,this.ball.x-p.x);
   if(target.state==='receive-run'&&p.reception)facing=Match.prototype.receptionFacing.call(this,p,facing);
   if(target.state==='shield'&&Number.isFinite(p.shieldFace))facing=p.shieldFace;
-  const turnRate=4.5*clamp(.70+(p.agility??75)*.004,.70,1.10);
+  const turnRate=4.5*clamp(.70+(p.agility??75)*.004,.70,1.10)*(1-balanceLoad*.30);
   if(!kickRecovery)p.face+=clamp(angle(facing,p.face),-dt*turnRate,dt*turnRate);p.anim+=p.speed*dt*2.3;p.brainRole=target.state;
   if(p.actionClock<=0){p.action=p.speed>3.2?'run':p.speed>.4?'jog':'idle';p.kickMoving=false;}
  }
@@ -3359,7 +3388,7 @@ class Match{
   if(this.restart?.taker===p)return {ok:false,error:'Duran topu kullanacak oyuncu hazırlıkta; başka bir oyuncu seç.'};
   if(this.owner===p||this.kick?.p===p||this.flight?.target===p)return {ok:false,error:'Oyuncunun top aksiyonu sürüyor; pozisyon bitince tekrar dene.'};
   const old=p.name,profile=PlayerModel.forSlot(b,PlayerModel.slotFor(this.cfg.formation||'4-3-3',p.index));
-  Object.assign(p,profile,{id:p.id,index:p.index,team:p.team,role:p.role,position:p.position,rosterId:b.id,rosterUid:b.uid??null,name:b.name,num:b.number,portraitId:b.face,yellow:0,sentOff:false,energy:1,kickFoot:profile.preferredFoot,reception:null,nextAction:null,runIntent:null,supportIntent:null,offerIntent:null,connectionIntent:null,carryIntent:null,keeperRead:null,shieldUntil:0,shieldReadyAt:0,duelMemory:null,dribbleDuel:null});
+  Object.assign(p,profile,{id:p.id,index:p.index,team:p.team,role:p.role,position:p.position,rosterId:b.id,rosterUid:b.uid??null,name:b.name,num:b.number,portraitId:b.face,yellow:0,sentOff:false,energy:1,kickFoot:profile.preferredFoot,reception:null,nextAction:null,runIntent:null,supportIntent:null,offerIntent:null,connectionIntent:null,carryIntent:null,keeperRead:null,shieldUntil:0,shieldReadyAt:0,duelMemory:null,dribbleDuel:null});if(p.balanceRecoveryUntil!==undefined)p.balanceRecoveryUntil=0;
   Intent.clear(p,'substitution',this.taskContext(p));Perception.clear(p,this.time);
   this.usedBench.add(b.id);MatchRules.recordSubstitution(this.substitutionState,decision);this.subCount=this.substitutionState.count;this.subWindowsUsed=this.substitutionState.windowsUsed;
   if(this.lifecycle!=='halftime')this.substitutionPause={remaining:(this.substitutionPause?.remaining||0)+this.rules.substitutionPauseSeconds};
