@@ -301,3 +301,15 @@ test('central carrier at the defensive line retains an onside diagonal cutback o
   assert(Math.abs(point.z)>3);
  }
 });
+
+test('progressive carry pace remains physical and returns to ordinary pace when the path closes',()=>{
+ const {m,owner}=fixture();
+ Object.assign(owner,{x:0,z:0,face:0,receiveClock:0,carryTarget:{x:5,z:0},carryIntent:{progressive:true,until:m.time+.4}});
+ m.ball={x:.65,y:.11,z:.18,vx:0,vz:0,vy:0};
+ assert.equal(m.progressiveCarryPace(owner,[],10),.96);
+ assert.equal(m.progressiveCarryPace(owner,[{x:3,z:1,vx:0,vz:0}],10),null);
+ assert.equal(m.progressiveCarryPace(owner,[],4),null);
+ owner.face=Math.PI;assert.equal(m.progressiveCarryPace(owner,[],10),null);
+ owner.face=0;m.ball.x=2;assert.equal(m.progressiveCarryPace(owner,[],10),null);
+ m.ball.x=.65;owner.carryIntent.until=m.time;assert.equal(m.progressiveCarryPace(owner,[],10),null);
+});
