@@ -144,7 +144,7 @@ class Match{
   if((task.purpose==='mark'||task.state==='trap-screen')&&task.focusId!==null&&!context.rivals.some(q=>q.id===task.focusId))return false;
   if(['support','run'].includes(task.purpose)){
    const side=this.direction(p.team),line=Math.max(this.observedLine(p),this.ball.x*side),run=this.attackPlans[p.team]?.runner;
-   const timed=task.state==='decoy-run'||task.state==='penetration'&&run?.id===p.id&&run.kind||task.state==='channel-run'&&p.runIntent?.kind==='third-man';
+   const timed=task.state==='decoy-run'||task.state==='penetration'&&run?.id===p.id&&run.kind||task.state==='channel-run'&&p.runIntent?.kind==='third-man'||task.state==='box-run'&&this.boxPlans[p.team]?.central;
    if(task.x*side>line-(timed?Brain.runMargin(p,side):.5))return false;
    if(context.rivals.some(q=>dist(q,task)<1.35||dist(q,p)<3.5&&segment(q,p,task).d<.8))return false;
    if(task.partnerId!==null&&task.state!=='overlap'&&task.state!=='wide-support'){
@@ -2066,7 +2066,7 @@ class Match{
     if(this.activeWall?.team===team&&this.activeWall.until>this.time&&this.activeWall.points.has(p.id)&&this.flight){const q=this.activeWall.points.get(p.id);x=q.x;z=q.z;state='wall';pace=.6;}
     // Target spacing uses intended destinations, not a late teleport at contact.
     if(!['support','build-support','between-lines','cover','screen','trap-screen','press','counterpress','intercept','loose-ball','receive-run','dribble','receive','goalkeeper','keeper-sweep','keeper-control','wall'].includes(state))for(const [q,other] of plans){if(q.team!==team||q.role==='GK')continue;const d=Math.hypot(x-other.x,z-other.z);if(d<4.0){const a=Math.atan2(z-other.z,x-other.x)+(d<.01?(p.id%2?1:-1):0);x+=Math.cos(a)*(4-d)*.65;z+=Math.sin(a)*(4-d)*.65;}}
-    if(has&&!this.flight&&((state==='penetration'&&pattern?.runner?.id===p.id&&pattern.runner.kind)||state==='decoy-run'||state==='channel-run'&&p.runIntent?.kind==='third-man'||state==='receive-run'&&this.kick?.target===p&&this.kick.timedRun)){
+    if(has&&!this.flight&&((state==='penetration'&&pattern?.runner?.id===p.id&&pattern.runner.kind)||state==='decoy-run'||state==='channel-run'&&p.runIntent?.kind==='third-man'||state==='box-run'&&box?.central||state==='receive-run'&&this.kick?.target===p&&this.kick.timedRun)){
      // Spacing adjustments must not push a timed runner past the staging line.
      x=side*Math.min(x*side,offsideLine-Brain.runMargin(p,side));
     }
