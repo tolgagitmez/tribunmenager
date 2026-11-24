@@ -857,7 +857,7 @@ class Match{
  }
  retainAttackingDepth(p,options,carry,pressure){
   const side=this.direction(p.team),depth=p.x*side,best=options[0];
-  if(!this.playerBrainEnabled(p)||!['ATT','MID'].includes(p.role)||p.position==='DM'||depth<20||depth>37||!best||best.movingReturn||(best.point.x-p.x)*side>-10||pressure<2.8||p.receiveClock>0||p.shieldUntil>this.time)return null;
+  if(this.cfg.attackingSupportExperiment!==true||!this.playerBrainEnabled(p)||!['ATT','MID'].includes(p.role)||p.position==='DM'||depth<20||depth>37||!best||best.movingReturn||(best.point.x-p.x)*side>-10||pressure<2.8||p.receiveClock>0||p.shieldUntil>this.time)return null;
   // Do not replace a safe retreat with an imaginary future pass. Only
   // preview currently available short connections, or the existing carry.
   const alternatives=options.filter(o=>o.kind==='pass'&&o.q?.active&&o.q.role!=='GK'&&o.distance<=23&&o.risk<.30&&o.arrivalRisk<.60&&o.space>2.6&&o.score>0&&(o.point.x-p.x)*side>=-2&&(o.point.x*side>=depth+3||Math.abs(o.point.z)<Math.abs(p.z)-5));
@@ -1852,7 +1852,7 @@ class Match{
  }
  supportTargets(owner,supporters,reserved=new Map(),line=Math.max(this.observedLine(owner),this.ball.x*this.direction(owner.team))){
   const result=new Map(),side=this.direction(owner.team),t=this.t[owner.team],opponents=this.rivals(owner),radius=t.passing==='short'?8.5:11.5;
-  const advanced=this.playerBrainEnabled(owner)&&owner.x*side>=16&&owner.x*side<37;
+  const advanced=this.cfg.attackingSupportExperiment===true&&this.playerBrainEnabled(owner)&&owner.x*side>=16&&owner.x*side<37;
   for(let rank=0;rank<supporters.length;rank++){
    const p=supporters[rank],preferred=rank===0?(p.homeZ>=owner.z?1:-1):-(supporters[0].homeZ>=owner.z?1:-1);
    const evaluate=point=>{
@@ -1948,7 +1948,7 @@ class Match{
    if(old?.arrival&&old.ownerId!==owner.id)for(const p of pool)if(p.offerIntent?.ownerId===old.ownerId)p.offerIntent=null;
   }
   const pressure=Math.min(20,...this.rivals(owner).map(q=>dist(owner,q)));
-  const advanced=this.playerBrainEnabled(owner)&&owner.x*this.direction(team)>=16&&owner.x*this.direction(team)<37;
+  const advanced=this.cfg.attackingSupportExperiment===true&&this.playerBrainEnabled(owner)&&owner.x*this.direction(team)>=16&&owner.x*this.direction(team)<37;
   const eligible=pool.filter(p=>p.id!==owner.id&&p.duelRecovery<=0&&!this.taskReserved(p,['support'])&&!reserved.has(p.id)&&(p.role!=='ATT'||(pressure<5.5||advanced)&&this.teamRole(p)==='winger'&&dist(p,owner)<24)&&(p!==holding||owner.x*this.direction(team)<0)&&(p.role!=='DEF'||Math.abs(p.homeZ)>19&&this.t[team].fullbacks!=='hold')&&!(p.role==='DEF'&&owner.x*this.direction(team)>0&&p.homeZ*owner.z<0)&&dist(p,owner)<32);
   const incumbent=id=>old?.ownerId===owner.id&&old.epoch===this.attackEpoch[team]&&old.points.has(id);
   // Choose helpers by a reachable open angle, not just their distance. Keep
