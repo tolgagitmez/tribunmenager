@@ -1,0 +1,21 @@
+name: Pass trajectory safety
+on:
+  push:
+    branches: ['fix/pass-trajectory-safety-20261124']
+    paths: ['.github/workflows/pass-trajectory-safety.yml', 'football-sim.js', 'tests/pass-trajectory-safety.test.cjs']
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --check football-sim.js
+      - run: node --test tests/pass-trajectory-safety.test.cjs tests/pass-arrival.test.cjs tests/receiver-interception.test.cjs tests/offball-intelligence.test.cjs tests/collective-team-ai.test.cjs tests/pass-preparation.test.cjs tests/post-receive-hold.test.cjs tests/attack-breakpoint.test.cjs
+      - run: node tools/profile-current-attack-chain.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pass-trajectory-natural-audit
+          path: docs/validation/current-attack-120s.json
