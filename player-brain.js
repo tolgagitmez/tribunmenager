@@ -118,7 +118,61 @@ function runPassBias(p,{kind,risk=1,arrivalRisk=1,space=0}={}){
  if(!['blind-side','diagonal','decoy-opening'].includes(kind)||risk>.38||arrivalRisk>.65||space<3||stat(p,'vision')<80)return 0;
  return clamp((stat(p,'vision')-78)*.085+(kind==='decoy-opening'?.6:.35),0,2.5);
 }
-const api={passBias,canThread,carryBias,shouldDrive,canFeint,canHoldUp,runMargin,offBallOption,decoyOption,decoyOpened,runPassBias};
+// Local defensive choices. Contact geometry and referee remain authoritative.
+function defensiveRead(p){
+ return .38*stat(p,'tackling')+.34*stat(p,'composure')+.18*stat(p,'vision')+.10*stat(p,'agility');
+}
+function jockeyOption(p,carrier,ball,{forward=1,cover=null,receiver=null}={}){
+ if(!carrier||!ball||p.role==='GK'||!['DEF','MID'].includes(p.role)||defensiveRead(p)<79||(p.energy??1)<.35||
+  (carrier.confidence??1)<.55||(carrier.age??0)>.5||distance(p,ball)>7||distance(p,ball)<1.6)return null;
+ const goalSide=(p.x-ball.x)*forward<-.3;
+ if(!goalSide||!Number.isFinite(carrier.face))return null;
+ const knownFoot=carrier.footPreference==='left'||carrier.footPreference==='right'?carrier.footPreference:null;
+ const weakness=knownFoot&&Number.isFinite(carrier.weakFoot)?clamp((85-carrier.weakFoot)/35,0,1):0;
+ const fx=Math.cos(carrier.face),fz=Math.sin(carrier.face);
+ // Right foot = positive local lateral in the match coordinate convention.
+ // Stand on the strong-foot side, leaving the other side as the escape.
+ const strong=knownFoot==='right'?1:-1,offset=weakness*.85;
+ const ahead={x:ball.x-forward*.8-fz*strong*offset,z:ball.z+fx*strong*offset};
+ if(receiver&&distance(receiver,ball)>3){
+  const dx=receiver.x-ball.x,dz=receiver.z-ball.z,len=Math.hypot(dx,dz);
+  if(dx*forward<0){ahead.x+=dx/len*.35;ahead.z+=dz/len*.35;}
+ }
+ // Never offer a path through the central goal corridor to force a foot.
+ const central=Math.abs(ball.z)<12,nearGoal=ball.x*forward<-32;
+ if(central||nearGoal)ahead.z=ball.z+clamp(ahead.z-ball.z,-.35,.35);
+ if(!cover||distance(cover,ball)>12)ahead.z=ball.z+clamp(ahead.z-ball.z,-.45,.45);
+ ahead.x=forward*Math.min(ahead.x*forward,ball.x*forward-.45);
+ const gap=distance(p,ball);
+ return {point:{x:clamp(ahead.x,-51,51),z:clamp(ahead.z,-31.5,31.5)},pace:gap<3.5?.68:.87,
+  kind:weakness>.2&&!central&&!nearGoal&&cover&&distance(cover,ball)<=12?'weak-foot':'jockey'};
+}
+function screenOption(p,carrier,receiver,base,{forward=1}={}){
+ if(!carrier||!receiver||!base||defensiveRead(p)<80||(p.energy??1)<.35||p.role==='GK'||
+  (carrier.confidence??1)<.55||(receiver.confidence??1)<.55||(receiver.age??0)>.5)return null;
+ const dx=receiver.x-carrier.x,dz=receiver.z-carrier.z,range=Math.hypot(dx,dz);
+ if(range<5||range>24||dx*forward>=-.6||distance(p,base)>10)return null;
+ const t=clamp(((p.x-carrier.x)*dx+(p.z-carrier.z)*dz)/(range*range),.2,.65);
+ const point={x:carrier.x+dx*t,z:carrier.z+dz*t};
+ if(distance(point,base)>3.4||distance(point,carrier)<3||point.x*forward>carrier.x*forward-1.2)return null;
+ return point;
+}
+function tackleDecision(p,carrier,ball,{aggression=.5,emergency=false,cover=false,gap,shield=false,fromBehind=false}={}){
+ if(!p||!carrier||!ball||p.role==='GK'||defensiveRead(p)<77)return {kind:'standing',bonus:0};
+ const dx=ball.x-p.x,dz=ball.z-p.z,d=Number.isFinite(gap)?gap:Math.hypot(dx,dz),exposure=distance(carrier,ball);
+ const closing=((p.vx||0)-(ball.vx||0))*dx/Math.max(.01,d)+((p.vz||0)-(ball.vz||0))*dz/Math.max(.01,d);
+ const relative=Math.hypot((p.vx||0)-(carrier.vx||0),(p.vz||0)-(carrier.vz||0));
+ const timing=clamp((defensiveRead(p)-77)*.004,0,.085);
+ // Defer marginal challenges only while the carrier still has control and
+ // no immediate shot is threatened. A heavy touch remains an opportunity.
+ if(!emergency&&(shield||fromBehind)&&exposure<.85&&d>.66&&aggression<.78)return {kind:'wait',retry:.16,bonus:0};
+ const slide=stat(p,'tackling')>=86&&stat(p,'agility')>=76&&stat(p,'composure')>=78&&
+  (p.energy??1)>.5&&!(p.yellow>0)&&!shield&&!fromBehind&&ball.y<.22&&
+  d>=.88&&d<=1.15&&exposure>=.95&&closing>=1.7&&relative<5.8&&
+  aggression>=.34&&aggression<=.78&&(emergency||cover);
+ return {kind:slide?'slide':'standing',bonus:timing+(slide?.035:0)};
+}
+const api={passBias,canThread,carryBias,shouldDrive,canFeint,canHoldUp,runMargin,offBallOption,decoyOption,decoyOpened,runPassBias,defensiveRead,jockeyOption,screenOption,tackleDecision};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 root.TribunPlayerBrain=api;
 })(typeof window!=='undefined'?window:globalThis);
