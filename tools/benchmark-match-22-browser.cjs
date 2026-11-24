@@ -21,7 +21,7 @@ async function main(){
  try{
   const page=await browser.newPage({viewport:{width:1600,height:1024},deviceScaleFactor:1.25});
   page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('http://127.0.0.1:'+server.address().port+'/match.html',{waitUntil:'load'});
+  await page.goto('http://127.0.0.1:'+server.address().port+'/match.html?renderStress=1',{waitUntil:'load'});
   await page.waitForFunction(()=>{
    try{const state=window.TRIBUN_MATCH_TEST?.getState();
     return state?.players?.filter(p=>p.active&&!p.referee).length===22;}catch{return false;}
@@ -77,6 +77,16 @@ async function main(){
   const pixels=mode=>results[mode].profile.canvas.reduce((a,b)=>a*b,1);
   assert(pixels('performance')<pixels('quality')*.55,'performance mode must reduce GPU fragment count');
 
+  // No synthetic simulation mutations: sample an isolated set of visual clones
+  // in the production stadium renderer while the real match is paused.
+  const skill=await page.evaluate(()=>window.TRIBUN_MATCH_TEST.skillRenderProbe());
+  assert.equal(skill.active,22);
+  assert(skill.frames.length===24&&skill.frames.every(x=>x.webgl&&x.active===22));
+  assert(skill.cues.feint>0&&skill.cues.shield>0&&skill.cues.misread>0&&skill.cues.wallPass>0);
+  assert(skill.frames.every(x=>x.profile.players.lodBinds<=x.profile.players.players));
+  assert(skill.clockUnchanged&&skill.scoreUnchanged&&skill.positionsUnchanged);
+  assert(skill.frozen.profile.players.paletteHits>=22&&skill.frozen.profile.players.dualHits>=22,
+   'unchanged skill actors must reuse exact palettes and DQ');
   const screenshot=await page.screenshot({path:path.join(destination,'match-22-players.png'),animations:'disabled',timeout:90000});
   const png=PNG.sync.read(screenshot);
   const colors=new Set();for(let i=0;i<png.data.length;i+=4*29){
@@ -94,6 +104,10 @@ async function main(){
    performance:{...summary(results.performance.samples),profile:results.performance.profile},
    balanced:{...summary(results.balanced.samples),profile:results.balanced.profile}
   };
+  report.skillStress={method:'24 production-WebGL frames; isolated visual clones with staged skill cues, not organically generated match events',cues:skill.cues,
+   frames:summary(skill.frames.map(x=>x.cpuGpuMs)),finalProfile:skill.frames.at(-1).profile,
+   repeatedFrozen:skill.frozen,clockUnchanged:skill.clockUnchanged,scoreUnchanged:skill.scoreUnchanged,positionsUnchanged:skill.positionsUnchanged};
+  console.log('SKILL_RENDER_STRESS '+JSON.stringify(report.skillStress));
   report.gameClockUnchanged=true;report.scoreUnchanged=true;report.pixelColors=colors.size;report.errors=errors;
   fs.writeFileSync(path.join(destination,'report.json'),JSON.stringify(report,null,2)+'\n');
   console.log('22-player real match render benchmark: '+JSON.stringify(report));
