@@ -4,6 +4,8 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict');
 const {Match}=require('../football-sim'),P=require('../player-model'),T=require('../tactics');
 const root=path.resolve(__dirname,'..'),DT=1/60;
+// Baseline and candidate always use the same explicit experimental flags.
+// The default audit measures the shipping game, not an opt-in prototype.
 const scenarios=[
  {id:'equal-balanced',a:[80,'4-3-3','balanced'],b:[80,'4-3-3','balanced']},
  {id:'press-possession',a:[80,'4-3-3','press'],b:[80,'4-2-3-1','possession']},
@@ -29,7 +31,7 @@ function config(c){
  const home=c.swap?c.b:c.a,away=c.swap?c.a:c.b;
  const players=roster(home,0),awayPlayers=roster(away,1);
  const preset=id=>({...T.presets.find(p=>p.id===id).tactics});
- return {seed:c.seed,matchMinutes:5,formation:home[1],awayFormation:away[1],players,awayPlayers,starters:players.map(p=>p.id),awayStarters:awayPlayers.map(p=>p.id),tactics:preset(home[2]),awayTactics:preset(away[2]),individualAI:true};
+ return {seed:c.seed,matchMinutes:5,formation:home[1],awayFormation:away[1],players,awayPlayers,starters:players.map(p=>p.id),awayStarters:awayPlayers.map(p=>p.id),tactics:preset(home[2]),awayTactics:preset(away[2]),individualAI:true,progressiveFirstTouch:false,attackingSupportExperiment:false};
 }
 // Observe existing decisions only. The engine still evaluates shotWindow
 // exactly as before; no added tactical queries, random draws or ball changes.
@@ -139,7 +141,7 @@ function combine(parts){
  const digests=rows.map(r=>r.configDigest).filter(Boolean);
  if(digests.length){assert.equal(digests.length,rows.length,'missing match input digest');assert.equal(new Set(digests).size,rows.length,'duplicate match input');
   const byId=new Map(expected.map(c=>[c.id,c]));for(const r of rows)assert.equal(r.configDigest,digest(JSON.stringify(config(byId.get(r.id)))),'match input digest mismatch: '+r.id);}
- return {schema:1,seeds:first.seeds,sources:first.sources,method:'Natural five-minute matches with default competition rules, 60Hz physics, paired home/away assignment (symmetric teams use separate seeds to avoid identical matches), explicit position-matched synthetic rosters; full-time matches only in averages. No extrapolation to 90 simulated minutes.',overall:summarize(rows),scenarios:scenarios.map(s=>({id:s.id,...summarize(rows.filter(r=>r.scenario===s.id))})),rows};
+ return {schema:1,seeds:first.seeds,sources:first.sources,method:'Natural five-minute matches with default competition rules, 60Hz physics, paired home/away assignment (symmetric teams use separate seeds to avoid identical matches), explicit position-matched synthetic rosters; full-time matches only in averages. Experimental first touch and support are explicitly disabled. No extrapolation to 90 simulated minutes.',overall:summarize(rows),scenarios:scenarios.map(s=>({id:s.id,...summarize(rows.filter(r=>r.scenario===s.id))})),rows};
 }
 function main(){
  const args=process.argv.slice(2),get=(k,d)=>{const i=args.indexOf(k);return i<0?d:args[i+1];};

@@ -1,8 +1,7 @@
 name: Match balance audit
 on:
-  push:
-    branches: ['feature/match-balance-audit-20261124']
-    paths: ['.github/workflows/match-balance-audit.yml']
+  pull_request:
+    paths: ['tools/audit-match-balance.cjs', 'tools/compare-match-balance.cjs', 'tests/match-balance-audit.test.cjs', '.github/workflows/match-balance-audit.yml']
   workflow_dispatch:
     inputs:
       seeds:
@@ -12,8 +11,8 @@ on:
         type: choice
         options: ['2', '12', '20']
 concurrency:
-  group: full-match-balance-${{ github.ref }}
-  cancel-in-progress: true
+  group: full-match-balance-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:

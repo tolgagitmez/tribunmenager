@@ -5,7 +5,7 @@ const row=(c,goals=[0,0],shots=[0,0])=>({...c,finishReason:'full-time',ticks:180
 test('144 distinct natural cases at twelve seeds; paired side assignments and complete shard partition',()=>{
  const all=cases(12);assert.equal(all.length,144);assert.equal(new Set(all.map(c=>c.id)).size,144);assert.equal(new Set(all.map(c=>JSON.stringify(config(c)))).size,144);
  assert.deepEqual(Array.from({length:6},(_,i)=>cases(12,6,i)).flat().map(c=>c.id).sort(),all.map(c=>c.id).sort());
- for(let i=0;i<all.length;i+=2){const a=config(all[i]),b=config(all[i+1]);if(all[i].scenario==='equal-balanced')assert.notEqual(a.seed,b.seed);else assert.equal(a.seed,b.seed);assert.equal(a.formation,b.awayFormation);assert.equal(a.awayFormation,b.formation);assert.deepEqual(a.tactics,b.awayTactics);assert.deepEqual(a.players.map(p=>p.rating),b.awayPlayers.map(p=>p.rating));assert.equal(a.players.length,11);assert.equal(a.individualAI,true);}
+ for(let i=0;i<all.length;i+=2){const a=config(all[i]),b=config(all[i+1]);if(all[i].scenario==='equal-balanced')assert.notEqual(a.seed,b.seed);else assert.equal(a.seed,b.seed);assert.equal(a.formation,b.awayFormation);assert.equal(a.awayFormation,b.formation);assert.deepEqual(a.tactics,b.awayTactics);assert.deepEqual(a.players.map(p=>p.rating),b.awayPlayers.map(p=>p.rating));assert.equal(a.players.length,11);assert.equal(a.individualAI,true);assert.equal(a.progressiveFirstTouch,false);assert.equal(a.attackingSupportExperiment,false);}
 });
 test('ratio-of-totals and zero denominators, unfinished games excluded from averages',()=>{
  const [a,b,c]=cases(1),report=summarize([row(a,[1,0],[2,1]),row(b),{...row(c,[9,9],[9,9]),finishReason:'minimum-players'}]);

@@ -1,29 +1,24 @@
 name: Paired match balance
 on:
-  push:
-    branches: ['feature/match-balance-audit-20261124']
-    paths: ['.github/workflows/paired-match-balance.yml']
   workflow_dispatch:
     inputs:
       baseline:
         description: 'Exact baseline commit SHA'
         required: true
-        default: '20a7d0e9447428c48b840a2ef948eb5a6f3af79f'
         type: string
       candidate:
         description: 'Exact candidate commit SHA'
         required: true
-        default: '9050ba600f42d733daa456208940247503d050f4'
         type: string
       seeds:
-        description: 'Seeds per scenario: 1 = 12, 2 = 24 matched games'
+        description: 'Seeds per scenario: 1 = 12, 2 = 24, 12 = 144, 20 = 240 matched games'
         required: true
         default: '1'
         type: choice
-        options: ['1','2','12']
+        options: ['1','2','12','20']
 concurrency:
-  group: paired-balance-${{ github.ref }}
-  cancel-in-progress: true
+  group: paired-balance-${{ github.run_id }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
@@ -52,12 +47,12 @@ jobs:
           path: harness
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.baseline || '20a7d0e9447428c48b840a2ef948eb5a6f3af79f' }}
+          ref: ${{ inputs.baseline }}
           path: baseline
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate || '9050ba600f42d733daa456208940247503d050f4' }}
+          ref: ${{ inputs.candidate }}
           path: candidate
           persist-credentials: false
       - uses: actions/setup-node@v4

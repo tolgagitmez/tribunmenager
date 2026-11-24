@@ -4,10 +4,18 @@ on:
     branches: [main, fix/licensed-asset-cross-platform-rebuild]
   pull_request:
     paths:
+      - 'tools/rig-provenance.cjs'
+      - 'assets/interchange/rig-reference.js'
+      - 'humanoid-rig.js'
+      - 'tools/build-player-assets.py'
       - 'tools/verify-player-asset-rebuild.py'
       - 'tests/test_player_assets.py'
       - '.github/workflows/asset-rebuild-verification.yml'
   workflow_dispatch:
+concurrency:
+  group: ci-asset-rebuild-verification-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   rebuild-and-verify:
     runs-on: ubuntu-latest

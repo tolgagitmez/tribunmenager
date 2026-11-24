@@ -12,6 +12,10 @@ on:
       - 'tools/find-live-match-fixture.cjs'
       - '.github/workflows/attack-chain.yml'
   workflow_dispatch:
+concurrency:
+  group: ci-attack-chain-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   replay:
     runs-on: ubuntu-latest

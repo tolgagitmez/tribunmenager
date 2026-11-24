@@ -4,11 +4,19 @@ on:
     branches: [feature/main-specialist-kick-physics-20261122, main]
   pull_request:
     paths:
+      - 'tools/rig-provenance.cjs'
+      - 'assets/interchange/rig-reference.js'
+      - 'tools/build-player-assets.py'
+      - 'tests/test_player_assets.py'
       - football-sim.js
       - tests/kick-skill-parity.test.cjs
       - tools/compare-specialist-kicks.cjs
       - .github/workflows/specialist-kick-current.yml
   workflow_dispatch:
+concurrency:
+  group: ci-specialist-kick-current-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   specialist-real-contact:
     runs-on: ubuntu-latest

@@ -37,7 +37,7 @@ test('Blender package pins the licensed originals, tools, editable project and b
  assert.equal(manifest.license,'CC0-1.0');assert.equal(manifest.blenderVersion,'4.3.2');
  assert.equal(manifest.toolProvenance.name,'Blender');assert.equal(manifest.toolProvenance.version,manifest.blenderVersion);assert.equal(manifest.toolProvenance.license,'GPL-3.0-or-later');assert.match(manifest.toolProvenance.scope,/no Blender program code is copied/);
  assert.equal(manifest.unit,'metre');assert.equal(manifest.upAxis,'+Y');assert.equal(manifest.forwardAxis,'+X');assert.equal(manifest.fps,30);assert.equal(manifest.simulationHz,60);
- assert.equal(sha256(read('humanoid-rig.js')),manifest.rigReferenceSHA256);
+ assert.equal(require('../tools/rig-provenance.cjs').verifyRigReference(manifest.rigReferenceSHA256),manifest.rigReferenceSHA256);
  assert.equal(sha256(read(manifest.sourceModel)),manifest.sourceModelSHA256);
  assert.equal(new Set(manifest.files.map(entry=>entry.path)).size,manifest.files.length,'packaged files are unique');
  assert(!manifest.files.some(entry=>entry.path==='assets/interchange/manifest.json'),'manifest excludes its own changing hash');
@@ -52,8 +52,10 @@ test('Blender package pins the licensed originals, tools, editable project and b
  // byte-for-byte with the Blender package's original input SHA256. Any
  // changed baked pose, bind, clips, or geometry fails that check.
  const reviewedCompatibleSources={
-  'player-renderer.js':'7da773f8a20dd0259212b8a82ac87176bab55fbb',
-  'tools/build-player-assets.py':'01ab3038a3564173fd0e95ccc8d564452da64a6a'
+  'player-renderer.js':'762ed23958c932c2160e957d359bd67bc69f8ddc',
+  'humanoid-rig.js':'e7e7a0bdc5d9dfb36acae952aad412cf5c661856',
+  'tools/bake-licensed-clips.cjs':'64117f50a446c1904bdc6ab48790ae11bbaed971',
+  'tools/build-player-assets.py':'98c52e9bf30cd05f5ff51a398b261d10f990dd82'
  };
  const blobSHA1=bytes=>crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
  const rebuild=JSON.parse(read('assets/interchange/rebuild.json'));
@@ -123,3 +125,20 @@ for(const model of outputs){
   assert(maxWorld<manifest.validationTolerances.jointWorldMetres,`world matrix max error ${maxWorld}`);assert(maxSkin<manifest.validationTolerances.skinMatrixElement,`skin matrix max error ${maxSkin}`);assert(maxVertex<manifest.validationTolerances.skinnedVertexMetres,`skinned vertex max error ${maxVertex}`);
  });
 }
+
+test('reviewed live rig preserves every canonical joint endpoint at 60 Hz',()=>{
+ const vm=require('node:vm'),sandbox={module:{exports:{}}};
+ vm.runInNewContext(read('assets/interchange/rig-reference.js').toString(),sandbox,{filename:'historical-rig-reference.js'});
+ const historical=sandbox.module.exports;
+ for(const [name,duration] of [['idle',1],['run',2],['shoot',1.3],['dive-right',1.3]]){
+  const live=Scenarios.create(name==='idle'?'walk':name),original=Scenarios.create(name==='idle'?'walk':name);
+  for(let tick=0;tick<=Math.round(duration*60);tick++){
+   for(const [s,rig] of [[live,Rig],[original,historical]]){
+    if(name==='idle')Object.assign(s.p,{x:0,z:0,face:0,speed:0,action:'idle',actionClock:0});
+    else Scenarios.sample(s,tick/60,rig);
+   }
+   const current=Rig.boneFrames(Rig.update(live.p,1/60)),reference=historical.boneFrames(historical.update(original.p,1/60));
+   assert.equal(JSON.stringify(current),JSON.stringify(reference),name+' canonical frame '+tick);
+  }
+ }
+});

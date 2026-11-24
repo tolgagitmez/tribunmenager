@@ -7,7 +7,12 @@ function config(){if(window.MATCH_CFG)return window.MATCH_CFG;let explicit=null,
 
 function label(id,text,name){const el=$(id);if(window.TribunUI){el.innerHTML=(name?window.TribunUI.icon(name):'')+'<span>'+text+'</span>';el.setAttribute('aria-label',text);}else el.textContent=text;}
 const cfg=config(),scene=new Stadium3D($('stadiumCanvas'));
-const liveRound=new URLSearchParams(location.search).get('live');
+const query=new URLSearchParams(location.search),liveRound=query.get('live');
+const pilotRequested=query.get('pilot')==='1';
+const pilotId=query.get('pilotPlayer')||'0';
+const pilotPlayer=/^(?:[0-9]|1[0-9]|2[01])$/.test(pilotId)?Number(pilotId):0;
+let pilotError=null;
+let localContacts;
 let game,attackObserver,attackView,paused=false,speed=1,accumulator=0,lastMetric=-1,lastMetricWall=0,simOverloadFrames=0,shownFinish=false,overlayTime=0,lastFrameCost=null;
 let kickPanel,kickAim,visibleKick=null,kickStage=0,kickFollow=null;
 let live,liveSide=0,liveKickSending=false;
@@ -79,6 +84,10 @@ function init(){
  if(attackObserver)attackObserver.detach();
  closeKickControls();scene.managerKickView=null;kickFollow=null;
  game=new window.TribunFootball.Match({...cfg,individualAI:cfg.individualAI!==false,managerKicks:cfg.managerKicks!==false},Rig);scene.resetAnimation();attackObserver=window.TribunAttackDiagnostics.attach(game);
+ if(pilotRequested&&scene.gl){
+  localContacts=window.TribunContactEvents.create();
+  localContacts.observe(game);
+ }
  if(!attackView)attackView=window.TribunAttackAnalysisUI.mount($('attackAnalysis'),{summary:()=>attackObserver.summary(),report:()=>attackObserver.report()});
  resetPresentation();
 }
@@ -143,7 +152,14 @@ function metrics(){
  $('scoreHome').textContent=m.score[0];$('scoreAway').textContent=m.score[1];$('statPoss').textContent=`%${pos} – %${100-pos}`;$('statShots').textContent=m.shots.join(' – ');$('statTarget').textContent=m.onTarget.join(' – ');$('statCards').textContent=`🟨 ${m.cards.join(' – ')} · 🟥 ${m.reds.join(' – ')}`;$('statFouls').textContent=m.fouls.join(' – ');
  if($('statPasses'))$('statPasses').textContent=`${m.completed[0]}/${m.passes[0]} – ${m.completed[1]}/${m.passes[1]}`;
  if($('statXg'))$('statXg').textContent=m.xg.map(n=>n.toFixed(2)).join(' – ');
-  const skills=$('individualSkills');if(skills){skills.hidden=!!live;if(!live){const a=m.telemetry||{};for(const [id,key] of [['aiDrives','signatureDrives'],['aiFeints','feints'],['aiHoldUps','holdUpPlays'],['aiThroughBalls','throughBalls']])$(id).textContent=String(a[key]||0);}}
+ const skills=$('individualSkills');
+ if(skills){
+  skills.hidden=!m.telemetry;
+  if(m.telemetry)for(const [id,key] of [
+   ['aiDribbleTouches','dribbleTouches'],['aiDrives','signatureDrives'],['aiFeints','feints'],
+   ['aiBeaten','beatenDefenders'],['aiHoldUps','holdUpPlays'],['aiThroughBalls','throughBalls']
+  ])$(id).textContent=String(m.telemetry[key]??0);
+ }
  const r=m.restart||m.kick?.restartContext,labels={'kickoff':'SANTRA','throw':'TAÇ','corner':'KORNER','goal-kick':'AUT','free-kick':'SERBEST VURUŞ',penalty:'PENALTI'};
  $('liveType').textContent=m.pendingManagerKick?(visibleKick?'VURUŞ SEÇİMİ':'RAKİP VURUŞ SEÇİYOR'):m.done?(m.finishReason==='minimum-players'?'TATİL EDİLDİ':'TAMAMLANDI'):halftime?'DEVRE ARASI':m.goalPause?'GOL!':paused?'DURAKLATILDI':r?labels[r.kind]||'DURAN TOP':m.referee?.pendingAdvantage?'AVANTAJ':m.flight?.kind==='shot'?'GOL POZİSYONU':'CANLI';
  const phaseNames={build:'Geriden oyun kurma',progress:'Pas bağlantılarıyla ilerleme',final:'Son bölge hücumu',counter:'Hızlı hücum',counterpress:'Kaybın ardından baskı',defend:'Savunma yerleşimi',press:'Baskı ve kademe'};if($('teamPhase'))$('teamPhase').textContent=m.done?'Maç tamamlandı':halftime?'Devre arası':m.goalPause?'Gol sonrası hazırlık':r?'Duran top yerleşimi':phaseNames[m.tacticalPhase[liveSide]]||'Takım yerleşiyor';
@@ -161,9 +177,29 @@ function tick(dt){
  // skip or resize a physics tick; yield AFTER a completed 60 Hz step.
  const workBudgetMs=scene.performance.mode==='quality'?13:scene.performance.mode==='balanced'?11:9;
  const deadline=performance.now()+workBudgetMs;
- let steps=0;
- while(accumulator+1e-10>=1/60&&!game.done&&steps<budget&&!game.pendingManagerKick&&(steps===0||performance.now()<deadline)){steps++;accumulator-=1/60;attackObserver.step();for(const p of game.players){p.selected=p===game.owner;if(p.active)Rig.update(p,1/60);}if(overlayTime>0){overlayTime-=1/60;if(overlayTime<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}}}
- if(accumulator>=1/60&&!game.done&&!game.pendingManagerKick&&(steps===budget||performance.now()>=deadline)){accumulator=Math.min(accumulator,2/60);simOverloadFrames++;}
+ let steps=0,contactFrame=false;
+ while(accumulator+1e-10>=1/60&&!game.done&&steps<budget&&!game.pendingManagerKick&&(steps===0||performance.now()<deadline)){
+  steps++;accumulator-=1/60;attackObserver.step();
+  for(const p of game.players){p.selected=p===game.owner;if(p.active)Rig.update(p,1/60);}
+  if(localContacts){
+   localContacts.observe(game);
+   const observed=scene.matchPilot?.observe({
+    time:game.time,players:game.players,ball:game.ball,flight:game.flight,
+    releaseSerial:game.releaseSerial,contacts:localContacts.recent()
+   },1/60);
+   contactFrame=(observed?.receiveCue?.time??observed?.releaseCue?.time)===game.time;
+  }
+  if(overlayTime>0){
+   overlayTime-=1/60;
+   if(overlayTime<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}
+  }
+  // Carry remaining fixed steps into the next draw to preserve the pilot's
+  // first control or strike at its physical contact.
+  if(contactFrame)break;
+ }
+ if(!contactFrame&&accumulator>=1/60&&!game.done&&!game.pendingManagerKick&&(steps===budget||performance.now()>=deadline)){
+  accumulator=Math.min(accumulator,2/60);simOverloadFrames++;
+ }
  consume();const metric=Math.floor(game.time*5+1e-7),wall=performance.now();
  if(game.pendingManagerKick){syncKickControls();metrics();}
  else if(game.done||(metric!==lastMetric&&(speed<4||wall-lastMetricWall>=120))){
@@ -187,6 +223,13 @@ const crowd={ctx:null,gain:null,enabled:false,ready(){
 },toggle(){this.ready();if(!this.ctx)return false;this.enabled=!this.enabled;this.ctx.resume();this.gain.gain.setTargetAtTime(this.enabled?.12:0,this.ctx.currentTime,.2);return this.enabled;},react(type){if(!this.enabled)return;const t=this.ctx.currentTime,g=this.gain.gain;g.cancelScheduledValues(t);g.setTargetAtTime(type==='goal'?.5:type==='save'?.3:.23,t,.12);g.setTargetAtTime(.12,t+(type==='goal'?2.7:1.0),.7);},whistle(){if(!this.enabled)return;const c=this.ctx,o=c.createOscillator(),g=c.createGain(),t=c.currentTime;o.frequency.value=2350;o.connect(g);g.connect(c.destination);g.gain.setValueAtTime(.018,t);g.gain.exponentialRampToValueAtTime(.0001,t+.16);o.start(t);o.stop(t+.18);}
 };
 window.addEventListener('DOMContentLoaded',()=>{
+ if(pilotRequested){
+  if(scene.gl){
+   import('./match-clip-pilot.mjs')
+    .then(()=>{scene.matchPilot=window.TribunLiveClipPilot.create({playerId:pilotPlayer});})
+    .catch(error=>{pilotError=String(error.message||error);});
+  }else pilotError='WebGL kullanılamıyor.';
+ }
  kickPanel=new window.TribunManagerKickPanel($('managerKickPanel'),{
   onChange(opportunity,input,stage){
    if(opportunity.id!==visibleKick?.id)return;
@@ -233,11 +276,10 @@ window.addEventListener('DOMContentLoaded',()=>{
    const stopped=paused||!!game.pendingManagerKick||!!live&&game.done;
    if(live){
     game.sample(now,stopped?0:dt);
+    consume();
+    scene.matchPilot?.observe(game.presentation??game,stopped?0:dt);
     if(overlayTime>0&&(overlayTime-=dt)<=0){$('bigMoment').classList.remove('show');$('stadiumWrap').classList.remove('goal-flash');}
    }
-   if(!scene.matchPilot&&window.TribunLiveClipPilot&&new URLSearchParams(location.search).get('pilot')==='1')
-    scene.matchPilot=window.TribunLiveClipPilot.create({playerId:0});
-   scene.matchPilot?.observe(game,stopped?0:dt);
    let drawMs=0;
    if(!stopped||now-lastPauseDraw>=120){
     const renderStart=performance.now();
@@ -322,7 +364,7 @@ function skillRenderProbe(){
   scoreUnchanged:JSON.stringify(game.score)===before.score,
   positionsUnchanged:JSON.stringify(game.players.map(p=>[p.id,p.x,p.z,p.face,p.action]))===before.players&&JSON.stringify(game.ball)===before.ball};
 }
-window.TRIBUN_MATCH_TEST={skillRenderProbe,attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||{status:'not-loaded'},ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
+window.TRIBUN_MATCH_TEST={skillRenderProbe,attackReport:()=>attackObserver.report(),attackSummary:()=>attackObserver.summary(),getState:()=>({...game,elapsed:game.time,paused,speed,players:game.players,phase:game.phase,kickTask:game.kick}),animationStats:()=>scene.animationStats(),pilotStats:()=>scene.matchPilot?.info()||(pilotError?{status:'fallback',reason:pilotError}:{status:pilotRequested?'loading':'not-loaded'}),ballSeams:()=>scene.ballVisual?.orientation()||null,frameCost:()=>lastFrameCost,performanceStats:()=>({...scene.performanceMode(),simOverloadFrames}),setGraphicsMode:mode=>scene.setPerformanceMode(mode),setAnimationBlending:enabled=>scene.matchAnimation?.setEnabled(enabled),
  renderProbe:()=>{const b=game.ball,start=performance.now();scene.render(game.players,b,[b.x+b.vx*.25,b.z+b.vz*.25],{},0);if(scene.gl)scene.gl.finish();return {cpuGpuMs:performance.now()-start,active:game.players.filter(p=>p.active&&!p.referee).length,bridge:scene.animationStats(),webgl:!!scene.gl};},
  advance:(n=1)=>{for(let i=0;i<Math.round(n*60);i++)tick(1/60);},restart:init,frame:tick,substitute:(a,b)=>game.substitute(a,b),benchPlayers:()=>game.bench()};
 })();
