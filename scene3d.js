@@ -150,7 +150,7 @@ setPerformanceMode(mode){
  return this.performanceMode();
 }
 performanceMode(){return {mode:this.performance.mode,scale:this.performance.scale,fps:this.performance.fps,
- canvas:[this.canvas.width,this.canvas.height],players:this.playerRenderer?.lastRenderStats||null};}
+ canvas:[this.canvas.width,this.canvas.height],players:this.playerRenderer?.lastRenderStats||null,dynamicBuffer:{capacityBytes:(this.dynamicCapacity||0)*4,uploadedBytes:this.dynamicUploadedBytes||0,allocations:this.dynamicAllocations||0}};}
 observeFrame(dt,paused=false){
  if(paused||!Number.isFinite(dt)||dt<=0||dt>2||(typeof document!=='undefined'&&document.hidden))return;
  const p=this.performance,ms=dt*1000;
@@ -165,6 +165,13 @@ animationStats(){return this.matchAnimation?.stats()||{players:0,transitions:0,b
 resize(){const c=this.canvas,rect=c.getBoundingClientRect(),profile=this.performance,
  cap=profile.mode==='performance'?.8:profile.mode==='quality'?1.6:1.1,
  dpr=Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,cap)*profile.scale;let w=Math.max(2,Math.floor(rect.width*dpr)),h=Math.max(2,Math.floor(rect.height*dpr));if(c.width!==w||c.height!==h){c.width=w;c.height=h}this.gl.viewport(0,0,w,h)}
+uploadDynamic(m){
+ const gl=this.gl,length=m.v.length;
+ if(!this.dynamicVertices||this.dynamicVertices.length<length){let size=1024;while(size<length)size*=2;this.dynamicVertices=new Float32Array(size);this.dynamicCapacity=0;}
+ this.dynamicVertices.set(m.v);gl.bindBuffer(gl.ARRAY_BUFFER,this.dynamicBuffer);
+ if(this.dynamicCapacity!==this.dynamicVertices.length){gl.bufferData(gl.ARRAY_BUFFER,this.dynamicVertices.byteLength,gl.DYNAMIC_DRAW);this.dynamicCapacity=this.dynamicVertices.length;this.dynamicAllocations=(this.dynamicAllocations||0)+1;}
+ gl.bufferSubData(gl.ARRAY_BUFFER,0,this.dynamicVertices.subarray(0,length));this.dynamicUploadedBytes=length*4;
+}
 playerGroundGeometry(m,p){
  if(!this.groundTemplates){const shadow=new Mesh(),blue=new Mesh(),red=new Mesh();shadow.sphere(0,.035,0,.37,.018,.27,[.025,.11,.065],3,10);blue.sphere(0,.025,0,.48,.012,.44,[.12,.42,.60],3,16);red.sphere(0,.025,0,.48,.012,.44,[.55,.16,.12],3,16);this.groundTemplates={shadow,blue,red};}
  m.appendTranslated(this.groundTemplates.shadow,p.x,0,p.z);
@@ -173,15 +180,15 @@ playerGroundGeometry(m,p){
 render(players,ball,focus,events,dt){if(!this.gl){this.renderFallback(players,ball,focus,dt);return;}let gl=this.gl;this.resize();let target=this.camera==='portrait'?[focus[0],.9,focus[1]]:this.camera==='close'?[clamp(focus[0],-47,47),.8,clamp(focus[1],-27,27)]:this.camera==='tv'?[clamp(focus[0]*.65,-32,32),0,clamp(focus[1]*.3,-10,10)]:[0,0,0];let desire=this.camera==='portrait'?[target[0]+4.4*(this.portraitScale||1),target[1]+2.6*(this.portraitScale||1),target[2]+5.5*(this.portraitScale||1)]:this.camera==='tactical'?[4,116,18]:this.camera==='close'?[target[0]+16,18,target[2]+20]:[target[0]*.65,35,60];let smoothing=clamp(dt*3,0,1);for(let i=0;i<3;i++){this.cameraSmoothing[i]+=(desire[i]-this.cameraSmoothing[i])*smoothing;this.cameraTarget[i]+=(target[i]-this.cameraTarget[i])*smoothing}
 const kickCamera=this.managerKickView?this.managerKickCamera(this.canvas.width/this.canvas.height):null;
 let vp=kickCamera?.matrix||matmul(perspective((this.camera==='portrait'?43:this.camera==='close'?48:54)*Math.PI/180,this.canvas.width/this.canvas.height,.2,400),lookAt(this.cameraSmoothing,this.cameraTarget));gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));const draw=(buffer,count)=>{gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.enableVertexAttribArray(this.aPos);gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(this.aColor);gl.vertexAttribPointer(this.aColor,3,gl.FLOAT,false,24,12);gl.drawArrays(gl.TRIANGLES,0,count)};draw(this.staticBuffer,this.staticCount);
-let m=new Mesh();
+let m=this.frameMesh||(this.frameMesh=new Mesh());m.v.length=0;m.ct=0;
 if(this.playerRenderer){
  const cull=this.camera==='close'&&!kickCamera&&!this.debugRig;
- gl.disableVertexAttribArray(this.aPos);gl.disableVertexAttribArray(this.aColor);this.playerRenderer.draw(players,vp,kickCamera?.eye||this.cameraSmoothing,kickCamera?'close':this.camera,dt,this.matchAnimation,{cull,paletteForPlayer:p=>this.matchPilot?.paletteForPlayer(p,dt,this.matchAnimation,this.playerRenderer.assets)||null});gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));
+ gl.disableVertexAttribArray(this.aPos);gl.disableVertexAttribArray(this.aColor);this.playerRenderer.draw(players,vp,kickCamera?.eye||this.cameraSmoothing,kickCamera?'close':this.camera,dt,this.matchAnimation,{cull,animationLOD:this.performance.mode==='performance'&&!kickCamera&&!this.debugRig,ball,paletteForPlayer:p=>this.matchPilot?.paletteForPlayer(p,dt,this.matchAnimation,this.playerRenderer.assets)||null});gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));
  for(const p of players){if(!p.active)continue;if(cull&&!p.selected&&!p.referee&&!window.TribunPlayerRenderer.playerInView(p,vp))continue;this.playerGroundGeometry(m,p);
  if(this.debugRig){const pose=window.TribunHumanoidRig.getPose(p),gold=[1,.72,.15];for(const l of pose.legs){m.segment(...l.hip,...l.knee,.014,gold);m.segment(...l.knee,...l.ankle,.014,gold);}for(const a of pose.arms){m.segment(...a.shoulder,...a.elbow,.012,gold);m.segment(...a.elbow,...a.wrist,.012,gold);}}}
 }else for(const p of players)this.figure(m,p,dt);
 if(ball){m.sphere(ball.x,.06,ball.z,.21,.015,.21,[.035,.18,.13],4,8);m.sphere(ball.x,ball.y,ball.z,.11,.11,.11,[.98,.98,.94],6,9);(()=>{const visual=this.ballVisual||(this.ballVisual=window.TribunBallVisual?.create());const normals=visual?.sample(ball,dt)||[[.45,.76,.46]];for(const n of normals)m.sphere(ball.x+n[0]*.107,ball.y+n[1]*.107,ball.z+n[2]*.107,.029,.026,.029,[.07,.07,.08],4,6);})()}if(events?.flash){let pp=events.flash;m.sphere(pp.x,.07,pp.z,2.05,.027,2.05,[.58,.50,.09],3,12)}
-gl.bindBuffer(gl.ARRAY_BUFFER,this.dynamicBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(m.v),gl.DYNAMIC_DRAW);draw(this.dynamicBuffer,m.ct)}
+this.uploadDynamic(m);draw(this.dynamicBuffer,m.ct)}
 }
 window.Stadium3D=Stadium3D;
 })();
