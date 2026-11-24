@@ -721,3 +721,40 @@ test('technical cut is accepted only by the real touch forecast and never bypass
   assert.equal(m.dribbleTouch(owner),false);assert.deepEqual(m.ball,ball);
  }
 });
+
+
+test('territorial progress replaces a low-value retreat with a real forward link, preserving shots and safe return combinations',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(owner,{x:8*side,z:0,face:side>0?0:Math.PI,receiveClock:0,duelRecovery:0,shieldUntil:0,carryTime:.5});
+  Object.assign(link,{x:19*side,z:0});
+  m.ball={x:8.6*side,z:0,y:.11,vx:side,vz:0,vy:0};
+  m.observedLine=()=>40;
+  const option={kind:'pass',q:link,point:{x:19*side,z:0},risk:.15,arrivalRisk:.25,space:5,score:6,distance:11};
+  const retreat={kind:'carry',point:{x:6*side,z:0},hold:true};
+  const carry={kind:'carry',point:{x:13*side,z:0},clearance:3,score:7};
+  let attempts=0;m.passPreparation=()=>{attempts++;return {feasible:true};};
+  m.controlPreparation=()=>({firstTouchTime:.12,interventionTime:null});
+  const rivals=m.rivals(owner),before={ball:{...m.ball},x:owner.x,z:owner.z,seed:m.seed};
+  assert(m.territorialProgression(owner,retreat,[option],carry,rivals,6).territorialPass);
+  assert.equal(attempts,1);
+  assert.deepEqual({ball:m.ball,x:owner.x,z:owner.z,seed:m.seed},before);
+  const shot={kind:'shot',point:{x:52*side,z:0}};assert.equal(m.territorialProgression(owner,shot,[option],carry,rivals,6),shot);
+  const combo={...retreat,kind:'pass',movingReturn:true};assert.equal(m.territorialProgression(owner,combo,[option],carry,rivals,6),combo);
+  assert.equal(attempts,1);
+  assert(m.territorialProgression(owner,retreat,[{...option,risk:.8}],carry,rivals,6).territorialCarry);
+  assert.equal(attempts,1);
+  m.passPreparation=()=>({feasible:false});m.controlPreparation=()=>({firstTouchTime:.12,interventionTime:.15});
+  assert.equal(m.territorialProgression(owner,retreat,[option],carry,rivals,6),retreat);
+  m.observedLine=()=>12;m.passPreparation=()=>{assert.fail('offside candidate cannot be previewed');};
+  assert.equal(m.territorialProgression(owner,retreat,[option],carry,rivals,6),retreat);
+ }
+});
+test('territorial correction defaults off in engine and can be enabled in an actual local match configuration',()=>{
+ const {m,owner,link}=fixture();const before=m.cfg.territorialProgression;
+ const chosen={kind:'carry',hold:true,point:{x:owner.x-2,z:0}},forward={kind:'pass',q:link,point:{x:link.x,z:link.z},risk:.1,arrivalRisk:.2,space:5,score:8,distance:11};
+ m.clearFinish=()=>false;m.chooseFromOptions=()=>chosen;m.passOptions=()=>[forward];m.passPreparation=()=>({feasible:true});
+ assert.equal(before,undefined);assert.equal(m.choose(owner),chosen);
+ m.cfg.territorialProgression=true;
+ assert(m.choose(owner).territorialPass);
+});
