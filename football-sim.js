@@ -362,7 +362,7 @@ class Match{
  thirdManLink(p,q){
   const run=q?.runIntent;
   if(!q?.active||q.team!==p.team||!this.playerBrainEnabled(p)||run?.kind!=='third-man'||run.partnerId!==p.id||run.epoch!==this.attackEpoch[p.team]||run.until<=this.time||
-    q.task?.state!=='channel-run'||q.task.partnerId!==p.id||q.task.expiresAt<=this.time||q.task.epoch!==run.epoch)return null;
+    !run.accepted||q.task?.state!=='channel-run'||q.task.partnerId!==p.id||q.task.expiresAt<=this.time||q.task.epoch!==run.epoch)return null;
   const source=this.players.find(a=>a.id===run.sourceId&&a.active&&a.rosterId===run.sourceRosterId);
   if(!source||source.team!==p.team)return null;
   const incoming=this.flight?.target?.id===p.id&&this.flight.from?.id===source.id;
@@ -870,8 +870,10 @@ class Match{
   const duration=Math.max(kind==='throw'?.55:kind==='shot'?.25:oneTouch?.12:.18,turn/7.0,setup/(oneTouch?6:4.8));
   const moving=!this.restart&&!restartContext&&kind!=='throw'&&turn<1.45&&Math.hypot(p.vx,p.vz)>.8;
   const wallPass=this.playerBrainEnabled(p)&&oneTouch&&!!target&&!!this.giveGoLink(p,target);
-  const timedRun=kind==='through'&&target&&(this.offBallRead(p,target)||this.thirdManLink(p,target));
+  const thirdRead=target&&['pass','through'].includes(kind)&&this.thirdManLink(p,target);
+  const timedRun=kind==='through'&&target&&(this.offBallRead(p,target)||thirdRead);
   this.kick={p,kind,target,point:{...aim},clock:0,duration,powerOverride,moving,oneTouch,wallPass,...(timedRun?{timedRun:true}:{}),restartContext,approach:{vx:p.vx,vz:p.vz},setupImpulse:false};
+  if(thirdRead)this.kick.thirdManRead={...thirdRead,runnerId:target.id,runnerRosterId:target.rosterId};
   if(wallPass){p.wallPassClock=duration+.22;p.wallPassFoot=p.kickFoot;}else if(p.wallPassClock!==undefined)p.wallPassClock=0;if(target&&['through','cross','cutback'].includes(kind)){target.runIntent={...(target.runIntent?.until>this.time?target.runIntent:{}),point:{...aim},until:this.time+3};}this.phase='windup';this.owner=p;
   if(managerControl)this.kick.managerControl=managerControl;
   if(kind==='pass'&&target&&!restartContext&&!oneTouch&&duration>=.30&&(p.passReviewUntil||0)<=this.time){const speed=this.passSpeed(kind,dist(this.ball,aim),this.t[p.team]);this.kick.passRead={base:this.laneRisk(p,aim,speed,kind),next:.04,badSince:null,motionAt:this.time,motion:new Map(this.rivals(p).map(d=>[d.id,{vx:d.vx,vz:d.vz,ax:0,az:0,seenAt:d.seenAt??this.time}]))};}
@@ -1185,7 +1187,8 @@ class Match{
   this.planClock=0;
  }
  afterPass(p,k,d){
-  const third=k.target&&this.thirdManLink(p,k.target);
+  const read=k.thirdManRead;
+  const third=read&&k.target?.active&&k.target.id===read.runnerId&&k.target.rosterId===read.runnerRosterId&&read.partnerId===p.id&&read.epoch===this.attackEpoch[p.team]&&read.until>this.time&&this.recentPasses.some(a=>a.from===read.sourceId&&a.to===p.id&&a.time>=read.createdAt&&this.time-a.time<3.6)?read:null;
   if(third&&['pass','through'].includes(k.kind)&&(k.target.x-third.origin.x)*this.direction(p.team)>1){k.thirdManReturn={sourceId:third.sourceId,wallId:p.id,runnerId:k.target.id,epoch:this.attackEpoch[p.team]};this.telemetry.thirdManReleases=(this.telemetry.thirdManReleases||0)+1;}
   const returned=k.target&&this.giveGoLink(p,k.target);
   if(returned&&['pass','through'].includes(k.kind)&&(k.target.x-returned.origin.x)*this.direction(p.team)>1.8){k.giveGoReturn={passerId:k.target.id,wallId:p.id,epoch:this.attackEpoch[p.team]};this.telemetry.giveGoReturns++;p.comboCooldown=k.target.comboCooldown=this.time+4;}
@@ -1952,7 +1955,7 @@ class Match{
      else if(pressurePlan.active&&p===cover&&(distance<engage+7||t.press>=75&&presser&&dist(presser,ball)<engage)){const q=pressingUnit?.coverPoint||{x:ball.x-side*4.3,z:ball.z*.70};x=q.x;z=q.z;state='cover';pace=.98;}
      else if(p===holding&&!assignments.has(p)){x=side*clamp(aBall-3,unit.line+4,unit.line+10);z=clamp(ball.z*.43,-11,11);state='screen';pace=.96;}
      else if(assignments.has(p)){const q=assignments.get(p),blend=t.marking==='man'?.84:.44,depth=x*side;x=side*clamp((x*(1-blend)+(q.x-side*1.7)*blend)*side,depth-(t.marking==='man'?8:4.5),depth+(t.marking==='man'?8:4.5));z=z*(1-blend)+q.z*blend;state='mark';}
-     if(pressingUnit?.outlet?.id===p.id&&!assignments.has(p)&&!unit.recovering){x=pressingUnit.outlet.point.x;z=pressingUnit.outlet.point.z;state='trap-screen';pace=1.01;}
+     if(pressingUnit?.outlet?.id===p.id&&!assignments.has(p)&&(!unit.recovering||pressurePlan.reason==='counterpress'&&unit.goalSide>=5)){x=pressingUnit.outlet.point.x;z=pressingUnit.outlet.point.z;state='trap-screen';pace=1.01;}
      if(p===presser&&state==='press'&&t.onLoss==='regroup'&&this.lossUntil[team]>this.time&&distance>1.8&&distance<7&&(p.x-ball.x)*side<-.5&&pool.filter(q=>q.role==='DEF'&&(q.x-ball.x)*side<-2).length<3){x=ball.x-side*2.3;z=ball.z*.88;state='delay';pace=.58;}
      if(p.role==='DEF'&&p!==presser&&assignments.has(p)){
       const q=assignments.get(p),futureX=(q.x+q.vx*.65)*side;
@@ -2011,7 +2014,7 @@ class Match{
     if(flank?.fullbackId===p.id){if(['overlap','wide-support'].includes(chosen.state))flank.point={x:chosen.x,z:chosen.z};else this.flankPlans[team]=null;}
     if(box?.points.has(p.id)&&['box-run','cutback-support'].includes(chosen.state))Object.assign(box.points.get(p.id),{x:chosen.x,z:chosen.z});
     if(box?.points.has(p.id)&&!['box-run','cutback-support','receive-run'].includes(chosen.state))box.points.delete(p.id);
-    if(p.runIntent?.kind==='third-man'&&!p.runIntent.accepted&&chosen.state==='channel-run'&&chosen.partnerId===p.runIntent.partnerId){p.runIntent.accepted=true;this.telemetry.thirdManRuns=(this.telemetry.thirdManRuns||0)+1;}
+    if(p.runIntent?.kind==='third-man'&&!p.runIntent.accepted&&chosen.state==='channel-run'&&chosen.partnerId===p.runIntent.partnerId&&dist(chosen,p.runIntent.point)<1.5){p.runIntent.accepted=true;this.telemetry.thirdManRuns=(this.telemetry.thirdManRuns||0)+1;}
     if(pressingUnit?.outlet?.id===p.id&&chosen.state==='trap-screen'&&chosen.focusId===pressingUnit.outlet.receiverId&&p.task?.since===this.time)this.telemetry.pressTrapScreens=(this.telemetry.pressTrapScreens||0)+1;
     p.intent={...chosen,epoch:this.attackEpoch[team],until:p.task?.expiresAt??this.time+.7};plans.set(p,chosen);
    }
