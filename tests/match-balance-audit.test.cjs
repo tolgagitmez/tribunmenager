@@ -58,3 +58,16 @@ test('passive observation preserves complete deterministic real-match state',()=
  for(let i=0;i<720;i++){a.step(1/60);b.step(1/60);observer.afterStep();}
  observer.detach();assert.deepEqual(structuredClone(b),structuredClone(a));
 });
+
+test('goal classification counts only awarded goals, preserves score, and excludes defending last touches from automatic shot attribution',()=>{
+ const {observeShotDecisions}=require('../tools/audit-match-balance.cjs');
+ const m={score:[0,0],choose(){},shotWindow(){},ballExit(exit){if(exit.award)this.score[exit.team]++;this.flight=null;}};
+ const o=observeShotDecisions(m);
+ m.flight={kind:'shot',from:{team:0}};m.lastTouch={team:0};m.ballExit({award:true,team:0});
+ m.flight={kind:'pass',from:{team:0}};m.lastTouch={team:0};m.ballExit({award:true,team:0});
+ m.flight=null;m.lastTouch={team:1};m.ballExit({award:true,team:0});
+ m.flight={kind:'shot',from:{team:0}};m.ballExit({award:false,team:0});
+ o.detach();assert.deepEqual(m.score,[3,0]);assert.equal(o.result.goalsFromShotFlight,1);assert.equal(o.result.goalsFromOtherFlight,1);assert.equal(o.result.goalsWithoutFlight,1);assert.equal(o.result.goalsWithDefendingLastTouch,1);
+ const r=row(cases(1)[0],[3,0],[1,0]);r.shotFunnel=o.result;
+ assert.equal(summarize([r]).goalsPerShotPct,100);assert.equal(summarize([r]).rawGoalsPerRecordedShotPct,300);
+});
