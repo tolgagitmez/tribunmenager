@@ -1981,7 +1981,7 @@ class Match{
     const pressing=['press','counterpress','intercept'].includes(state);if(pressing&&!p.wasPressing)this.attackStats[team].pressStarts++;if(!pressing&&p.wasPressing)this.attackStats[team].pressDrops++;p.wasPressing=pressing;
     if(this.activeWall?.team===team&&this.activeWall.until>this.time&&this.activeWall.points.has(p.id)&&this.flight){const q=this.activeWall.points.get(p.id);x=q.x;z=q.z;state='wall';pace=.6;}
     // Target spacing uses intended destinations, not a late teleport at contact.
-    if(!['support','build-support','between-lines','cover','screen','press','counterpress','intercept','loose-ball','receive-run','dribble','receive','goalkeeper','keeper-sweep','keeper-control','wall'].includes(state))for(const [q,other] of plans){if(q.team!==team||q.role==='GK')continue;const d=Math.hypot(x-other.x,z-other.z);if(d<4.0){const a=Math.atan2(z-other.z,x-other.x)+(d<.01?(p.id%2?1:-1):0);x+=Math.cos(a)*(4-d)*.65;z+=Math.sin(a)*(4-d)*.65;}}
+    if(!['support','build-support','between-lines','cover','screen','trap-screen','press','counterpress','intercept','loose-ball','receive-run','dribble','receive','goalkeeper','keeper-sweep','keeper-control','wall'].includes(state))for(const [q,other] of plans){if(q.team!==team||q.role==='GK')continue;const d=Math.hypot(x-other.x,z-other.z);if(d<4.0){const a=Math.atan2(z-other.z,x-other.x)+(d<.01?(p.id%2?1:-1):0);x+=Math.cos(a)*(4-d)*.65;z+=Math.sin(a)*(4-d)*.65;}}
     if(has&&!this.flight&&((state==='penetration'&&pattern?.runner?.id===p.id&&pattern.runner.kind)||state==='decoy-run'||state==='channel-run'&&p.runIntent?.kind==='third-man'||state==='receive-run'&&this.kick?.target===p&&this.kick.timedRun)){
      // Spacing adjustments must not push a timed runner past the staging line.
      x=side*Math.min(x*side,offsideLine-Brain.runMargin(p,side));
@@ -2255,7 +2255,7 @@ class Match{
   // Decelerate into the field, without repositioning a player to the ball.
   p.x=clamp(p.x,-53.5,53.5);p.z=clamp(p.z,-35,35);
   let facing=p.speed>.3?Math.atan2(p.vz,p.vx):p.face;
-  if((p.role==='GK'&&target.state!=='keeper-recovery')||target.state==='delay'||p===this.owner&&p.receiveClock>0||target.state==='press'&&dist(p,this.ball)<4.5&&p.speed<3.2||['mark','cover','screen','recovery-screen','build-support','support','wall','fk-mark','fk-attack','fk-cover'].includes(target.state)&&p.speed<2.8)facing=Math.atan2(this.ball.z-p.z,this.ball.x-p.x);
+  if((p.role==='GK'&&target.state!=='keeper-recovery')||target.state==='delay'||p===this.owner&&p.receiveClock>0||target.state==='press'&&dist(p,this.ball)<4.5&&p.speed<3.2||['mark','cover','screen','trap-screen','recovery-screen','build-support','support','wall','fk-mark','fk-attack','fk-cover'].includes(target.state)&&p.speed<2.8)facing=Math.atan2(this.ball.z-p.z,this.ball.x-p.x);
   if(target.state==='receive-run'&&p.reception)facing=Match.prototype.receptionFacing.call(this,p,facing);
   if(target.state==='shield'&&Number.isFinite(p.shieldFace))facing=p.shieldFace;
   const turnRate=4.5*clamp(.70+(p.agility??75)*.004,.70,1.10);
