@@ -2351,7 +2351,11 @@ class Match{
     }
     if(b.y>=1.05)continue;
     if(speed>21&&p.role!=='GK'){b.vx*=.45;b.vz*=.45;b.vy=1.3;p.touchClock=.35;this.lastTouch=p;this.owner=null;this.flight=null;this.phase='open';this.telemetry.looseBalls++;return;}
-    if(!this.owner||p.team!==this.owner.team&&dist(this.owner,b)>1.6){this.acquire(p);return;}
+    if(!this.owner||p.team!==this.owner.team&&dist(this.owner,b)>1.6){
+     const sweep=p.role==='GK'&&this.playerBrainEnabled(p)&&this.targets.get(p)?.state==='keeper-sweep'&&this.flight?.from?.team===1-p.team;
+     if(this.acquire(p)&&sweep)this.telemetry.keeperSweeps=(this.telemetry.keeperSweeps||0)+1;
+     return;
+    }
    }
   }
  }
@@ -2399,17 +2403,17 @@ class Match{
   if(!inside(b)||!inside(gk))return false;
   // No predictive possession: prepare hands only for a nearby descending
   // delivery. The actual swept hand-ball contact is still mandatory.
-  if(gk.action!=='catch-ready'||gk.actionClock<=0){
+  if(gk.action!=='catch-ready'||gk.actionClock<=0||gk.claimFlightId!==f.id){
    if(this.targets.get(gk)?.state!=='keeper-claim'||gk.speed>2.2||dist(gk,b)>4.3)return false;
    const q=BallPhysics.copy(b);
    for(let i=1;i<=7;i++){
     BallPhysics.step(q,.06);
     if(q.vy<=1&&q.y>=.55&&q.y<=1.95&&inside(q)&&dist(gk,q)<.65&&i*.06>=Brain.keeperReaction(gk)){
-     this.action(gk,'catch-ready',.65);gk.catchPoint={x:q.x,y:q.y,z:q.z};break;
+     this.action(gk,'catch-ready',.65);gk.claimFlightId=f.id;gk.catchPoint={x:q.x,y:q.y,z:q.z};break;
     }
    }
   }
-  if(gk.action!=='catch-ready'||gk.actionClock<=0)return false;
+  if(gk.action!=='catch-ready'||gk.actionClock<=0||gk.claimFlightId!==f.id)return false;
   const hands=this.motion?.saveHands(gk)||[{x:gk.x,y:1,z:gk.z}];
   const hits=hands.map(h=>{
    const hand=Array.isArray(h)?{x:h[0],y:h[1],z:h[2]}:h,s=segment(hand,previous,b);
@@ -2490,7 +2494,8 @@ class Match{
    const canCatch=advanced?Brain.keeperCatch(gk,{speed,height:b.y,lateral:Math.abs(b.z-gk.z),pressure,handHits}):speed<catchCapacity&&(speed<22||handHits>=2)&&Math.abs(b.z-gk.z)<.9&&b.y>.08&&b.y<2.05&&pressure>2;
    if(gk.action==='catch-ready'&&inside&&!backpass&&canCatch){
     const gatherStart=clamp(gk.actionElapsed/.22,0,1);
-    if(f?.kind==='shot')this.onTarget[f.from.team]++;this.acquire(gk);gk.holdingBall=true;gk.holdClock=.75;gk.catchPoint={x:b.x,y:b.y,z:b.z};gk.gatherLift=b.y<.75?{height:b.y}:null;gk.gatherStart=gatherStart;gk.receiveClock=.75;gk.decision=.8;this.action(gk,'catch',.75);b.vx=b.vy=b.vz=0;
+    if(advanced){if(!this.acquire(gk)){if(!this.restart)Object.assign(b,end);return;}if(f?.kind==='shot')this.onTarget[f.from.team]++;}
+    else {if(f?.kind==='shot')this.onTarget[f.from.team]++;this.acquire(gk);}gk.holdingBall=true;gk.holdClock=.75;gk.catchPoint={x:b.x,y:b.y,z:b.z};gk.gatherLift=b.y<.75?{height:b.y}:null;gk.gatherStart=gatherStart;gk.receiveClock=.75;gk.decision=.8;this.action(gk,'catch',.75);b.vx=b.vy=b.vz=0;
     this.telemetry.keeperCatches++;
     if(f?.kind==='shot'&&f.keeperReachable)this.telemetry.keeperReachableCatches=(this.telemetry.keeperReachableCatches||0)+1;
     if(speed>=22)this.telemetry.fastCatches++;this.emit('save','Kaleci kontrol etti',`${gk.name} topu tuttu; takımının yerleşmesini bekliyor.`,gk);return;
