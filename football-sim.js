@@ -818,6 +818,16 @@ class Match{
   }
   return best;
  }
+ progressiveCarryRead(p,carry,options,pressure){
+  if(!this.playerBrainEnabled(p)||!['MID','ATT'].includes(p.role)||p.position==='DM'||(p.energy??1)<.48||pressure<5||p.carryTime>1.7||p.shieldUntil>this.time||!carry?.point)return false;
+  const side=this.direction(p.team),gain=(carry.point.x-p.x)*side,turn=Math.abs(angle(Math.atan2(carry.point.z-p.z,carry.point.x-p.x),p.face));
+  if(p.x*side<-24||p.x*side>28||gain<3.5||carry.clearance<2.8||turn>1.15||(p.dribbling??p.skill)<72)return false;
+  const ids=new Set(this.team(p.team).map(q=>q.id));
+  const recent=this.recentPasses.filter(a=>this.time-a.time<8&&ids.has(a.from)&&ids.has(a.to)&&Number.isFinite(a.progress)).slice(-3);
+  if(recent.length<3||recent.reduce((sum,a)=>sum+a.progress,0)>5)return false;
+  // Keep any genuinely playable forward connection ahead of the carry.
+  return !options.some(o=>(o.point.x-p.x)*side>5&&o.risk<.34&&(o.arrivalRisk??1)<.60&&o.space>2.5&&o.score>0);
+ }
  choose(p){
   const opponents=this.rivals(p),pressure=Math.min(30,...opponents.map(o=>dist(p,o))),goalDist=52-p.x*this.direction(p.team);
   const t=this.t[p.team],shot=this.shotWindow(p);
@@ -872,6 +882,10 @@ class Match{
   // Circulate at the chosen tempo when the block is closed. A clear shot,
   // through-ball, urgent outlet or counter already took priority above.
   const progress=best?(best.point.x-p.x)*this.direction(p.team):0,gain=best?this.threat(best.point,p.team)-this.threat(p,p.team):0;
+  if(this.progressiveCarryRead(p,carry,options,pressure)){
+   this.telemetry.progressiveCarryChoices=(this.telemetry.progressiveCarryChoices||0)+1;
+   return {...carry,progressiveCarry:true};
+  }
   const readTime=clamp(2.1-t.tempo*.016,.65,2.1)+(t.passing==='short'?.25:0),readyOutlet=best&&this.targets.get(best.q)?.state==='support'&&dist(best.q,this.targets.get(best.q))<3;
   if(!counter&&pressure>4.2&&!readyOutlet&&p.carryTime<readTime&&goalDist>23&&(!best||gain<.15&&progress<12)){
    // Do not turn a waiting-for-support pause into a lost, already-playable
@@ -1360,7 +1374,10 @@ class Match{
   if(flight?.giveGoReturn?.passerId===p.id&&flight.from.team===p.team&&flight.giveGoReturn.epoch===this.attackEpoch[p.team])this.telemetry.giveGoCompletions++;
   if(flight&&['pass','through','cross','cutback','long-pass'].includes(flight.kind)&&flight.from.team===p.team&&flight.from!==p){this.completed[p.team]++;if(['cross','cutback'].includes(flight.kind))this.attackStats[p.team].completedDeliveries++;this.chain++;if(this.chain===3)this.emit('pass','Paslarla ilerliyorlar',`${p.name} topu aldı; takım pas bağlantısını koruyor.`,p);}
   else if(this.lastTeam!==p.team){this.chain=0;this.transitionUntil[p.team]=this.time+(this.t[p.team].onWin==='counter'?5.5:2.0);this.lossUntil[1-p.team]=this.time+3.2;this.telemetry.turnovers++;if(p.role!=='GK'&&this.time-(this.lastNarratedTurnover||-3)>2){this.lastNarratedTurnover=this.time;this.emit('tackle','Top kazanıldı',`${p.name} araya girdi. Takımı yeniden yerleşiyor.`,p);}}
-  if(flight&&flight.from?.team===p.team&&flight.from!==p){p.lastPassFrom=flight.from.id;this.recentPasses.push({from:flight.from.id,to:p.id,time:this.time});this.recentPasses=this.recentPasses.filter(a=>this.time-a.time<8);}
+  if(flight&&flight.from?.team===p.team&&flight.from!==p){p.lastPassFrom=flight.from.id;const record={from:flight.from.id,to:p.id,time:this.time};
+   // Compare settled contact locations, not a predicted pass destination.
+   if(this.playerBrainEnabled(p)&&this.lastGain?.team===p.team&&this.time-this.lastGain.time<8)record.progress=(this.ball.x-this.lastGain.x)*this.direction(p.team);
+   this.recentPasses.push(record);this.recentPasses=this.recentPasses.filter(a=>this.time-a.time<8);}
   if(Math.abs(p.z)>19)this.tacticalStats[p.team].wideReceives++;
   if(regained&&this.lossUntil[p.team]>this.time&&this.t[p.team].onLoss==='counterpress')this.telemetry.pressRecoveries++;
   if(regained){this.recoveryUntil[1-p.team]=this.time+8;this.recoveryUntil[p.team]=0;this.attackEpoch[p.team]++;this.attackPlans=[null,null];this.flankPlans=[null,null];this.boxPlans=[null,null];this.supportPlans=[null,null];this.pressUnits=[null,null];this.pressAssignments=[null,null];for(const q of this.players){Intent.clear(q,q.team===p.team?'gain':'loss',this.taskContext(q));q.runIntent=null;q.supportIntent=null;q.offerIntent=null;q.connectionIntent=null;q.carryIntent=null;}}
