@@ -10,6 +10,10 @@ on:
       - '.github/workflows/22-player-render-budget.yml'
   push:
     branches: ['feature/22-player-render-budget-20261124']
+concurrency:
+  group: ci-22-player-render-budget-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   exact-render-regressions:
     runs-on: ubuntu-latest

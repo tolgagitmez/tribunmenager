@@ -11,6 +11,10 @@ on:
       - '.github/workflows/defender-duel-wallpass.yml'
   push:
     branches: ['feature/defender-duel-wall-pass-20261124']
+concurrency:
+  group: ci-defender-duel-wallpass-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   physical-duel:
     runs-on: ubuntu-latest

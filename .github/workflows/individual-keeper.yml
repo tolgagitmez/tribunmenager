@@ -8,6 +8,10 @@ on:
       - 'player-brain.js'
       - 'tests/individual-keeper.test.cjs'
       - '.github/workflows/individual-keeper.yml'
+concurrency:
+  group: ci-individual-keeper-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   keeper:
     runs-on: ubuntu-latest

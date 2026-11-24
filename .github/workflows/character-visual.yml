@@ -34,6 +34,10 @@ on:
       - 'tools/benchmark-match-22-browser.cjs'
       - '.github/workflows/character-visual.yml'
 
+concurrency:
+  group: ci-character-visual-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   browser-character:
     runs-on: ubuntu-24.04

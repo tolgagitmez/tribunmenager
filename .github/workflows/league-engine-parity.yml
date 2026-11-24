@@ -12,6 +12,10 @@ on:
       - tests/fixture-watch-parity.test.cjs
       - .github/workflows/league-engine-parity.yml
   workflow_dispatch:
+concurrency:
+  group: ci-league-engine-parity-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   freeze-and-settle:
     runs-on: ubuntu-latest

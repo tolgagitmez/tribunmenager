@@ -18,6 +18,10 @@ on:
       - 'tests/test_season_rotation.py'
       - '.github/workflows/season-rotation.yml'
   workflow_dispatch:
+concurrency:
+  group: ci-season-rotation-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   role-behavior:
     runs-on: ubuntu-latest
