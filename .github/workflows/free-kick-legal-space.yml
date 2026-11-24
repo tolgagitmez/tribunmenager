@@ -1,0 +1,36 @@
+name: Free kick legal space and stalled match replay
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'football-sim.js'
+      - 'tests/match-laws-integration.test.cjs'
+      - 'tools/replay-stalled-fixture.cjs'
+      - '.github/workflows/free-kick-legal-space.yml'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - working-directory: candidate
+        run: npm run test:match-laws && npm run test:manager-kick
+      - working-directory: candidate
+        run: node tools/replay-stalled-fixture.cjs ../baseline .
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: restart-replay
+          path: candidate/docs/validation/restart-replay.json
+          if-no-files-found: warn
