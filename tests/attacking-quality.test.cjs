@@ -758,3 +758,35 @@ test('territorial correction defaults off in engine and can be enabled in an act
  m.cfg.territorialProgression=true;
  assert(m.choose(owner).territorialPass);
 });
+
+
+test('pressed midfield connection prioritizes a reachable early passing angle in both halves',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link,mid,back}=fixture(side);
+  Object.assign(mid,{x:11*side,z:0,vx:-side,vz:0});
+  Object.assign(back,{x:36*side,z:8});
+  link.x=18*side;link.z=0;
+  m.laneRisk=()=>.1;
+  const before={x:link.x,z:link.z,seed:m.seed,ball:{...m.ball}};
+  m.supportRead=(owner,p,q)=>({space:6,risk:.12,earlyRisk:.18,window:.75,readyAt:Math.abs(q.z+3)<.01&&Math.abs(q.x-p.x)<.01?.25:1.3,eta:Math.abs(q.z+3)<.01&&Math.abs(q.x-p.x)<.01?.7:1.6});
+  const old=m.connectionPoint(owner,link,-12,35);assert.equal(old.reachableLink,undefined);
+  link.connectionIntent=null;m.cfg.reachableLinks=true;
+  const ready=m.connectionPoint(owner,link,-12,35);
+  assert(ready.reachableLink);assert.equal(ready.x,18*side);assert.equal(ready.z,-3);
+  assert.equal(m.telemetry.reachableLinkPlans,1);
+  assert.deepEqual({x:link.x,z:link.z,seed:m.seed,ball:m.ball},before);
+  const repeat=m.connectionPoint(owner,link,-12,35);
+  assert.equal(repeat.z,-3);assert.equal(m.telemetry.reachableLinkPlans,1);
+  m.supportRead=()=>({space:6,risk:.1,earlyRisk:.6,window:.75,readyAt:1.4,eta:1.2});
+  assert.equal(m.connectionPoint(owner,link,-12,35).reachableLink,undefined);
+ }
+});
+test('reachable links do not change an unpressed connector or bypass the observed offside limit',()=>{
+ const {m,owner,link,mid}=fixture();
+ m.cfg.reachableLinks=true;m.laneRisk=()=>.1;
+ m.supportRead=()=>{assert.fail('no extra deadline forecast outside pressure');};
+ assert.equal(m.connectionPoint(owner,link,-12,30).reachableLink,undefined);
+ mid.x=owner.x+3;mid.z=owner.z;
+ m.supportRead=(o,p,point)=>{assert(point.x<=14-1);return {space:6,risk:.1,earlyRisk:.1,window:.8,readyAt:.2,eta:.3};};
+ assert.equal(m.connectionPoint(owner,link,-12,14).reachableLink,undefined);
+});
