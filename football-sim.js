@@ -362,6 +362,11 @@ class Match{
   if(actor&&decoy.accepted&&Brain.decoyOpened(decoy,this.rivals(p).find(d=>d.id===decoy.markerId),runner.point,p,actor))return 'decoy-opening';
   return runner.kind;
  }
+ acceptedTimedRun(p,q){
+  if(!q?.active||q.team!==p.team||!this.playerBrainEnabled(p))return false;
+  const task=q.task,side=this.direction(p.team);
+  return !!task&&task.purpose==='run'&&['box-run','channel-run','penetration'].includes(task.state)&&task.partnerId===p.id&&task.epoch===this.attackEpoch[p.team]&&task.expiresAt>this.time&&(task.x-q.x)*side>.5;
+ }
  thirdManLink(p,q){
   const run=q?.runIntent;
   if(!q?.active||q.team!==p.team||!this.playerBrainEnabled(p)||run?.kind!=='third-man'||run.partnerId!==p.id||run.epoch!==this.attackEpoch[p.team]||run.until<=this.time||
@@ -458,7 +463,13 @@ class Match{
     const length=5+clamp((q.pace??80)-70,0,25)*.10,intent=this.plannedRun(q),aligned=!!intent&&(intent.x-q.x)*forward>.75;
     const lateral=aligned?clamp((intent.z-q.z)/Math.max(.75,(intent.x-q.x)*forward)*length,-5.5,5.5):q.vz*.45;
     const run={x:clamp(q.x+forward*length,-48,48),z:clamp(q.z+lateral,-28,28)};
-    const reachTime=dist(q,run)/Math.max(3.5,5.35+((q.pace??80)-75)*.035),flight=this.passTime('through',dist(p,run),21);
+    const timed=aligned&&this.acceptedTimedRun(p,q),heading=Math.atan2(run.z-q.z,run.x-q.x);
+    const speed=Math.max(3.5,5.35+((q.pace??80)-75)*.035);
+    // A stationary or backward-facing runner needs time to accelerate and
+    // turn; do not score him as already sprinting at the target.
+    const along=(q.vx||0)*Math.cos(heading)+(q.vz||0)*Math.sin(heading);
+    const delay=timed?Math.max(0,speed-along)/16+Math.abs(angle(heading,q.face??heading))*.09:0;
+    const reachTime=dist(q,run)/speed+delay,flight=this.passTime('through',dist(p,run),21);
     const advanced=this.playerBrainEnabled(p),rivals=this.rivals(p),r=this.laneRisk(p,run,advanced?21:20,'through'),open=Math.min(16,...rivals.map(o=>dist(o,run)));
     const runReception=advanced?this.receptionSafety(p,q,run,flight):reception;
     const arrivalRisk=runReception.risk,runSpace=advanced?Math.min(open,runReception.pressure):open;
@@ -879,6 +890,24 @@ class Match{
   if(best&&pressure<1.7&&best.risk<.88&&best.arrivalRisk<.85)return best;
   return carry;
  }
+ openPlayShotProfile(p,point){
+  const side=this.direction(p.team),depth=52-p.x*side,distance=Math.hypot(depth,p.z),heading=Math.atan2(point.z-p.z,point.x-p.x);
+  const turn=Math.abs(angle(heading,p.face??heading)),pressure=Math.min(10,...this.rivals(p).map(q=>dist(q,p)));
+  const skill=p.shooting??p.skill??70,composure=p.composure??p.skill??70;
+  const balanced=turn<.85&&(p.speed||0)<5&&pressure>2.4;
+  // These are strike intentions, not preselected outcomes. All use the
+  // ordinary physical boot contact and the same interception/goal rules.
+  if(distance<17&&balanced&&composure>=75)return {style:'placed',power:clamp(19+skill*.045,20,24),height:.65};
+  return {style:'driven',power:clamp((21+skill*.085)*(1-Math.max(0,3-pressure)*.025),20,32),height:distance>22?1.25:.85};
+ }
+ startOpenPlayShot(p,point){
+  if(!this.playerBrainEnabled(p))return this.startKick(p,'shot',null,point);
+  const profile=this.openPlayShotProfile(p,point);
+  if(!this.startKick(p,'shot',null,point,profile.power))return false;
+  this.kick.heightTarget=profile.height;
+  this.kick.shotStyle=profile.style;
+  return true;
+ }
  aimShot(p,point,origin=p){
   const preferred=point?.z??this.shotWindow(p).point.z,pressure=Math.min(20,...this.rivals(p).map(q=>dist(p,q)));
   const distance=this.shotWindow(p).distance,turn=Math.abs(angle(Math.atan2(preferred-origin.z,52*this.direction(p.team)-origin.x),p.face));
@@ -908,7 +937,7 @@ class Match{
   const moving=!this.restart&&!restartContext&&kind!=='throw'&&turn<1.45&&Math.hypot(p.vx,p.vz)>.8;
   const wallPass=this.playerBrainEnabled(p)&&oneTouch&&!!target&&!!this.giveGoLink(p,target);
   const thirdRead=target&&['pass','through'].includes(kind)&&this.thirdManLink(p,target);
-  const timedRun=kind==='through'&&target&&(this.offBallRead(p,target)||thirdRead);
+  const timedRun=kind==='through'&&target&&!restartContext&&(this.offBallRead(p,target)||thirdRead||this.acceptedTimedRun(p,target));
   this.kick={p,kind,target,point:{...aim},clock:0,duration,powerOverride,moving,oneTouch,wallPass,...(timedRun?{timedRun:true}:{}),restartContext,approach:{vx:p.vx,vz:p.vz},setupImpulse:false};
   if(thirdRead)this.kick.thirdManRead={...thirdRead,runnerId:target.id,runnerRosterId:target.rosterId};
   if(wallPass){p.wallPassClock=duration+.22;p.wallPassFoot=p.kickFoot;}else if(p.wallPassClock!==undefined)p.wallPassClock=0;if(target&&['through','cross','cutback'].includes(kind)){target.runIntent={...(target.runIntent?.until>this.time?target.runIntent:{}),point:{...aim},until:this.time+3};}this.phase='windup';this.owner=p;
@@ -1197,6 +1226,11 @@ class Match{
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
+  if(k.kind==='shot'&&k.shotStyle){
+   this.flight.shotStyle=k.shotStyle;
+   const key=k.shotStyle==='placed'?'placedShotReleases':'drivenShotReleases';
+   this.telemetry[key]=(this.telemetry[key]||0)+1;
+  }
   if(k.moving&&k.kind==='shot')this.telemetry.movingShots++;
   if(k.moving&&['pass','through','cross','cutback','long-pass'].includes(k.kind))this.telemetry.movingPasses++;
   if(k.oneTouch)this.telemetry.oneTouchPasses++;
@@ -2827,7 +2861,7 @@ class Match{
       if(choice.kind==='carry'||choice.kind==='feint'){
        this.startCarry(p,choice);
       }
-      else if(choice.kind==='shot')this.startKick(p,'shot',null,choice.point);
+      else if(choice.kind==='shot')this.startOpenPlayShot(p,choice.point);
       else if(!['cross','cutback'].includes(choice.kind)||!this.offerManagerKick(p,'cross',choice.point,null,{choice}))this.startChosenDelivery(p,choice);
      }
      if(!this.kick&&!this.pendingManagerKick&&p.touchClock<=0&&p.receiveClock<=0&&this.ball.y<.45&&dist(p,this.ball)<1.3){
