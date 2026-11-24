@@ -257,7 +257,7 @@ class Match{
  }
  startChosenDelivery(p,choice){
   if(this.startKick(p,choice.kind,choice.q,choice.point)){
-   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;
+   this.kick.plannedRun=choice.plannedRun;this.kick.duelOutlet=choice.duelOutlet;this.kick.supportContinuation=choice.supportContinuation;this.kick.holdUpOutlet=choice.holdUpOutlet;this.kick.offBallKind=choice.offBallKind;this.kick.attackingRunDelivery=choice.attackingRunDelivery;
   }
  }
  positionRestartKick(r,aim){
@@ -877,6 +877,32 @@ class Match{
   const preview=this.controlPreparation(p,carry,null,.55);
   return preview.firstTouchTime!==null&&preview.interventionTime===null?{...carry,retainDepth:true}:null;
  }
+ attackingRunDelivery(p,options){
+  if(!this.playerBrainEnabled(p)||this.owner!==p||p.role==='GK'||this.kick||this.restart||p.receiveClock>0)return null;
+  const side=this.direction(p.team),depth=p.x*side,line=Math.max(this.observedLine(p),this.ball.x*side),box=this.boxPlans[p.team];
+  if(depth<12||depth>47)return null;
+  const candidates=[];
+  for(const o of options){
+   const q=o.q,task=q?.task;
+   if(!q?.active||q.team!==p.team||!['ATT','MID'].includes(q.role)||!['pass','through'].includes(o.kind)||!task||task.partnerId!==p.id||task.epoch!==this.attackEpoch[p.team]||task.expiresAt<=this.time||!['box-run','penetration','channel-run'].includes(task.state))continue;
+   if(q.x*side>line+.05||o.risk>=.30||!(o.arrivalRisk<.58)||o.space<2.8||o.score<=0||dist(p,o.point)>29)continue;
+   const gain=(o.point.x-p.x)*side,inside=o.point.x*side>=35.5&&Math.abs(o.point.z)<16,runnerGain=(task.x-q.x)*side;
+   if(gain<3||!inside&&gain<7||runnerGain<.5&&!inside)continue;
+   if(o.kind==='through'&&!o.plannedRun)continue;
+   // A pass must lead the accepted runner or find an already-open box lane.
+   const moving=dist(q,o.point)>.5&&segment(o.point,q,task).d<2.2&&(o.point.x-q.x)*side>.25;
+   if(!moving&&!inside)continue;
+   const role=box?.epoch===this.attackEpoch[p.team]&&box.source===p.id?box.points.get(q.id)?.role:null;
+   candidates.push({o,value:o.score+gain*.18+(inside?3:0)+(role==='second-wave'?2:0)});
+  }
+  candidates.sort((a,b)=>b.value-a.value);
+  for(const {o} of candidates.slice(0,2)){
+   // The existing through-ball evaluator already checks race and flight;
+   // for short feeds also preview the ordinary physical pass preparation.
+   if(o.kind==='through'||this.passPreparation(p,o).feasible)return {...o,attackingRunDelivery:true};
+  }
+  return null;
+ }
  finalThirdLink(p,options){
   const side=this.direction(p.team),depth=p.x*side;
   if(!this.playerBrainEnabled(p)||p.role==='GK'||depth<24||depth>48||this.kick||this.restart)return null;
@@ -944,6 +970,10 @@ class Match{
    if(heldFor>.46&&carry.clearance>1.6&&(carry.point.x-p.x)*this.direction(p.team)>1.3&&pressure>2.1)return {...carry,holdUpTurn:true};
   }
   if(best?.kind==='through'&&best.score>10&&best.risk<.6)return best;
+  const penetration=this.attackingRunDelivery(p,options);
+  if(penetration){this.telemetry.attackingRunChoices=(this.telemetry.attackingRunChoices||0)+1;return penetration;}
+  const boxLink=this.finalThirdLink(p,options);
+  if(boxLink){this.telemetry.finalThirdLinkChoices=(this.telemetry.finalThirdLinkChoices||0)+1;return boxLink;}
   // Read open grass before support-waiting, backwards circulation and stale tasks.
   if(this.directProgressRead(p,carry,options,pressure)){
    this.telemetry.openFieldCarryChoices=(this.telemetry.openFieldCarryChoices||0)+1;
@@ -957,8 +987,6 @@ class Match{
    this.telemetry.diagonalFeedChoices=(this.telemetry.diagonalFeedChoices||0)+1;
    return diagonalFeed;
   }
-  const boxLink=this.finalThirdLink(p,options);
-  if(boxLink){this.telemetry.finalThirdLinkChoices=(this.telemetry.finalThirdLinkChoices||0)+1;return boxLink;}
   const retained=this.retainAttackingDepth(p,options,carry,pressure);
   if(retained){this.telemetry.retainedAttackingDepth=(this.telemetry.retainedAttackingDepth||0)+1;return retained;}
   const arrivalPlan=this.supportPlans[p.team],counterExit=this.transitionUntil[p.team]>this.time&&t.onWin==='counter';
@@ -1423,6 +1451,7 @@ class Match{
   this.offsidePhase=['throw','corner','goal-kick'].includes(k.restartContext?.kind)||k.kind==='throw'?null:this.captureOffside(p);this.flight.offsidePlayers=this.offsidePhase?.playerIds.slice()||[];this.flight.restartKind=k.restartContext?.kind??null;this.flight.restartIndirect=!!k.restartContext?.indirect;this.penaltyReleased(k,this.flight);
   if(['pass','through','cross','cutback','long-pass'].includes(k.kind))this.passes[p.team]++;
   if(k.supportContinuation)this.telemetry.arrivalSupportReleases=(this.telemetry.arrivalSupportReleases||0)+1;
+  if(k.attackingRunDelivery){this.telemetry.attackingRunReleases=(this.telemetry.attackingRunReleases||0)+1;this.flight.attackingRunDelivery=true;}
   if(k.kind==='shot'&&k.shotStyle){
    this.flight.shotStyle=k.shotStyle;
    const key={placed:'placedShotReleases',driven:'drivenShotReleases',curled:'curledShotReleases',chip:'chipShotReleases'}[k.shotStyle];
@@ -1489,6 +1518,7 @@ class Match{
   if(this.penaltyAttempt?.state==='released'&&this.penaltyAttempt.takerId===p.id&&this.lastTouch===p){this.penaltyAttempt.state='settled';this.setRestart('free-kick',1-p.team,{x:p.x,z:p.z});this.restart.indirect=true;this.emit('double-touch','Çift dokunuş','Penaltıyı kullanan oyuncu başka bir oyuncu dokunmadan topa yeniden dokundu.',p,1-p.team);return false;}
   if(this.offsidePhase&&p.team!==this.offsidePhase.team)this.offsidePhase=null;
   const previous=this.lastTouch,flight=this.flight,regained=this.lastTeam!==p.team;
+  if(flight?.attackingRunDelivery&&flight.target===p&&flight.from?.team===p.team)this.telemetry.attackingRunCompletions=(this.telemetry.attackingRunCompletions||0)+1;
   if(flight?.thirdManReturn?.runnerId===p.id&&flight.from?.team===p.team&&flight.thirdManReturn.epoch===this.attackEpoch[p.team]){this.telemetry.thirdManCompletions=(this.telemetry.thirdManCompletions||0)+1;this.emit('third-man','Üçüncü adam bağlantısı',p.name+' iki takım arkadaşının hazırladığı pas bağlantısını tamamladı.',p);}
   if(flight?.giveGoReturn?.passerId===p.id&&flight.from.team===p.team&&flight.giveGoReturn.epoch===this.attackEpoch[p.team])this.telemetry.giveGoCompletions++;
   if(flight&&['pass','through','cross','cutback','long-pass'].includes(flight.kind)&&flight.from.team===p.team&&flight.from!==p){this.completed[p.team]++;if(['cross','cutback'].includes(flight.kind))this.attackStats[p.team].completedDeliveries++;this.chain++;if(this.chain===3)this.emit('pass','Paslarla ilerliyorlar',`${p.name} topu aldı; takım pas bağlantısını koruyor.`,p);}
@@ -2034,6 +2064,23 @@ class Match{
   const same=retained&&best.id===old.id&&dist(best.point,old.point)<.1;
   return this.buildPlans[team]={...best,owner:owner.id,epoch:this.attackEpoch[team],until:same?old.until:this.time+1.4,ball:same?old.ball:{x:this.ball.x,z:this.ball.z}};
  }
+ secondWavePoint(source,p,occupied,line){
+  const side=this.direction(source.team),depth=source.x*side,ownLine=Math.max(this.observedLine(p),this.ball.x*side);
+  if(!this.playerBrainEnabled(p)||p.role!=='MID'||p.position==='DM'||this.teamRole(p)==='anchor'||(p.energy??1)<.55||depth<23||depth>39||p.x*side<depth-14)return null;
+  const limit=Math.min(line,ownLine)-Brain.runMargin(p,side),x=side*Math.min(40,limit,Math.max(35.7,depth+5));
+  if(x*side<35.5||(x-p.x)*side<1.5)return null;
+  const opponents=this.rivals(p),flank=Math.sign(source.z||source.homeZ||1);let best=null;
+  for(const z of [flank*8,-flank*6,flank*12,-flank*12,0]){
+   const point={x,z},travel=dist(p,point),range=dist(source,point);
+   if(travel>17||range<5||range>24||[...occupied.values()].some(q=>dist(q,point)<5.5))continue;
+   const space=Math.min(12,...opponents.map(q=>dist({x:q.x+q.vx*.35,z:q.z+q.vz*.35},point)));
+   const corridor=Math.min(12,...opponents.map(q=>segment(q,p,point).d));
+   if(space<3||corridor<1.5)continue;
+   const score=space*.8-travel*.25-Math.abs(z)*.04;
+   if(!best||score>best.score)best={...point,score};
+  }
+  return best?{x:best.x,z:best.z}:null;
+ }
  boxAttack(team,owner){
   const flight=this.flight,delivery=flight&&flight.from.team===team&&['cross','cutback'].includes(flight.kind);
   const source=owner?.team===team?owner:delivery?flight.from:null,side=this.direction(team);
@@ -2066,9 +2113,13 @@ class Match{
    };
    add(near,clamp(source.x*side+8,36,45),[-3,0,3],'near-post');
    add(far,clamp(source.x*side+6,36,43),[-flank*10,-flank*15],'far-post');
+   // A non-holding midfielder attacks a third, separate half-space only
+   // when two forwards occupy the defenders and an onside route is open.
+   const second=edge&&points.has(near?.id)&&points.has(far?.id)?this.secondWavePoint(source,edge,points,line):null;
+   if(second)points.set(edge.id,{...second,state:'box-run',role:'second-wave'});
    // When the central carrier reaches the defensive line, retain an
    // unoccupied backward diagonal instead of demanding an offside run.
-   if(edge&&source.x*side>=30){
+   if(edge&&!second&&source.x*side>=30){
     const depth=Math.min(source.x*side-3,35,Math.max(this.observedLine(edge),this.ball.x*side)-.8);
     let best=null;
     for(const z of [-flank*5,-flank*9,flank*7]){
@@ -2414,7 +2465,11 @@ class Match{
     if(pattern?.connectorId===p.id&&chosen.state==='between-lines'&&p.connectionIntent)p.connectionIntent.point={x:chosen.x,z:chosen.z};
     if(build?.id===p.id){if(chosen.state==='build-support')build.point={x:chosen.x,z:chosen.z};else this.buildPlans[team]=null;}
     if(flank?.fullbackId===p.id){if(['overlap','wide-support'].includes(chosen.state))flank.point={x:chosen.x,z:chosen.z};else this.flankPlans[team]=null;}
-    if(box?.points.has(p.id)&&['box-run','cutback-support'].includes(chosen.state))Object.assign(box.points.get(p.id),{x:chosen.x,z:chosen.z});
+    if(box?.points.has(p.id)&&['box-run','cutback-support'].includes(chosen.state)){
+     const run=box.points.get(p.id);
+     if(run.role==='second-wave'&&!run.accepted&&chosen.state==='box-run'&&chosen.partnerId===owner?.id&&dist(chosen,run)<1.5){run.accepted=true;if(p.task?.since===this.time)this.telemetry.secondWaveRuns=(this.telemetry.secondWaveRuns||0)+1;}
+     Object.assign(run,{x:chosen.x,z:chosen.z});
+    }
     if(box?.points.has(p.id)&&!['box-run','cutback-support','receive-run'].includes(chosen.state))box.points.delete(p.id);
     if(p.runIntent?.kind==='third-man'&&!p.runIntent.accepted&&chosen.state==='channel-run'&&chosen.partnerId===p.runIntent.partnerId&&dist(chosen,p.runIntent.point)<1.5){p.runIntent.accepted=true;this.telemetry.thirdManRuns=(this.telemetry.thirdManRuns||0)+1;}
     if(pressingUnit?.outlet?.id===p.id&&chosen.state==='trap-screen'&&chosen.focusId===pressingUnit.outlet.receiverId&&p.task?.since===this.time)this.telemetry.pressTrapScreens=(this.telemetry.pressTrapScreens||0)+1;
