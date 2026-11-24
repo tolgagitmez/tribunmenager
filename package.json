@@ -70,7 +70,9 @@
     "test:match-fps": "node --test tests/match-fps-profiles.test.cjs && node --test tests/player-renderer-lod.test.cjs",
     "test:player-brain": "node --test tests/player-brain.test.cjs",
     "test:onball-presentation": "node --test tests/onball-presentation.test.cjs tests/live-contact-animation-pilot.test.cjs tests/match-animation-bridge.test.cjs",
-    "test:duel-wallpass": "node --test tests/defender-duel-wallpass.test.cjs tests/onball-presentation.test.cjs tests/player-brain.test.cjs"
+    "test:duel-wallpass": "node --test tests/defender-duel-wallpass.test.cjs tests/onball-presentation.test.cjs tests/player-brain.test.cjs",
+    "test:render-budget": "node --test tests/22-player-render-budget.test.cjs tests/match-fps-profiles.test.cjs tests/post-receive-hold.test.cjs",
+    "benchmark:render-budget": "node tools/benchmark-match-22-browser.cjs"
   },
   "devDependencies": {
     "gltf-validator": "2.0.0-dev.3.10",
