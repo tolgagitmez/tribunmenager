@@ -101,6 +101,36 @@ color+=lightPBR(N,V,normalize(vec3(-4.,2.,2.)),vec3(.65,.82,1.10),base,rough,wra
 color+=lightPBR(N,V,normalize(vec3(-2.,3.,-4.)),vec3(.70,.82,1.05),base,rough,wrap,f0);
 color+=base*.08*pow(1.-max(0.,dot(N,V)),3.)*(id>.5&&id<3.5?1.:.3);
 color=aces(color*(uStudio>.5?1.03:.95));gl_FragColor=vec4(pow(color,vec3(1./2.2)),1.);}`;
+// WebGL1 pilot: an instance row selects its own 19 real/dual quaternions
+// and appearance from a nearest-filtered float texture. No shared pose.
+const BATCH_WIDTH=45,BATCH_ROWS=32;
+const BATCH_VS=VS.replace('uniform vec4 uBoneReal[19];uniform vec4 uBoneDual[19];uniform vec3 uVariant;uniform float uGoalie;','attribute float aInstance;uniform sampler2D uInstances;varying float vInstance;vec4 instanceData(float column){return texture2D(uInstances,vec2((column+.5)/45.,(aInstance+.5)/32.));}')
+ .replace('void main(){vec3 p=aPosition;','void main(){vInstance=aInstance;vec4 appearance=instanceData(44.);vec3 uVariant=appearance.xyz;float uGoalie=appearance.w;vec3 p=aPosition;')
+ .replace(/uBoneReal\[int\(aJoints\.([xyzw])\)\]/g,'instanceData(aJoints.$1)')
+ .replace(/uBoneDual\[int\(aJoints\.([xyzw])\)\]/g,'instanceData(19.+aJoints.$1)');
+const BATCH_FS=`precision highp float;
+varying vec3 vNormal;varying vec3 vColor;varying vec2 vUV;varying float vMaterial;varying float vInstance;
+uniform sampler2D uSkinTexture;uniform sampler2D uFabricTexture;uniform sampler2D uInstances;
+vec3 appearance(float col){return texture2D(uInstances,vec2((col+.5)/45.,(vInstance+.5)/32.)).rgb;}
+void main(){float id=floor(vMaterial+.5);vec3 N=normalize(vNormal);
+ vec3 diffuse=id<.5?appearance(38.):id<1.5?appearance(39.):id<2.5?appearance(40.):id<3.5?appearance(39.)*.82:id<4.5?appearance(42.):id<5.5?appearance(41.):id<6.5?vec3(.7):id<7.5?appearance(43.):vec3(.06);
+ if(id<.5)diffuse*=texture2D(uSkinTexture,vUV*4.).rgb;
+ else if(id<3.5)diffuse*=texture2D(uFabricTexture,vUV*8.).rgb;
+ diffuse*=vColor;
+ float lit=max(0.,dot(N,normalize(vec3(.35,.85,.45))));
+ float fill=max(0.,dot(N,normalize(vec3(-.7,.35,-.2))));
+ vec3 color=diffuse*(.36+.68*lit+.16*fill);
+ gl_FragColor=vec4(pow(clamp(color,0.,1.),vec3(.454545)),1.);
+}`;
+function appearanceOf(p){
+ const v=p.visual||{},n=p.index||0,isGK=(v.role||p.role)==='GK',ref=p.referee;
+ return {skin:v.skin||p.skin||[.69,.48,.34],shirt:v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts:v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]),hair:v.hair||p.hair||[.10,.065,.043],boots:v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3],iris:v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3],variant:v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0],goalie:isGK?1:0,number:p.num||n+1,beard:v.beard??(n%4===2?.85:0)};
+}
+function packInstance(data,row,dual,p){
+ const offset=row*BATCH_WIDTH*4,a=appearanceOf(p);
+ data.set(dual.real,offset);data.set(dual.dual,offset+19*4);
+ for(const [i,key] of ['skin','shirt','shorts','hair','boots','iris','variant'].entries()){const at=offset+(38+i)*4;data.set(a[key],at);data[at+3]=key==='variant'?a.goalie:0;}
+}
 function quatAlign(a,b,v){const c=cross(a,b),d=clamp(dot(a,b),-1,1);if(d<-.9999){let axis=unit(cross(a,Math.abs(a[0])<.8?[1,0,0]:[0,1,0]));return sub(mul(axis,2*dot(axis,v)),v);}return add(add(v,cross(c,v)),mul(cross(c,cross(c,v)),1/(1+d)));}
 function presentationPalette(p,assets){const a=new Float32Array(assets.bones.length*16),c=Math.cos(p.face||0),s=Math.sin(p.face||0),M=[c,0,s,0,0,1,0,0,-s,0,c,0,p.x,0,p.z,1];for(let i=0;i<assets.bones.length;i++)a.set(M,i*16);return a;}
 function renderPalette(raw,mixed,assets){return mixed===raw?raw:Constraints.constrain(mixed,assets.bones,Rig.LIMITS);}
@@ -231,12 +261,49 @@ class PlayerRenderer{
   });
   this.ready=Promise.all(jobs).then(()=>{this.textureState.state='ready';return this;}).catch(error=>{this.textureState.state='error';this.textureState.error=error.message;throw error;});
  }
+ initBatch(){
+  if(this.batch!==undefined)return this.batch;
+  const gl=this.gl;this.batch=null;let program,texture,buffer;const shaders=[];
+  try{
+   const ext=gl.getExtension?.('ANGLE_instanced_arrays');
+   if(!ext||!gl.getExtension('OES_texture_float')||gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS)<1||gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS)<3||gl.getParameter(gl.MAX_VERTEX_ATTRIBS)<8||gl.getParameter(gl.MAX_TEXTURE_SIZE)<BATCH_WIDTH)return null;
+   program=gl.createProgram();
+   for(const [type,source] of [[gl.VERTEX_SHADER,BATCH_VS],[gl.FRAGMENT_SHADER,BATCH_FS]]){
+    const shader=gl.createShader(type);shaders.push(shader);gl.shaderSource(shader,source);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(shader));gl.attachShader(program,shader);
+   }
+   gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
+   const loc={};for(const key of ['uVP','uStandardAsset','uSkinTexture','uFabricTexture','uInstances'])loc[key]=gl.getUniformLocation(program,key);
+   const attributes=[['aPosition',3,0],['aNormal',3,3],['aUV',2,6],['aJoints',4,8],['aWeights',4,12],['aMaterial',1,16],['aColor',3,17]].map(([n,size,off])=>({location:gl.getAttribLocation(program,n),size,off}));
+   const instance=gl.getAttribLocation(program,'aInstance');if(instance<0)throw Error('Instance row missing');
+   texture=gl.createTexture();gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,texture);
+   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,BATCH_WIDTH,BATCH_ROWS,0,gl.RGBA,gl.FLOAT,null);
+   for(const [key,value] of [[gl.TEXTURE_MIN_FILTER,gl.NEAREST],[gl.TEXTURE_MAG_FILTER,gl.NEAREST],[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE]])gl.texParameteri(gl.TEXTURE_2D,key,value);
+   buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,Float32Array.from({length:BATCH_ROWS},(_,i)=>i),gl.STATIC_DRAW);
+   this.batch={ext,program,texture,buffer,shaders,loc,attributes,instance,data:new Float32Array(BATCH_WIDTH*BATCH_ROWS*4)};
+  }catch(error){if(buffer)gl.deleteBuffer(buffer);if(texture)gl.deleteTexture(texture);for(const shader of shaders)gl.deleteShader(shader);if(program)gl.deleteProgram(program);this.batchError=String(error.message||error);}
+  return this.batch;
+ }
+ drawBatch(batch,lod,count,vp){
+  const gl=this.gl,{ext,loc,attributes,instance}=batch;
+  gl.useProgram(batch.program);gl.uniformMatrix4fv(loc.uVP,false,vp instanceof Float32Array?vp:new Float32Array(vp));gl.uniform1f(loc.uStandardAsset,0);
+  for(const [unit,texture,name] of [[0,this.textures.skin,'uSkinTexture'],[1,this.textures.fabric,'uFabricTexture'],[2,batch.texture,'uInstances']]){gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);gl.uniform1i(loc[name],unit);}
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,BATCH_WIDTH,count,gl.RGBA,gl.FLOAT,batch.data.subarray(0,count*BATCH_WIDTH*4));
+  gl.bindBuffer(gl.ARRAY_BUFFER,lod.vertex);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,lod.index);
+  for(const a of attributes)if(a.location>=0){gl.enableVertexAttribArray(a.location);gl.vertexAttribPointer(a.location,a.size,gl.FLOAT,false,80,a.off*4);}
+  gl.bindBuffer(gl.ARRAY_BUFFER,batch.buffer);gl.enableVertexAttribArray(instance);gl.vertexAttribPointer(instance,1,gl.FLOAT,false,4,0);ext.vertexAttribDivisorANGLE(instance,1);
+  try{ext.drawElementsInstancedANGLE(gl.TRIANGLES,lod.count,lod.type,0,count);}
+  finally{ext.vertexAttribDivisorANGLE(instance,0);gl.disableVertexAttribArray(instance);for(const a of attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);gl.activeTexture(gl.TEXTURE0);}
+ }
  draw(players,vp,eye,camera='tv',dt=1/60,matchBridge=null,frameOptions={}){
   const gl=this.gl;gl.useProgram(this.program);gl.uniformMatrix4fv(this.loc.uVP,false,vp instanceof Float32Array?vp:new Float32Array(vp));gl.uniform3fv(this.loc.uEye,eye);gl.uniform1f(this.loc.uStudio,this.studio?1:0);
   const standard=this.options.standardMaterials;gl.uniform1f(this.loc.uStandardAsset,standard?1:0);if(standard){gl.uniform3fv(this.loc['uMaterialBase[0]'],standard.baseColors);gl.uniform1fv(this.loc['uMaterialRoughness[0]'],standard.roughness);}
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.textures.skin);gl.uniform1i(this.loc.uSkinTexture,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.textures.fabric);gl.uniform1i(this.loc.uFabricTexture,1);
   const renderStats={players:0,fast:0,detailed:0,triangles:0,paletteBuilds:0,paletteHits:0,dualBuilds:0,dualHits:0,lodBinds:0,culled:0,active:0,lowAnimationDetail:0,drawCalls:0};let boundLOD=null,boundFast=null;
   const full=this.visualQuality==='detailed'||this.studio||camera==='portrait',close=camera==='close',auto=this.visualQuality==='auto';
+  const batch=frameOptions.instancing===true&&!standard&&!this.studio&&this.visualQuality==='fast'&&['tv','tactical'].includes(camera)&&players.filter(p=>p.active).length<=BATCH_ROWS?this.initBatch():null;
+  let batchCount=0,batchLOD=null;renderStats.instanced=0;renderStats.instancingSupported=!!batch;
   for(const p of players){if(!p.active)continue;const dx=close?p.x-eye[0]:0,dz=close?p.z-eye[2]:0,d2=close?dx*dx+dz*dz:Infinity,lod=this.lods[full?0:close&&d2<484?1:2]||this.lods[1]||this.lods[2]||this.lods[0],v=p.visual||{},n=p.index||0,role=v.role||p.role,isGK=role==='GK',ref=p.referee;
    const detailed=this.visualQuality==='detailed'||(auto&&(this.studio||camera==='portrait'||(close&&d2<324)));
    const fast=detailed?0:1;
@@ -244,11 +311,11 @@ class PlayerRenderer{
    const hidden=frameOptions.cull===true&&!this.studio&&!p.selected&&!p.referee&&!playerInView(p,vp);
    if(hidden){renderStats.culled++;if(!matchBridge&&!frameOptions.paletteForPlayer)continue;}
    // Keep the bridge and pilot sampled while offscreen, but skip all GL work.
-   if(!hidden){if(boundFast!==fast){gl.uniform1f(this.loc.uFast,fast);boundFast=fast;}
+   if(!hidden){if(!batch&&boundFast!==fast){gl.uniform1f(this.loc.uFast,fast);boundFast=fast;}
    renderStats.players++;renderStats[detailed?'detailed':'fast']++;renderStats.triangles+=lod.count/3;
-   const shirt=v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts=v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]);
+   if(!batch){const shirt=v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts=v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]);
    const set=(name,value)=>gl.uniform3fv(this.loc[name],value);set('uSkin',v.skin||p.skin||[.69,.48,.34]);set('uShirt',shirt);set('uShorts',shorts);set('uHair',v.hair||p.hair||[.10,.065,.043]);set('uBoots',v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3]);set('uIris',v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3]);set('uVariant',v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0]);
-   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));}let connected;
+   gl.uniform1f(this.loc.uGoalie,isGK?1:0);gl.uniform1f(this.loc.uNumber,p.num||n+1);gl.uniform1f(this.loc.uBeard,v.beard??(n%4===2?.85:0));}}let connected;
    if(frameOptions.paletteForPlayer)connected=frameOptions.paletteForPlayer(p);
    let dual;
    if(!connected){
@@ -274,6 +341,7 @@ class PlayerRenderer{
    }
    if(hidden)continue;
    if(!dual){dual=this.transientDual=Skinning.fromMatrices(connected,this.transientDual);renderStats.dualBuilds++;}
+   if(batch){packInstance(batch.data,batchCount++,dual,p);batchLOD=lod;continue;}
    gl.uniform4fv(this.loc['uBoneReal[0]'],dual.real);gl.uniform4fv(this.loc['uBoneDual[0]'],dual.dual);
    // Preserve draw order and all individual uniforms. Bind vertex attributes
    // only when LOD actually changes, rather than 23 times per broadcast frame.
@@ -284,10 +352,11 @@ class PlayerRenderer{
    }
    gl.drawElements(gl.TRIANGLES,lod.count,lod.type,0);renderStats.drawCalls++;
   }
+  if(batchCount){this.drawBatch(batch,batchLOD,batchCount,vp);renderStats.drawCalls++;renderStats.lodBinds++;renderStats.instanced=batchCount;}
   if(boundLOD)for(const a of this.attributes)if(a.location>=0)gl.disableVertexAttribArray(a.location);
   this.lastRenderStats=renderStats;
  }
- dispose(){if(this.disposed)return;this.disposed=true;this.poseCache=new WeakMap();this.transientDual=null;const gl=this.gl;for(const lod of this.lods||[])if(lod){gl.deleteBuffer(lod.vertex);gl.deleteBuffer(lod.index);}for(const texture of Object.values(this.textures||{}))gl.deleteTexture(texture);if(this.program){for(const shader of gl.getAttachedShaders(this.program)||[])gl.deleteShader(shader);gl.deleteProgram(this.program);}}
+ dispose(){if(this.disposed)return;this.disposed=true;this.poseCache=new WeakMap();this.transientDual=null;const gl=this.gl;if(this.batch){gl.deleteBuffer(this.batch.buffer);gl.deleteTexture(this.batch.texture);for(const shader of this.batch.shaders)gl.deleteShader(shader);gl.deleteProgram(this.batch.program);this.batch=null;}for(const lod of this.lods||[])if(lod){gl.deleteBuffer(lod.vertex);gl.deleteBuffer(lod.index);}for(const texture of Object.values(this.textures||{}))gl.deleteTexture(texture);if(this.program){for(const shader of gl.getAttachedShaders(this.program)||[])gl.deleteShader(shader);gl.deleteProgram(this.program);}}
 }
-PlayerRenderer.playerInView=playerInView;PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
+PlayerRenderer.packInstance=packInstance;PlayerRenderer.batchShaders={vertex:BATCH_VS,fragment:BATCH_FS,width:BATCH_WIDTH,rows:BATCH_ROWS};PlayerRenderer.playerInView=playerInView;PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
 })(typeof window!=='undefined'?window:globalThis);
