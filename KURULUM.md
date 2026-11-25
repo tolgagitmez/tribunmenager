@@ -65,6 +65,17 @@ Adres değişince sayfayı yeniden yükle; yalnızca fragment değiştirmek çal
 
 Geri bildirim verirken maç bağlantısını (seed ve deney ayarı), bilgisayar/telefon modelini, tarayıcıyı, grafik profilini, maç içi dakikayı ve mümkünse ekran kaydını belirt. Grafik performansı için TV kamera ve Performans profiliyle başla; GPU instancing ayrı deneysel bir seçenektir ve normal kullanımda kapalı kalmalıdır.
 
+## Beş dakikalık hücum yoğunluğu — #69 deneme protokolü
+
+Normal oyun hedefi beş dakikalık nominal maçtır (mevcut kurallardaki ek süre hariç). 15/90 dakikalık seçenekler karşılaştırmalı tanı içindir; daha uzun maç, düşük hücum yoğunluğunun çözümü sayılmaz.
+
+Compact Attack henüz ana oyuna birleştirilmemiştir. Bu iki bağlantının farklı motor davranışı göstermesi için [#69 deneme dalını ZIP olarak indir](https://github.com/tolgagitmez/tribunmenager/archive/refs/heads/fix/five-minute-attack-density-20261125.zip), ayrı klasörde aç ve o klasörün sunucusunu başlat. Önceki sunucuyu kapat. Ana dal bu yeni bayrağı henüz okumaz. Aşağıdaki bağlantılar aynı seed, dizilişler ve yüksek pres rakibiyle, otomatik menajer vuruşları açık olmayan beş dakikalık denemeyi yapılandırır:
+
+- [Mevcut hücum temposu](http://127.0.0.1:8000/match.html#%7B%22seed%22%3A42%2C%22matchMinutes%22%3A5%2C%22managerKicks%22%3Afalse%2C%22individualAI%22%3Atrue%2C%22territorialProgression%22%3Atrue%2C%22compactAttack%22%3Afalse%2C%22formation%22%3A%224-3-3%22%2C%22awayFormation%22%3A%224-2-3-1%22%2C%22tactics%22%3A%7B%22mentality%22%3A%22balanced%22%2C%22playstyle%22%3A%22possession%22%2C%22press%22%3A58%2C%22tempo%22%3A61%7D%2C%22awayTactics%22%3A%7B%22mentality%22%3A%22attacking%22%2C%22playstyle%22%3A%22direct%22%2C%22press%22%3A86%2C%22tempo%22%3A80%2C%22line%22%3A%22high%22%2C%22onLoss%22%3A%22counterpress%22%2C%22onWin%22%3A%22counter%22%7D%7D)
+- [Compact Attack](http://127.0.0.1:8000/match.html#%7B%22seed%22%3A42%2C%22matchMinutes%22%3A5%2C%22managerKicks%22%3Afalse%2C%22individualAI%22%3Atrue%2C%22territorialProgression%22%3Atrue%2C%22compactAttack%22%3Atrue%2C%22formation%22%3A%224-3-3%22%2C%22awayFormation%22%3A%224-2-3-1%22%2C%22tactics%22%3A%7B%22mentality%22%3A%22balanced%22%2C%22playstyle%22%3A%22possession%22%2C%22press%22%3A58%2C%22tempo%22%3A61%7D%2C%22awayTactics%22%3A%7B%22mentality%22%3A%22attacking%22%2C%22playstyle%22%3A%22direct%22%2C%22press%22%3A86%2C%22tempo%22%3A80%2C%22line%22%3A%22high%22%2C%22onLoss%22%3A%22counterpress%22%2C%22onWin%22%3A%22counter%22%7D%7D)
+
+Temiz, hesaba bağlı olmayan aynı tarayıcı profilini kullan; her bağlantıdan sonra sayfayı yenile. Maçları tamamla ve iki takımın ayrı ayrı şut, isabetli şut, ceza sahasına giriş (Hücum Analizi), top kaybı ve oynanan süre verilerini kaydet. Rakibin daha fazla şut atması tek başına baskı altındaki takımın iyileşmesi değildir. Tek seed sonucu genellenemez; otomatik denetim 8 eşleşmede iki motoru karşılaştırır. Fiziksel vuruş, top kontrolü, savunma ve ofsayt kontrolleri korunmalıdır. Bu protokolün bağlantı parametreleri kontrol edilmiştir; tarayıcıda oynanış doğrulaması ayrıca gerekir.
+
 ## Çalışma modları
 
 Varsayılan başlatıcı **yerel maç modunu** açar. Kadro, taktik ve maç simülasyonu çalışır; transfer hesabı ve günlük lig API'si bu modda kapalıdır. Rakibin kayıtlı kadrosu yoksa maçta deneme kadrosu olduğu belirtilir. İnsan modeli, iskelet ve dokuları pakete dahildir; ayrıca model indirmen gerekmez. Model hazırlanamazsa maç prosedürel WebGL çizimine, WebGL kullanılamazsa 2D çizime geçer.
