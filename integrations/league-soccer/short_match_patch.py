@@ -870,7 +870,7 @@ void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool sh
     # Fixed simulation-tick budget, not a wall-clock or throughput guarantee.
     # No scale changes, skipped physics ticks or forced score.
     edit(root, "src/onthepitch/match.hpp", [
-        ('#include "../gamedefines.hpp"', '#include "../gamedefines.hpp"\n#include "aitactics.hpp"\n#include <stdexcept>'),
+        ('#include "AIsupport/mentalimage.hpp"', '#include "AIsupport/mentalimage.hpp"\n#include "aitactics.hpp"\n#include <stdexcept>'),
         ("  unsigned long GetMatchTime_ms() const { return matchTime_ms; }", r'''  unsigned long GetMatchTime_ms() const { return matchTime_ms; }
   const AITactics::FixedDurationClock& GetTribunFixedClock() const {return tribunFixedClock;}'''),
         ("  float matchTimeScale;", "  float matchTimeScale;\n  AITactics::FixedDurationClock tribunFixedClock;"),
