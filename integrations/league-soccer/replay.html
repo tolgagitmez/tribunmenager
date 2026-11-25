@@ -1,57 +1,18 @@
 <!doctype html>
-<html lang="tr">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tribün Manager | League-Soccer motor testi</title>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tribün Manager | League-Soccer 3D pilot</title>
 <style>
-body{font:16px system-ui;background:#121a22;color:#eef2f5;margin:24px auto;max-width:960px;padding:0 16px}canvas{width:100%;background:#26734b;border-radius:8px}input[type=range]{width:100%}button,input{margin:8px 0}#score{font-size:24px;font-weight:bold}
-</style>
-<h1>League-Soccer · Yerel maç kaydı</h1>
-<p>Gerçek C++ motorundan dışa aktarılan NDJSON konumlarını açın. Bu bir teşhis ekranıdır; canlı lig sonucu üretmez.</p>
-<input type="file" id="file" accept=".ndjson,.jsonl">
-<div id="score" aria-live="polite">Kayıt seçin</div>
-<canvas id="pitch" width="840" height="544" aria-label="Maç konumları"></canvas>
-<button id="play" disabled>Oynat</button>
+*{box-sizing:border-box}body{font:15px system-ui;background:#101923;color:#eef2f5;margin:24px auto;max-width:1100px;padding:0 16px}h1{font-size:24px}p{color:#b9c7d5}canvas{display:block;width:100%;aspect-ratio:16/9;background:#26734b;border-radius:10px}input[type=range]{width:100%}button,select{font:inherit;padding:8px;border-radius:6px;background:#203242;color:white;border:1px solid #526778}button:disabled{opacity:.45}label{display:block;margin:12px 0}input[type=file]{max-width:100%}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}#score{font-size:26px;font-weight:bold;font-variant-numeric:tabular-nums}#stats{white-space:pre-line}a{color:#8ccaff}
+</style></head><body>
+<a href="../../match.html">Normal maç ekranı</a>
+<h1>League-Soccer · 3D maç kaydı</h1>
+<p>Yeni motorun gerçek konum ve skor kayıtlarını Tribün Manager'ın mevcut 3D stadyumunda izle. Bu ayrı bir test ekranıdır; lig sonucu kaydetmez. Koşu animasyonları hareket verisinden üretilir; özel vuruş animasyonları henüz aktarılmaz.</p>
+<label>Motor kaydı (.ndjson) <input type="file" id="file" accept=".ndjson,.jsonl"></label>
+<label>İsteğe bağlı kadro eşleştirmesi (.fixture.json) <input type="file" id="manifest" accept=".json"></label>
+<div class="row"><div id="score" aria-live="polite">Kayıt seçin</div><span id="renderMode">3D hazırlanıyor</span></div>
+<canvas id="pitch" width="960" height="540" aria-label="League-Soccer maç görüntüsü"></canvas>
+<div class="row"><button id="play" disabled>Oynat</button><button id="camera">Kamera: TV</button><label>Hız <select id="speed"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><label>Grafik <select id="quality"><option value="performance">Performans</option><option value="balanced" selected>Dengeli</option><option value="quality">Kalite</option></select></label></div>
 <input type="range" id="seek" min="0" max="0" value="0" disabled aria-label="Kayıt zamanı">
-<p id="status" role="status"></p>
-<script>
-'use strict';
-const $=id=>document.getElementById(id), canvas=$('pitch'), g=canvas.getContext('2d');
-let frames=[], index=0, timer=null, generation=0;
-const validVec=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite);
-function valid(f){return f?.schema===1&&f.engine==='league-soccer'&&Number.isFinite(f.elapsedMs)&&Number.isFinite(f.matchMs)&&Array.isArray(f.score)&&f.score.length===2&&f.score.every(Number.isInteger)&&validVec(f.ball)&&Array.isArray(f.players)&&f.players.every(p=>[0,1].includes(p.team)&&Number.isInteger(p.id)&&validVec(p.position))}
-function field(){
- g.fillStyle='#26734b';g.fillRect(0,0,840,544);
- g.strokeStyle='#d5e7da';g.lineWidth=2;g.strokeRect(8,8,824,528);g.beginPath();g.moveTo(420,8);g.lineTo(420,536);g.stroke();
- g.beginPath();g.arc(420,272,9.15*8,0,2*Math.PI);g.stroke();
- for(const x of [8,832-132])g.strokeRect(x,272-161,132,322);
-}
-function dot(x,y,r,color){g.beginPath();g.arc(x,y,r,0,2*Math.PI);g.fillStyle=color;g.fill()}
-function draw(){
- field();if(!frames.length)return;
- const f=frames[index];$('seek').value=index;
- $('score').textContent=Math.floor(f.matchMs/60000)+"′   "+f.score.join(' – ')+(f.done?' · MS':'');
- for(const p of f.players)dot(420+p.position[0]*8,272-p.position[1]*8,6,p.team===0?'#60a5fa':'#fb7185');
- dot(420+f.ball[0]*8,272-f.ball[1]*8,4,'white');
-}
-function stop(){clearTimeout(timer);timer=null;$('play').textContent='Oynat'}
-function next(){
- if(index>=frames.length-1){stop();return}
- const delay=Math.min(500,Math.max(16,frames[index+1].elapsedMs-frames[index].elapsedMs));
- timer=setTimeout(()=>{index++;draw();next()},delay)
-}
-$('play').onclick=()=>{if(timer!==null){stop();return}if(index===frames.length-1)index=0;draw();$('play').textContent='Duraklat';next()};
-$('seek').oninput=()=>{stop();index=Number($('seek').value);draw()};
-$('file').onchange=async()=>{
- const current=++generation;stop();frames=[];index=0;$('play').disabled=$('seek').disabled=true;$('score').textContent='Kayıt seçin';draw();
- try{
-  const file=$('file').files[0];if(!file)return;if(file.size>100*1024*1024)throw Error('Kayıt 100 MB sınırını aşıyor.');
-  const data=(await file.text()).trim().split(/\r?\n/).map(JSON.parse);
-  if(current!==generation)return;
-  if(!data.length||!data.every(valid)||data.some((f,i)=>i&&f.elapsedMs<data[i-1].elapsedMs))throw Error('Geçersiz motor kaydı.');
-  frames=data;$('seek').max=frames.length-1;$('play').disabled=$('seek').disabled=false;$('status').textContent=frames.length+' gerçek motor karesi; dosya tarayıcıdan çıkmaz.';draw();
- }catch(e){if(current===generation)$('status').textContent=e.message}
-};
-draw();
-</script>
-</html>
+<p id="status" role="status"></p><div id="stats">İstatistik kaydı yok.</div><div data-player-asset-diagnostics></div>
+<script src="../../humanoid-rig.js"></script><script src="../../player-asset-status.js"></script><script src="../../assets/player/player-model-data.js"></script><script src="../../player-skinning.js"></script><script src="../../character-palette-constraints.js"></script><script src="../../player-renderer.js"></script><script src="../../match-animation-bridge.js"></script><script src="../../pitch-laws.js"></script><script src="../../ball-visual.js"></script><script src="../../scene3d.js"></script><script src="native-replay.js"></script><script src="replay-ui.js"></script>
+</body></html>

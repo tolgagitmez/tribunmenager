@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '22'
       - name: Fixture adapter unit tests
-        run: node --test integrations/league-soccer/fixture-adapter.test.cjs
+        run: node --test integrations/league-soccer/fixture-adapter.test.cjs integrations/league-soccer/native-replay.test.cjs
       - name: Build pinned upstream and capture full match
         env:
           TRIBUN_INSTALL_NATIVE_DEPS: '1'
@@ -29,3 +29,14 @@ jobs:
           name: league-soccer-native-trace
           path: ${{ runner.temp }}/league-soccer.ndjson*
           if-no-files-found: ignore
+  replay-webgl:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node integrations/league-soccer/replay-browser.cjs

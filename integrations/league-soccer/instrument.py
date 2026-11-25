@@ -35,6 +35,13 @@ void TribunTrace(Match& match, bool done) {
   vec(match.GetBall()->Predict(0));
   output << ",\"ballVelocity\":";
   vec(match.GetBall()->GetMovement());
+  const auto data = match.GetMatchData();
+  output << ",\"stats\":{\"shots\":[" << data->GetShots(0) << ',' << data->GetShots(1)
+         << "],\"onTarget\":[" << data->GetShotsOnTarget(0) << ',' << data->GetShotsOnTarget(1)
+         << "],\"passes\":[" << data->GetPassAttempts(0) << ',' << data->GetPassAttempts(1)
+         << "],\"completed\":[" << data->GetPassesCompleted(0) << ',' << data->GetPassesCompleted(1)
+         << "],\"fouls\":[" << data->GetFouls(0) << ',' << data->GetFouls(1)
+         << "],\"possessionMs\":[" << data->GetPossessionTime_ms(0) << ',' << data->GetPossessionTime_ms(1) << "]}";
   output << ",\"players\":[";
   bool first = true;
   for (int team = 0; team < 2; ++team) {
@@ -49,6 +56,7 @@ void TribunTrace(Match& match, bool done) {
       vec(player->GetMovement());
       output << ",\"direction\":";
       vec(player->GetDirectionVec());
+      output << ",\"goalkeeper\":" << (player->GetFormationEntry().role == e_PlayerRole_GK ? "true" : "false");
       output << '}';
     }
   }

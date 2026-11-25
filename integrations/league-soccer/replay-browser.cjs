@@ -1,0 +1,27 @@
+'use strict';
+const assert=require('node:assert/strict'),{once}=require('node:events'),{chromium}=require('playwright');
+const {createServer}=require('../../tools/serve-character-viewer.cjs');
+(async()=>{
+ const server=createServer();server.listen(0,'127.0.0.1');await once(server,'listening');
+ let browser;
+ try{
+  browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+  const page=await browser.newPage({viewport:{width:1000,height:800}}),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://127.0.0.1:'+server.address().port+'/integrations/league-soccer/replay.html');
+  const players=Array.from({length:22},(_,i)=>({id:i,team:i<11?0:1,position:[i<11?-20:20,(i%11-5)*4,0],velocity:[1,0,0],direction:[1,0,0],goalkeeper:i%11===0}));
+  const a={schema:1,engine:'league-soccer',elapsedMs:0,matchMs:0,done:false,score:[0,0],ball:[0,0,.11],ballVelocity:[1,0,0],players};
+  const b={...a,elapsedMs:1000,matchMs:5400000,done:true,score:[2,1],ball:[1,0,.11]};
+  const path=process.argv[2];
+  await page.locator('#file').setInputFiles(path||{name:'synthetic-render-contract.ndjson',mimeType:'application/octet-stream',buffer:Buffer.from([a,b].map(JSON.stringify).join('\n'))});
+  await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST?.state()?.players===22);
+  assert.equal(await page.evaluate(()=>window.TRIBUN_NATIVE_REPLAY_TEST.webgl()),true,'actual WebGL required');
+  await page.locator('#seek').evaluate(el=>{el.value=el.max;el.dispatchEvent(new Event('input'));});
+  await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state()?.done===true);
+  if(!path)assert.deepEqual(await page.evaluate(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state().score),[2,1]);
+  await page.locator('#camera').click();
+  await page.waitForTimeout(300);
+  assert.deepEqual(errors,[]);
+  console.log('Native replay WebGL smoke passed'+(path?' (native recording)':' (synthetic contract only)'));
+ }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
+})().catch(e=>{console.error(e);process.exitCode=1;});
