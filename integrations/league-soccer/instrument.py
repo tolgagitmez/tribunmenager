@@ -75,7 +75,9 @@ def replace_once(text, old, new):
 
 def main():
     from fixture_patch import apply
+    from short_match_patch import apply as apply_short_match
     apply(sys.argv[1])
+    apply_short_match(sys.argv[1])
     path = pathlib.Path(sys.argv[1]) / "src/onthepitch/match.cpp"
     text = path.read_text(encoding="utf-8")
     if "void TribunTrace(" in text:

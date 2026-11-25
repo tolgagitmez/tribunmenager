@@ -17,6 +17,7 @@ if [[ $# -ge 2 ]]; then
   node "$here/fixture-adapter.cjs" "$2" "$work/fixture.txt"
   cp "$work/fixture.txt.json" "$out.fixture.json"
   export TRIBUN_LEAGUE_SOCCER_FIXTURE="$work/fixture.txt"
+  export TRIBUN_LEAGUE_SOCCER_SEED="${TRIBUN_LEAGUE_SOCCER_SEED:-$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["seed"])' "$out.fixture.json")}"
 fi
 cd "$work/source"
 if [[ "${TRIBUN_INSTALL_NATIVE_DEPS:-0}" == 1 ]]; then
@@ -24,14 +25,40 @@ if [[ "${TRIBUN_INSTALL_NATIVE_DEPS:-0}" == 1 ]]; then
 fi
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
 cmake --build build --parallel "${TRIBUN_BUILD_JOBS:-2}"
-rm -f "$out"
-export TRIBUN_LEAGUE_SOCCER_TRACE="$out"
+# Build once; each match gets a fresh native process and identical frozen elevens.
+config="$work/source/data/menu_smoke_full_match.config"
+if [[ "${TRIBUN_BENCHMARK:-0}" == 1 ]]; then
+  [[ $# -ge 2 ]] || { echo "Benchmark needs frozen fixture input" >&2; exit 2; }
+  config="$work/native-five-minute.config"
+  sed 's/"menu_smoke_match_time_scale" "6.0"/"menu_smoke_match_time_scale" "1.0"/' "$work/source/data/menu_smoke_full_match.config" > "$config"
+  grep -F '"menu_smoke_match_time_scale" "1.0"' "$config" >/dev/null
+fi
 cd build
-bash ../tests/run_menu_smoke.sh ./gameplayfootball "$work/source/data/menu_smoke_full_match.config" 420 \
-  "[menu-smoke] Full match complete:" \
-  "[menu-smoke] Full-match verification succeeded, quitting test run"
-python3 "$here/validate_trace.py" "$out"
-node "$here/attack-report.cjs" "$out" "$out.attack.json"
-if [[ $# -ge 2 ]]; then
-  python3 "$here/validate_fixture_trace.py" "$out" "$out.fixture.json"
+run_match() {
+  local dest="$1" seed="$2" profile="$3" limit="$4"
+  rm -f "$dest" "$dest.attack.json"
+  export TRIBUN_LEAGUE_SOCCER_TRACE="$dest"
+  export TRIBUN_LEAGUE_SOCCER_ATTACK="$profile"
+  if [[ -n "$seed" ]]; then export TRIBUN_LEAGUE_SOCCER_SEED="$seed"; fi
+  bash ../tests/run_menu_smoke.sh ./gameplayfootball "$config" "$limit" \
+    "[menu-smoke] Full match complete:" \
+    "[menu-smoke] Full-match verification succeeded, quitting test run"
+  python3 "$here/validate_trace.py" "$dest"
+  node "$here/attack-report.cjs" "$dest" "$dest.attack.json"
+  if [[ $# -ge 2 && -f "$out.fixture.json" && -n "${TRIBUN_LEAGUE_SOCCER_FIXTURE:-}" ]]; then
+    python3 "$here/validate_fixture_trace.py" "$dest" "$out.fixture.json"
+  fi
+}
+if [[ "${TRIBUN_BENCHMARK:-0}" == 1 ]]; then
+  read -r -a seeds <<< "${TRIBUN_BENCHMARK_SEEDS:-2026 2027 2028}"
+  [[ ${#seeds[@]} -ge 1 && ${#seeds[@]} -le 6 ]] || exit 2
+  for seed in "${seeds[@]}"; do
+    [[ "$seed" =~ ^[0-9]+$ ]] || exit 2
+    for profile in baseline short-match; do
+      run_match "$out.$seed.$profile.ndjson" "$seed" "$profile" 900
+    done
+  done
+  node "$here/compare-attacks.cjs" "$out" "${seeds[@]}"
+else
+  run_match "$out" "${TRIBUN_LEAGUE_SOCCER_SEED:-}" "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" 420
 fi

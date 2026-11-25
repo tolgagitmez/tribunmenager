@@ -1,0 +1,38 @@
+name: League-Soccer five-minute attack benchmark
+on:
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: 'Space-separated uint32 seeds (1–6)'
+        default: '2026 2027 2028'
+        required: true
+  push:
+    branches: [integration/league-soccer-native]
+    paths:
+      - 'integrations/league-soccer/short_match_patch.py'
+      - '.github/workflows/league-soccer-attack-benchmark.yml'
+permissions:
+  contents: read
+jobs:
+  paired-native-matches:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test integrations/league-soccer/compare-attacks.test.cjs
+      - name: Compile once and compare native matches at normal clock speed
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_BENCHMARK: '1'
+          TRIBUN_BENCHMARK_SEEDS: ${{ inputs.seeds || '2026' }}
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/attack-benchmark" --demo
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-attack-benchmark
+          path: ${{ runner.temp }}/attack-benchmark*
+          if-no-files-found: ignore
