@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - 'integrations/league-soccer/**'
+      - 'native_live.py'
+      - 'native_shadow.py'
+      - 'tests/test_native_*.py'
       - '.github/workflows/league-soccer-native-pilot.yml'
 permissions:
   contents: read

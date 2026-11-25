@@ -3,16 +3,21 @@
  const $=id=>document.getElementById(id),scene=new Stadium3D($('pitch')),view=window.TribunNativeStreamView.create(window.TribunHumanoidRig);
  scene.setPerformanceMode('balanced');$('mode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
  const advisor=window.TribunNativeAdvisor.create();
+ const fields=['press','counter','support','width','tempo'];
+ const labels=['Baskı','Kontra','Pas desteği','Genişlik','Tempo'];
+ for(let i=0;i<fields.length;i++){const label=document.createElement('label');label.textContent=labels[i]+' ';const input=document.createElement('input');input.type='number';input.min=0;input.max=100;input.required=true;input.value=50;input.id='tactic-'+fields[i];label.append(input);$('controlFields').append(label,document.createElement('br'));}
+ const select=document.createElement('select');select.id='tactic-formation';for(const [v,l] of [[0,'Dizilişi koru'],[433,'4-3-3'],[442,'4-4-2'],[4231,'4-2-3-1']])select.add(new Option(l,String(v)));$('controlFields').append(select);
+ let requestRound=null,requestToken=null,submitting=false;
  let generation=0,timer=null,controller=null,active=false,current=null,last=0;
  for(let i=0;i<10;i++)$('round').add(new Option(String(i+1),String(i)));
  const round=new URLSearchParams(location.search).get('round');if(round!==null&&/^[0-9]$/.test(round))$('round').value=round;
- function stop(){active=false;generation++;clearTimeout(timer);controller?.abort();controller=null;}
+ function stop(){$('sendTactics').disabled=true;active=false;generation++;clearTimeout(timer);controller?.abort();controller=null;}
  function start(){
-  stop();view.reset();advisor.reset();scene.resetAnimation();current=null;$('adviceText').textContent='Maç verisi bekleniyor.';
+  stop();$('controlPanel').hidden=true;$('commandState').textContent='';view.reset();advisor.reset();scene.resetAnimation();current=null;$('adviceText').textContent='Maç verisi bekleniyor.';
   $('score').textContent='Bağlantı kuruluyor';$('clock').textContent='';$('stats').textContent='';
   let token;try{token=localStorage.getItem('tribun-league-token');}catch{}
   if(!token){$('status').textContent='Lig oturumu gerekli.';return;}
-  active=true;const g=generation,selected=$('round').value;
+  active=true;const g=generation,selected=$('round').value;requestRound=Number(selected);requestToken=token;
   async function poll(){
    if(!active||g!==generation)return;
    if(document.hidden){timer=setTimeout(poll,1000);return;}
@@ -25,10 +30,15 @@
     if(g!==generation)return;
     if(!response.ok){if([401,403,404].includes(response.status)){stop();$('status').textContent=data.error||'Erişim yok.';return;}throw Error(data.error||'Sunucu bağlantısı yok.');}
     if(data.engine!=='league-soccer'||data.authoritative!==false)throw Error('Geçersiz pilot yanıtı.');
+    $('controlPanel').hidden=data.source!=='interactive-native';
+    $('sendTactics').disabled=!data.canControl||submitting;
+    if(data.source==='interactive-native'){
+     $('commandState').textContent='Gönderilen #'+(data.submittedRevision||0)+' · Motor onayı #'+(data.appliedRevision||0)+(data.finalizing?' · Sonuç doğrulanıyor':'');
+    }
     if(data.frame&&view.ingest(data,performance.now())){
      current=data;advisor.ingest(data);renderAdvice();
      const seconds=Math.ceil(data.remainingMs/1000);
-     $('clock').textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')+' kaldı';
+     $('clock').textContent=data.source==='interactive-native'?'Çalışan C++ motoru · '+Math.floor(data.frame.matchMs/60000)+'′':String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')+' kaldı';
      $('score').textContent=(data.homeName||'Ev sahibi')+' '+data.frame.score.join(' – ')+' '+(data.awayName||'Deplasman')+' · '+Math.floor(data.frame.matchMs/60000)+'′';
      const s=data.frame.stats; $('stats').textContent=s?['Şut: '+s.shots.join(' – '),'İsabetli: '+s.onTarget.join(' – '),'Başarılı pas: '+s.completed.join(' – '),'Faul: '+s.fouls.join(' – ')].join('\n'):'';
      $('status').textContent=data.phase==='finished'?'Pilot yayın tamamlandı.':'Ortak sunucu yayını · resmî sonuç değildir.';
@@ -44,7 +54,7 @@
      delay=1000;
      $('status').textContent=({queued:'Motor kuyruğunda',running:'League-Soccer maçı hesaplanıyor',failed:'Motor testi başarısız', 'not-enabled':'Bu fikstür için pilot etkin değil',unindexed:'Eski kayıt henüz yayın indeksine sahip değil'})[data.state]||'Yayın bekleniyor';
     }
-   }catch(e){if(g===generation){$('status').textContent='Bağlantı kesildi; tekrar bağlanılıyor.';delay=1500;}}
+   }catch(e){if(g===generation){$('sendTactics').disabled=true;$('status').textContent='Bağlantı kesildi; tekrar bağlanılıyor.';delay=1500;}}
    finally{clearTimeout(timeout);if(controller===request)controller=null;if(active&&g===generation)timer=setTimeout(poll,delay);}
   }
   poll();
@@ -62,6 +72,19 @@
   for(const c of a.changes)text.push('Değişiklik önerisi: '+c.out+' → '+c.in+' ('+c.reason+')');
   $('adviceText').textContent=text.join('\n');
  }
+ $('controlForm').onsubmit=async e=>{
+  e.preventDefault();if(!active||submitting||!current?.canControl)return;
+  const g=generation;submitting=true;$('sendTactics').disabled=true;
+  const tactics=Object.fromEntries([...fields,'formation'].map(k=>[k,Number($('tactic-'+k).value)]));
+  try{
+   const requestId=Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
+   const r=await fetch('/api/league/native-pilot/tactics',{method:'POST',headers:{Authorization:'Bearer '+requestToken,'Content-Type':'application/json'},body:JSON.stringify({round:requestRound,requestId,tactics})});
+   const data=await r.json();if(g!==generation)return;
+   if(!r.ok)throw Error(data.error||'Komut reddedildi');
+   $('commandState').textContent='Komut #'+data.revision+' gönderildi, motor onayı bekleniyor.';
+  }catch(err){if(g===generation)$('commandState').textContent=err.message;}
+  finally{submitting=false;}
+ };
  $('adviceTeam').onchange=renderAdvice;
  $('connect').onclick=start;
  $('camera').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':'tv';$('camera').textContent='Kamera: '+({tv:'TV',close:'Yakın',tactical:'Taktik'}[scene.camera]);};

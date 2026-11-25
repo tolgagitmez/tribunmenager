@@ -26,7 +26,15 @@ export TRIBUN_LEAGUE_SOCCER_FIXTURE="$work/fixture.txt"
 export TRIBUN_LEAGUE_SOCCER_SEED="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["seed"])' "$out.fixture.json")"
 export TRIBUN_LEAGUE_SOCCER_TRACE="$out"
 cd "$work"
-bash ./run_menu_smoke.sh ./gameplayfootball "$work/native-match.config" 420 \
+config="$work/native-match.config"
+limit=420
+if [[ "${TRIBUN_NATIVE_REALTIME:-0}" == 1 ]]; then
+  sed 's/"menu_smoke_match_time_scale" "6.0"/"menu_smoke_match_time_scale" "1.0"/' "$config" > "$work/interactive.config"
+  config="$work/interactive.config"
+  grep -F '"menu_smoke_match_time_scale" "1.0"' "$config" >/dev/null
+  limit=850
+fi
+bash ./run_menu_smoke.sh ./gameplayfootball "$config" "$limit" \
   "[menu-smoke] Full match complete:" \
   "[menu-smoke] Full-match verification succeeded, quitting test run"
 python3 "$here/validate_trace.py" "$out"

@@ -14,6 +14,7 @@ from economy import TransferService, EconomyError, SET_PIECE_ATTRIBUTES
 from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_control
 import season_state
 import native_shadow
+import native_live
 
 ROOT=Path(__file__).resolve().parent
 DATA=Path(os.environ.get('TRIBUN_DB',str(ROOT/'tribun-dev.sqlite3')))
@@ -378,6 +379,8 @@ class Handler(SimpleHTTPRequestHandler):
                 match,side=live_session(self.transfer_token(),round_number,watch=True)
                 with closing(db()) as c:
                     if p.path.endswith('/broadcast'):
+                        if native_live.is_interactive(c,match.key):
+                            return self.json_response(native_shadow.interactive_broadcast(c,match.key,side))
                         return self.json_response(native_shadow.broadcast(c,match.key,time.time()))
                     return self.json_response(native_shadow.status(c,match.key,time.time()))
             except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
@@ -401,6 +404,19 @@ class Handler(SimpleHTTPRequestHandler):
         return auth[7:] if auth.startswith('Bearer ') else ''
     def do_POST(self):
         p=urlsplit(self.path).path
+        if p=='/api/league/native-pilot/tactics':
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0<length<=2048:raise native_live.ControlError('Geçersiz istek boyutu.',400)
+                body=json.loads(self.rfile.read(length))
+                ident,values=native_live.validate_command(body)
+                match,side=live_session(self.transfer_token(),body['round'],watch=True)
+                session=native_live.lookup(match.key)
+                if session is None:raise native_live.ControlError('Etkileşimli motor çalışmıyor.')
+                return self.json_response(session.command(side,ident,values),202)
+            except (LiveMatchError,native_live.ControlError) as e:return self.json_response({'error':str(e)},e.status)
+            except (sqlite3.Error,OSError):return self.json_response({'error':'Komut kaydedilemedi.'},503)
+            except (ValueError,TypeError,UnicodeError):return self.json_response({'error':'Geçersiz komut.'},400)
         if p=='/api/league/live-match/kick':
             try:
                 length=int(self.headers.get('Content-Length','0'))

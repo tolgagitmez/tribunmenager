@@ -12,6 +12,7 @@ import sqlite3
 import subprocess
 import tempfile
 import time
+import native_live
 
 ROOT = Path(__file__).resolve().parent
 INTEGRATION = ROOT / "integrations" / "league-soccer"
@@ -32,7 +33,7 @@ CREATE TABLE IF NOT EXISTS native_shadow_frames(
 );
 CREATE INDEX IF NOT EXISTS native_shadow_due_frame
 ON native_shadow_frames(league,round,home,away,elapsed_ms,seq);
-"""
+""" + native_live.SCHEMA
 
 def connect(path):
     return sqlite3.connect(path, timeout=20)
@@ -60,11 +61,13 @@ def enqueue(db, key, config):
     db.execute("""INSERT OR IGNORE INTO native_shadow_matches
         (league,round,home,away,config_sha,profile) VALUES(?,?,?,?,?,?)""",
         (*key, digest(config), profile))
+    if os.environ.get("TRIBUN_NATIVE_INTERACTIVE")=="1":
+        db.execute("INSERT OR IGNORE INTO native_interactive_matches VALUES(?,?,?,?)",key)
 
 def recover(path):
     # Single dev-server process is required; don't run multiple schedulers on this database.
     with closing(connect(path)) as db, db:
-        db.execute("""UPDATE native_shadow_matches SET state=CASE WHEN attempts<2 THEN 'queued'
+        db.execute("""UPDATE native_shadow_matches SET state=CASE WHEN attempts<2 AND NOT EXISTS(SELECT 1 FROM native_interactive_matches i WHERE i.league=native_shadow_matches.league AND i.round=native_shadow_matches.round AND i.home=native_shadow_matches.home AND i.away=native_shadow_matches.away) THEN 'queued'
             ELSE 'failed' END, error='Interrupted native process' WHERE state='running'""")
 
 def claim(path):
@@ -84,7 +87,7 @@ def claim(path):
             started=?,error=NULL WHERE {KEY}""", (time.time(), *key))
         return key, sha, profile, config
 
-def execute_native(config, profile, stop=None):
+def execute_native(config, profile, stop=None, interactive_key=None):
     runtime = os.environ.get("TRIBUN_NATIVE_RUNTIME")
     if not runtime:
         raise RuntimeError("Prepared native runtime required")
@@ -97,6 +100,16 @@ def execute_native(config, profile, stop=None):
         env = {**os.environ, "TRIBUN_LEAGUE_SOCCER_ATTACK": profile}
         # A trusted local command mailbox must not leak into frozen league shadow jobs.
         env.pop("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR", None)
+        env.pop("TRIBUN_NATIVE_REALTIME",None)
+        tail=None
+        if interactive_key is not None:
+            directory=root/"commands"
+            directory.mkdir(mode=0o700)
+            session=native_live.Session(config,directory)
+            native_live.register(interactive_key,session)
+            tail=native_live.Tail(trace,session)
+            env["TRIBUN_LEAGUE_SOCCER_COMMAND_DIR"]=str(directory)
+            env["TRIBUN_NATIVE_REALTIME"]="1"
         with (root / "native.log").open("wb") as log:
             process = subprocess.Popen(["bash", str(INTEGRATION / "run-frozen.sh"), runtime,
                 str(config_path), str(trace)], env=env, stdout=log, stderr=subprocess.STDOUT,
@@ -104,12 +117,14 @@ def execute_native(config, profile, stop=None):
             deadline = time.monotonic() + 900
             try:
                 while process.poll() is None:
+                    if tail:tail.drain()
                     if stop is not None and stop.wait(.2):
                         raise RuntimeError("Native worker stopped")
                     if stop is None:
                         time.sleep(.2)
                     if time.monotonic() >= deadline:
                         raise RuntimeError("Native worker timed out")
+                if tail:tail.drain()
                 if process.returncode:
                     raise RuntimeError("Native worker failed validation or execution")
             finally:
@@ -173,7 +188,13 @@ def process_one(path, runner=execute_native, stop=None):
         return False
     key, sha, profile, config = job
     try:
-        raw, report = runner(config, profile, stop)
+        with closing(connect(path)) as db:
+            interactive=native_live.is_interactive(db,key)
+        if interactive:
+            if runner is not execute_native:raise RuntimeError("Interactive pilot requires native runner")
+            raw, report = runner(config, profile, stop, interactive_key=key)
+        else:
+            raw, report = runner(config, profile, stop)
         validate_result(raw, report)
         rows = frame_rows(raw)
         packed = gzip.compress(raw, compresslevel=3, mtime=0)
@@ -189,6 +210,8 @@ def process_one(path, runner=execute_native, stop=None):
             db.execute(f"""UPDATE native_shadow_matches SET state='failed',finished=?,error=?
                 WHERE {KEY} AND state='running'""", (time.time(), type(exc).__name__, *key))
         print("Native shadow:", type(exc).__name__, str(exc), flush=True)
+    finally:
+        native_live.remove(key)
     return True
 
 def status(db, key, now):
@@ -255,4 +278,21 @@ def broadcast(db, key, now):
             names.append({"nativeId":23+team*7+i,"name":p.get("name",""),"number":p.get("number",12+i),"slot":11+i,"team":team,"position":p.get("subposition") or p.get("pos"),"rating":p.get("rating"),"startFitness":p.get("fitness"),"reserve":True})
     result.update(frame=frame, sequence=seq, players=names,
                   homeName=config.get("homeName","Ev sahibi"),awayName=config.get("awayName","Deplasman"))
+    return result
+
+def interactive_broadcast(db,key,side):
+    session=native_live.lookup(key)
+    if session:
+        return session.read(side)
+    row=db.execute(f"SELECT state FROM native_shadow_matches WHERE {KEY}",key).fetchone()
+    state=row[0] if row else "not-enabled"
+    result=dict(engine="league-soccer",authoritative=False,source="interactive-native",state=state,
+                phase="waiting",frame=None,side=side,canControl=False)
+    if state=="ready":
+        final=db.execute(f"SELECT seq,snapshot FROM native_shadow_frames WHERE {KEY} ORDER BY seq DESC LIMIT 1",key).fetchone()
+        config=db.execute(f"SELECT config FROM live_matches WHERE {KEY}",key).fetchone()
+        if not final or not config:raise ValueError("Missing validated final")
+        frame=json.loads(gzip.decompress(final[1]))
+        if not frame.get("done"):raise ValueError("Missing final frame")
+        result.update(phase="finished",frame=frame,sequence=final[0],**native_live.metadata(json.loads(config[0])))
     return result
