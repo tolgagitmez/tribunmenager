@@ -25,7 +25,9 @@ jobs:
           TRIBUN_INSTALL_NATIVE_DEPS: '1'
           TRIBUN_BUILD_JOBS: '3'
           TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/tribun-native-runtime
-        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/league-soccer.ndjson" --demo
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/league-soccer.ndjson" --sub-demo
+      - name: Verify native halftime substitutions executed
+        run: python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert len(s["substitutions"])==2 and all(c["performed"] for c in s["substitutions"])' "$RUNNER_TEMP/league-soccer.ndjson.season.json"
       - name: Verify reusable native runtime from frozen fixture
         run: |
           node -e 'process.stdout.write(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/native-config.json"

@@ -39,8 +39,8 @@
   for(const t of manifest.teams){
    requireValue([0,1].includes(t.team)&&!teams.has(t.team)&&Array.isArray(t.players)&&t.players.length===11,'Geçersiz kadro takımı.');
    teams.add(t.team);
-   for(const p of t.players){
-    requireValue(nonneg(p.nativeId)&&!map.has(p.nativeId)&&typeof p.name==='string'&&typeof p.role==='string'&&Number.isInteger(p.slot)&&p.slot>=0&&p.slot<11,'Geçersiz kadro oyuncusu.');
+   for(const p of [...t.players,...(t.bench||[])]){
+    requireValue(nonneg(p.nativeId)&&!map.has(p.nativeId)&&typeof p.name==='string'&&typeof p.role==='string'&&Number.isInteger(p.slot)&&p.slot>=0&&p.slot<18,'Geçersiz kadro oyuncusu.');
     map.set(p.nativeId,{...p,team:t.team});
    }
   }

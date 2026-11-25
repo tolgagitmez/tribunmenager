@@ -35,3 +35,13 @@ test('all supported formations produce a native eleven',()=>{
   assert.equal(convert(c).teams[0].players.filter(p=>p.role==='GK').length,1);
  }
 });
+
+test('planned changes import real bench, reject suspended, duplicate and goalkeeper mismatch',()=>{
+ const c=demo();c.players.push({...c.players[0],id:100,name:'Reserve'});
+ c.nativeSubstitutions=[[{out:c.starters[0],in:100}],[]];
+ const m=convert(c);assert.equal(m.teams[0].bench.length,1);
+ assert.deepEqual(m.teams[0].substitutions,[{out:1,in:23}]);
+ assert.equal(serialize(m).trim().split('\n').length,27);
+ c.players.at(-1).season={suspended:true};assert.throws(()=>convert(c));
+ c.players.at(-1).season={};c.nativeSubstitutions[0].push({out:c.starters[1],in:100});assert.throws(()=>convert(c));
+});

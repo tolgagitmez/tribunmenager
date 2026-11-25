@@ -34,13 +34,13 @@ def candidate(final, manifest):
     for team in manifest["teams"]:
         t=team["team"]
         require(type(t) is int and t in (0,1) and len(team["players"])==11, "Invalid team")
-        for player in team["players"]:
+        for player in [*team["players"], *team.get("bench",[])]:
             ident=player["nativeId"]
             require(type(ident) is int and ident not in expected, "Duplicate native identity")
             expected[ident]=(t,player)
-    require(len(expected)==22, "Expected both starting elevens")
+    require(22<=len(expected)<=36, "Expected both starting elevens and valid bench")
     rows=final.get("participation")
-    require(isinstance(rows,list) and len(rows)==22, "Missing native participation")
+    require(isinstance(rows,list) and len(rows)==len(expected), "Missing native participation")
     seen=set()
     identities=set()
     appearances=[]
@@ -71,11 +71,20 @@ def candidate(final, manifest):
             "minutes":nominal/60000,"seconds":active/1000,"sprintSeconds":sprint/1000,
             "yellow":yellow,"red":red,"startFitness":before,"nativeFatigueFactor":factor})
     require(seen==set(expected), "Incomplete lineups")
+    substitutions=[]
+    by_native={row["databaseId"]:row for row in rows}
+    for team in manifest["teams"]:
+        for change in team.get("substitutions",[]):
+            out, incoming=by_native[change["out"]],by_native[change["in"]]
+            performed=incoming["nominalMs"]>0
+            if performed:
+                require(not out["active"] and out["nominalMs"]<=2700000 and incoming["nominalMs"]<=2700000, "Invalid halftime substitution timing")
+            substitutions.append({"team":team["team"],"out":expected[change["out"]][1]["rosterId"],"in":expected[change["in"]][1]["rosterId"],"performed":performed})
     # Guard against a wrong native clock/timing hook silently reporting zero minutes.
     for team in (0,1):
         require(max(a["minutes"] for a in appearances if a["team"]==team)>=89.5, "Missing full-match minutes")
     return {"schema":1,"engine":"league-soccer","authoritative":False,"done":True,"score":score,
-            "cards":cards,"reds":reds,"appearances":appearances}
+            "cards":cards,"reds":reds,"appearances":appearances,"substitutions":substitutions}
 
 def preview(state):
     """Exercise the real idempotent season writer in a disposable SQLite DB."""

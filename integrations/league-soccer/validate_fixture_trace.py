@@ -4,7 +4,9 @@ import sys
 
 def validate(trace, manifest):
     with open(manifest, encoding="utf-8") as f:
-        expected = {t["team"]: {p["nativeId"] for p in t["players"]} for t in json.load(f)["teams"]}
+        teams = json.load(f)["teams"]
+        starters = {t["team"]: {p["nativeId"] for p in t["players"]} for t in teams}
+        expected = {t["team"]: {p["nativeId"] for p in t["players"] + t.get("bench", [])} for t in teams}
     frames = 0
     with open(trace, encoding="utf-8") as f:
         for line in f:
@@ -14,7 +16,7 @@ def validate(trace, manifest):
                 actual[p["team"]].add(p["databaseId"])
             if any(not actual[t] <= expected[t] for t in expected):
                 raise ValueError("Unexpected upstream database player")
-            if actual == expected:
+            if actual == starters:
                 frames += 1
     if not frames:
         raise ValueError("Both frozen starting elevens never appeared in native match")
