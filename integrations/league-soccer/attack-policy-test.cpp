@@ -40,4 +40,16 @@ int main(){
  assert(!EligibleDistanceShot(23,.4,.85,.85));
  assert(!EligibleDistanceShot(23,.95,.4,.85));
  assert(!EligibleDistanceShot(23,.95,.85,.4));
+ assert(SafeKeeperClaim(8,4,.2,5,800,1500,1200,true,false));
+ assert(!SafeKeeperClaim(8,4,.2,5,800,1000,1200,true,false));
+ assert(!SafeKeeperClaim(8,4,.2,5,800,1500,900,true,false));
+ assert(!SafeKeeperClaim(17,4,.2,5,800,1500,1200,true,false));
+ assert(!SafeKeeperClaim(8,4,2,5,800,1500,1200,true,false));
+ assert(!SafeKeeperClaim(8,4,.2,5,800,1500,1200,false,false));
+ assert(!SafeKeeperClaim(8,4,.2,5,800,1500,1200,true,true));
+ assert(KeepCentralCover(true,false,false,true,1,25));
+ assert(!KeepCentralCover(true,true,false,true,1,25));
+ assert(!KeepCentralCover(true,false,false,true,3,25));
+ assert(CoordinatedHunters(20,3)==1);
+ assert(CoordinatedHunters(45,3)==2);
 }

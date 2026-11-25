@@ -62,3 +62,17 @@ test('wide possession with a central box outlet is measured separately',()=>{
  f.forEach(row=>{row.players[2].position[1]=19;});
  assert.deepEqual(report(f).sampled.wideControlWithBoxOutletMs,[0,0]);
 });
+
+test('loose-box closing requires unowned low ball and actual keeper movement',()=>{
+ const f=frames();
+ for(const row of f){
+  row.players[0].uniquePossession=false;
+  row.players[1].position=[row.attackDirection[0]*50,0,0];
+  row.players[1].velocity=[-row.attackDirection[0]*2,0,0];
+ }
+ const r=report(Replay.parse(f.map(JSON.stringify).join('\n')));
+ assert.deepEqual(r.sampled.looseOwnBoxMs,[0,200]);
+ assert.deepEqual(r.sampled.looseOwnBoxKeeperClosingMs,[0,0]);
+ f[3].players[1].position=[49,0,0];
+ assert.deepEqual(report(f).sampled.looseOwnBoxKeeperClosingMs,[0,100]);
+});

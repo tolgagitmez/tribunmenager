@@ -100,6 +100,24 @@ inline bool EligibleCutback(float senderDepth, float recipientDepth, float dista
 inline bool EligibleDistanceShot(float distance, float angle, float skill, float odds) {
   return distance >= 17.0f && distance <= 26.0f && angle >= 0.88f && skill >= 0.70f && odds >= 0.78f;
 }
+// Time estimates are milliseconds, geometry metres. Avoid high balls, byline
+// exits, opponent races and teammates who can already clear the ball.
+inline bool SafeKeeperClaim(float depth, float lateral, float height, float distance,
+                            int keeperEta, int nearestRivalEta, int nearestMateEta,
+                            bool loose, bool shot) {
+  return loose && !shot && depth>=1.0f && depth<=15.0f && lateral<=18.0f &&
+         height>=0.0f && height<=1.0f && distance>=1.1f && distance<=10.0f &&
+         keeperEta>=0 && keeperEta<=1300 && nearestRivalEta>=keeperEta+450 &&
+         nearestMateEta>=keeperEta+200;
+}
+inline bool KeepCentralCover(bool centreBack, bool primary, bool secondary,
+                             bool opponentHasBall, int goalSideCover, float ownGoalDepth) {
+  return centreBack && !primary && !secondary && opponentHasBall &&
+         goalSideCover<=1 && ownGoalDepth<=36.0f;
+}
+inline int CoordinatedHunters(float ownGoalDepth, int goalSideCover) {
+  return (ownGoalDepth<=32.0f || goalSideCover<=1)?1:2;
+}
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -338,4 +356,111 @@ inline float ShotOddsThreshold() {
         AITactics::EligibleDistanceShot(shotDistance,shotAngle,player->GetStat("technical_shot"),odds);
     if ((idealShotPosFactor > 0.1f || distanceShot) &&
         odds + random(0.0f, 0.28f) > AITactics::ShotOddsThreshold()) {'''),
+    ])
+
+    # Independent goalkeeper collection decision, retaining the native save and
+    # pickup animation paths. The new behaviour is opt-in with the short-match profile.
+    edit(root, "src/onthepitch/player/controller/strategies/offtheball/goalie_default.hpp", [
+        ("  bool IsBallBoundForGoal() const { return ballBoundForGoal; }", "  bool IsBallBoundForGoal() const { return ballBoundForGoal; }\n  bool IsClaimingLooseBall() const { return claimingLooseBall; }"),
+        ("  bool ballBoundForGoal;", "  bool claimingLooseBall = false;\n  bool ballBoundForGoal;"),
+    ])
+    edit(root, "src/onthepitch/player/controller/strategies/offtheball/goalie_default.cpp", [
+        ('#include "goalie_default.hpp"', '#include "goalie_default.hpp"\n#include "../../../../aitactics.hpp"'),
+        ("  // base position\n  float lineDistance", "  claimingLooseBall=false;\n  // base position\n  float lineDistance"),
+        ("  direction = targetPos - player->GetPosition();", r'''  // Leave actual shot interception and hand-contact rules to the existing engine.
+  if (AITactics::ShortMatchAttackEnabled() && match->IsInPlay() && !match->IsInSetPiece() &&
+      !match->GetBallRetainer() && !team->GetHumanGamerCount() &&
+      !team->HasUniquePossession() && !controller->GetOppTeam()->HasUniquePossession()) {
+    CalculateIfBallIsBoundForGoal(mentalImage);
+    const auto ballNow=mentalImage->GetBallPrediction(0);
+    const auto candidate=mentalImage->GetBallPrediction(400);
+    const auto ground=candidate.Get2D();
+    const float distance=(ground-player->GetPosition()).GetLength();
+    const float depth=pitchHalfW-ground.coords[0]*team->GetSide();
+    // Cheap spatial gate before the native arrival estimator, to avoid a per-tick
+    // full team search when the ball is on the other half.
+    if (AITactics::SafeKeeperClaim(depth,std::abs(ground.coords[1]),candidate.coords[2],
+        distance,0,2000,2000,true,IsBallBoundForGoal()) &&
+        ballNow.coords[2]<=1.0f &&
+        pitchHalfW-ballNow.coords[0]*team->GetSide()>=0.5f &&
+        pitchHalfW-ballNow.coords[0]*team->GetSide()<=16.5f &&
+        std::abs(ballNow.coords[1])<=20.15f) {
+      std::vector<Player*> rivals,mates;
+      controller->GetOppTeam()->GetActivePlayers(rivals);
+      team->GetActivePlayers(mates);
+      const int keeperEta=static_cast<int>(AI_GetTimeNeededForDistance_ms(
+          player->GetPosition(),player->GetMovement(),ground,player->GetMaxVelocity(),false,-1,false).usual_ms);
+      // Lower-bound competing arrival times at the same intercept point.
+      // A simple straight-line sprint is deliberately optimistic for rivals.
+      const auto earliest=[&](const std::vector<Player*>& list) {
+        int result=100000;
+        for (auto* other:list) if(other!=CastPlayer() && other->IsActive()) {
+          const float d=(ground-other->GetPosition()).GetLength();
+          const float speed=std::max(0.1f,other->GetMaxVelocity());
+          result=std::min(result,static_cast<int>(std::max(0.0f,d-0.9f)/speed*1000.0f));
+        }
+        return result;
+      };
+      if (AITactics::SafeKeeperClaim(depth,std::abs(ground.coords[1]),candidate.coords[2],
+          distance,keeperEta,earliest(rivals),earliest(mates),true,false)) {
+        targetPos=ground;
+        maxVelocity=sprintVelocity;
+        claimingLooseBall=true;
+      }
+    }
+  }
+  direction = targetPos - player->GetPosition();'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("    goalieStrategy->RequestInput(keeperMentalImage, manualMovementDirection,\n                                 manualMovementVelocityFloat);", r'''    goalieStrategy->RequestInput(keeperMentalImage, manualMovementDirection,
+                                 manualMovementVelocityFloat);
+    if (static_cast<GoalieDefaultStrategy*>(goalieStrategy)->IsClaimingLooseBall())
+      manualMovement=true;'''),
+        ("        int huntingPlayersNum = 3;  // was 2; includes players with man marking id", r'''        int huntingPlayersNum = 3;  // baseline
+        if(AITactics::ShortMatchAttackEnabled() && !team->GetHumanGamerCount()){
+          std::vector<Player*> mates;
+          team->GetActivePlayers(mates);
+          int cover=0;
+          const float side=team->GetSide();
+          const float ballX=_mentalImage->GetBallPrediction(0).coords[0]*side;
+          for(auto* mate:mates)if(mate!=CastPlayer() && mate!=team->GetGoalie() &&
+              mate->GetPosition().coords[0]*side>=ballX+2.0f &&
+              std::abs(mate->GetPosition().coords[1])<=18.0f)++cover;
+          huntingPlayersNum=AITactics::CoordinatedHunters(pitchHalfW-ballX,cover);
+          const bool secondary=team->GetController()->GetEndApplyTeamPressure_ms()>match->GetActualTime_ms() &&
+              team->GetController()->GetTeamPressurePlayer()==player;
+          if(AITactics::KeepCentralCover(CastPlayer()->GetFormationEntry().role==e_PlayerRole_CB,
+              player==team->GetDesignatedTeamPossessionPlayer(),secondary,
+              opp && opp->HasUniquePossession(),cover,pitchHalfW-ballX))
+            huntingPlayersNum=0;
+        }'''),
+        ("        AI_GetClosestPlayers(team, opp->GetPosition() + opp->GetMovement() * 0.1f, false,\n                             closestPlayers, huntingPlayersNum);", r'''        if(huntingPlayersNum>0)
+          AI_GetClosestPlayers(team, opp->GetPosition() + opp->GetMovement() * 0.1f, false,
+                               closestPlayers, huntingPlayersNum);'''),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  prevTeamHasPossession = teamHasPossession;\n\n  // trigger attacking runs", r'''  if(AITactics::ShortMatchAttackEnabled() && !team->GetHumanGamerCount() &&
+      prevTeamHasPossession && !teamHasPossession){
+    // Cancel stale offensive assignments as soon as possession is lost.
+    endApplyAttackingRun_ms=match->GetActualTime_ms();
+    attackingRunPlayer=nullptr;
+    forwardSupportPlayer=nullptr;
+  }
+  prevTeamHasPossession = teamHasPossession;
+
+  // trigger attacking runs'''),
+        ("      const float pressureRating = distance + rolePenalty;", r'''      float pressureRating = distance + rolePenalty;
+      if(AITactics::ShortMatchAttackEnabled() && !team->GetHumanGamerCount() &&
+          candidate->GetFormationEntry().role==e_PlayerRole_CB){
+        int cover=0;
+        const float side=team->GetSide();
+        const float depth=pitchHalfW-opponentPos.coords[0]*side;
+        for(auto* mate:candidates)if(mate!=candidate && mate!=primaryDefender &&
+            mate!=team->GetGoalie() && mate->GetPosition().coords[0]*side>=opponentPos.coords[0]*side+2.0f &&
+            std::abs(mate->GetPosition().coords[1])<=18.0f)++cover;
+        if(AITactics::KeepCentralCover(true,false,false,opp->HasUniquePossession(),cover,depth))
+          continue;
+        pressureRating+=3.0f;
+      }'''),
+        ("  if (previousPresser &&\n      AITactics::ShouldKeepPressurePlayer(previousPressureRating, bestPressureRating))", "  if (previousPresser && previousPressureRating < 10000.0f &&\n      AITactics::ShouldKeepPressurePlayer(previousPressureRating, bestPressureRating))"),
     ])

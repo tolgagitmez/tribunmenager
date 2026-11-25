@@ -12,7 +12,7 @@ function report(frames){
  const result={schema:1,engine:'league-soccer',frames:frames.length,nativeElapsedMs:last.elapsedMs-frames[0].elapsedMs,score:last.score.slice(),shots:stats.shots.slice(),onTarget:stats.onTarget.slice(),passes:stats.passes.slice(),completed:stats.completed.slice(),fouls:stats.fouls.slice(),possessionMs:stats.possessionMs.slice(),sampled:null};
  if(!completeTelemetry)return result;
  // Dimensions are pinned upstream gamedefines.hpp (55 x 36 half-pitch).
- const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),controlledForwardMeters:pair(),controlledBackwardMeters:pair(),sameCarrierMs:pair(),controlledWithForwardOutletMs:pair(),controlledWithTwoBoxAttackersMs:pair(),wideControlMs:pair(),wideControlWithBoxOutletMs:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};
+ const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),controlledForwardMeters:pair(),controlledBackwardMeters:pair(),sameCarrierMs:pair(),controlledWithForwardOutletMs:pair(),controlledWithTwoBoxAttackersMs:pair(),wideControlMs:pair(),wideControlWithBoxOutletMs:pair(),looseOwnBoxMs:pair(),looseOwnBoxKeeperClosingMs:pair(),opponentControlledWithCentralCoverMs:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};
  const owner=f=>{const p=f.players.filter(p=>p.uniquePossession);return p.length===1?p[0]:null;};
  const inside=(f,t)=>inBox(f.ball,f.attackDirection[t]);
  const inBox=(p,d)=>p[0]*d>=55-16.5&&p[0]*d<=55&&Math.abs(p[1])<=20.15;
@@ -27,6 +27,17 @@ function report(frames){
   if(!a.inPlay||!b.inPlay||a.attackDirection[0]!==b.attackDirection[0])continue;
   m.observedOpenPlayMs+=dt;
   const pa=owner(a),pb=owner(b);
+  for(let t=0;t<2;t++){
+   const ga=a.players.find(p=>p.team===t&&p.goalkeeper),gb=b.players.find(p=>p.team===t&&p.goalkeeper);
+   if(!pa&&!pb&&inside(a,1-t)&&inside(b,1-t)&&ga&&gb&&ga.id===gb.id&&a.ball[2]<=1&&b.ball[2]<=1){
+    m.looseOwnBoxMs[t]+=dt;
+    const da=Math.hypot(a.ball[0]-ga.position[0],a.ball[1]-ga.position[1]),db=Math.hypot(b.ball[0]-gb.position[0],b.ball[1]-gb.position[1]);
+    const toward=(a.ball[0]-ga.position[0])*gb.velocity[0]+(a.ball[1]-ga.position[1])*gb.velocity[1];
+    if(db<da&&toward>0.5)m.looseOwnBoxKeeperClosingMs[t]+=dt;
+   }
+   const cover=(f,t)=>f.players.filter(p=>p.team===t&&!p.goalkeeper&&Math.abs(p.position[1])<=18&&(p.position[0]-f.ball[0])*(-f.attackDirection[t])>=2).length;
+   if(pa?.team===1-t&&pb?.team===1-t&&cover(a,t)>=2&&cover(b,t)>=2)m.opponentControlledWithCentralCoverMs[t]+=dt;
+  }
   if(pa&&pb&&pa.team===pb.team){
    const t=pa.team;m.controlledMs[t]+=dt;
    if(outlets(a,pa)>0&&outlets(b,pb)>0)m.controlledWithForwardOutletMs[t]+=dt;
