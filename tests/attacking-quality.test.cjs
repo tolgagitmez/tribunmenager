@@ -758,3 +758,33 @@ test('territorial correction defaults off in engine and can be enabled in an act
  m.cfg.territorialProgression=true;
  assert(m.choose(owner).territorialPass);
 });
+
+
+test('compact striker outlet checks diagonally into an early safe forward lane, in both halves',()=>{
+ for(const side of [1,-1]){
+  const {m,set,owner,mid,back}=fixture(side);
+  const st=set(1,'ATT',21,0,{position:'ST',detailedRole:true});
+  mid.x=11*side;mid.z=0;back.x=34*side;back.z=8;
+  m.laneRisk=()=>.58;
+  m.supportRead=(a,p,q)=>({space:5,risk:.12,earlyRisk:.22,readyAt:.3,eta:.7,window:1});
+  const before={x:st.x,z:st.z,seed:m.seed,ball:{...m.ball}};
+  const result=m.strikerOutlet(owner,st,30,m.rivals(owner));
+  assert(result?.strikerOutlet);
+  assert((result.x-owner.x)*side>=5);
+  assert(Math.abs(result.z)>=3);
+  assert(result.x*side<=28.8);
+  assert.deepEqual({x:st.x,z:st.z,seed:m.seed,ball:m.ball},before);
+  assert.equal(m.strikerOutlet(owner,st,12,m.rivals(owner)),null);
+  m.supportRead=()=>({space:5,risk:.12,earlyRisk:.5,readyAt:1.3,eta:1.6,window:1});
+  assert.equal(m.strikerOutlet(owner,st,30,m.rivals(owner)),null);
+ }
+});
+test('compact striker outlet does not replace a useful open current passing lane or an exhausted runner',()=>{
+ const {m,set,owner,mid}=fixture();
+ const st=set(1,'ATT',21,0,{position:'ST',detailedRole:true});
+ mid.x=11;mid.z=0;m.laneRisk=()=>.15;
+ m.supportRead=()=>({space:5,risk:.12,earlyRisk:.22,readyAt:.3,eta:.7,window:1});
+ assert.equal(m.strikerOutlet(owner,st,30,m.rivals(owner)),null);
+ m.laneRisk=()=>.58;st.energy=.2;
+ assert.equal(m.strikerOutlet(owner,st,30,m.rivals(owner)),null);
+});
