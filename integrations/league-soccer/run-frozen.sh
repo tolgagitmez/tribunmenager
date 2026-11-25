@@ -32,3 +32,4 @@ bash ./run_menu_smoke.sh ./gameplayfootball "$work/native-match.config" 420 \
 python3 "$here/validate_trace.py" "$out"
 python3 "$here/validate_fixture_trace.py" "$out" "$out.fixture.json"
 node "$here/attack-report.cjs" "$out" "$out.attack.json"
+python3 "$here/../../native_season.py" "$out" "$out.fixture.json" "$out.season.json"

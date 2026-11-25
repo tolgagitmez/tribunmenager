@@ -51,7 +51,7 @@ function convert(config) {
    requireValue(typeof source.name==='string'&&source.name.trim(),'Invalid player name');
    const pos=Model.slotFor(formation,slot),f=formations[formation][slot],effective=Model.forSlot(source,pos);
    const stats=Object.fromEntries(Object.entries(nativeStats).map(([key,attr])=>[key,clamp(effective[attr]/100,.01,1)]));
-   return {nativeId:team*11+slot+1,rosterId:id,slot,position:pos.position,role:nativeRole[pos.position],x:f[1]/52.5,y:-f[2]/34,name:source.name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),rating:clamp(effective.skill/100,.01,1),stats};
+   return {nativeId:team*11+slot+1,rosterId:id,rosterUid:source.uid??source.rosterUid??null,startFitness:clamp(Number.isFinite(source.fitness)?source.fitness:95,0,100),slot,position:pos.position,role:nativeRole[pos.position],x:f[1]/52.5,y:-f[2]/34,name:source.name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),rating:clamp(effective.skill/100,.01,1),stats};
   });
   // Preserve exact selected slot identities; native GK-first order is explicit.
   players.sort((a,b)=>Number(b.role==='GK')-Number(a.role==='GK')||a.x-b.x||a.slot-b.slot);
@@ -71,7 +71,7 @@ function serialize(manifest){
  return lines.join('\n')+'\n';
 }
 function demo(){
- const f=['4-3-3','4-2-3-1'],r=f.map((formation,team)=>Model.demoTeam(team,formation).map((p,i)=>({...p,id:'pilot-'+team+'-'+i,name:'Tribun '+team+' / '+i,shooting:team===0?92:55})));
+ const f=['4-3-3','4-2-3-1'],r=f.map((formation,team)=>Model.demoTeam(team,formation).map((p,i)=>({...p,id:i,name:'Tribun '+team+' / '+i,shooting:team===0?92:55})));
  return {seed:2026,matchMinutes:5,formation:f[0],awayFormation:f[1],players:r[0],awayPlayers:r[1],starters:r[0].map(p=>p.id),awayStarters:r[1].map(p=>p.id),tactics:{press:85,onWin:'counter',passing:'direct'},awayTactics:{press:30,playstyle:'possession',passing:'short'}};
 }
 if(require.main===module){

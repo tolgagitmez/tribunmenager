@@ -19,7 +19,7 @@ jobs:
       - name: Fixture adapter unit tests
         run: node --test integrations/league-soccer/fixture-adapter.test.cjs integrations/league-soccer/native-replay.test.cjs integrations/league-soccer/broadcast.test.cjs integrations/league-soccer/compare-attacks.test.cjs integrations/league-soccer/native-stream-view.test.cjs
       - name: Python shadow queue tests
-        run: python3 -m unittest discover -s tests -p test_native_shadow.py
+        run: python3 -m unittest discover -s tests -p 'test_native_*.py'
       - name: Build pinned upstream and capture full match
         env:
           TRIBUN_INSTALL_NATIVE_DEPS: '1'

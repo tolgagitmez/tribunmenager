@@ -120,6 +120,10 @@ def execute_native(config, profile, stop=None):
         report = json.loads(Path(str(trace) + ".attack.json").read_text())
         if report.get("engine") != "league-soccer" or not report.get("sampled"):
             raise RuntimeError("Native report incomplete")
+        season = json.loads(Path(str(trace) + ".season.json").read_text())
+        if season.get("authoritative") is not False or season.get("score") != report.get("score"):
+            raise RuntimeError("Native season candidate invalid")
+        report["seasonCandidate"] = season
         return raw, report
 
 def validate_result(raw, report):

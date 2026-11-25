@@ -66,6 +66,7 @@ run_match() {
   node "$here/attack-report.cjs" "$dest" "$dest.attack.json"
   if [[ $# -ge 2 && -f "$out.fixture.json" && -n "${TRIBUN_LEAGUE_SOCCER_FIXTURE:-}" ]]; then
     python3 "$here/validate_fixture_trace.py" "$dest" "$out.fixture.json"
+    python3 "$here/../../native_season.py" "$dest" "$out.fixture.json" "$dest.season.json"
   fi
 }
 if [[ "${TRIBUN_BENCHMARK:-0}" == 1 ]]; then

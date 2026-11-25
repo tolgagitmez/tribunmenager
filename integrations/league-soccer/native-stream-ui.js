@@ -31,6 +31,10 @@
      $('score').textContent=(data.homeName||'Ev sahibi')+' '+data.frame.score.join(' – ')+' '+(data.awayName||'Deplasman')+' · '+Math.floor(data.frame.matchMs/60000)+'′';
      const s=data.frame.stats; $('stats').textContent=s?['Şut: '+s.shots.join(' – '),'İsabetli: '+s.onTarget.join(' – '),'Başarılı pas: '+s.completed.join(' – '),'Faul: '+s.fouls.join(' – ')].join('\n'):'';
      $('status').textContent=data.phase==='finished'?'Pilot yayın tamamlandı.':'Ortak sunucu yayını · resmî sonuç değildir.';
+     if(Array.isArray(data.frame.participation)){
+      const ys=[0,0],rs=[0,0];for(const p of data.frame.participation){ys[p.team]+=p.cardCode>=3?p.cardCode-3:p.cardCode;rs[p.team]+=Number(p.cardCode>=2);}
+      $('stats').textContent+='\nSarı kart: '+ys.join(' – ')+'\nKırmızı kart: '+rs.join(' – ');
+     }
      if(data.phase==='finished'){stop();return;}
     }else if(!data.frame){
      delay=1000;

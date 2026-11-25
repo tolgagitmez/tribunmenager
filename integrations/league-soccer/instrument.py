@@ -7,6 +7,9 @@ HEADER = r'''
 #include <cstdlib>
 #include <locale>
 #include <iomanip>
+#include <map>
+#include <cmath>
+#include <algorithm>
 
 namespace {
 void TribunTrace(Match& match, bool done) {
@@ -18,6 +21,49 @@ void TribunTrace(Match& match, bool done) {
   static unsigned long last = 0;
   if (!output || finished) return;
   const auto now = match.GetActualTime_ms();
+  // Record participation at native 10 ms resolution, not render-frame rate.
+  struct Participation {
+    unsigned long nominalMs = 0, activeMs = 0, sprintMs = 0;
+    bool wasActive = false, wasSprinting = false;
+  };
+  static std::map<int, Participation> participation;
+  static unsigned long previousActual = 0, previousMatch = 0;
+  static int previousPeriod = 0;
+  static bool havePrevious = false;
+  const int period = static_cast<int>(match.GetMatchPhase());
+  const auto matchMs = match.GetMatchTime_ms();
+  const auto nominal = [](unsigned long value, int phase) -> unsigned long {
+    if (phase == static_cast<int>(e_MatchPhase_1stHalf)) return std::min(value, 2700000UL);
+    if (phase == static_cast<int>(e_MatchPhase_2ndHalf)) return std::min(std::max(value, 2700000UL), 5400000UL);
+    return 0;
+  };
+  const bool samePeriod = havePrevious && period == previousPeriod &&
+      (period == static_cast<int>(e_MatchPhase_1stHalf) || period == static_cast<int>(e_MatchPhase_2ndHalf));
+  const auto before = nominal(previousMatch, previousPeriod), after = nominal(matchMs, period);
+  const unsigned long clockDelta = samePeriod && after >= before ? after - before : 0;
+  const unsigned long actualDelta = havePrevious && now >= previousActual ? now - previousActual : 0;
+  for (int team = 0; team < 2; ++team) {
+    std::vector<Player*> players;
+    match.GetAllTeamPlayers(team, players);
+    for (auto* player : players) {
+      auto& row = participation[player->GetID()];
+      if (row.wasActive && clockDelta > 0 && actualDelta <= 100) {
+        row.nominalMs += clockDelta;
+        row.activeMs += actualDelta;
+        if (row.wasSprinting) row.sprintMs += actualDelta;
+      }
+      row.wasActive = player->IsActive();
+      row.wasSprinting = false;
+      if (row.wasActive) {
+        const auto movement = player->GetMovement();
+        row.wasSprinting = std::hypot(movement.coords[0], movement.coords[1]) >= 6.0f;
+      }
+    }
+  }
+  previousActual = now;
+  previousMatch = matchMs;
+  previousPeriod = period;
+  havePrevious = true;
   if (started && !done && now < last + 100) return;
   started = true;
   last = now;
@@ -61,6 +107,23 @@ void TribunTrace(Match& match, bool done) {
       output << ",\"goalkeeper\":" << (player->GetFormationEntry().role == e_PlayerRole_GK ? "true" : "false");
       output << ",\"uniquePossession\":" << (player->HasUniquePossession() ? "true" : "false");
       output << '}';
+    }
+  }
+  output << "],\"participation\":[";
+  first = true;
+  for (int team = 0; team < 2; ++team) {
+    std::vector<Player*> players;
+    match.GetAllTeamPlayers(team, players);
+    for (auto* player : players) {
+      if (!first) output << ',';
+      first = false;
+      const auto& row = participation[player->GetID()];
+      output << "{\"databaseId\":" << player->GetPlayerData()->GetDatabaseID()
+             << ",\"team\":" << team << ",\"active\":" << (player->IsActive() ? "true" : "false")
+             << ",\"cardCode\":" << player->GetCards()
+             << ",\"nominalMs\":" << row.nominalMs << ",\"activeMs\":" << row.activeMs
+             << ",\"sprintMs\":" << row.sprintMs
+             << ",\"fatigueFactor\":" << player->GetFatigueFactorInv() << '}';
     }
   }
   output << "]}" << std::endl;
