@@ -62,6 +62,7 @@ def main():
     parser.add_argument("runtime")
     parser.add_argument("fixtures")
     parser.add_argument("out")
+    parser.add_argument("--fixed-duration",action="store_true",help="Validate attacks using the exact native clock")
     args=parser.parse_args()
     out=Path(args.out).resolve()
     out.mkdir(parents=True,exist_ok=True)
@@ -72,8 +73,15 @@ def main():
         seed=json.loads(blob)["seed"]
         prefix=str(out/name)
         row={"scenario":name,"seed":seed,"fixtureHash":hashlib.sha256(blob).hexdigest()}
-        for key,scale,quick,attack in (("baseline","1.0","0","baseline"),("candidate","1.0","0","short-match"),("calibrated","1.10","1","short-match")):
-            elapsed=timing.run(args.runtime,str(fixture),prefix,(key,scale,quick),attack)
+        calibrated=("calibrated","1.0","0","short-match") if args.fixed_duration else ("calibrated","1.10","1","short-match")
+        for key,scale,quick,attack in (("baseline","1.0","0","baseline"),("candidate","1.0","0","short-match"),calibrated):
+            use_fixed=args.fixed_duration and key=="calibrated"
+            elapsed=timing.run(args.runtime,str(fixture),prefix,(key,scale,quick),attack,use_fixed)
+            if use_fixed:
+                fspec=importlib.util.spec_from_file_location("fixed",HERE/"fixed-duration.py")
+                fixed=importlib.util.module_from_spec(fspec);fspec.loader.exec_module(fixed)
+                with Path(prefix+"."+key+".ndjson").open() as trace:
+                    fixed.verify(json.loads(line) for line in trace)
             result=json.loads(Path(prefix+"."+key+".ndjson.attack.json").read_text())
             season=json.loads(Path(prefix+"."+key+".ndjson.season.json").read_text())
             manifest=json.loads(Path(prefix+"."+key+".ndjson.fixture.json").read_text())
@@ -84,7 +92,8 @@ def main():
             print(json.dumps({"scenario":name,"profile":key,"timing":elapsed,"metrics":row[key]}),flush=True)
         row["calibratedMs"]=row["calibratedWallMs"]
         rows.append(row)
-        report=evaluate(rows)
+        from release_evidence import stamp
+        report=stamp({**evaluate(rows),"calibrationMode":"fixed-duration" if args.fixed_duration else "scale-1.10"},args.runtime,"readiness")
         (out/"readiness.json").write_text(json.dumps(report,indent=2,allow_nan=False)+"\n")
     print(json.dumps(report),flush=True)
 

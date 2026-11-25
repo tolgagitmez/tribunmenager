@@ -59,6 +59,8 @@ def main():
             "affinityCpus":len(os.sched_getaffinity(0)) if hasattr(os,"sched_getaffinity") else None},
             "groups":groups,"largestPassingGroup":max((g["concurrency"] for g in groups if g["diagnosticPassed"]),default=0),
             "note":"One sample per concurrency level. Peak RSS sum is not simultaneous aggregate memory; no production throughput/FPS guarantee."}
+        from release_evidence import stamp
+        report=stamp(report,a.runtime,"capacity")
         (out/"capacity.json").write_text(json.dumps(report,indent=2,allow_nan=False)+"\n")
         print(json.dumps(groups[-1]),flush=True)
     # Fail the diagnostic job when any simulated match cannot finish/validate.

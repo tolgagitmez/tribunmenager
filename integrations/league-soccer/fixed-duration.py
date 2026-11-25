@@ -42,6 +42,8 @@ def main():
     with trace.open() as f:clock=verify(json.loads(line) for line in f)
     report={**r,**clock,"exactObservedWallDuration":r["observedWallMs"]==300000,
         "authoritative":False,"note":"Exact simulation ticks do not prove exact delivery wall time; no promotion."}
+    from release_evidence import stamp
+    report=stamp(report,a.runtime,"fixed-duration")
     Path(a.out+".fixed-report.json").write_text(json.dumps(report,indent=2)+"\n")
     print(json.dumps(report),flush=True)
 

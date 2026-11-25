@@ -103,6 +103,8 @@ def run(runtime,fixture,output,*,fixed_duration=False):
                 result={**timing.report(),**clock,"authoritative":False,"substitutions":season["substitutions"],
                         "acknowledgements":acks,"wallClockExact":timing.report()["observedWallMs"]==300000,
                         "note":"Observed mailbox acknowledgements; not HTTP/concurrent or production certification."}
+                from release_evidence import stamp
+                result=stamp(result,runtime,"combined-controls")
                 Path(str(output)+".combined.json").write_text(json.dumps(result,indent=2)+"\n")
                 print(json.dumps(result),flush=True)
         finally:
