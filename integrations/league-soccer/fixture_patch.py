@@ -96,6 +96,8 @@ void TeamData::LoadTribunFixture(std::istream& input, int expectedTeam) {
     # Pre-create only scheduled reserves while the scene and GUI are being constructed.
     # Parking retains the allocated model, controller and captions, but excludes the player from play.
     edit(root, "src/onthepitch/player/player.hpp", "  virtual void Deactivate();", "  virtual void Deactivate();\n  void TribunParkReserve();\n  bool TribunResumeReserve();")
+    # A parked reserve may never enter, so clean up its retained controller at exit.
+    edit(root, "src/onthepitch/player/playerbase.cpp", "  if (isActive)\n    Deactivate();\n  if (Verbose())", "  if (isActive)\n    Deactivate();\n  else if (controller) { delete controller; controller = nullptr; }\n  if (Verbose())")
     lifecycle = r'''
 void Player::TribunParkReserve() {
   if (!isActive || !humanoid || !controller) return;
