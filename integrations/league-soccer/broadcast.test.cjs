@@ -76,3 +76,17 @@ test('loose-box closing requires unowned low ball and actual keeper movement',()
  f[3].players[1].position=[49,0,0];
  assert.deepEqual(report(f).sampled.looseOwnBoxKeeperClosingMs,[0,100]);
 });
+
+test('pressure metrics require a nearby opponent at both observed samples',()=>{
+ const f=frames();
+ for(const row of f){
+  row.players[1].position=[2,0,0];
+ }
+ let r=report(f);
+ assert.deepEqual(r.sampled.pressuredControlMs,[400,0]);
+ assert.deepEqual(r.sampled.pressuredSameCarrierMs,[400,0]);
+ f[2].players[1].position=[12,0,0];
+ r=report(f);
+ assert.deepEqual(r.sampled.pressuredControlMs,[200,0]);
+ assert.deepEqual(r.sampled.pressuredSameCarrierMs,[200,0]);
+});

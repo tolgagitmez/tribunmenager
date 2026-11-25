@@ -118,6 +118,28 @@ inline bool KeepCentralCover(bool centreBack, bool primary, bool secondary,
 inline int CoordinatedHunters(float ownGoalDepth, int goalSideCover) {
   return (ownGoalDepth<=32.0f || goalSideCover<=1)?1:2;
 }
+inline float ControlSkill(float dribble, float control, float agility, float balance) {
+  const auto c=[](float v){return std::max(0.0f,std::min(1.0f,v));};
+  return .35f*c(dribble)+.30f*c(control)+.20f*c(agility)+.15f*c(balance);
+}
+inline bool CanAttemptEvasion(float skill,float nearest,float goalDepth,float ballGap) {
+  return skill>=.60f && nearest>=1.0f && nearest<=4.5f && goalDepth>=8.0f && ballGap<=1.4f;
+}
+inline float EvasionScore(float progress,float clearance,float turnAlignment,float skill) {
+  if(clearance<1.25f || progress<0.4f || turnAlignment<-.15f)return -100.0f;
+  return progress*.45f+std::min(clearance,5.0f)*.8f+turnAlignment*(1.2f-.7f*skill);
+}
+inline float PressuredCarryCap(float skill,float nearest,float ballGap) {
+  if(nearest>4.5f && ballGap<1.4f)return 1.0f;
+  return std::max(.45f,std::min(.85f,.48f+.35f*skill));
+}
+inline float FirstTouchCost(float mismatch,float shortPass,float ballControl,float calmness) {
+  const auto c=[](float v){return std::max(0.0f,std::min(1.0f,v));};
+  return c(mismatch)*(1.0f-.45f*c(shortPass)-.25f*c(ballControl)-.10f*c(calmness));
+}
+inline bool SafePressureOutlet(float nearest,float distance,float receiverSpace,float odds,float margin) {
+  return nearest<=3.0f && distance>=3.0f && distance<=15.0f && receiverSpace>=.55f && odds>=.72f && margin>=.8f;
+}
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -463,4 +485,83 @@ inline float ShotOddsThreshold() {
         pressureRating+=3.0f;
       }'''),
         ("  if (previousPresser &&\n      AITactics::ShouldKeepPressurePlayer(previousPressureRating, bestPressureRating))", "  if (previousPresser && previousPressureRating < 10000.0f &&\n      AITactics::ShouldKeepPressurePlayer(previousPressureRating, bestPressureRating))"),
+    ])
+
+    # Individual pressure response: candidate directions are scored against predicted
+    # defender positions; no new skill animation, forced tackle outcome or stat boost.
+    edit(root, "src/onthepitch/AIsupport/AIfunctions.cpp", [
+        ("  desiredVelocity = RangeVelocity(desiredVelocity);\n}\n\nVector3 AI_GetForceFieldMovement", r'''  if(AITactics::ShortMatchAttackEnabled() && player->HasUniquePossession() &&
+      match->IsInPlay() && !match->IsInSetPiece() && !team->GetHumanGamerCount() &&
+      player->GetFormationEntry().role!=e_PlayerRole_GK){
+    const float skill=AITactics::ControlSkill(player->GetStat("technical_dribble"),
+        player->GetStat("technical_ballcontrol"),player->GetStat("physical_agility"),
+        player->GetStat("physical_balance"));
+    float nearest=100.0f;
+    for(const auto& opp:opponentPlayerImages)
+      nearest=std::min(nearest,(opp.position-myPos).GetLength());
+    const float ballGap=(mentalImage->GetBallPrediction(0).Get2D()-myPos).GetLength();
+    const float depth=pitchHalfW+side*myPos.coords[0];
+    if(AITactics::CanAttemptEvasion(skill,nearest,depth,ballGap)){
+      const Vector3 forward(-side,0,0);
+      Vector3 best=desiredDirection;
+      float bestScore=-100.0f;
+      // Include current decision, so a new angle must actually beat it.
+      const Vector3 choices[]={desiredDirection,forward,forward.GetRotated2D(.42f),
+          forward.GetRotated2D(-.42f),forward.GetRotated2D(.84f),forward.GetRotated2D(-.84f)};
+      for(const auto& dir:choices){
+        const auto endpoint=myPos+dir*3.0f;
+        if(std::abs(endpoint.coords[0])>pitchHalfW-1.5f ||
+           std::abs(endpoint.coords[1])>pitchHalfH-1.5f)continue;
+        float clearance=100.0f;
+        for(const auto& opp:opponentPlayerImages){
+          // Evaluate the middle and end of the projected carry against defenders.
+          const auto mid=myPos+dir*1.5f;
+          clearance=std::min(clearance,(mid-(opp.position+opp.movement*.25f)).GetLength());
+          clearance=std::min(clearance,(endpoint-(opp.position+opp.movement*.5f)).GetLength());
+        }
+        const auto facing=player->GetDirectionVec();
+        const float alignment=dir.coords[0]*facing.coords[0]+dir.coords[1]*facing.coords[1];
+        const float score=AITactics::EvasionScore(dir.coords[0]*-side*3.0f,clearance,alignment,skill);
+        if(score>bestScore){bestScore=score;best=dir;}
+      }
+      if(bestScore>-99.0f)desiredDirection=best.GetNormalized(desiredDirection);
+    }
+    // Carry conservatively when contested or when the ball has separated from the feet.
+    // This is a movement preference, not a change to the actual ball-control physics.
+    desiredVelocity=std::min(desiredVelocity,sprintVelocity*
+        AITactics::PressuredCarryCap(skill,nearest,ballGap));
+  }
+  desiredVelocity = RangeVelocity(desiredVelocity);
+}
+
+Vector3 AI_GetForceFieldMovement'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ('  oneTouchIsHard =\n      movementDiff - CastPlayer()->GetStat("technical_shortpass") * movementDiff * 0.8f;', r'''  oneTouchIsHard =
+      movementDiff - CastPlayer()->GetStat("technical_shortpass") * movementDiff * 0.8f;
+  if(AITactics::ShortMatchAttackEnabled() && !team->GetHumanGamerCount())
+    oneTouchIsHard=AITactics::FirstTouchCost(movementDiff,
+        CastPlayer()->GetStat("technical_shortpass"),CastPlayer()->GetStat("technical_ballcontrol"),
+        CastPlayer()->GetStat("mental_calmness"));'''),
+        ("  const float passOffside=runningPassEnabled ? AI_GetOffsideLine(match,_mentalImage,abs(team->GetID()-1))*attackForward : 0.0f;", r'''  const float passOffside=runningPassEnabled ? AI_GetOffsideLine(match,_mentalImage,abs(team->GetID()-1))*attackForward : 0.0f;
+  float nearestPressure=100.0f;
+  if(runningPassEnabled)for(const auto& opp:opponentPlayerImages)
+    nearestPressure=std::min(nearestPressure,(opp.position-player->GetPosition()).GetLength());'''),
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate) {", r'''      bool pressureOutlet=false;
+      float pressureOdds=0.0f;
+      if(runningPassEnabled && nearestPressure<=3.0f && mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
+        const float distance=(mates.at(i)->GetPosition()-player->GetPosition()).GetLength();
+        const float margin=passOffside-mates.at(i)->GetPosition().coords[0]*attackForward;
+        if(AITactics::SafePressureOutlet(nearestPressure,distance,mateSit.spaceRating,1.0f,margin)){
+          pressureOdds=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
+          pressureOutlet=AITactics::SafePressureOutlet(nearestPressure,distance,mateSit.spaceRating,pressureOdds,margin);
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(pressureOutlet && pressureOdds>=mateRating.passRating-.08f){
+          mateRating.passRating=pressureOdds;
+          mateRating.passType=e_FunctionType_ShortPass;
+          mateRating.supportRating+=.22f;
+        }
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
     ])

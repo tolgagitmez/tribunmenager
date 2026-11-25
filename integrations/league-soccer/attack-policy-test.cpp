@@ -52,4 +52,18 @@ int main(){
  assert(!KeepCentralCover(true,false,false,true,3,25));
  assert(CoordinatedHunters(20,3)==1);
  assert(CoordinatedHunters(45,3)==2);
+ const float elite=ControlSkill(.9,.9,.8,.8), novice=ControlSkill(.35,.4,.4,.35);
+ assert(elite>novice);
+ assert(CanAttemptEvasion(elite,2.5,20,1));
+ assert(!CanAttemptEvasion(novice,2.5,20,1));
+ assert(!CanAttemptEvasion(elite,.5,20,1));
+ assert(!CanAttemptEvasion(elite,2.5,20,2));
+ assert(EvasionScore(2,3,.7,elite)>EvasionScore(3,.8,1,elite));
+ assert(PressuredCarryCap(elite,2,1)>PressuredCarryCap(novice,2,1));
+ assert(PressuredCarryCap(elite,8,1)==1);
+ assert(FirstTouchCost(.8,.9,.9,.9)<FirstTouchCost(.8,.3,.3,.3));
+ assert(SafePressureOutlet(2,9,.7,.8,2));
+ assert(!SafePressureOutlet(5,9,.7,.8,2));
+ assert(!SafePressureOutlet(2,9,.7,.4,2));
+ assert(!SafePressureOutlet(2,9,.7,.8,.2));
 }

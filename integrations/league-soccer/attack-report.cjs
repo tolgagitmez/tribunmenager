@@ -12,7 +12,7 @@ function report(frames){
  const result={schema:1,engine:'league-soccer',frames:frames.length,nativeElapsedMs:last.elapsedMs-frames[0].elapsedMs,score:last.score.slice(),shots:stats.shots.slice(),onTarget:stats.onTarget.slice(),passes:stats.passes.slice(),completed:stats.completed.slice(),fouls:stats.fouls.slice(),possessionMs:stats.possessionMs.slice(),sampled:null};
  if(!completeTelemetry)return result;
  // Dimensions are pinned upstream gamedefines.hpp (55 x 36 half-pitch).
- const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),controlledForwardMeters:pair(),controlledBackwardMeters:pair(),sameCarrierMs:pair(),controlledWithForwardOutletMs:pair(),controlledWithTwoBoxAttackersMs:pair(),wideControlMs:pair(),wideControlWithBoxOutletMs:pair(),looseOwnBoxMs:pair(),looseOwnBoxKeeperClosingMs:pair(),opponentControlledWithCentralCoverMs:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};
+ const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),controlledForwardMeters:pair(),controlledBackwardMeters:pair(),sameCarrierMs:pair(),controlledWithForwardOutletMs:pair(),controlledWithTwoBoxAttackersMs:pair(),wideControlMs:pair(),wideControlWithBoxOutletMs:pair(),looseOwnBoxMs:pair(),looseOwnBoxKeeperClosingMs:pair(),opponentControlledWithCentralCoverMs:pair(),pressuredControlMs:pair(),pressuredSameCarrierMs:pair(),pressuredForwardMeters:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};
  const owner=f=>{const p=f.players.filter(p=>p.uniquePossession);return p.length===1?p[0]:null;};
  const inside=(f,t)=>inBox(f.ball,f.attackDirection[t]);
  const inBox=(p,d)=>p[0]*d>=55-16.5&&p[0]*d<=55&&Math.abs(p[1])<=20.15;
@@ -46,11 +46,15 @@ function report(frames){
     if(centralBoxOutlet(a,pa)&&centralBoxOutlet(b,pb))m.wideControlWithBoxOutletMs[t]+=dt;
    }
    if(boxAttackers(a,t)>=2&&boxAttackers(b,t)>=2)m.controlledWithTwoBoxAttackersMs[t]+=dt;
+   const pressured=(f,p)=>f.players.some(q=>q.team!==p.team&&Math.hypot(q.position[0]-p.position[0],q.position[1]-p.position[1])<=3);
+   const underPressure=pressured(a,pa)&&pressured(b,pb);
+   if(underPressure)m.pressuredControlMs[t]+=dt;
    if(pa.id===pb.id){
     const dx=(b.ball[0]-a.ball[0])*a.attackDirection[t];
     // A sampled same-carrier displacement, not a count of individual dribbles.
     if(Math.hypot(b.ball[0]-a.ball[0],b.ball[1]-a.ball[1],b.ball[2]-a.ball[2])<=3){
      m.sameCarrierMs[t]+=dt;m.controlledForwardMeters[t]+=Math.max(0,dx);m.controlledBackwardMeters[t]+=Math.max(0,-dx);
+     if(underPressure){m.pressuredSameCarrierMs[t]+=dt;m.pressuredForwardMeters[t]+=Math.max(0,dx);}
     }
    }
    if(a.ball[0]*a.attackDirection[t]>=55/3&&b.ball[0]*b.attackDirection[t]>=55/3)m.controlledFinalThirdMs[t]+=dt;
