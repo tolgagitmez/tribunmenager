@@ -13,6 +13,7 @@ from urllib.parse import urlsplit, parse_qs
 from economy import TransferService, EconomyError, SET_PIECE_ATTRIBUTES
 from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_control
 import season_state
+import native_shadow
 
 ROOT=Path(__file__).resolve().parent
 DATA=Path(os.environ.get('TRIBUN_DB',str(ROOT/'tribun-dev.sqlite3')))
@@ -48,7 +49,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS fixtures(
         league TEXT NOT NULL,round INT NOT NULL,home INT NOT NULL,away INT NOT NULL,
         kickoff REAL NOT NULL,home_score INT,away_score INT,home_yellows INT,away_yellows INT,
-        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA + season_state.SCHEMA)
+        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA + season_state.SCHEMA + native_shadow.SCHEMA)
 
 def rounds():
     # 6-team double round robin: 5 rounds each leg, 3 matches per day.
@@ -156,6 +157,7 @@ def settle_due(now=None):
                 c.execute('''INSERT INTO live_matches
                     (league,round,home,away,kickoff,config) VALUES(?,?,?,?,?,?)''',
                     (*key,kickoff,json.dumps(config,ensure_ascii=False)))
+                native_shadow.enqueue(c,key,config)
                 created.append((key,kickoff,config))
             pending=c.execute('''SELECT league,round,home,away,kickoff,config
                 FROM live_matches WHERE final_state IS NULL AND kickoff<=?
@@ -369,6 +371,15 @@ class Handler(SimpleHTTPRequestHandler):
             try:return self.json_response(local_match(self.transfer_token()))
             except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
             except ValueError as e:return self.json_response({'error':str(e)},403)
+        if p.path=='/api/league/native-pilot':
+            try:
+                value=parse_qs(p.query).get('round',[''])[0]
+                round_number=int(value) if len(value)==1 and value in '0123456789' else None
+                match,side=live_session(self.transfer_token(),round_number,watch=True)
+                with closing(db()) as c:
+                    return self.json_response(native_shadow.status(c,match.key,time.time()))
+            except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
+            except sqlite3.Error:return self.json_response({'error':'Native pilot kaydına ulaşılamadı.'},503)
         if p.path=='/api/league/live-match':
             try:
                 value=parse_qs(p.query).get('round',[''])[0]
@@ -435,6 +446,7 @@ def run(host='127.0.0.1', port=None, *, with_transfers=True):
     if with_transfers:
         transfer_service().import_catalog(json.loads((ROOT/'data/player-catalog.json').read_text()))
     LIVE_MATCHES.restore(Path(DATA).resolve())
+    if native_shadow.enabled():native_shadow.recover(Path(DATA).resolve())
     print(f'Tribün Manager 3D development server: http://{host}:{port} | database: {DATA}',flush=True)
     stop=threading.Event()
     def worker():
@@ -453,6 +465,17 @@ def run(host='127.0.0.1', port=None, *, with_transfers=True):
         while not stop.is_set():
             LIVE_MATCHES.tick()
             stop.wait(.1)
+    def native_worker():
+        while not stop.is_set():
+            try:
+                if not native_shadow.process_one(Path(DATA).resolve(),stop=stop):stop.wait(1)
+            except Exception as e:
+                print('native scheduler:',repr(e),flush=True)
+                stop.wait(1)
+    shadow_thread=None
+    if native_shadow.enabled():
+        shadow_thread=threading.Thread(target=native_worker,daemon=True)
+        shadow_thread.start()
     threading.Thread(target=worker,daemon=True).start()
     ticker=threading.Thread(target=live_worker,daemon=True)
     ticker.start()
@@ -464,5 +487,6 @@ def run(host='127.0.0.1', port=None, *, with_transfers=True):
     finally:
         stop.set()
         ticker.join()
+        if shadow_thread is not None:shadow_thread.join(timeout=5)
         LIVE_MATCHES.close()
 if __name__=='__main__':run()

@@ -25,6 +25,25 @@ if [[ "${TRIBUN_INSTALL_NATIVE_DEPS:-0}" == 1 ]]; then
 fi
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
 cmake --build build --parallel "${TRIBUN_BUILD_JOBS:-2}"
+# Optional reusable runtime bundle; target must not exist.
+if [[ -n "${TRIBUN_NATIVE_RUNTIME_OUT:-}" ]]; then
+  runtime="$(realpath -m "$TRIBUN_NATIVE_RUNTIME_OUT")"
+  [[ ! -e "$runtime" ]] || { echo "Runtime destination already exists" >&2; exit 2; }
+  mkdir -p "$runtime"
+  cp -a build/gameplayfootball build/data build/databases build/locale build/media "$runtime/"
+  cp tests/run_menu_smoke.sh "$runtime/"
+  cp data/menu_smoke_full_match.config "$runtime/native-match.config"
+  python3 - "$here" "$runtime" <<'PY'
+import hashlib, json, pathlib, sys
+here, runtime = map(pathlib.Path, sys.argv[1:])
+patches = {name: hashlib.sha256((here / name).read_bytes()).hexdigest() for name in
+           ("instrument.py", "fixture_patch.py", "short_match_patch.py")}
+(runtime / "tribun-runtime.json").write_text(json.dumps({
+    "upstream": json.loads((here / "upstream.json").read_text()), "patches": patches
+}))
+PY
+  if [[ "${TRIBUN_PREPARE_ONLY:-0}" == 1 ]]; then exit 0; fi
+fi
 # Build once; each match gets a fresh native process and identical frozen elevens.
 config="$work/source/data/menu_smoke_full_match.config"
 if [[ "${TRIBUN_BENCHMARK:-0}" == 1 ]]; then
