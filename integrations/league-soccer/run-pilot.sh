@@ -31,6 +31,7 @@ bash ../tests/run_menu_smoke.sh ./gameplayfootball "$work/source/data/menu_smoke
   "[menu-smoke] Full match complete:" \
   "[menu-smoke] Full-match verification succeeded, quitting test run"
 python3 "$here/validate_trace.py" "$out"
+node "$here/attack-report.cjs" "$out" "$out.attack.json"
 if [[ $# -ge 2 ]]; then
   python3 "$here/validate_fixture_trace.py" "$out" "$out.fixture.json"
 fi

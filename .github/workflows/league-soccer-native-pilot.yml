@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '22'
       - name: Fixture adapter unit tests
-        run: node --test integrations/league-soccer/fixture-adapter.test.cjs integrations/league-soccer/native-replay.test.cjs
+        run: node --test integrations/league-soccer/fixture-adapter.test.cjs integrations/league-soccer/native-replay.test.cjs integrations/league-soccer/broadcast.test.cjs
       - name: Build pinned upstream and capture full match
         env:
           TRIBUN_INSTALL_NATIVE_DEPS: '1'

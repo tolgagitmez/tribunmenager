@@ -42,6 +42,8 @@ void TribunTrace(Match& match, bool done) {
          << "],\"completed\":[" << data->GetPassesCompleted(0) << ',' << data->GetPassesCompleted(1)
          << "],\"fouls\":[" << data->GetFouls(0) << ',' << data->GetFouls(1)
          << "],\"possessionMs\":[" << data->GetPossessionTime_ms(0) << ',' << data->GetPossessionTime_ms(1) << "]}";
+  output << ",\"inPlay\":" << (match.IsInPlay() && !match.IsInSetPiece() ? "true" : "false")
+         << ",\"attackDirection\":[" << -match.GetTeam(0)->GetSide() << ',' << -match.GetTeam(1)->GetSide() << ']';
   output << ",\"players\":[";
   bool first = true;
   for (int team = 0; team < 2; ++team) {
@@ -57,6 +59,7 @@ void TribunTrace(Match& match, bool done) {
       output << ",\"direction\":";
       vec(player->GetDirectionVec());
       output << ",\"goalkeeper\":" << (player->GetFormationEntry().role == e_PlayerRole_GK ? "true" : "false");
+      output << ",\"uniquePossession\":" << (player->HasUniquePossession() ? "true" : "false");
       output << '}';
     }
   }
