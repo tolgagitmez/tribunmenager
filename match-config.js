@@ -43,9 +43,13 @@ function prepared(cfg){
  const saved=readContext(),current=identityContext();
  return !!saved&&saved.id===cfg.matchSetup.contextId&&saved.leagueToken===current.leagueToken&&saved.hasSession===current.hasSession&&saved.profileId===current.profileId;
 }
+function fixedDuration(cfg){
+ if(cfg.fixedFiveMinute===true){cfg.matchMinutes=5;cfg.rules={...cfg.rules,periodSeconds:150};}
+ return cfg;
+}
 async function prepare(input={}){
  const cfg=clone(input),transfers=root.TribunTransfers;
- if(prepared(cfg))return cfg;
+ if(prepared(cfg))return fixedDuration(cfg);
  if(cfg.matchSetup?.version===1){
   // A new account/league page entry is a new launch. An existing game's restart
   // continues using its already captured snapshot inside the presentation.
@@ -92,7 +96,7 @@ async function prepare(input={}){
  }else demo(cfg,'no-league');
  cfg.homeName=cfg.homeName||'Moreirense SK';
  cfg.matchSetup={version:1,ownRevision:cfg.transferRevision??null,opponentSource:cfg.opponentSource,contextId:bindContext()};
- return cfg;
+ return fixedDuration(cfg);
 }
 function launch(cfg){
  let stored=false;
