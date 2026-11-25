@@ -94,17 +94,19 @@ function demo(){
  const f=['4-3-3','4-2-3-1'],r=f.map((formation,team)=>Model.demoTeam(team,formation).map((p,i)=>({...p,id:i,name:'Tribun '+team+' / '+i,shooting:team===0?92:55})));
  return {seed:2026,matchMinutes:5,formation:f[0],awayFormation:f[1],players:r[0],awayPlayers:r[1],starters:r[0].map(p=>p.id),awayStarters:r[1].map(p=>p.id),tactics:{press:85,onWin:'counter',passing:'direct'},awayTactics:{press:30,playstyle:'possession',passing:'short'}};
 }
+function substitutionDemo(){
+ const config=demo();
+ config.players.push({...config.players[0],id:100,name:'Yedek hücumcu'});
+ config.awayPlayers.push({...config.awayPlayers[0],id:100,name:'Yedek hücumcu'});
+ config.nativeSubstitutions=[[{out:config.starters[0],in:100}],[{out:config.awayStarters[0],in:100}]];
+ return config;
+}
 if(require.main===module){
  const [input,output]=process.argv.slice(2);
  requireValue(input&&output,'Usage: node fixture-adapter.cjs <config.json|--demo> <native-fixture.txt>');
- const config=input==='--demo'||input==='--sub-demo'?demo():JSON.parse(fs.readFileSync(input,'utf8'));
- if(input==='--sub-demo'){
-  config.players.push({...config.players[0],id:100,name:'Yedek hücumcu'});
-  config.awayPlayers.push({...config.awayPlayers[0],id:100,name:'Yedek hücumcu'});
-  config.nativeSubstitutions=[[{out:config.starters[0],in:100}],[{out:config.awayStarters[0],in:100}]];
- }
+ const config=input==='--sub-demo'?substitutionDemo():input==='--demo'?demo():JSON.parse(fs.readFileSync(input,'utf8'));
  const manifest=convert(config);
  fs.writeFileSync(output,serialize(manifest));
  fs.writeFileSync(output+'.json',JSON.stringify(manifest,null,2)+'\n');
 }
-module.exports={convert,serialize,demo,nativeStats};
+module.exports={convert,serialize,demo,substitutionDemo,nativeStats};

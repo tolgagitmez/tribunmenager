@@ -5,19 +5,23 @@ on:
     branches: [integration/league-soccer-native]
     paths:
       - 'integrations/league-soccer/fixed-duration.py'
+      - 'integrations/league-soccer/manager-control-smoke.py'
+      - 'integrations/league-soccer/short_match_patch.py'
+      - 'integrations/league-soccer/instrument.py'
+      - 'tests/test_native_fixed_controls.py'
       - '.github/workflows/league-soccer-fixed-duration.yml'
 permissions:
   contents: read
 jobs:
   fixed-duration:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: python3 -m unittest discover -s tests -p test_native_fixed_duration.py
+      - run: python3 -m unittest discover -s tests -p 'test_native_fixed*.py'
       - name: Build native runtime
         env:
           TRIBUN_INSTALL_NATIVE_DEPS: '1'
@@ -29,9 +33,15 @@ jobs:
         run: |
           node -e 'console.log(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/fixed-fixture.json"
           python3 integrations/league-soccer/fixed-duration.py "$RUNNER_TEMP/fixed-runtime" "$RUNNER_TEMP/fixed-fixture.json" "$RUNNER_TEMP/fixed"
+      - name: Verify fixed clock, live commands and halftime substitutions together
+        run: |
+          node -e 'console.log(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").substitutionDemo()))' > "$RUNNER_TEMP/fixed-combined-fixture.json"
+          python3 integrations/league-soccer/manager-control-smoke.py "$RUNNER_TEMP/fixed-runtime" "$RUNNER_TEMP/fixed-combined-fixture.json" "$RUNNER_TEMP/fixed-combined.ndjson" --fixed-duration
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: fixed-native-duration
-          path: ${{ runner.temp }}/fixed.*
+          path: |
+            ${{ runner.temp }}/fixed.*
+            ${{ runner.temp }}/fixed-combined*
           if-no-files-found: ignore
