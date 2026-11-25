@@ -66,3 +66,24 @@ inline float ShotOddsThreshold() {
         ("float passThreshold = 0.12f - longPossessionFactor * 0.06f;", "const float tribunTempo = clamp(team->GetTeamData()->GetTactics().userProperties.GetReal(\"tribun_tempo\", 0.5f), 0.0f, 1.0f);\n  float passThreshold = 0.12f - longPossessionFactor * 0.06f + (0.5f - tribunTempo) * 0.06f;"),
         ("float forwardWeight = 2.0f + AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role) * 5.0f;", "float forwardWeight = (AITactics::ShortMatchAttackEnabled() ? 2.5f : 2.0f) + AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role) * 5.0f;"),
     ])
+
+    # Only ordinary ball-out restarts; leave goals, fouls, cards, penalties and half-time intact.
+    edit(root, "src/onthepitch/referee.cpp", [
+        ('#include "referee.hpp"', '#include "referee.hpp"\n#include <cstdlib>\n#include <cstring>\n#include <algorithm>'),
+        ("    if (!match->IsInPlay() && !match->IsInSetPiece() && buffer.active == true) {", r'''    if (!match->IsInPlay() && !match->IsInSetPiece() && buffer.active == true) {
+      const char* quickRestarts = std::getenv("TRIBUN_NATIVE_QUICK_RESTARTS");
+      if (quickRestarts && std::strcmp(quickRestarts, "1") == 0 &&
+          !buffer.endPhase && !foul.foulType &&
+          (buffer.desiredSetPiece == e_SetPiece_ThrowIn ||
+           buffer.desiredSetPiece == e_SetPiece_Corner ||
+           buffer.desiredSetPiece == e_SetPiece_GoalKick)) {
+        // Referee uses equality against a 10 ms tick. Never move a deadline
+        // backwards past the current tick, or preparation could be skipped.
+        const unsigned long now = match->GetActualTime_ms();
+        const unsigned long earlier = std::min(buffer.prepareTime, buffer.stopTime + 1000UL);
+        if (now <= earlier && now < buffer.prepareTime) {
+          buffer.prepareTime = earlier;
+          buffer.startTime = std::min(buffer.startTime, earlier + 1000UL);
+        }
+      }'''),
+    ])

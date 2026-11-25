@@ -107,6 +107,8 @@ def execute_native(config, profile, stop=None, interactive_key=None):
         # A trusted local command mailbox must not leak into frozen league shadow jobs.
         env.pop("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR", None)
         env.pop("TRIBUN_NATIVE_REALTIME",None)
+        env.pop("TRIBUN_NATIVE_CLOCK_SCALE",None)
+        env.pop("TRIBUN_NATIVE_QUICK_RESTARTS",None)
         env.pop("TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS",None)
         env.setdefault("LP_NUM_THREADS","2")
         env.setdefault("OMP_NUM_THREADS","1")

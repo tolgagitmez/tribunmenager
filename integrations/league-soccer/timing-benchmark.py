@@ -1,0 +1,135 @@
+"""Measured native timing calibration. Never promotes a profile or edits league state."""
+import argparse
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import time
+
+HERE=Path(__file__).resolve().parent
+PROFILES=(("baseline","1.0","0"),("quick-restarts","1.0","1"),("quick-scale125","1.25","1"))
+
+class Timing:
+    def __init__(self):
+        self.previous=None
+        self.first=None
+        self.final=None
+        self.first_wall=None
+        self.final_wall=None
+        self.open_ms=0
+        self.restart_ms=0
+        self.dead_ms=0
+        self.transition_ms=0
+        self.gap_ms=0
+        self.frames=0
+    def ingest(self,frame,now):
+        if self.final is not None:
+            raise ValueError("Frame after full time")
+        if frame.get("engine")!="league-soccer" or frame.get("schema")!=1:
+            raise ValueError("Wrong native trace")
+        if any(type(frame.get(k)) is not bool for k in ("inPlay","setPiece","done")):
+            raise ValueError("Missing play-state telemetry")
+        if frame["inPlay"] and frame["setPiece"]:
+            raise ValueError("Conflicting play states")
+        if type(frame.get("elapsedMs")) is not int or frame["elapsedMs"]<0:
+            raise ValueError("Invalid native clock")
+        if self.previous and frame["elapsedMs"]<self.previous["elapsedMs"]:
+            raise ValueError("Regressing clock")
+        self.frames+=1
+        if self.first is None and frame["inPlay"] and not frame["done"]:
+            self.first=frame["elapsedMs"]
+            self.first_wall=now
+        if self.first is not None and self.previous and self.previous["elapsedMs"]>=self.first:
+            dt=frame["elapsedMs"]-self.previous["elapsedMs"]
+            if dt>250:
+                self.gap_ms+=dt
+            elif self.previous["phaseCode"]!=frame["phaseCode"] or any(self.previous[k]!=frame[k] for k in ("inPlay","setPiece")):
+                self.transition_ms+=dt
+            elif frame["inPlay"]:
+                self.open_ms+=dt
+            elif frame["setPiece"]:
+                self.restart_ms+=dt
+            else:
+                self.dead_ms+=dt
+        if frame["done"]:
+            if self.first is None or frame.get("matchMs",0)<5400000:
+                raise ValueError("Incomplete regulation match")
+            self.final=frame["elapsedMs"]
+            self.final_wall=now
+        self.previous=frame
+    def report(self):
+        if self.final is None or self.first is None:
+            raise ValueError("Missing observed full time")
+        native=self.final-self.first
+        wall=round((self.final_wall-self.first_wall)*1000)
+        if native<=0 or wall<0:
+            raise ValueError("Invalid match duration")
+        if self.open_ms+self.restart_ms+self.dead_ms+self.transition_ms+self.gap_ms!=native:
+            raise ValueError("Unaccounted timing interval")
+        return dict(observedWallMs=wall,targetMs=300000,deviationMs=wall-300000,
+                    nativeElapsedMs=native,openPlayMs=self.open_ms,setPieceMs=self.restart_ms,
+                    deadBallMs=self.dead_ms,transitionMs=self.transition_ms,gapMs=self.gap_ms,
+                    frames=self.frames,withinFiveSeconds=abs(wall-300000)<=5000)
+
+def run(runtime,fixture,out,profile):
+    name,scale,quick=profile
+    trace=Path(str(out)+"."+name+".ndjson").resolve()
+    trace.unlink(missing_ok=True)
+    env={**os.environ,"TRIBUN_NATIVE_REALTIME":"1","TRIBUN_NATIVE_CLOCK_SCALE":scale,
+         "TRIBUN_NATIVE_QUICK_RESTARTS":quick,"TRIBUN_LEAGUE_SOCCER_ATTACK":"baseline",
+         "LP_NUM_THREADS":"2","OMP_NUM_THREADS":"1"}
+    for k in ("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR","TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"):
+        env.pop(k,None)
+    stats=Timing()
+    offset=0
+    def drain():
+        nonlocal offset
+        if not trace.exists():return
+        if trace.stat().st_size>100*1024*1024:raise RuntimeError("Trace size limit")
+        with trace.open("rb") as handle:
+            handle.seek(offset)
+            while True:
+                line=handle.readline(262145)
+                if len(line)>262144:raise RuntimeError("Frame size limit")
+                if not line.endswith(b"\n"):break
+                stats.ingest(json.loads(line),time.monotonic())
+                offset=handle.tell()
+    with Path(str(trace)+".log").open("wb") as log:
+        process=subprocess.Popen(["bash",str(HERE/"run-frozen.sh"),runtime,fixture,str(trace)],
+                                 env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+        deadline=time.monotonic()+900
+        try:
+            while process.poll() is None:
+                drain()
+                if time.monotonic()>deadline:raise TimeoutError("Timing pilot timeout")
+                time.sleep(.1)
+            drain()
+            if process.returncode:raise RuntimeError("Native runner failed; see "+str(trace)+".log")
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid,signal.SIGKILL)
+                process.wait()
+    report=stats.report()
+    attack=json.loads(Path(str(trace)+".attack.json").read_text())
+    if attack["engine"]!="league-soccer" or not attack.get("sampled"):raise ValueError("Missing attack report")
+    report.update(profile=name,scale=float(scale),quickRestarts=quick=="1",
+                  score=attack["score"],shots=attack["shots"],onTarget=attack["onTarget"],
+                  controlledBoxCrossings=attack["sampled"]["controlledBoxCrossings"])
+    Path(str(trace)+".timing.json").write_text(json.dumps(report,indent=2)+"\n")
+    return report
+
+def main():
+    p=argparse.ArgumentParser()
+    p.add_argument("runtime")
+    p.add_argument("fixture")
+    p.add_argument("out")
+    args=p.parse_args()
+    results=[]
+    for profile in PROFILES:
+        results.append(run(args.runtime,args.fixture,args.out,profile))
+        Path(args.out+".timing.json").write_text(json.dumps({"schema":1,"authoritative":False,
+             "targetMs":300000,"profiles":results,"note":"Single fixture per profile; no rollout or guaranteed duration."},indent=2)+"\n")
+        print(json.dumps(results[-1]),flush=True)
+
+if __name__=="__main__":main()
