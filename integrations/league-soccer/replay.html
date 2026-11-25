@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="tr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tribün Manager | League-Soccer motor testi</title>
+<style>
+body{font:16px system-ui;background:#121a22;color:#eef2f5;margin:24px auto;max-width:960px;padding:0 16px}canvas{width:100%;background:#26734b;border-radius:8px}input[type=range]{width:100%}button,input{margin:8px 0}#score{font-size:24px;font-weight:bold}
+</style>
+<h1>League-Soccer · Yerel maç kaydı</h1>
+<p>Gerçek C++ motorundan dışa aktarılan NDJSON konumlarını açın. Bu bir teşhis ekranıdır; canlı lig sonucu üretmez.</p>
+<input type="file" id="file" accept=".ndjson,.jsonl">
+<div id="score" aria-live="polite">Kayıt seçin</div>
+<canvas id="pitch" width="840" height="544" aria-label="Maç konumları"></canvas>
+<button id="play" disabled>Oynat</button>
+<input type="range" id="seek" min="0" max="0" value="0" disabled aria-label="Kayıt zamanı">
+<p id="status" role="status"></p>
+<script>
+'use strict';
+const $=id=>document.getElementById(id), canvas=$('pitch'), g=canvas.getContext('2d');
+let frames=[], index=0, timer=null, generation=0;
+const validVec=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite);
+function valid(f){return f?.schema===1&&f.engine==='league-soccer'&&Number.isFinite(f.elapsedMs)&&Number.isFinite(f.matchMs)&&Array.isArray(f.score)&&f.score.length===2&&f.score.every(Number.isInteger)&&validVec(f.ball)&&Array.isArray(f.players)&&f.players.every(p=>[0,1].includes(p.team)&&Number.isInteger(p.id)&&validVec(p.position))}
+function field(){
+ g.fillStyle='#26734b';g.fillRect(0,0,840,544);
+ g.strokeStyle='#d5e7da';g.lineWidth=2;g.strokeRect(8,8,824,528);g.beginPath();g.moveTo(420,8);g.lineTo(420,536);g.stroke();
+ g.beginPath();g.arc(420,272,9.15*8,0,2*Math.PI);g.stroke();
+ for(const x of [8,832-132])g.strokeRect(x,272-161,132,322);
+}
+function dot(x,y,r,color){g.beginPath();g.arc(x,y,r,0,2*Math.PI);g.fillStyle=color;g.fill()}
+function draw(){
+ field();if(!frames.length)return;
+ const f=frames[index];$('seek').value=index;
+ $('score').textContent=Math.floor(f.matchMs/60000)+"′   "+f.score.join(' – ')+(f.done?' · MS':'');
+ for(const p of f.players)dot(420+p.position[0]*8,272-p.position[1]*8,6,p.team===0?'#60a5fa':'#fb7185');
+ dot(420+f.ball[0]*8,272-f.ball[1]*8,4,'white');
+}
+function stop(){clearTimeout(timer);timer=null;$('play').textContent='Oynat'}
+function next(){
+ if(index>=frames.length-1){stop();return}
+ const delay=Math.min(500,Math.max(16,frames[index+1].elapsedMs-frames[index].elapsedMs));
+ timer=setTimeout(()=>{index++;draw();next()},delay)
+}
+$('play').onclick=()=>{if(timer!==null){stop();return}if(index===frames.length-1)index=0;draw();$('play').textContent='Duraklat';next()};
+$('seek').oninput=()=>{stop();index=Number($('seek').value);draw()};
+$('file').onchange=async()=>{
+ const current=++generation;stop();frames=[];index=0;$('play').disabled=$('seek').disabled=true;$('score').textContent='Kayıt seçin';draw();
+ try{
+  const file=$('file').files[0];if(!file)return;if(file.size>100*1024*1024)throw Error('Kayıt 100 MB sınırını aşıyor.');
+  const data=(await file.text()).trim().split(/\r?\n/).map(JSON.parse);
+  if(current!==generation)return;
+  if(!data.length||!data.every(valid)||data.some((f,i)=>i&&f.elapsedMs<data[i-1].elapsedMs))throw Error('Geçersiz motor kaydı.');
+  frames=data;$('seek').max=frames.length-1;$('play').disabled=$('seek').disabled=false;$('status').textContent=frames.length+' gerçek motor karesi; dosya tarayıcıdan çıkmaz.';draw();
+ }catch(e){if(current===generation)$('status').textContent=e.message}
+};
+draw();
+</script>
+</html>

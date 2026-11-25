@@ -1,0 +1,15 @@
+# League-Soccer native integration — pilot 1
+
+The selected upstream is [League-Soccer](https://github.com/awest813/League-Soccer), pinned in upstream.json. This pilot compiles the actual native C++ match and records the ball and active players from Match::Process, not a synthetic score generator or the MatchClock test. The Apache-2.0 source license remains in the checkout; the added trace hook is marked as a modification. Do not redistribute upstream assets before a separate rights audit.
+
+## Run (Linux)
+Install the upstream Linux build dependencies, or set TRIBUN_INSTALL_NATIVE_DEPS=1 to let its documented installer do so. From the Tribun repo:
+```sh
+TRIBUN_INSTALL_NATIVE_DEPS=1 bash integrations/league-soccer/run-pilot.sh /tmp/tribun-league-soccer.ndjson
+```
+Open integrations/league-soccer/replay.html in a browser and choose the generated trace. The CI workflow also uploads the recording. Native coordinates are x/y on the pitch and z vertical; the Tribun renderer uses x/z horizontally and y vertically. Do not guess yaw or attack direction until verified against real footage.
+
+The upstream full-match smoke config uses a 5-minute active-play setting and a 6x accelerated test clock; this validates a native full-time run, **not** the required 300-second wall-clock broadcast. Upstream runs with SDL/OpenGL under Xvfb; its headless test target only exercises independent modules, not the full Match.
+
+## Production gate
+The existing live-match-worker.cjs and live_match.py remain unchanged and authoritative. No existing fixture changes engine mid-match. Before switching: accept frozen roster IDs, player attributes, tactics and deterministic seed from server; run two CPU-controlled teams without menu smoke automation; expose init/advance/kick JSONL with native 10 ms steps and explicit 60 Hz conversion; supply events, cards, substitutions, appearances and complete snapshot contract; verify deterministic crash recovery and correct season persistence; map native positions into existing 3D renderer; enforce 300-second wall time separately from game clock; measure shot volume, box entries, goals, keeper actions, CPU and concurrency versus current engine. Do not silently fall back within a fixture or enable the native backend before these checks pass.

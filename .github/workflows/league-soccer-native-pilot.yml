@@ -1,0 +1,26 @@
+name: League-Soccer native pilot
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'integrations/league-soccer/**'
+      - '.github/workflows/league-soccer-native-pilot.yml'
+permissions:
+  contents: read
+jobs:
+  native-trace:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pinned upstream and capture full match
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/league-soccer.ndjson"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: league-soccer-native-trace
+          path: ${{ runner.temp }}/league-soccer.ndjson
+          if-no-files-found: ignore
