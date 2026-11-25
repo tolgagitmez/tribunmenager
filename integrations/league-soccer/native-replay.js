@@ -27,7 +27,7 @@
    }
    requireValue(teams.every(n=>n>=1&&n<=11),'Geçersiz takım sayısı.');
    if(f.stats!==undefined)requireValue(f.stats&&keys.every(k=>pair(f.stats[k])),'Geçersiz maç istatistiği.');
-   if(prior)requireValue(!prior.done&&f.elapsedMs>=prior.elapsedMs&&f.matchMs>=prior.matchMs&&f.score.every((v,i)=>v>=prior.score[i]),'Maç kaydı sırası geçersiz.');
+   if(prior)requireValue(!prior.done&&f.elapsedMs>=prior.elapsedMs&&f.score.every((v,i)=>v>=prior.score[i]),'Maç kaydı sırası geçersiz.');
    prior=f;
   }
   return frames;

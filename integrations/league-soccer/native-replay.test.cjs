@@ -12,7 +12,7 @@ const parse=f=>R.parse(f.map(x=>JSON.stringify(x)).join('\n'));
 test('native axes, velocities, interpolation, actual score and persistent render identity',()=>{
  const f=fixture(),r=R.create(parse(f)),first=r.sample(0),actor=first.players[1],mid=r.sample(50);
  assert.equal(mid.players[1],actor);assert.equal(mid.players.length,22);
- assert.deepEqual(mid.ball,{x:2,y:.555,z:-3,vx:4,vy:1,vz:-2});
+ assert.equal(mid.ball.x,2);assert.ok(Math.abs(mid.ball.y-.555)<1e-9);assert.equal(mid.ball.z,-3);assert.equal(mid.ball.vx,4);assert.equal(mid.ball.vy,1);assert.equal(mid.ball.vz,-2);
  assert.equal(actor.x,-9.5);assert.equal(actor.z,-1.5);assert.ok(Math.abs(actor.face+Math.PI/4)<1e-9);
  assert.equal(mid.players[0].role,'GK');assert.deepEqual(mid.score,[0,0]);
  const end=r.sample(100);assert.deepEqual(end.score,[1,0]);assert.equal(end.done,true);

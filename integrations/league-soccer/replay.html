@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tribün Manager | League-Soccer 3D pilot</title>
+<base href="../../"><title>Tribün Manager | League-Soccer 3D pilot</title>
 <style>
 *{box-sizing:border-box}body{font:15px system-ui;background:#101923;color:#eef2f5;margin:24px auto;max-width:1100px;padding:0 16px}h1{font-size:24px}p{color:#b9c7d5}canvas{display:block;width:100%;aspect-ratio:16/9;background:#26734b;border-radius:10px}input[type=range]{width:100%}button,select{font:inherit;padding:8px;border-radius:6px;background:#203242;color:white;border:1px solid #526778}button:disabled{opacity:.45}label{display:block;margin:12px 0}input[type=file]{max-width:100%}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}#score{font-size:26px;font-weight:bold;font-variant-numeric:tabular-nums}#stats{white-space:pre-line}a{color:#8ccaff}
 </style></head><body>
-<a href="../../match.html">Normal maç ekranı</a>
+<a href="match.html">Normal maç ekranı</a>
 <h1>League-Soccer · 3D maç kaydı</h1>
 <p>Yeni motorun gerçek konum ve skor kayıtlarını Tribün Manager'ın mevcut 3D stadyumunda izle. Bu ayrı bir test ekranıdır; lig sonucu kaydetmez. Koşu animasyonları hareket verisinden üretilir; özel vuruş animasyonları henüz aktarılmaz.</p>
 <label>Motor kaydı (.ndjson) <input type="file" id="file" accept=".ndjson,.jsonl"></label>
@@ -14,5 +14,5 @@
 <div class="row"><button id="play" disabled>Oynat</button><button id="camera">Kamera: TV</button><label>Hız <select id="speed"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><label>Grafik <select id="quality"><option value="performance">Performans</option><option value="balanced" selected>Dengeli</option><option value="quality">Kalite</option></select></label></div>
 <input type="range" id="seek" min="0" max="0" value="0" disabled aria-label="Kayıt zamanı">
 <p id="status" role="status"></p><div id="stats">İstatistik kaydı yok.</div><div data-player-asset-diagnostics></div>
-<script src="../../humanoid-rig.js"></script><script src="../../player-asset-status.js"></script><script src="../../assets/player/player-model-data.js"></script><script src="../../player-skinning.js"></script><script src="../../character-palette-constraints.js"></script><script src="../../player-renderer.js"></script><script src="../../match-animation-bridge.js"></script><script src="../../pitch-laws.js"></script><script src="../../ball-visual.js"></script><script src="../../scene3d.js"></script><script src="native-replay.js"></script><script src="replay-ui.js"></script>
+<script src="humanoid-rig.js"></script><script src="player-asset-status.js"></script><script src="assets/player/player-model-data.js"></script><script src="player-skinning.js"></script><script src="character-palette-constraints.js"></script><script src="player-renderer.js"></script><script src="match-animation-bridge.js"></script><script src="pitch-laws.js"></script><script src="ball-visual.js"></script><script src="scene3d.js"></script><script src="integrations/league-soccer/native-replay.js"></script><script src="integrations/league-soccer/replay-ui.js"></script>
 </body></html>

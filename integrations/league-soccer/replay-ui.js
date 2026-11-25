@@ -7,11 +7,11 @@ $('renderMode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
 let replay=null,frames=null,manifest=null,position=0,playing=false,last=null,generation=0,current=null;
 function stop(){playing=false;last=null;$('play').textContent='Oynat';}
 function reset(){replay?.reset(rig);scene.resetAnimation();last=null;}
-function draw(dt=0){
+function draw(dt=0,renderDt=dt){
  if(!replay){current=null;scene.render([],{x:0,y:.11,z:0,vx:0,vy:0,vz:0},[0,0],{},0);return;}
  current=replay.sample(position,rig,dt);
  const {players,ball,score,matchMs,done,stats}=current;
- scene.render(players,ball,[ball.x,ball.z],{},dt);
+ scene.render(players,ball,[ball.x,ball.z],{},renderDt);
  $('seek').value=position;
  $('score').textContent=Math.floor(matchMs/60000)+"′  "+score.join(' – ')+(done?' · MS':'');
  const labels={shots:'Şut',onTarget:'İsabetli şut',passes:'Pas denemesi',completed:'Başarılı pas',fouls:'Faul'};
@@ -50,8 +50,8 @@ document.addEventListener('visibilitychange',()=>{last=null;});
 function loop(now){
  const dt=last===null?0:Math.min(.1,Math.max(0,(now-last)/1000));last=now;
  if(playing&&replay&&!document.hidden){position=Math.min(replay.duration,position+dt*1000*Number($('speed').value));if(position>=replay.duration)stop();}
- scene.observeFrame(dt,!playing);draw(playing?dt:0);requestAnimationFrame(loop);
+ scene.observeFrame(dt,!playing);draw(playing?dt:0,dt);requestAnimationFrame(loop);
 }
-window.TRIBUN_NATIVE_REPLAY_TEST={state:()=>current&&({score:current.score,players:current.players.length,ball:current.ball,done:current.done}),webgl:()=>!!scene.gl};
+window.TRIBUN_NATIVE_REPLAY_TEST={state:()=>current&&({score:current.score,players:current.players.length,ball:current.ball,done:current.done}),webgl:()=>!!scene.gl,modelReady:()=>!!scene.playerRenderer};
 requestAnimationFrame(loop);
 })();

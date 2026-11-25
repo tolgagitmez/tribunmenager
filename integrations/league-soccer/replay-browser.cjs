@@ -16,6 +16,7 @@ const {createServer}=require('../../tools/serve-character-viewer.cjs');
   await page.locator('#file').setInputFiles(path||{name:'synthetic-render-contract.ndjson',mimeType:'application/octet-stream',buffer:Buffer.from([a,b].map(JSON.stringify).join('\n'))});
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST?.state()?.players===22);
   assert.equal(await page.evaluate(()=>window.TRIBUN_NATIVE_REPLAY_TEST.webgl()),true,'actual WebGL required');
+  await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.modelReady(),{},{timeout:30000});
   await page.locator('#seek').evaluate(el=>{el.value=el.max;el.dispatchEvent(new Event('input'));});
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state()?.done===true);
   if(!path)assert.deepEqual(await page.evaluate(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state().score),[2,1]);
