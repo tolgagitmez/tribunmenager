@@ -69,6 +69,59 @@ class ShadowTest(unittest.TestCase):
             self.assertIsNone(s["report"])
             self.assertIsNone(db.execute("SELECT final_state FROM live_matches").fetchone()[0])
 
+    def test_stale_completion_and_failure_cannot_touch_new_attempt(self):
+        old=n.claim(self.path)
+        n.recover(self.path)
+        new=n.claim(self.path)
+        self.assertEqual(old[4],1)
+        self.assertEqual(new[4],2)
+        raw,report=self.runner(self.config,"baseline",None)
+        self.assertFalse(n.commit_shadow_result(self.path,*old[:3],old[4],raw,report))
+        self.assertFalse(n.fail_shadow_attempt(self.path,*old[:3],old[4],"late error"))
+        with closing(n.connect(self.path)) as db:
+            self.assertEqual(db.execute("SELECT state,attempts FROM native_shadow_matches").fetchone(),("running",2))
+            self.assertEqual(db.execute("SELECT count(*) FROM native_shadow_frames").fetchone()[0],0)
+        self.assertTrue(n.commit_shadow_result(self.path,*new[:3],new[4],raw,report))
+        self.assertFalse(n.commit_shadow_result(self.path,*old[:3],old[4],raw,report))
+        self.assertFalse(n.fail_shadow_attempt(self.path,*old[:3],old[4],"late error"))
+        with closing(n.connect(self.path)) as db:
+            row=db.execute("SELECT state,report,trace_sha FROM native_shadow_matches").fetchone()
+            self.assertEqual(row[0],"ready")
+            bound=json.loads(row[1])
+            self.assertEqual(bound["provenance"],{"attempt":2,"configSha256":new[1],"profile":"baseline","traceSha256":row[2]})
+            self.assertFalse(bound["authoritative"])
+            self.assertEqual(db.execute("SELECT count(*) FROM native_shadow_frames").fetchone()[0],2)
+            self.assertIsNone(db.execute("SELECT final_state FROM live_matches").fetchone()[0])
+
+    def test_config_mutation_during_run_rejected(self):
+        def runner(config,profile,stop):
+            with closing(n.connect(self.path)) as db, db:
+                db.execute("UPDATE live_matches SET config=?", (json.dumps({"seed":99}),))
+            return self.runner(config,profile,stop)
+        self.assertTrue(n.process_one(self.path,runner))
+        with closing(n.connect(self.path)) as db:
+            self.assertEqual(db.execute("SELECT state FROM native_shadow_matches").fetchone()[0],"failed")
+            self.assertEqual(db.execute("SELECT count(*) FROM native_shadow_frames").fetchone()[0],0)
+
+    def test_frame_index_rollback(self):
+        job=n.claim(self.path)
+        raw,report=self.runner(self.config,"baseline",None)
+        with patch.object(n,"index_frames",side_effect=RuntimeError("simulated write failure")):
+            with self.assertRaises(RuntimeError):
+                n.commit_shadow_result(self.path,*job[:3],job[4],raw,report)
+        with closing(n.connect(self.path)) as db:
+            self.assertEqual(db.execute("SELECT state,trace,report FROM native_shadow_matches").fetchone(),("running",None,None))
+            self.assertEqual(db.execute("SELECT count(*) FROM native_shadow_frames").fetchone()[0],0)
+
+    def test_shadow_report_cannot_be_authoritative(self):
+        def runner(*args):
+            raw,report=self.runner(*args)
+            return raw,{**report,"authoritative":True}
+        self.assertTrue(n.process_one(self.path,runner))
+        with closing(n.connect(self.path)) as db:
+            self.assertEqual(db.execute("SELECT state FROM native_shadow_matches").fetchone()[0],"failed")
+            self.assertIsNone(db.execute("SELECT final_state FROM live_matches").fetchone()[0])
+
     def test_restart_and_config_mismatch(self):
         self.assertIsNotNone(n.claim(self.path))
         self.assertIsNone(n.claim(self.path))

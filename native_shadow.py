@@ -79,7 +79,7 @@ def recover(path):
 def claim(path):
     with closing(connect(path)) as db, db:
         db.execute("BEGIN IMMEDIATE")
-        row = db.execute("""SELECT n.league,n.round,n.home,n.away,n.config_sha,n.profile,l.config
+        row = db.execute("""SELECT n.league,n.round,n.home,n.away,n.config_sha,n.profile,l.config,n.attempts
             FROM native_shadow_matches n JOIN live_matches l USING(league,round,home,away)
             WHERE n.state='queued' ORDER BY l.kickoff,n.league,n.round,n.home LIMIT 1""").fetchone()
         if not row:
@@ -91,7 +91,7 @@ def claim(path):
             return None
         db.execute(f"""UPDATE native_shadow_matches SET state='running',attempts=attempts+1,
             started=?,error=NULL WHERE {KEY}""", (time.time(), *key))
-        return key, sha, profile, config
+        return key, sha, profile, config, row[7]+1
 
 def execute_native(config, profile, stop=None, interactive_key=None):
     runtime = os.environ.get("TRIBUN_NATIVE_RUNTIME")
@@ -211,11 +211,46 @@ def index_frames(db, key, rows):
         (league,round,home,away,seq,elapsed_ms,snapshot) VALUES(?,?,?,?,?,?,?)""",
         ((*key,*row) for row in rows))
 
+def commit_shadow_result(path, key, sha, profile, attempt, raw, report):
+    """Publish only the currently leased attempt, atomically with its frame index."""
+    validate_result(raw, report)
+    if report.get("authoritative") is True:
+        raise ValueError("Shadow result cannot be authoritative")
+    rows = frame_rows(raw)
+    packed = gzip.compress(raw, compresslevel=3, mtime=0)
+    trace_sha = hashlib.sha256(raw).hexdigest()
+    # Bind the report to the frozen configuration and specific execution attempt.
+    bound = {**report, "authoritative":False, "provenance":{
+        "configSha256":sha, "traceSha256":trace_sha, "profile":profile, "attempt":attempt}}
+    with closing(connect(path)) as db, db:
+        db.execute("BEGIN IMMEDIATE")
+        current = db.execute("""SELECT n.state,n.config_sha,n.profile,n.attempts,l.config
+            FROM native_shadow_matches n JOIN live_matches l USING(league,round,home,away)
+            WHERE n.league=? AND n.round=? AND n.home=? AND n.away=?""", key).fetchone()
+        if not current or tuple(current[:4]) != ("running",sha,profile,attempt):
+            return False
+        if digest(json.loads(current[4])) != sha:
+            raise ValueError("Frozen config changed after claim")
+        updated=db.execute(f"""UPDATE native_shadow_matches SET state='ready',finished=?,trace_sha=?,
+            trace=?,report=?,error=NULL WHERE {KEY} AND state='running' AND config_sha=? AND profile=? AND attempts=?""",
+            (time.time(),trace_sha,packed,canonical(bound),*key,sha,profile,attempt))
+        if updated.rowcount!=1:
+            raise RuntimeError("Native lease lost inside transaction")
+        index_frames(db,key,rows)
+        return True
+
+def fail_shadow_attempt(path,key,sha,profile,attempt,error):
+    """A late failure must not invalidate a newer attempt or a ready result."""
+    with closing(connect(path)) as db, db:
+        return db.execute(f"""UPDATE native_shadow_matches SET state='failed',finished=?,error=?
+            WHERE {KEY} AND state='running' AND config_sha=? AND profile=? AND attempts=?""",
+            (time.time(),error,*key,sha,profile,attempt)).rowcount==1
+
 def process_one(path, runner=execute_native, stop=None):
     job = claim(path)
     if not job:
         return False
-    key, sha, profile, config = job
+    key, sha, profile, config, attempt = job
     try:
         with closing(connect(path)) as db:
             interactive=native_live.is_interactive(db,key)
@@ -224,20 +259,11 @@ def process_one(path, runner=execute_native, stop=None):
             raw, report = runner(config, profile, stop, interactive_key=key)
         else:
             raw, report = runner(config, profile, stop)
-        validate_result(raw, report)
-        rows = frame_rows(raw)
-        packed = gzip.compress(raw, compresslevel=3, mtime=0)
-        trace_sha = hashlib.sha256(raw).hexdigest()
-        with closing(connect(path)) as db, db:
-            index_frames(db, key, rows)
-            db.execute(f"""UPDATE native_shadow_matches SET state='ready',finished=?,trace_sha=?,
-                trace=?,report=?,error=NULL WHERE {KEY} AND state='running' AND config_sha=?""",
-                (time.time(), trace_sha, packed, canonical(report), *key, sha))
+        if not commit_shadow_result(path,key,sha,profile,attempt,raw,report):
+            print("Native shadow: discarded stale completion",key,attempt,flush=True)
     except Exception as exc:
         # No old-engine fallback masquerades as native output.
-        with closing(connect(path)) as db, db:
-            db.execute(f"""UPDATE native_shadow_matches SET state='failed',finished=?,error=?
-                WHERE {KEY} AND state='running'""", (time.time(), type(exc).__name__, *key))
+        fail_shadow_attempt(path,key,sha,profile,attempt,type(exc).__name__)
         print("Native shadow:", type(exc).__name__, str(exc), flush=True)
     finally:
         native_live.remove(key)
