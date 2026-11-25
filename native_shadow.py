@@ -44,7 +44,11 @@ def enqueue(db, key, config):
     # Baseline stays default until the experimental attack benchmark passes.
     profile = os.environ.get("TRIBUN_NATIVE_SHADOW_PROFILE", "baseline")
     if profile not in ("baseline", "short-match"):
-        raise ValueError("Invalid shadow profile")
+        # A pilot misconfiguration must never stop the official kickoff.
+        db.execute("""INSERT OR IGNORE INTO native_shadow_matches
+            (league,round,home,away,config_sha,profile,state,error) VALUES(?,?,?,?,?,?,'failed','Invalid shadow profile')""",
+            (*key, digest(config), profile))
+        return
     db.execute("""INSERT OR IGNORE INTO native_shadow_matches
         (league,round,home,away,config_sha,profile) VALUES(?,?,?,?,?,?)""",
         (*key, digest(config), profile))
@@ -113,7 +117,10 @@ def execute_native(config, profile, stop=None):
 def validate_result(raw, report):
     if not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_TRACE:
         raise ValueError("Invalid native trace")
-    first, last = raw.splitlines()[0], raw.splitlines()[-1]
+    lines = raw.splitlines()
+    if len(lines) < 2:
+        raise ValueError("Incomplete native trace")
+    first, last = lines[0], lines[-1]
     initial, final = json.loads(first), json.loads(last)
     if initial.get("engine") != "league-soccer" or final.get("engine") != "league-soccer":
         raise ValueError("Wrong engine")
@@ -150,7 +157,7 @@ def process_one(path, runner=execute_native, stop=None):
 def status(db, key, now):
     row = db.execute(f"""SELECT n.state,n.profile,n.attempts,n.report,n.trace_sha,l.kickoff
         FROM native_shadow_matches n JOIN live_matches l USING(league,round,home,away)
-        WHERE n.{KEY.replace('round=?','n.round=?').replace('home=?','n.home=?').replace('away=?','n.away=?')}""", key).fetchone()
+        WHERE n.league=? AND n.round=? AND n.home=? AND n.away=?""", key).fetchone()
     if not row:
         return {"engine": "league-soccer", "state": "not-enabled", "authoritative": False}
     state, profile, attempts, report, sha, kickoff = row
