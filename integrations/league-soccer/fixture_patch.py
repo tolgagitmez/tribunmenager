@@ -91,12 +91,59 @@ void TeamData::LoadTribunFixture(std::istream& input, int expectedTeam) {
 
     # Half-time only. Reuse the original starting slot and its role; do not reactivate a former player.
     edit(root, "src/onthepitch/team.hpp", "  void Exit();", "  void Exit();\n  Player* TribunSubstitute(int outID, int inID);")
-    edit(root, "src/onthepitch/team.hpp", "  int activePlayerCount;", "  int activePlayerCount;\n  boost::intrusive_ptr<Node> tribunFullbodyNode;\n  std::map<Vector3, Vector3> tribunColorCoords;\n  std::map<int, FormationEntry> tribunFormerSlots;")
-    edit(root, "src/onthepitch/team.cpp", "  activePlayerCount = playerNum;", "  activePlayerCount = playerNum;\n  if (!teamData->tribunSubstitutions.empty()) { tribunFullbodyNode = fullbodyNode; tribunColorCoords = colorCoords; }")
+    edit(root, "src/onthepitch/team.hpp", "  int activePlayerCount;", "  int activePlayerCount;\n  std::map<int, FormationEntry> tribunFormerSlots;")
+    edit(root, "src/onthepitch/team.cpp", '#include "team.hpp"', '#include "team.hpp"\n#include <stdexcept>')
+    # Pre-create only scheduled reserves while the scene and GUI are being constructed.
+    # Parking retains the allocated model, controller and captions, but excludes the player from play.
+    edit(root, "src/onthepitch/player/player.hpp", "  virtual void Deactivate();", "  virtual void Deactivate();\n  void TribunParkReserve();\n  bool TribunResumeReserve();")
+    lifecycle = r'''
+void Player::TribunParkReserve() {
+  if (!isActive || !humanoid || !controller) return;
+  ResetSituation(Vector3(0));
+  isActive=false;
+  humanoid->Hide();
+  if (nameCaption) nameCaption->Hide();
+  if (debugCaption) debugCaption->Hide();
+}
+bool Player::TribunResumeReserve() {
+  if (isActive || !humanoid || !controller || !nameCaption || !debugCaption || GetCards()) return false;
+  isActive=true;
+  SetDynamicFormationEntry(GetFormationEntry());
+  CastHumanoid()->ResetPosition(
+      GetFormationEntry().position * 25 * Vector3(-team->GetSide(), -team->GetSide(), 0), Vector3(0));
+  ResetSituation(Vector3(0));
+  return true;
+}
+'''
+    edit(root, "src/onthepitch/player/player.cpp", "void Player::Deactivate() {", lifecycle + "\nvoid Player::Deactivate() {")
+    warmup = r'''
+  // Native formation storage has only eleven slots. Map a planned reserve to the
+  // outgoing player's entry until the real substitution swaps their indices.
+  for (const auto& change : teamData->tribunSubstitutions) {
+    Player* leaving=nullptr; Player* entering=nullptr;
+    for (const auto& p : players) {
+      if (p->GetPlayerData()->GetDatabaseID()==change.first) leaving=p.get();
+      if (p->GetPlayerData()->GetDatabaseID()==change.second) entering=p.get();
+    }
+    if (!leaving || !entering || entering->IsActive()) throw std::runtime_error("Invalid planned reserve");
+    const auto entry=GetFormationEntry(leaving->GetID());
+    tribunFormerSlots.emplace(entering->GetID(),entry);
+    std::string filename=entry.role==e_PlayerRole_GK ? "media/objects/players/textures/goalie_kit.png"
+        : GetTeamData()->GetKitUrl()+"_kit_0"+int_to_str(kitNumber)+".png";
+    if (!std::filesystem::exists(filename))
+      filename=GetID()==0?"media/textures/almost_white.png":"media/textures/almost_black.png";
+    auto reserveKit=ResourceManagerPool::GetInstance().GetManager<Surface>(e_ResourceType_Surface)->Fetch(filename);
+    printf("[tribun] Preparing planned reserve %d before kickoff\n",change.second);
+    entering->Activate(playerNode,fullbodyNode,colorCoords,reserveKit,match->GetAnimCollection());
+    entering->TribunParkReserve();
+    printf("[tribun] Planned reserve parked %d\n",change.second);
+  }
+'''
+    edit(root, "src/onthepitch/team.cpp", "  designatedTeamPossessionPlayer = players.at(0).get();\n}", warmup + "\n  designatedTeamPossessionPlayer = players.at(0).get();\n}")
     method = r'''
 // Tribun Manager: one-way substitution during the half-time dead ball.
 Player* Team::TribunSubstitute(int outID, int inID) {
-  if (!tribunFullbodyNode || GetHumanGamerCount() || match->IsInPlay()) return nullptr;
+  if (GetHumanGamerCount() || match->IsInPlay()) return nullptr;
   int out = -1, in = -1;
   for (int i=0; i<static_cast<int>(players.size()); ++i) {
     int dbid = players[i]->GetPlayerData()->GetDatabaseID();
@@ -105,21 +152,19 @@ Player* Team::TribunSubstitute(int outID, int inID) {
   }
   if (out < 0 || out >= playerNum || in < playerNum || !players[out]->IsActive() ||
       players[out]->GetCards() >= 2 || players[in]->IsActive() ||
-      tribunFormerSlots.count(players[in]->GetID())) return nullptr;
+      !tribunFormerSlots.count(players[in]->GetID())) return nullptr;
   Player* leaving = players[out].get();
   Player* entering = players[in].get();
   if (match->GetBallRetainer() == leaving) return nullptr;
   FormationEntry entry = GetFormationEntry(leaving->GetID());
   tribunFormerSlots.emplace(leaving->GetID(),entry);
-  std::string filename = entry.role == e_PlayerRole_GK ? "media/objects/players/textures/goalie_kit.png"
-    : GetTeamData()->GetKitUrl() + "_kit_0" + int_to_str(kitNumber) + ".png";
-  if (!std::filesystem::exists(filename))
-    filename = GetID()==0 ? "media/textures/almost_white.png" : "media/textures/almost_black.png";
-  auto nextKit = ResourceManagerPool::GetInstance().GetManager<Surface>(e_ResourceType_Surface)->Fetch(filename);
+  // The reserve model is already allocated. Do not create graphics resources mid-match.
+  // Keep the old role for telemetry after the player moves to the bench.
+  tribunFormerSlots.erase(entering->GetID());
   leaving->Deactivate();
   teamData->SwitchPlayers(outID,inID);
   std::swap(players[out],players[in]);
-  entering->Activate(playerNode,tribunFullbodyNode,tribunColorCoords,nextKit,match->GetAnimCollection());
+  if (!entering->TribunResumeReserve()) throw std::runtime_error("Prepared reserve could not resume");
   if (designatedTeamPossessionPlayer == leaving) designatedTeamPossessionPlayer=entering;
   printf("[tribun] Half-time substitution %d -> %d\n",outID,inID);
   return entering;

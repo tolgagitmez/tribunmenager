@@ -38,7 +38,7 @@ jobs:
         run: |
           node -e 'process.stdout.write(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/native-config.json"
           python3 integrations/league-soccer/manager-control-smoke.py "$RUNNER_TEMP/tribun-native-runtime" "$RUNNER_TEMP/native-config.json" "$RUNNER_TEMP/league-soccer.ndjson.reused"
-      - name: Experimental substitution diagnostic (known crash, opt-in)
+      - name: Experimental prewarmed reserve diagnostic (opt-in)
         if: ${{ inputs.diagnose_substitutions }}
         env:
           TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS: '1'
