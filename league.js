@@ -44,6 +44,7 @@ function timer(){
  const watch=$('watchLive');
  watch.hidden=!canWatch;
  if(canWatch)watch.href='match.html?live='+encodeURIComponent(match.round);
+ const native=$('watchNative');if(native){native.hidden=!match||now<match.kickoff;if(match)native.href='native-match.html?round='+encodeURIComponent(match.round);}
  if(canWatch){$('countdown').textContent='CANLI';$('matchInfo').textContent='Maç başladı. İzlerken kendi takımının vuruşlarını kullanabilirsin.';}
  else if(data.active?.length){$('countdown').textContent='MAÇ GÜNÜ';$('matchInfo').textContent='Günlük maçların sonuçları tamamlandıkça lig tablosuna işlenir.';}
  else if(next){const seconds=Math.max(0,Math.ceil(next-now)),days=Math.floor(seconds/86400);$('countdown').textContent=`${days?days+'g ':''}${String(Math.floor(seconds%86400/3600)).padStart(2,'0')}:${String(Math.floor(seconds%3600/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;$('matchInfo').textContent=`Sıradaki maç günü: ${data.day}/10 · ${new Date(next*1000).toLocaleString('tr-TR')}`;}

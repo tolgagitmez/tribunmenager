@@ -371,15 +371,17 @@ class Handler(SimpleHTTPRequestHandler):
             try:return self.json_response(local_match(self.transfer_token()))
             except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
             except ValueError as e:return self.json_response({'error':str(e)},403)
-        if p.path=='/api/league/native-pilot':
+        if p.path in ('/api/league/native-pilot','/api/league/native-pilot/broadcast'):
             try:
                 value=parse_qs(p.query).get('round',[''])[0]
                 round_number=int(value) if len(value)==1 and value in '0123456789' else None
                 match,side=live_session(self.transfer_token(),round_number,watch=True)
                 with closing(db()) as c:
+                    if p.path.endswith('/broadcast'):
+                        return self.json_response(native_shadow.broadcast(c,match.key,time.time()))
                     return self.json_response(native_shadow.status(c,match.key,time.time()))
             except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
-            except sqlite3.Error:return self.json_response({'error':'Native pilot kaydına ulaşılamadı.'},503)
+            except (sqlite3.Error,ValueError,OSError):return self.json_response({'error':'Native pilot kaydına ulaşılamadı.'},503)
         if p.path=='/api/league/live-match':
             try:
                 value=parse_qs(p.query).get('round',[''])[0]

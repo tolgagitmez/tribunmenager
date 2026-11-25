@@ -28,12 +28,13 @@ class ShadowTest(unittest.TestCase):
     def runner(self, config, profile, stop):
         self.assertEqual(config, self.config)
         self.assertEqual(profile, "baseline")
-        frames = [{"engine":"league-soccer","done":False,"matchMs":0,"score":[0,0]},
-                  {"engine":"league-soccer","done":True,"matchMs":5400000,"score":[3,1]}]
+        frames = [{"engine":"league-soccer","done":False,"elapsedMs":100,"matchMs":0,"score":[0,0]},
+                  {"engine":"league-soccer","done":True,"elapsedMs":200,"matchMs":5400000,"score":[3,1]}]
         return ("\n".join(map(json.dumps,frames))+"\n").encode(), {"engine":"league-soccer","score":[3,1]}
 
     def test_exactly_one_job_and_no_authoritative_change(self):
-        self.assertTrue(n.process_one(self.path, self.runner))
+        with patch.object(n.time,'time',return_value=1000):
+            self.assertTrue(n.process_one(self.path, self.runner))
         self.assertFalse(n.process_one(self.path, self.runner))
         with closing(n.connect(self.path)) as db:
             self.assertIsNone(n.status(db,self.key,1299)["report"])
@@ -42,6 +43,23 @@ class ShadowTest(unittest.TestCase):
             self.assertIsNone(db.execute("SELECT final_state FROM live_matches").fetchone()[0])
             self.assertTrue(gzip.decompress(db.execute("SELECT trace FROM native_shadow_matches").fetchone()[0]))
             self.assertEqual(db.execute("SELECT count(*) FROM native_shadow_matches").fetchone()[0],1)
+
+    def test_shared_broadcast_starts_when_ready_and_hides_final(self):
+        with patch.object(n.time,'time',return_value=1200):
+            self.assertTrue(n.process_one(self.path,self.runner))
+        with closing(n.connect(self.path)) as db:
+            self.assertIsNone(n.broadcast(db,self.key,1199)["frame"])
+            a=n.broadcast(db,self.key,1300)
+            self.assertEqual(a,n.broadcast(db,self.key,1300))
+            self.assertEqual(a["frame"]["score"],[0,0])
+            self.assertEqual(a["elapsedMs"],100000)
+            self.assertIsNone(n.status(db,self.key,1499)["report"])
+            self.assertFalse(n.broadcast(db,self.key,1499.999)["frame"]["done"])
+            end=n.broadcast(db,self.key,1500)
+            self.assertEqual(end["phase"],"finished")
+            self.assertEqual(end["frame"]["score"],[3,1])
+            self.assertEqual(n.status(db,self.key,1500)["report"]["score"],[3,1])
+            self.assertEqual(db.execute("SELECT count(*) FROM native_shadow_frames").fetchone()[0],2)
 
     def test_failure_does_not_fake_result(self):
         self.assertTrue(n.process_one(self.path,lambda *_:(b"bad",{})))
