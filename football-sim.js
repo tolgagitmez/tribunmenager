@@ -1973,7 +1973,13 @@ class Match{
  coordinatedAttack(team,owner,line){
   if(!owner)return null;
   const side=this.direction(team),zone=Math.abs(owner.z)>15?Math.sign(owner.z):0,old=this.attackPlans[team];
-  if(old&&old.until>this.time&&(!old.runner?.kind||old.ownerId===owner.id)&&old.zone===zone&&old.ownerTeam===this.lastTeam&&old.epoch===this.attackEpoch[team]&&old.runner?.id!==owner.id&&old.connectorId!==owner.id&&![old.runner?.id,old.connectorId].some(id=>this.players.some(p=>p.id===id&&this.arrivalHelper(p,owner)))&&(!old.runner||this.players.some(q=>q.id===old.runner.id&&q.active)))return old;
+  // A generic run used to survive a forward pass even when its destination
+  // no longer stretched the defence for the new ball carrier. Keep useful
+  // runs, but replan a stale depth relationship immediately in short games.
+  const compact=this.cfg.compactAttackHandoff===true&&this.duration===300;
+  const handoff=!!(compact&&old&&old.until>this.time&&old.epoch===this.attackEpoch[team]&&old.sourceId!==undefined&&old.sourceId!==owner.id&&old.zone===zone&&
+   ((owner.x*side-old.sourceDepth>=5)||old.runner&&old.runner.point.x*side<owner.x*side+4));
+  if(old&&!handoff&&old.until>this.time&&(!old.runner?.kind||old.ownerId===owner.id)&&old.zone===zone&&old.ownerTeam===this.lastTeam&&old.epoch===this.attackEpoch[team]&&old.runner?.id!==owner.id&&old.connectorId!==owner.id&&![old.runner?.id,old.connectorId].some(id=>this.players.some(p=>p.id===id&&this.arrivalHelper(p,owner)))&&(!old.runner||this.players.some(q=>q.id===old.runner.id&&q.active)))return old;
   const pool=this.field(team),opponents=this.rivals(owner),ballDepth=this.ball.x*side,counter=this.transitionUntil[team]>this.time&&this.t[team].onWin==='counter';
   const candidates=pool.filter(p=>p!==owner&&!this.taskReserved(p,['penetration'])&&!this.arrivalHelper(p,owner)&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)&&(p.role==='ATT'||p.role==='MID'&&p.homeX*side>7)&&p.x*side>owner.x*side-3);
   let runner=null;
@@ -2004,7 +2010,8 @@ class Match{
    return base+Math.max(0,7-separation)*1.1+Math.max(0,.55-angleGap)*5;
   };
   const connector=(centralLinks.length?centralLinks:links).sort((a,b)=>connectorCost(a)-connectorCost(b))[0];
-  const result={ownerTeam:this.lastTeam,epoch:this.attackEpoch[team],zone,until:this.time+2.6,runner,connectorId:connector?.id,...(runner?.kind?{ownerId:owner.id}:{}),...(decoy?{decoy}:{})};
+  const result={ownerTeam:this.lastTeam,epoch:this.attackEpoch[team],zone,until:this.time+2.6,runner,connectorId:connector?.id,...(runner?.kind?{ownerId:owner.id}:{}),...(decoy?{decoy}:{}),...(compact?{sourceId:owner.id,sourceDepth:owner.x*side}:{})};
+  if(handoff)this.telemetry.compactAttackHandoffs=(this.telemetry.compactAttackHandoffs||0)+1;
   this.attackPlans[team]=result;
   if(runner)this.telemetry.coordinatedRuns=(this.telemetry.coordinatedRuns||0)+1;
   return result;
