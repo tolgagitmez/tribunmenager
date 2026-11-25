@@ -2,12 +2,13 @@
 (function(){
  const $=id=>document.getElementById(id),scene=new Stadium3D($('pitch')),view=window.TribunNativeStreamView.create(window.TribunHumanoidRig);
  scene.setPerformanceMode('balanced');$('mode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
+ const advisor=window.TribunNativeAdvisor.create();
  let generation=0,timer=null,controller=null,active=false,current=null,last=0;
  for(let i=0;i<10;i++)$('round').add(new Option(String(i+1),String(i)));
  const round=new URLSearchParams(location.search).get('round');if(round!==null&&/^[0-9]$/.test(round))$('round').value=round;
  function stop(){active=false;generation++;clearTimeout(timer);controller?.abort();controller=null;}
  function start(){
-  stop();view.reset();scene.resetAnimation();current=null;
+  stop();view.reset();advisor.reset();scene.resetAnimation();current=null;$('adviceText').textContent='Maç verisi bekleniyor.';
   $('score').textContent='Bağlantı kuruluyor';$('clock').textContent='';$('stats').textContent='';
   let token;try{token=localStorage.getItem('tribun-league-token');}catch{}
   if(!token){$('status').textContent='Lig oturumu gerekli.';return;}
@@ -25,7 +26,7 @@
     if(!response.ok){if([401,403,404].includes(response.status)){stop();$('status').textContent=data.error||'Erişim yok.';return;}throw Error(data.error||'Sunucu bağlantısı yok.');}
     if(data.engine!=='league-soccer'||data.authoritative!==false)throw Error('Geçersiz pilot yanıtı.');
     if(data.frame&&view.ingest(data,performance.now())){
-     current=data;
+     current=data;advisor.ingest(data);renderAdvice();
      const seconds=Math.ceil(data.remainingMs/1000);
      $('clock').textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')+' kaldı';
      $('score').textContent=(data.homeName||'Ev sahibi')+' '+data.frame.score.join(' – ')+' '+(data.awayName||'Deplasman')+' · '+Math.floor(data.frame.matchMs/60000)+'′';
@@ -48,6 +49,20 @@
   }
   poll();
  }
+ function renderAdvice(){
+  const a=advisor.advice(Number($('adviceTeam').value));
+  if(!a){$('adviceText').textContent='Aktif maç önerisi yok.';return;}
+  const text=[a.minute+'′ · '+a.reasons.join(' ')];
+  if(a.rivalShape)text.push('Rakibin gözlenen hat dağılımı: '+a.rivalShape);
+  if(a.window)text.push('Son '+Math.round(a.window.minutes)+' maç dakikasında şut: '+a.window.shots.join(' – '));
+  if(a.mode!=='balanced'){
+   const v=a.values;text.push('Deneysel öneri: Baskı '+v.press+' / Kontra '+v.counter+' / Destek '+v.support+' / Genişlik '+v.width+' / Tempo '+v.tempo+(v.formation?' / Diziliş '+({433:'4-3-3',442:'4-4-2',4231:'4-2-3-1'}[v.formation]):''));
+   if(!a.baselineKnown)text.push('Mevcut uygulanan ayarlar bilinmiyor; değerler öneridir.');
+  }
+  for(const c of a.changes)text.push('Değişiklik önerisi: '+c.out+' → '+c.in+' ('+c.reason+')');
+  $('adviceText').textContent=text.join('\n');
+ }
+ $('adviceTeam').onchange=renderAdvice;
  $('connect').onclick=start;
  $('camera').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':'tv';$('camera').textContent='Kamera: '+({tv:'TV',close:'Yakın',tactical:'Taktik'}[scene.camera]);};
  $('quality').onchange=()=>scene.setPerformanceMode($('quality').value);

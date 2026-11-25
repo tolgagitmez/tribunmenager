@@ -249,10 +249,10 @@ def broadcast(db, key, now):
         roster = {p["id"]:p for p in config.get(roster_key, [])}
         for slot, ident in enumerate(config.get(starters_key, [])):
             p = roster.get(ident,{})
-            names.append({"nativeId":team*11+slot+1,"name":p.get("name",""),"number":p.get("number",slot+1),"slot":slot,"team":team})
+            names.append({"nativeId":team*11+slot+1,"name":p.get("name",""),"number":p.get("number",slot+1),"slot":slot,"team":team,"position":p.get("subposition") or p.get("pos"),"rating":p.get("rating"),"startFitness":p.get("fitness"),"reserve":False})
         reserves=[p for p in config.get(roster_key,[]) if p["id"] not in config.get(starters_key,[]) and p.get("owned") is not False and not p.get("season",{}).get("suspended")][:7]
         for i,p in enumerate(reserves):
-            names.append({"nativeId":23+team*7+i,"name":p.get("name",""),"number":p.get("number",12+i),"slot":11+i,"team":team})
+            names.append({"nativeId":23+team*7+i,"name":p.get("name",""),"number":p.get("number",12+i),"slot":11+i,"team":team,"position":p.get("subposition") or p.get("pos"),"rating":p.get("rating"),"startFitness":p.get("fitness"),"reserve":True})
     result.update(frame=frame, sequence=seq, players=names,
                   homeName=config.get("homeName","Ev sahibi"),awayName=config.get("awayName","Deplasman"))
     return result
