@@ -75,7 +75,7 @@
    }
    if(mode==='balanced')reasons.push('Mevcut veriler belirgin bir taktik değişikliği gerektirmiyor.');
    if(active.length!==11)values.formation=0;
-   if(ownShape==='4-3-3'&&values.formation===433||ownShape==='4-5-1'&&values.formation===4231)values.formation=0;
+   if(acks?.formation===values.formation)values.formation=0;
    // Fatigue factor is native relative fatigue, not a measured fitness percentage.
    const changes=[];
    if(minute>=45&&minute<85&&fatigue.length&&active.length===11){
