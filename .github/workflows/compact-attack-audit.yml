@@ -1,0 +1,27 @@
+name: Five minute attack density calibration
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/audit-compact-attack.cjs'
+      - '.github/workflows/compact-attack-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired-press:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm run test:collective-ai
+      - run: node tools/audit-compact-attack.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compact-attack-audit
+          path: docs/validation/compact-attack-audit.json
+          if-no-files-found: warn

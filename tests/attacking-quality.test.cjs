@@ -758,3 +758,44 @@ test('territorial correction defaults off in engine and can be enabled in an act
  m.cfg.territorialProgression=true;
  assert(m.choose(owner).territorialPass);
 });
+
+
+test('five minute tempo shortens only discretionary delays and respects defensive tactics',()=>{
+ const {m,owner}=fixture();m.cfg.compactAttack=true;
+ assert.equal(m.duration,300);
+ assert.equal(m.compactDecisionWindow(1,{mentality:'balanced',passing:'mixed'}),.60);
+ assert.equal(m.compactDecisionWindow(1,{mentality:'balanced',passing:'short'}),.72);
+ assert.equal(m.compactDecisionWindow(1,{mentality:'defensive',passing:'mixed'}),.80);
+ m.duration=900;assert.equal(m.compactDecisionWindow(1,m.t[0]),1);
+ m.duration=300;m.cfg.compactAttack=false;assert.equal(m.compactDecisionWindow(1,m.t[0]),1);
+});
+test('compact forward link prefers physically prepared progress over a short hold, never a protected run',()=>{
+ for(const side of [1,-1]){
+  const {m,owner,link}=fixture(side);m.cfg.compactAttack=true;
+  Object.assign(owner,{x:8*side,z:0,carryTime:.3,receiveClock:0,duelRecovery:0,shieldUntil:0});
+  Object.assign(link,{x:19*side,z:0});m.ball.x=8.6*side;
+  m.observedLine=()=>40;
+  const hold={kind:'carry',hold:true,point:{x:9*side,z:0}};
+  const forward={kind:'pass',q:link,point:{x:19*side,z:0},distance:11,risk:.14,arrivalRisk:.2,space:5,score:8};
+  m.passPreparation=()=>({feasible:true,contactTime:.24,risk:.17,arrivalRisk:.24});
+  assert(m.compactForwardLink(owner,hold,[forward],4).compactForward);
+  const run={...hold,hold:false,openFieldCarry:true};
+  assert.equal(m.compactForwardLink(owner,run,[forward],4),run);
+  m.passPreparation=()=>({feasible:true,contactTime:.64,risk:.17,arrivalRisk:.24});
+  assert.equal(m.compactForwardLink(owner,hold,[forward],4),hold);
+  m.observedLine=()=>15;m.passPreparation=()=>{assert.fail('offside player cannot be previewed');};
+  assert.equal(m.compactForwardLink(owner,hold,[forward],4),hold);
+ }
+});
+test('compact restarts shorten only countdown, not actual legal positioning',()=>{
+ const {m}=fixture();m.cfg.compactAttack=true;
+ m.setRestart('kickoff',0,{x:0,z:0});
+ assert.equal(m.restart.clock,2.5);
+ const opponent=m.field(1)[0];opponent.x=0;opponent.z=0;
+ assert.equal(m.kickoffReady(m.restart),false);
+ m.setRestart('goal-kick',0,{x:-47,z:0});
+ assert.equal(m.restart.clock,3);
+ opponent.x=-45;opponent.z=0;
+ assert.equal(m.restartReady(m.restart),false);
+ m.setRestart('throw',0,{x:0,z:34});assert.equal(m.restart.clock,10);
+});
