@@ -277,6 +277,45 @@ inline float BoxLaneScore(float endpointClearance,float corridorClearance,
       std::min(5.0f,corridorClearance)*1.2f-
       runDistance*.20f-lateralChange*.08f;
 }
+inline bool TimedAttackEnabled() {
+  static const bool enabled=[]{
+    const char* v=std::getenv("TRIBUN_NATIVE_TIMED_ATTACK");
+    return v && std::strcmp(v,"1")==0;
+  }();
+  return ShortMatchAttackEnabled() && enabled;
+}
+inline bool LeadRunGeometry(float depth,float progress,float distance,float speed,
+                            float margin,float targetDepth,float clearance){
+  return depth>=16.5f && depth<=38.0f && progress>=3.0f && progress<=20.0f &&
+      distance>=8.0f && distance<=26.0f && speed>=1.8f &&
+      margin>=1.2f && targetDepth>=2.0f && targetDepth<=16.5f && clearance>=2.2f;
+}
+inline bool LeadPassPreferred(float odds,float best){
+  return odds>=.72f && odds>=best-.04f;
+}
+inline bool ReceiptShot(float distance,float angle,float odds,float skill,float ballGap){
+  return distance>=3.0f && distance<=16.0f && angle>=.75f &&
+      odds>=.59f && skill>=.60f && ballGap<=1.3f;
+}
+struct TimedAttackState {
+  int stage=0,receiver=-1;
+  unsigned long started=0,expires=0;
+  unsigned int passes=0,receipts=0,shots=0;
+  void Clear(){stage=0;receiver=-1;}
+  void Begin(int id,unsigned long now){
+    Clear();receiver=id;stage=1;started=now;expires=now+2200;++passes;
+  }
+  void Observe(int owner,unsigned long touch,bool invalid,unsigned long now){
+    if(!stage)return;
+    if(invalid||now>=expires){Clear();return;}
+    if(stage==1 && owner>=0 && touch>started){
+      if(owner!=receiver){Clear();return;}
+      stage=2;expires=now+1000;++receipts;
+    }else if(stage==2 && owner!=receiver){Clear();}
+  }
+  bool Ready(int id,unsigned long now)const{return stage==2&&receiver==id&&now<expires;}
+  void Shot(int id,unsigned long now){if(Ready(id,now))++shots;Clear();}
+};
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -1084,4 +1123,104 @@ void Referee::Process() {'''),
 
   // stay away from opponents
   std::vector<Player*> opponents;'''),
+    ])
+
+    # Track actual native long-pass contacts and verified receiver control.
+    edit(root, "src/onthepitch/teamAIcontroller.hpp", [
+        ("  void TribunShotContact(Player* shooter);", r'''  void TribunShotContact(Player* shooter);
+  void TribunTimedPassContact(Player* passer,Player* receiver,bool longPass);
+  bool TribunTimedReceipt(Player* player) const;
+  const AITactics::TimedAttackState& GetTribunTimedAttack() const {return tribunTimedAttack;}'''),
+        ("  AITactics::ReboundState tribunRebound;", "  AITactics::ReboundState tribunRebound;\n  AITactics::TimedAttackState tribunTimedAttack;"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  CalculateSituation();\n  if(tribunRebound.stage){", r'''  CalculateSituation();
+  if(tribunTimedAttack.stage){
+    const auto now=match->GetActualTime_ms();
+    auto* own=team->GetDesignatedTeamPossessionPlayer();
+    auto* rival=match->GetTeam(abs(team->GetID()-1));
+    auto* target=team->GetPlayer(tribunTimedAttack.receiver);
+    const bool invalid=!match->IsInPlay() || match->IsInSetPiece() ||
+        match->GetBallRetainer() || oppTeamHasUniquePossession ||
+        rival->GetLastTouchTime_ms()>tribunTimedAttack.started ||
+        !target || !target->IsActive();
+    const bool controlled=own && own->IsActive() && own->HasUniquePossession() &&
+        match->GetLastTouchPlayer()==own;
+    tribunTimedAttack.Observe(controlled?own->GetID():-1,
+        controlled?own->GetLastTouchTime_ms():0,invalid,now);
+  }
+  if(tribunRebound.stage){'''),
+        ("void TeamAIController::TribunShotContact(Player* shooter) {", r'''void TeamAIController::TribunTimedPassContact(Player* passer,Player* receiver,bool longPass){
+  if(!AITactics::TimedAttackEnabled())return;
+  tribunTimedAttack.Clear();
+  if(!longPass || !passer || !receiver || receiver==passer ||
+      receiver->GetTeam()!=team || !receiver->IsActive() ||
+      passer->GetFormationEntry().role==e_PlayerRole_GK ||
+      receiver->GetFormationEntry().role==e_PlayerRole_GK ||
+      team->GetHumanGamerCount() || !match->IsInPlay() || match->IsInSetPiece() ||
+      match->GetBallRetainer())return;
+  const float forward=-team->GetSide();
+  const auto pos=passer->GetPosition(), delta=receiver->GetPosition()-pos;
+  const float distance=delta.GetLength();
+  const float margin=AI_GetOffsideLine(match,match->GetMentalImage(0),abs(team->GetID()-1))*forward-
+      receiver->GetPosition().coords[0]*forward;
+  const auto predicted=receiver->GetPosition()+receiver->GetMovement()*.5f+
+      Vector3(forward*distance*.2f,0,0);
+  // A qualifying actual native lead-pass contact, not a speculative command.
+  if(AITactics::LeadRunGeometry(pitchHalfW-pos.coords[0]*forward,delta.coords[0]*forward,
+      distance,receiver->GetMovement().coords[0]*forward,margin,
+      pitchHalfW-predicted.coords[0]*forward,100.0f))
+    tribunTimedAttack.Begin(receiver->GetID(),match->GetActualTime_ms());
+}
+bool TeamAIController::TribunTimedReceipt(Player* player) const{
+  return AITactics::TimedAttackEnabled() && player && player->HasUniquePossession() &&
+      tribunTimedAttack.Ready(player->GetID(),match->GetActualTime_ms());
+}
+void TeamAIController::TribunShotContact(Player* shooter) {'''),
+        ("  tribunRebound.Shot(shooter->GetID(),match->GetActualTime_ms());", "  tribunTimedAttack.Shot(shooter->GetID(),match->GetActualTime_ms());\n  tribunRebound.Shot(shooter->GetID(),match->GetActualTime_ms());"),
+        ("  tribunRebound.Clear();\n  tribunReboundSupportID=-1;\n  taker = 0;", "  tribunRebound.Clear();\n  tribunTimedAttack.Clear();\n  tribunReboundSupportID=-1;\n  taker = 0;"),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ("            currentAnim->functionType==e_FunctionType_ShortPass);", r'''            currentAnim->functionType==e_FunctionType_ShortPass);
+        team->GetController()->TribunTimedPassContact(CastPlayer(),targetPlayer,
+            currentAnim->functionType==e_FunctionType_LongPass);'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet) {", r'''      bool timedCandidate=false;
+      float timedOdds=0.0f;
+      if(AITactics::TimedAttackEnabled() && runningPassEnabled &&
+          match->IsInPlay() && !match->IsInSetPiece() &&
+          mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
+        const auto pos=mates.at(i)->GetPosition();
+        const auto delta=pos-player->GetPosition();
+        const float distance=delta.GetLength();
+        const auto predicted=pos+mates.at(i)->GetMovement()*.5f+
+            Vector3(attackForward*distance*.2f,0,0);
+        const float depth=pitchHalfW-player->GetPosition().coords[0]*attackForward;
+        const float targetDepth=pitchHalfW-predicted.coords[0]*attackForward;
+        const float speed=mates.at(i)->GetMovement().coords[0]*attackForward;
+        const float margin=passOffside-pos.coords[0]*attackForward;
+        if(AITactics::LeadRunGeometry(depth,delta.coords[0]*attackForward,distance,
+            speed,margin,targetDepth,100.0f) && std::abs(predicted.coords[1])<=14.0f){
+          float clearance=100.0f;
+          for(const auto& rival:opponentPlayerImages)
+            clearance=std::min(clearance,(predicted-(rival.position+rival.movement*.5f)).GetLength());
+          if(AITactics::LeadRunGeometry(depth,delta.coords[0]*attackForward,distance,
+              speed,margin,targetDepth,clearance)){
+            timedOdds=_GetPassingOdds(mates.at(i),e_FunctionType_LongPass,opponentPlayerImages);
+            timedCandidate=AITactics::LeadPassPreferred(timedOdds,0.0f);
+          }
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate) {'''),
+        ("        float retentionPenalty=0.0f;", r'''        if(timedCandidate && AITactics::LeadPassPreferred(timedOdds,mateRating.passRating)){
+          mateRating.passType=e_FunctionType_LongPass;
+          mateRating.passRating=timedOdds;
+          mateRating.supportRating+=.35f;
+        }
+        float retentionPenalty=0.0f;'''),
+        ("         (AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()) ||", r'''         ((team->GetController()->TribunTimedReceipt(CastPlayer()) &&
+           AITactics::ReceiptShot(distance,angle,odds,player->GetStat("technical_shot"),
+               (match->GetBall()->Predict(0).Get2D()-player->GetPosition()).GetLength())) ||
+          AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()) ||'''),
     ])

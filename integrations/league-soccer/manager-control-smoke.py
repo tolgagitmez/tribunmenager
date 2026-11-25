@@ -20,7 +20,8 @@ def run(runtime,fixture,output,*,fixed_duration=False):
     with tempfile.TemporaryDirectory(prefix="tribun-control-") as mailbox:
         env={**os.environ,"TRIBUN_LEAGUE_SOCCER_COMMAND_DIR":mailbox}
         for key in ("TRIBUN_NATIVE_REALTIME","TRIBUN_NATIVE_CLOCK_SCALE","TRIBUN_NATIVE_QUICK_RESTARTS",
-                    "TRIBUN_NATIVE_FIXED_DURATION","TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"):
+                    "TRIBUN_NATIVE_FIXED_DURATION","TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS",
+                    "TRIBUN_NATIVE_FINAL_THIRD_RETENTION","TRIBUN_NATIVE_BOX_LANE_RUNS","TRIBUN_NATIVE_TIMED_ATTACK"):
             env.pop(key,None)
         second_earliest=3600000 if fixed_duration else 1800000
         if fixed_duration:

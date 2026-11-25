@@ -230,6 +230,14 @@ void TribunTrace(Match& match, bool done) {
            << ",\"followupShots\":" << r.followupShots << '}';
   }
   output << ']';
+  output << ",\"timedAttacks\":[";
+  for(int t=0;t<2;++t){
+    if(t)output << ',';
+    const auto& a=match.GetTeam(t)->GetController()->GetTribunTimedAttack();
+    output << "{\"passes\":" << a.passes << ",\"receipts\":" << a.receipts
+           << ",\"shots\":" << a.shots << '}';
+  }
+  output << ']';
   output << ",\"players\":[";
   bool first = true;
   for (int team = 0; team < 2; ++team) {

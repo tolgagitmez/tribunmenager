@@ -1,0 +1,36 @@
+name: Native timed attacking pass and receipt pilot
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/league-soccer-native]
+    paths:
+      - 'integrations/league-soccer/timed-attack-benchmark.py'
+      - '.github/workflows/native-timed-attack.yml'
+permissions:
+  contents: read
+jobs:
+  timed-attack:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build pinned native runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/timed-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Paired actual contact diagnostic
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/timed-fixtures"
+          python3 integrations/league-soccer/timed-attack-benchmark.py "$RUNNER_TEMP/timed-runtime" "$RUNNER_TEMP/timed-fixtures" "$RUNNER_TEMP/timed-attack"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-timed-attack-diagnostics
+          path: ${{ runner.temp }}/timed-attack/
+          if-no-files-found: ignore
