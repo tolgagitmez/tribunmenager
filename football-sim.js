@@ -2101,6 +2101,36 @@ class Match{
    const read=evaluate(point);
    if(read.inPocket&&read.space>2.5&&read.risk<.42&&read.score>best.score)best=read;
   }
+  // A good pocket is useless if the receiver cannot open the lane before
+  // the carrier is closed down. Reuse the existing acceleration/turn/deadline
+  // forecast for a few short, physically reachable connection alternatives.
+  if(this.cfg.reachableLinks===true&&advanced&&this.owner===owner&&p.role==='MID'&&p.position!=='DM'&&owner.x*side>=-12&&owner.x*side<29){
+   const pressure=Math.min(20,...rivals.map(q=>dist(q,owner)));
+   if(pressure<6){
+    const assess=point=>{
+     const gain=(point.x-owner.x)*side,range=dist(owner,point),travel=dist(p,point);
+     if(gain<2.5||gain>17||range<5||range>23||travel>8||point.x*side>line-1||Math.abs(point.z)>22)return null;
+     const r=this.supportRead(owner,p,point,rivals);
+     if(r.space<2.6||r.risk>=.34||r.earlyRisk>=.38||r.readyAt>r.window||r.eta>r.window+.35)return null;
+     return {...point,risk:r.risk,space:r.space,score:r.space*.55-r.risk*12-r.earlyRisk*8-r.eta*1.6+gain*.24,reachableLink:true};
+    };
+    const normal=assess(best);
+    let ready=normal;
+    const intent=p.connectionIntent;
+    const incumbent=intent?.ownerId===owner.id&&intent.epoch===this.attackEpoch[owner.team]&&intent.until>this.time?assess(intent.point):null;
+    for(const dx of [0,2])for(const dz of [-3,0,3]){
+     const q=assess({x:p.x+side*dx,z:p.z+dz});
+     if(q&&(!ready||q.score>ready.score))ready=q;
+    }
+    if(incumbent&&(!ready||incumbent.score>=ready.score-.8))ready=incumbent;
+    if(ready&&(!normal||ready.score>normal.score+.5||incumbent===ready&&dist(normal,ready)>1)){
+     const same=incumbent===ready;
+     p.connectionIntent={ownerId:owner.id,epoch:this.attackEpoch[owner.team],point:{x:ready.x,z:ready.z},until:same?intent.until:this.time+.9};
+     if(!same)this.telemetry.reachableLinkPlans=(this.telemetry.reachableLinkPlans||0)+1;
+     return ready;
+    }
+   }
+  }
   const intent=p.connectionIntent,old=intent?.ownerId===owner.id&&intent.epoch===this.attackEpoch[owner.team]&&intent.until>this.time&&(intent.point.x-owner.x)*side>3&&intent.point.x*side<line-.7?evaluate(intent.point):null;
   if(old&&old.risk<.55&&old.space>1.8&&old.score>best.score-1.5)best=old;
   const same=old&&dist(old,best)<.1;p.connectionIntent={ownerId:owner.id,epoch:this.attackEpoch[owner.team],point:{x:best.x,z:best.z},until:same?intent.until:this.time+1.4};return best;
