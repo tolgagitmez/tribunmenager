@@ -31,7 +31,7 @@ jobs:
       - name: Verify reusable native runtime from frozen fixture
         run: |
           node -e 'process.stdout.write(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/native-config.json"
-          bash integrations/league-soccer/run-frozen.sh "$RUNNER_TEMP/tribun-native-runtime" "$RUNNER_TEMP/native-config.json" "$RUNNER_TEMP/league-soccer.ndjson.reused"
+          python3 integrations/league-soccer/manager-control-smoke.py "$RUNNER_TEMP/tribun-native-runtime" "$RUNNER_TEMP/native-config.json" "$RUNNER_TEMP/league-soccer.ndjson.reused"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

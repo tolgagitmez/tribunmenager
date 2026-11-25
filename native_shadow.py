@@ -95,6 +95,8 @@ def execute_native(config, profile, stop=None):
         config_path.write_text(canonical(config), encoding="utf-8")
         trace = root / "match.ndjson"
         env = {**os.environ, "TRIBUN_LEAGUE_SOCCER_ATTACK": profile}
+        # A trusted local command mailbox must not leak into frozen league shadow jobs.
+        env.pop("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR", None)
         with (root / "native.log").open("wb") as log:
             process = subprocess.Popen(["bash", str(INTEGRATION / "run-frozen.sh"), runtime,
                 str(config_path), str(trace)], env=env, stdout=log, stderr=subprocess.STDOUT,

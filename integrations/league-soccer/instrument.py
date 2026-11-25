@@ -10,8 +10,55 @@ HEADER = r'''
 #include <map>
 #include <cmath>
 #include <algorithm>
+#include <sstream>
+#include <fstream>
+#include <string>
 
 namespace {
+struct TribunTacticAck {
+  unsigned long revision=0, appliedMatchMs=0, appliedElapsedMs=0;
+  int press=50, counter=50, support=50, width=50;
+};
+TribunTacticAck tribunTactics[2];
+void TribunApplyTactics(Match& match, bool done) {
+  const char* directory=std::getenv("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR");
+  if (!directory || !*directory || done || match.GetPause()) return;
+  auto phase=match.GetMatchPhase();
+  if (phase!=e_MatchPhase_1stHalf && phase!=e_MatchPhase_2ndHalf) return;
+  const auto now=match.GetActualTime_ms();
+  static unsigned long lastPoll=0;
+  if (now<lastPoll+200) return;
+  lastPoll=now;
+  if (!match.IsInPlay() || match.IsInSetPiece() || match.GetMatchTime_ms()>=5400000UL) return;
+  for (int team=0; team<2; ++team) {
+    Team* target=match.GetTeam(team);
+    if (target->GetHumanGamerCount()) continue;
+    std::ifstream input(std::string(directory)+"/team-"+std::to_string(team)+".txt");
+    input.imbue(std::locale::classic());
+    std::string magic, extra;
+    long long revision, earliest;
+    int press,counter,support,width;
+    if (!(input>>magic>>revision>>earliest>>press>>counter>>support>>width) ||
+        magic!="TRIBUNTACTIC1" || (input>>extra)) continue;
+    const auto unit=[](int v){return v>=0&&v<=100;};
+    auto& ack=tribunTactics[team];
+    if (revision<=0 || revision>1000000 || static_cast<unsigned long>(revision)<=ack.revision ||
+        earliest<0 || earliest>=5400000 || static_cast<unsigned long>(earliest)>match.GetMatchTime_ms() ||
+        !unit(press)||!unit(counter)||!unit(support)||!unit(width)) continue;
+    auto& props=target->GetTeamData()->GetTacticsWritable().userProperties;
+    props.Set("team_pressure",press/100.0f);
+    props.Set("counter_attack",counter/100.0f);
+    props.Set("support_distance",support/100.0f);
+    props.Set("position_offense_width_factor",width/100.0f);
+    props.Set("position_defense_width_factor",width/100.0f);
+    target->GetController()->UpdateTactics();
+    ack.revision=static_cast<unsigned long>(revision);
+    ack.appliedMatchMs=match.GetMatchTime_ms();
+    ack.appliedElapsedMs=now;
+    ack.press=press;ack.counter=counter;ack.support=support;ack.width=width;
+    printf("[tribun] Live tactics team=%d revision=%lu minute=%lu\n",team,ack.revision,ack.appliedMatchMs/60000);
+  }
+}
 void TribunTrace(Match& match, bool done) {
   const char* path = std::getenv("TRIBUN_LEAGUE_SOCCER_TRACE");
   if (!path || !*path) return;
@@ -126,6 +173,15 @@ void TribunTrace(Match& match, bool done) {
              << ",\"fatigueFactor\":" << player->GetFatigueFactorInv() << '}';
     }
   }
+  output << "],\"managerTactics\":[";
+  for (int t=0;t<2;++t) {
+    if (t) output << ',';
+    const auto& ack=tribunTactics[t];
+    output << "{\"team\":" << t << ",\"revision\":" << ack.revision
+           << ",\"appliedMatchMs\":" << ack.appliedMatchMs << ",\"appliedElapsedMs\":" << ack.appliedElapsedMs
+           << ",\"press\":" << ack.press << ",\"counter\":" << ack.counter
+           << ",\"support\":" << ack.support << ",\"width\":" << ack.width << '}';
+  }
   output << "]}" << std::endl;
 }
 }
@@ -148,7 +204,7 @@ def main():
     anchor = "const unsigned int replaySize_ms = 10000;"
     text = replace_once(text, anchor, HEADER + "\n" + anchor)
     anchor = "  // Tell the game page once; the full-time screen used to be re-created"
-    text = replace_once(text, anchor, "  TribunTrace(*this, gameOver);\n\n" + anchor)
+    text = replace_once(text, anchor, "  TribunApplyTactics(*this, gameOver);\n  TribunTrace(*this, gameOver);\n\n" + anchor)
     path.write_text(text, encoding="utf-8")
 
 if __name__ == "__main__":

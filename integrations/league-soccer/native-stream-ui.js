@@ -35,6 +35,9 @@
       const ys=[0,0],rs=[0,0];for(const p of data.frame.participation){ys[p.team]+=p.cardCode>=3?p.cardCode-3:p.cardCode;rs[p.team]+=Number(p.cardCode>=2);}
       $('stats').textContent+='\nSarı kart: '+ys.join(' – ')+'\nKırmızı kart: '+rs.join(' – ');
      }
+     if(Array.isArray(data.frame.managerTactics)){
+      for(const t of data.frame.managerTactics)if(t.revision>0)$('stats').textContent+='\n'+(t.team===0?'Ev sahibi':'Deplasman')+' · '+Math.floor(t.appliedMatchMs/60000)+'′ taktik komutu #'+t.revision+' · Baskı '+t.press+' / Kontra '+t.counter+' / Destek '+t.support+' / Genişlik '+t.width;
+     }
      if(data.phase==='finished'){stop();return;}
     }else if(!data.frame){
      delay=1000;
