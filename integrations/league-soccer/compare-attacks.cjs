@@ -7,15 +7,26 @@ function values(r){
  if(r.engine!=='league-soccer'||!r.sampled)throw Error('Complete native attack telemetry required');
  const pairs={goals:r.score,shots:r.shots,onTarget:r.onTarget,completed:r.completed,boxCrossings:r.sampled.observedBoxCrossings,controlledBoxCrossings:r.sampled.controlledBoxCrossings,controlledBoxMs:r.sampled.controlledBoxMs,controlledFinalThirdMs:r.sampled.controlledFinalThirdMs,controlledForwardMeters:r.sampled.controlledForwardMeters,controlledBackwardMeters:r.sampled.controlledBackwardMeters,controlledWithForwardOutletMs:r.sampled.controlledWithForwardOutletMs,controlledWithTwoBoxAttackersMs:r.sampled.controlledWithTwoBoxAttackersMs,wideControlMs:r.sampled.wideControlMs,wideControlWithBoxOutletMs:r.sampled.wideControlWithBoxOutletMs,looseOwnBoxMs:r.sampled.looseOwnBoxMs,looseOwnBoxKeeperClosingMs:r.sampled.looseOwnBoxKeeperClosingMs,opponentControlledWithCentralCoverMs:r.sampled.opponentControlledWithCentralCoverMs,pressuredControlMs:r.sampled.pressuredControlMs,pressuredSameCarrierMs:r.sampled.pressuredSameCarrierMs,pressuredForwardMeters:r.sampled.pressuredForwardMeters};
  for(const a of Object.values(pairs))if(!Array.isArray(a)||a.length!==2||a.some(x=>!Number.isFinite(x)||x<0))throw Error('Invalid native metric');
- return Object.fromEntries(metrics.map(k=>[k,sum(pairs[k])]));
+ const result=Object.fromEntries(metrics.map(k=>[k,sum(pairs[k])]));
+ if(r.combinations){
+  for(const k of ['attempts','returned','completed']){
+   const a=r.combinations[k];
+   if(!Array.isArray(a)||a.length!==2||a.some(x=>!Number.isSafeInteger(x)||x<0))throw Error('Invalid combination counters');
+   result['combination_'+k]=sum(a);
+  }
+ }
+ return result;
 }
 function compare(pairs){
  if(!pairs.length||new Set(pairs.map(p=>p.seed)).size!==pairs.length)throw Error('Unique paired seeds required');
+ const comboKeys=['combination_attempts','combination_returned','combination_completed'];
+ const withCombos=pairs.every(p=>p.baseline.combinations&&p.shortMatch.combinations);
+ const keys=withCombos?[...metrics,...comboKeys]:metrics;
  const rows=pairs.map(({seed,baseline,shortMatch})=>{
   const a=values(baseline),b=values(shortMatch);
-  return {seed,baseline:a,shortMatch:b,delta:Object.fromEntries(metrics.map(k=>[k,b[k]-a[k]]))};
+  return {seed,baseline:a,shortMatch:b,delta:Object.fromEntries(keys.map(k=>[k,b[k]-a[k]]))};
  });
- return {schema:1,mode:'descriptive-native-paired-experiment',pairCount:rows.length,rows,meanDelta:Object.fromEntries(metrics.map(k=>[k,sum(rows.map(r=>r.delta[k]))/rows.length])),note:'Initial seeds are equal; deterministic execution and statistical significance are not established. No automatic profile promotion.'};
+ return {schema:1,mode:'descriptive-native-paired-experiment',pairCount:rows.length,rows,meanDelta:Object.fromEntries(keys.map(k=>[k,sum(rows.map(r=>r.delta[k]))/rows.length])),note:'Initial seeds are equal; deterministic execution and statistical significance are not established. No automatic profile promotion.'};
 }
 if(require.main===module){
  const [prefix,...seeds]=process.argv.slice(2);

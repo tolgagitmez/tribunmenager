@@ -9,3 +9,12 @@ test('missing telemetry and duplicate seed fail closed',()=>{
  assert.throws(()=>compare([{seed:'1',baseline:{engine:'league-soccer'},shortMatch:make(1)}]));
  const p={seed:'1',baseline:make(1),shortMatch:make(2)};assert.throws(()=>compare([p,p]));
 });
+
+test('combination delta only uses actual counters when both profiles have telemetry',()=>{
+ const a=make(2),b=make(3);
+ a.combinations={attempts:[0,0],returned:[0,0],completed:[0,0]};
+ b.combinations={attempts:[3,2],returned:[2,1],completed:[1,1]};
+ assert.equal(compare([{seed:'a',baseline:a,shortMatch:b}]).meanDelta.combination_completed,2);
+ delete a.combinations;
+ assert.equal(compare([{seed:'a',baseline:a,shortMatch:b}]).meanDelta.combination_completed,undefined);
+});

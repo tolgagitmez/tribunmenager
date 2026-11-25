@@ -140,6 +140,44 @@ inline float FirstTouchCost(float mismatch,float shortPass,float ballControl,flo
 inline bool SafePressureOutlet(float nearest,float distance,float receiverSpace,float odds,float margin) {
   return nearest<=3.0f && distance>=3.0f && distance<=15.0f && receiverSpace>=.55f && odds>=.72f && margin>=.8f;
 }
+// A bounded give-and-go state driven by actual pass contacts and controlled receipts.
+// IDs are native runtime identities, never roster positions.
+struct CombinationState {
+  int passer=-1, receiver=-1, stage=0;
+  unsigned long started=0, lastPass=0, expires=0, cooldown=0;
+  unsigned long attempts=0, returned=0, completed=0;
+  void Clear(unsigned long now) {
+    if(stage) cooldown=now+1800;
+    passer=receiver=-1;stage=0;started=lastPass=expires=0;
+  }
+  bool Begin(int a,int b,unsigned long now) {
+    if(stage || now<cooldown || a<0 || b<0 || a==b)return false;
+    passer=a;receiver=b;stage=1;started=lastPass=now;expires=now+2800;
+    ++attempts;return true;
+  }
+  void Observe(int owner,bool expectedTouch,bool interrupted,unsigned long now) {
+    if(!stage)return;
+    if(interrupted || now>=expires || now<lastPass){Clear(now);return;}
+    if(now<=lastPass || !expectedTouch || owner<0)return;
+    if(stage==1 && owner==receiver){stage=2;return;}
+    if(stage==3 && owner==passer){++completed;Clear(now);return;}
+    if((stage==1 && owner!=passer) || (stage==2 && owner!=receiver) ||
+       (stage==3 && owner!=receiver))Clear(now);
+  }
+  bool ReturnPass(int a,int b,unsigned long now) {
+    if(stage!=2 || a!=receiver || b!=passer || now>=expires || now<lastPass)return false;
+    stage=3;lastPass=now;expires=now+1700;++returned;return true;
+  }
+};
+inline bool StartCombination(float mindset,float skill,float distance,float progress,
+                             float ballDepth,float margin) {
+  return mindset>=.45f && skill>=.58f && distance>=4.0f && distance<=14.0f &&
+         progress>=-3.0f && progress<=10.0f && ballDepth>=13.0f && ballDepth<=42.0f &&
+         margin>=1.0f;
+}
+inline bool SafeReturnPass(float progress,float distance,float margin,float odds) {
+  return progress>=2.0f && distance>=3.0f && distance<=20.0f && margin>=.8f && odds>=.72f;
+}
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -564,4 +602,120 @@ Vector3 AI_GetForceFieldMovement'''),
           mateRating.supportRating+=.22f;
         }
         float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+    ])
+
+    # Track real ball contacts, not the controller's speculative command queue.
+    edit(root, "src/onthepitch/teamAIcontroller.hpp", [
+        ('#include "base/properties.hpp"', '#include "base/properties.hpp"\n#include "aitactics.hpp"'),
+        ("  void ApplyAttackingRun(Player* manualPlayer = 0);", r'''  void ApplyAttackingRun(Player* manualPlayer = 0);
+  void TribunPassContact(Player* passer, Player* receiver, bool shortPass);
+  Player* TribunReturnTarget(Player* receiver);
+  bool TribunCombinationRunner(Player* player) const;
+  const AITactics::CombinationState& GetTribunCombination() const { return tribunCombination; }'''),
+        ("  Player* forwardSupportPlayer;", "  AITactics::CombinationState tribunCombination;\n  Player* forwardSupportPlayer;"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  CalculateSituation();\n  if (!teamHasPossession)", r'''  CalculateSituation();
+  if (tribunCombination.stage) {
+    const auto now=match->GetActualTime_ms();
+    auto* first=team->GetPlayer(tribunCombination.passer);
+    auto* second=team->GetPlayer(tribunCombination.receiver);
+    auto* own=team->GetDesignatedTeamPossessionPlayer();
+    auto* rival=match->GetTeam(abs(team->GetID()-1));
+    const bool interrupted=!match->IsInPlay() || match->IsInSetPiece() ||
+        match->GetBallRetainer() || oppTeamHasUniquePossession ||
+        rival->GetLastTouchTime_ms()>=tribunCombination.started ||
+        !first || !second || !first->IsActive() || !second->IsActive();
+    const bool confirmed=own && own->HasUniquePossession() &&
+        team->GetLastTouchPlayer()==own && own->GetLastTouchTime_ms()>tribunCombination.lastPass;
+    const int owner=confirmed ? own->GetID() : -1;
+    tribunCombination.Observe(owner,confirmed,interrupted,now);
+  }
+  if (!teamHasPossession)'''),
+        ("      prevTeamHasPossession && !teamHasPossession){", "      prevTeamHasPossession && !teamHasPossession && !tribunCombination.stage){"),
+        ("void TeamAIController::ApplyAttackingRun(Player* manualPlayer) {", r'''void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {
+  if(!AITactics::ShortMatchAttackEnabled() || team->GetHumanGamerCount())return;
+  const auto now=match->GetActualTime_ms();
+  if(!shortPass || !receiver || !passer || receiver==passer ||
+      receiver->GetTeam()!=team || !receiver->IsActive() || !passer->IsActive() ||
+      !match->IsInPlay() || match->IsInSetPiece() || match->GetBallRetainer()){
+    tribunCombination.Clear(now);return;
+  }
+  if(tribunCombination.stage){
+    if(!tribunCombination.ReturnPass(passer->GetID(),receiver->GetID(),now))
+      tribunCombination.Clear(now);
+    return;
+  }
+  const float forward=-team->GetSide();
+  const auto pos=passer->GetPosition(), delta=receiver->GetPosition()-pos;
+  const float line=AI_GetOffsideLine(match,match->GetMentalImage(0),abs(team->GetID()-1))*forward;
+  const float skill=passer->GetStat("technical_shortpass")*.65f+passer->GetStat("mental_vision")*.35f;
+  if(receiver->GetFormationEntry().role==e_PlayerRole_GK ||
+     passer->GetFormationEntry().role==e_PlayerRole_GK ||
+     !AITactics::StartCombination(AI_GetMindSet(passer->GetDynamicFormationEntry().role),
+          skill,delta.GetLength(),delta.coords[0]*forward,pitchHalfW-pos.coords[0]*forward,
+          line-receiver->GetPosition().coords[0]*forward))return;
+  if(tribunCombination.Begin(passer->GetID(),receiver->GetID(),now)){
+    ApplyAttackingRun(passer);
+    endApplyAttackingRun_ms=now+2800;
+  }
+}
+
+Player* TeamAIController::TribunReturnTarget(Player* receiver) {
+  const auto now=match->GetActualTime_ms();
+  if(!receiver || tribunCombination.stage!=2 || now>=tribunCombination.expires ||
+      receiver->GetID()!=tribunCombination.receiver || !receiver->HasUniquePossession())
+    return nullptr;
+  Player* target=team->GetPlayer(tribunCombination.passer);
+  return target && target->IsActive() ? target : nullptr;
+}
+
+bool TeamAIController::TribunCombinationRunner(Player* player) const {
+  return player && tribunCombination.stage>=1 && tribunCombination.stage<=2 &&
+      player->GetID()==tribunCombination.passer && match->GetActualTime_ms()<tribunCombination.expires;
+}
+
+void TeamAIController::ApplyAttackingRun(Player* manualPlayer) {'''),
+        ("void TeamAIController::Reset() {\n  taker = 0;", "void TeamAIController::Reset() {\n  tribunCombination.Clear(match->GetActualTime_ms());\n  taker = 0;"),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ("        match->GetMatchData()->AddPassAttempt(team->GetID());", r'''        match->GetMatchData()->AddPassAttempt(team->GetID());
+        team->GetController()->TribunPassContact(CastPlayer(),targetPlayer,
+            currentAnim->functionType==e_FunctionType_ShortPass);'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  float adaptedMakeRun = makeRun;", "  const bool combinationRun=team->GetController()->TribunCombinationRunner(CastPlayer());\n  float adaptedMakeRun = makeRun || combinationRun;"),
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet) {", r'''      bool returnCandidate=false;
+      float returnOdds=0.0f;
+      if(runningPassEnabled && team->GetController()->TribunReturnTarget(CastPlayer())==mates.at(i)){
+        const auto delta=mates.at(i)->GetPosition()-player->GetPosition();
+        const float margin=passOffside-mates.at(i)->GetPosition().coords[0]*attackForward;
+        if(AITactics::SafeReturnPass(delta.coords[0]*attackForward,delta.GetLength(),margin,1.0f)){
+          returnOdds=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
+          returnCandidate=AITactics::SafeReturnPass(delta.coords[0]*attackForward,delta.GetLength(),margin,returnOdds);
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(returnCandidate && returnOdds>=mateRating.passRating-.08f){
+          mateRating.passRating=returnOdds;
+          mateRating.passType=e_FunctionType_ShortPass;
+          mateRating.supportRating+=.45f;
+        }
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+    ])
+    # Explicit run preference survives the brief loose-ball flight of the first pass.
+    # The final target is still clamped by GetSupportPosition_ForceField's offside check.
+    edit(root, "src/onthepitch/player/controller/strategies/offtheball/default_off.cpp", [
+        ("    Vector3 supportPosition =\n        controller->GetSupportPosition_ForceField(mentalImage, desiredPosition, makeRun);", r'''    if(team->GetController()->TribunCombinationRunner(CastPlayer())){
+      makeRun=true;attackBias=std::max(attackBias,.85f);
+    }
+    Vector3 supportPosition =
+        controller->GetSupportPosition_ForceField(mentalImage, desiredPosition, makeRun);'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/strategies/offtheball/default_mid.cpp", [
+        ("    Vector3 supportPosition =\n        controller->GetSupportPosition_ForceField(mentalImage, desiredPosition, makeRun);", r'''    if(team->GetController()->TribunCombinationRunner(CastPlayer())){
+      makeRun=true;attackBias=std::max(attackBias,.85f);
+    }
+    Vector3 supportPosition =
+        controller->GetSupportPosition_ForceField(mentalImage, desiredPosition, makeRun);'''),
     ])

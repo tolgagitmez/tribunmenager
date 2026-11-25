@@ -66,4 +66,25 @@ int main(){
  assert(!SafePressureOutlet(5,9,.7,.8,2));
  assert(!SafePressureOutlet(2,9,.7,.4,2));
  assert(!SafePressureOutlet(2,9,.7,.8,.2));
+ assert(StartCombination(.8,.8,8,4,28,2));
+ assert(!StartCombination(.2,.8,8,4,28,2));
+ assert(!StartCombination(.8,.8,24,4,28,2));
+ assert(!SafeReturnPass(4,8,2,.5));
+ assert(!SafeReturnPass(4,8,.1,.8));
+ assert(SafeReturnPass(4,8,2,.8));
+ CombinationState c;
+ assert(c.Begin(4,8,1000));
+ assert(!c.Begin(4,9,1001));
+ assert(!c.ReturnPass(8,4,1100));
+ c.Observe(8,false,false,1200);assert(c.stage==1);
+ c.Observe(8,true,false,1300);assert(c.stage==2);
+ assert(!c.ReturnPass(8,5,1400));
+ assert(c.ReturnPass(8,4,1400));assert(c.returned==1);
+ c.Observe(4,true,false,1500);assert(c.completed==1 && c.stage==0);
+ assert(!c.Begin(4,8,2000));
+ assert(c.Begin(4,8,3400));
+ c.Observe(8,true,true,3500);assert(c.stage==0 && c.completed==1);
+ assert(c.Begin(4,8,5400));
+ c.Observe(8,true,false,8200);assert(c.stage==0);
+ assert(c.attempts==3 && c.completed==1);
 }

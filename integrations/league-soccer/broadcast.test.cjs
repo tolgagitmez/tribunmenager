@@ -90,3 +90,12 @@ test('pressure metrics require a nearby opponent at both observed samples',()=>{
  assert.deepEqual(r.sampled.pressuredControlMs,[200,0]);
  assert.deepEqual(r.sampled.pressuredSameCarrierMs,[200,0]);
 });
+
+test('real combination counters are cumulative and missing telemetry is unknown',()=>{
+ const f=frames();
+ assert.equal(report(f).combinations,null);
+ for(let i=0;i<f.length;i++)f[i].combinations=[{attempts:i>=1?1:0,returned:i>=2?1:0,completed:i>=3?1:0},{attempts:0,returned:0,completed:0}];
+ assert.deepEqual(report(f).combinations,{attempts:[1,0],returned:[1,0],completed:[1,0]});
+ f[5].combinations[0]={attempts:0,returned:0,completed:0};
+ assert.throws(()=>report(f),/Regressing/);
+});

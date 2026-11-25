@@ -204,6 +204,14 @@ void TribunTrace(Match& match, bool done) {
          << ",\"inPlay\":" << (match.IsInPlay() && !match.IsInSetPiece() ? "true" : "false")
          << ",\"attackDirection\":[" << -match.GetTeam(0)->GetSide() << ',' << -match.GetTeam(1)->GetSide() << ']';
   output << ",\"humanGamers\":[" << match.GetTeam(0)->GetHumanGamerCount() << ',' << match.GetTeam(1)->GetHumanGamerCount() << ']';
+  output << ",\"combinations\":[";
+  for (int t=0;t<2;++t) {
+    if(t)output << ',';
+    const auto& c=match.GetTeam(t)->GetController()->GetTribunCombination();
+    output << "{\"attempts\":" << c.attempts << ",\"returned\":" << c.returned
+           << ",\"completed\":" << c.completed << '}';
+  }
+  output << ']';
   output << ",\"players\":[";
   bool first = true;
   for (int team = 0; team < 2; ++team) {

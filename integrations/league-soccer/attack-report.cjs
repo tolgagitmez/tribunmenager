@@ -10,6 +10,13 @@ function report(frames){
  const last=frames.at(-1),stats=last.stats||null;
  if(!stats)throw Error('Native cumulative statistics missing');
  const result={schema:1,engine:'league-soccer',frames:frames.length,nativeElapsedMs:last.elapsedMs-frames[0].elapsedMs,score:last.score.slice(),shots:stats.shots.slice(),onTarget:stats.onTarget.slice(),passes:stats.passes.slice(),completed:stats.completed.slice(),fouls:stats.fouls.slice(),possessionMs:stats.possessionMs.slice(),sampled:null};
+ // Older recordings have no combination event counters. Do not invent zeros.
+ const validCombo=v=>Array.isArray(v)&&v.length===2&&v.every(x=>x&&['attempts','returned','completed'].every(k=>Number.isSafeInteger(x[k])&&x[k]>=0)&&x.completed<=x.returned&&x.returned<=x.attempts);
+ if(frames.every(f=>validCombo(f.combinations))){
+  for(let i=1;i<frames.length;i++)for(let t=0;t<2;t++)for(const k of ['attempts','returned','completed'])
+   if(frames[i].combinations[t][k]<frames[i-1].combinations[t][k])throw Error('Regressing combination counters');
+  result.combinations=Object.fromEntries(['attempts','returned','completed'].map(k=>[k,last.combinations.map(c=>c[k])]));
+ }else result.combinations=null;
  if(!completeTelemetry)return result;
  // Dimensions are pinned upstream gamedefines.hpp (55 x 36 half-pitch).
  const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),controlledForwardMeters:pair(),controlledBackwardMeters:pair(),sameCarrierMs:pair(),controlledWithForwardOutletMs:pair(),controlledWithTwoBoxAttackersMs:pair(),wideControlMs:pair(),wideControlWithBoxOutletMs:pair(),looseOwnBoxMs:pair(),looseOwnBoxKeeperClosingMs:pair(),opponentControlledWithCentralCoverMs:pair(),pressuredControlMs:pair(),pressuredSameCarrierMs:pair(),pressuredForwardMeters:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};
