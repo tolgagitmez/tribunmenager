@@ -17,6 +17,13 @@ function report(frames){
    if(frames[i].combinations[t][k]<frames[i-1].combinations[t][k])throw Error('Regressing combination counters');
   result.combinations=Object.fromEntries(['attempts','returned','completed'].map(k=>[k,last.combinations.map(c=>c[k])]));
  }else result.combinations=null;
+ const reboundKeys=['deflections','recoveries','followupShots'];
+ const validRebound=v=>Array.isArray(v)&&v.length===2&&v.every(x=>x&&reboundKeys.every(k=>Number.isSafeInteger(x[k])&&x[k]>=0)&&x.followupShots<=x.recoveries&&x.recoveries<=x.deflections);
+ if(frames.every(f=>validRebound(f.rebounds))){
+  for(let i=1;i<frames.length;i++)for(let t=0;t<2;t++)for(const k of reboundKeys)
+   if(frames[i].rebounds[t][k]<frames[i-1].rebounds[t][k])throw Error('Regressing rebound counters');
+  result.rebounds=Object.fromEntries(reboundKeys.map(k=>[k,last.rebounds.map(r=>r[k])]));
+ }else result.rebounds=null;
  if(!completeTelemetry)return result;
  // Dimensions are pinned upstream gamedefines.hpp (55 x 36 half-pitch).
  const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),controlledForwardMeters:pair(),controlledBackwardMeters:pair(),sameCarrierMs:pair(),controlledWithForwardOutletMs:pair(),controlledWithTwoBoxAttackersMs:pair(),wideControlMs:pair(),wideControlWithBoxOutletMs:pair(),looseOwnBoxMs:pair(),looseOwnBoxKeeperClosingMs:pair(),opponentControlledWithCentralCoverMs:pair(),pressuredControlMs:pair(),pressuredSameCarrierMs:pair(),pressuredForwardMeters:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};

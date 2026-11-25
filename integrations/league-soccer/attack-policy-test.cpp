@@ -87,4 +87,21 @@ int main(){
  assert(c.Begin(4,8,5400));
  c.Observe(8,true,false,8200);assert(c.stage==0);
  assert(c.attempts==3 && c.completed==1);
+ ReboundState r;
+ r.Shot(4,1000);
+ r.Deflect(999,1100);assert(r.stage==1);
+ r.Deflect(1100,1100);assert(r.stage==2 && r.deflections==1);
+ r.Deflect(1150,1200);assert(r.deflections==1);
+ r.Observe(false,false,8,1050,1200);assert(r.stage==2);
+ r.Observe(false,false,8,1250,1300);assert(r.stage==3 && r.recoveries==1);
+ r.Shot(8,1400);assert(r.followupShots==1 && r.stage==1);
+ r.Deflect(1500,1500);r.Observe(false,true,-1,0,1600);assert(r.stage==0);
+ r.Shot(4,2000);r.Observe(true,false,-1,0,2100);assert(r.stage==0);
+ r.Shot(4,3000);r.Deflect(3100,3100);r.Observe(false,false,-1,0,5300);assert(r.stage==0);
+ assert(r.deflections==3 && r.recoveries==1 && r.followupShots==1);
+ assert(ReboundZone(12,8,.7));assert(!ReboundZone(12,22,.7));
+ assert(ReboundSupportEligible(.8,9,2));assert(!ReboundSupportEligible(.2,9,2));
+ assert(!ReboundSupportEligible(.8,9,.1));
+ assert(PrioritizeReboundShot(9,.8,.8,.7,.7));
+ assert(!PrioritizeReboundShot(9,.8,.4,.7,.7));
 }

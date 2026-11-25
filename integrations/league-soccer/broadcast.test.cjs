@@ -99,3 +99,12 @@ test('real combination counters are cumulative and missing telemetry is unknown'
  f[5].combinations[0]={attempts:0,returned:0,completed:0};
  assert.throws(()=>report(f),/Regressing/);
 });
+
+test('rebound events distinguish deflection, controlled recovery and actual next shot',()=>{
+ const f=frames();
+ assert.equal(report(f).rebounds,null);
+ for(let i=0;i<f.length;i++)f[i].rebounds=[{deflections:i>=1?1:0,recoveries:i>=2?1:0,followupShots:i>=3?1:0},{deflections:0,recoveries:0,followupShots:0}];
+ assert.deepEqual(report(f).rebounds,{deflections:[1,0],recoveries:[1,0],followupShots:[1,0]});
+ f[5].rebounds[0]={deflections:0,recoveries:0,followupShots:0};
+ assert.throws(()=>report(f),/Regressing rebound/);
+});

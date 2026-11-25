@@ -212,6 +212,14 @@ void TribunTrace(Match& match, bool done) {
            << ",\"completed\":" << c.completed << '}';
   }
   output << ']';
+  output << ",\"rebounds\":[";
+  for (int t=0;t<2;++t) {
+    if(t)output << ',';
+    const auto& r=match.GetTeam(t)->GetController()->GetTribunRebound();
+    output << "{\"deflections\":" << r.deflections << ",\"recoveries\":" << r.recoveries
+           << ",\"followupShots\":" << r.followupShots << '}';
+  }
+  output << ']';
   output << ",\"players\":[";
   bool first = true;
   for (int team = 0; team < 2; ++team) {

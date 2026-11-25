@@ -15,13 +15,20 @@ function values(r){
    result['combination_'+k]=sum(a);
   }
  }
+ if(r.rebounds)for(const k of ['deflections','recoveries','followupShots']){
+  const a=r.rebounds[k];
+  if(!Array.isArray(a)||a.length!==2||a.some(x=>!Number.isSafeInteger(x)||x<0))throw Error('Invalid rebound counters');
+  result['rebound_'+k]=sum(a);
+ }
  return result;
 }
 function compare(pairs){
  if(!pairs.length||new Set(pairs.map(p=>p.seed)).size!==pairs.length)throw Error('Unique paired seeds required');
  const comboKeys=['combination_attempts','combination_returned','combination_completed'];
  const withCombos=pairs.every(p=>p.baseline.combinations&&p.shortMatch.combinations);
- const keys=withCombos?[...metrics,...comboKeys]:metrics;
+ const reboundKeys=['rebound_deflections','rebound_recoveries','rebound_followupShots'];
+ const withRebounds=pairs.every(p=>p.baseline.rebounds&&p.shortMatch.rebounds);
+ const keys=[...metrics,...(withCombos?comboKeys:[]),...(withRebounds?reboundKeys:[])];
  const rows=pairs.map(({seed,baseline,shortMatch})=>{
   const a=values(baseline),b=values(shortMatch);
   return {seed,baseline:a,shortMatch:b,delta:Object.fromEntries(keys.map(k=>[k,b[k]-a[k]]))};

@@ -18,3 +18,12 @@ test('combination delta only uses actual counters when both profiles have teleme
  delete a.combinations;
  assert.equal(compare([{seed:'a',baseline:a,shortMatch:b}]).meanDelta.combination_completed,undefined);
 });
+
+test('rebound deltas require actual telemetry in both profiles',()=>{
+ const a=make(2),b=make(3);
+ a.rebounds={deflections:[1,2],recoveries:[0,1],followupShots:[0,0]};
+ b.rebounds={deflections:[2,2],recoveries:[1,1],followupShots:[1,0]};
+ assert.equal(compare([{seed:'a',baseline:a,shortMatch:b}]).meanDelta.rebound_followupShots,1);
+ delete a.rebounds;
+ assert.equal(compare([{seed:'a',baseline:a,shortMatch:b}]).meanDelta.rebound_followupShots,undefined);
+});

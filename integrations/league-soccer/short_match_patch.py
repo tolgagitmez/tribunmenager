@@ -178,6 +178,39 @@ inline bool StartCombination(float mindset,float skill,float distance,float prog
 inline bool SafeReturnPass(float progress,float distance,float margin,float odds) {
   return progress>=2.0f && distance>=3.0f && distance<=20.0f && margin>=.8f && odds>=.72f;
 }
+// Track actual shot -> accidental opponent touch -> controlled recovery -> next shot.
+struct ReboundState {
+  int stage=0,recoverer=-1;
+  unsigned long shotAt=0,deflectedAt=0,expires=0;
+  unsigned long deflections=0,recoveries=0,followupShots=0;
+  void Clear(){stage=0;recoverer=-1;shotAt=deflectedAt=expires=0;}
+  void Shot(int id,unsigned long now){
+    if(stage==3 && id==recoverer && now<expires)++followupShots;
+    Clear();stage=1;shotAt=now;expires=now+2200;
+  }
+  void Deflect(unsigned long touch,unsigned long now){
+    if(stage==1 && touch>shotAt && touch<=now && now<expires){
+      stage=2;deflectedAt=touch;expires=now+2200;++deflections;
+    }
+  }
+  void Observe(bool interrupted,bool rivalControl,int controlledOwner,
+               unsigned long ownerTouch,unsigned long now){
+    if(!stage)return;
+    if(interrupted || rivalControl || now>=expires){Clear();return;}
+    if(stage==2 && controlledOwner>=0 && ownerTouch>deflectedAt){
+      stage=3;recoverer=controlledOwner;expires=now+1500;++recoveries;
+    }else if(stage==3 && controlledOwner>=0 && controlledOwner!=recoverer)Clear();
+  }
+};
+inline bool ReboundZone(float depth,float lateral,float height){
+  return depth>=.5f && depth<=22.0f && lateral<=20.15f && height>=0.0f && height<=2.0f;
+}
+inline bool ReboundSupportEligible(float mindset,float distance,float onsideMargin){
+  return mindset>=.45f && distance>=3.0f && distance<=16.0f && onsideMargin>=1.0f;
+}
+inline bool PrioritizeReboundShot(float distance,float angle,float odds,float control,float skill){
+  return distance>=2.0f && distance<=16.0f && angle>=.65f && odds>=.67f && control>=.48f && skill>=.50f;
+}
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -634,6 +667,7 @@ Vector3 AI_GetForceFieldMovement'''),
   if (!teamHasPossession)'''),
         ("      prevTeamHasPossession && !teamHasPossession){", "      prevTeamHasPossession && !teamHasPossession && !tribunCombination.stage){"),
         ("void TeamAIController::ApplyAttackingRun(Player* manualPlayer) {", r'''void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {
+  if(tribunRebound.stage>=2){tribunRebound.Clear();tribunReboundSupportID=-1;}
   if(!AITactics::ShortMatchAttackEnabled() || team->GetHumanGamerCount())return;
   const auto now=match->GetActualTime_ms();
   if(!shortPass || !receiver || !passer || receiver==passer ||
@@ -718,4 +752,96 @@ void TeamAIController::ApplyAttackingRun(Player* manualPlayer) {'''),
     }
     Vector3 supportPosition =
         controller->GetSupportPosition_ForceField(mentalImage, desiredPosition, makeRun);'''),
+    ])
+
+    # Observe contacts in both benchmark profiles. Only short-match changes decisions.
+    edit(root, "src/onthepitch/teamAIcontroller.hpp", [
+        ("  void TribunPassContact(Player* passer, Player* receiver, bool shortPass);", r'''  void TribunPassContact(Player* passer, Player* receiver, bool shortPass);
+  void TribunShotContact(Player* shooter);
+  bool TribunReboundSupport(Player* player, Vector3& target);
+  bool TribunRecoveredShot(Player* player) const;
+  const AITactics::ReboundState& GetTribunRebound() const { return tribunRebound; }'''),
+        ("  AITactics::CombinationState tribunCombination;", r'''  AITactics::CombinationState tribunCombination;
+  AITactics::ReboundState tribunRebound;
+  int tribunReboundSupportID=-1;
+  Vector3 tribunReboundTarget;'''),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  CalculateSituation();\n  if (tribunCombination.stage) {", r'''  CalculateSituation();
+  if(tribunRebound.stage){
+    const auto now=match->GetActualTime_ms();
+    const auto ball=match->GetBall()->Predict(0);
+    const float forward=-team->GetSide();
+    const bool invalid=!match->IsInPlay() || match->IsInSetPiece() ||
+        match->GetBallRetainer();
+    const bool inZone=AITactics::ReboundZone(pitchHalfW-ball.coords[0]*forward,std::abs(ball.coords[1]),ball.coords[2]);
+    auto* rival=match->GetTeam(abs(team->GetID()-1));
+    auto* touch=match->GetLastTouchPlayer();
+    if(!invalid && inZone && !oppTeamHasUniquePossession && touch && touch->GetTeam()==rival &&
+        touch->GetLastTouchType()==e_TouchType_Accidental)
+      tribunRebound.Deflect(touch->GetLastTouchTime_ms(),now);
+    auto* owner=team->GetDesignatedTeamPossessionPlayer();
+    const bool ownControl=owner && owner->IsActive() && owner->HasUniquePossession() &&
+        match->GetLastTouchPlayer()==owner;
+    tribunRebound.Observe(invalid || (tribunRebound.stage>=2 && !inZone),oppTeamHasUniquePossession,ownControl?owner->GetID():-1,
+                           ownControl?owner->GetLastTouchTime_ms():0,now);
+    if(tribunRebound.stage!=2 || teamHasUniquePossession)tribunReboundSupportID=-1;
+    if(AITactics::ShortMatchAttackEnabled() && tribunRebound.stage==2 &&
+        !teamHasUniquePossession && !team->GetHumanGamerCount() && now%100==0){
+      tribunReboundSupportID=-1;
+      // Native designated player still pursues the ball. One distinct outfield
+      // teammate supports behind the projected landing point, never all attackers.
+      const auto predicted=match->GetBall()->Predict(350);
+      const float line=AI_GetOffsideLine(match,match->GetMentalImage(0),rival->GetID())*forward;
+      const float x=clamp(std::min(predicted.coords[0]*forward-3.0f,line-1.2f),pitchHalfW-24.0f,pitchHalfW-2.0f);
+      float best=10000.0f;
+      for(const auto& mate:team->GetAllPlayers()){
+        if(!mate->IsActive() || mate.get()==owner || mate.get()==team->GetGoalie())continue;
+        const auto pos=mate->GetPosition();
+        if(!AITactics::ReboundSupportEligible(AI_GetMindSet(mate->GetDynamicFormationEntry().role),
+            (pos-predicted.Get2D()).GetLength(),line-pos.coords[0]*forward))continue;
+        const float sign=owner && owner->GetPosition().coords[1]>=predicted.coords[1] ? -1.0f : 1.0f;
+        const auto target=Vector3(x*forward,clamp(predicted.coords[1]+sign*5.0f,-17.0f,17.0f),0);
+        const float cost=(target-pos).GetLength();
+        if(cost<best){best=cost;tribunReboundSupportID=mate->GetID();tribunReboundTarget=target;}
+      }
+    }
+  }else tribunReboundSupportID=-1;
+  if (tribunCombination.stage) {'''),
+        ("void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {", r'''void TeamAIController::TribunShotContact(Player* shooter) {
+  if(!shooter || team->GetHumanGamerCount() || !match->IsInPlay() || match->IsInSetPiece())return;
+  tribunRebound.Shot(shooter->GetID(),match->GetActualTime_ms());
+  tribunReboundSupportID=-1;
+}
+bool TeamAIController::TribunReboundSupport(Player* player,Vector3& target) {
+  if(!AITactics::ShortMatchAttackEnabled() || !player || !player->IsActive() ||
+      tribunRebound.stage!=2 || player->GetID()!=tribunReboundSupportID ||
+      player==team->GetDesignatedTeamPossessionPlayer() || team->HasUniquePossession() ||
+      !match->IsInPlay() || match->IsInSetPiece() || match->GetBallRetainer() ||
+      match->GetActualTime_ms()>=tribunRebound.expires)return false;
+  target=tribunReboundTarget;return true;
+}
+bool TeamAIController::TribunRecoveredShot(Player* player) const {
+  return AITactics::ShortMatchAttackEnabled() && player && player->HasUniquePossession() &&
+      tribunRebound.stage==3 && player->GetID()==tribunRebound.recoverer &&
+      match->GetActualTime_ms()<tribunRebound.expires;
+}
+void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {'''),
+        ("  tribunCombination.Clear(match->GetActualTime_ms());\n  taker = 0;", "  tribunCombination.Clear(match->GetActualTime_ms());\n  tribunRebound.Clear();\n  tribunReboundSupportID=-1;\n  taker = 0;"),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ("        match->GetMatchData()->AddShot(team->GetID());", "        match->GetMatchData()->AddShot(team->GetID());\n        team->GetController()->TribunShotContact(CastPlayer());"),
+    ])
+    for strategy in ("default_off.cpp","default_mid.cpp"):
+        edit(root, "src/onthepitch/player/controller/strategies/offtheball/"+strategy, [
+            ("  direction = (desiredPosition - player->GetPosition()).GetNormalized(player->GetDirectionVec());", r'''  Vector3 secondBallSupport;
+  if(team->GetController()->TribunReboundSupport(CastPlayer(),secondBallSupport))
+    desiredPosition=desiredPosition*.35f+secondBallSupport*.65f;
+  direction = (desiredPosition - player->GetPosition()).GetNormalized(player->GetDirectionVec());'''),
+        ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("         AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()))", r'''         (AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()) ||
+          (team->GetController()->TribunRecoveredShot(CastPlayer()) &&
+           AITactics::PrioritizeReboundShot(distance,angle,odds,
+             player->GetStat("technical_ballcontrol"),player->GetStat("technical_shot")))))'''),
     ])
