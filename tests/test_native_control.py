@@ -15,8 +15,15 @@ class NativeControlTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 control.publish(d,0,1,0,20,30,40,50)
             control.publish(d,0,2,60000,10,20,30,40)
-            self.assertEqual((Path(d)/"team-0.txt").read_text(),"TRIBUNTACTIC1 2 60000 10 20 30 40\n")
-            self.assertEqual((Path(d)/"team-1.txt").read_text(),"TRIBUNTACTIC1 1 0 20 30 40 50\n")
+            self.assertEqual((Path(d)/"team-0.txt").read_text(),"TRIBUNTACTIC2 2 60000 10 20 30 40 50 0\n")
+            self.assertEqual((Path(d)/"team-1.txt").read_text(),"TRIBUNTACTIC2 1 0 20 30 40 50 50 0\n")
+    def test_extended_tempo_formation(self):
+        with tempfile.TemporaryDirectory() as d:
+            control.publish(d,0,1,60000,75,65,50,70,85,442)
+            self.assertEqual((Path(d)/"team-0.txt").read_text(),"TRIBUNTACTIC2 1 60000 75 65 50 70 85 442\n")
+            for tempo,formation in ((101,442),(50,352),(False,0)):
+                with self.assertRaises(ValueError):
+                    control.publish(d,0,2,0,50,50,50,50,tempo,formation)
     def test_reject_bad_values_and_corrupt_file(self):
         with tempfile.TemporaryDirectory() as d:
             for args in ((2,1,0,10,20,30,40),(0,0,0,10,20,30,40),(0,1,5400000,10,20,30,40),(0,1,0,101,20,30,40),(0,1,0,True,20,30,40)):

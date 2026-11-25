@@ -40,11 +40,11 @@ def run(runtime,fixture,output):
                             frame=json.loads(line)
                             seen.append(frame)
                     if seen and not submitted and not seen[-1]["done"]:
-                        control.publish(mailbox,0,1,600000,91,82,73,64)
-                        control.publish(mailbox,1,1,600000,21,32,43,54)
+                        control.publish(mailbox,0,1,600000,91,82,73,64,85,442)
+                        control.publish(mailbox,1,1,600000,21,32,43,54,25,0)
                         submitted=True
                     if submitted and not second and seen and seen[-1]["managerTactics"][0]["revision"]==1:
-                        control.publish(mailbox,0,2,1800000,45,35,25,15)
+                        control.publish(mailbox,0,2,1800000,45,35,25,15,35,4231)
                         second=True
                 time.sleep(.05)
             if process.returncode:raise RuntimeError("Native test process failed")
@@ -55,6 +55,16 @@ def run(runtime,fixture,output):
                 assert rows and rows[0]["appliedMatchMs"]>=earliest
                 assert [rows[0][k] for k in ("press","counter","support","width")]==values
                 assert rows[0]["appliedElapsedMs"]>0
+            for team,revision,tempo,formation in ((0,1,85,442),(1,1,25,0),(0,2,35,4231)):
+                frame=next(f for f in frames if f["managerTactics"][team]["revision"]==revision)
+                ack=frame["managerTactics"][team]
+                assert ack["tempo"]==tempo and ack["formation"]==formation
+                if formation:
+                    field=[p for p in frame["players"] if p["team"]==team and not p["goalkeeper"]]
+                    assert len(field)==10
+                    actual=sorted(round(p["formationTarget"][0]*52.5) for p in field)
+                    expected=sorted([-25,-28,-28,-25,-1,-5,-5,-1,25,25] if formation==442 else [-25,-28,-28,-25,-9,-9,13,13,13,27])
+                    assert actual==expected,(actual,expected)
             assert frames[0]["managerTactics"][0]["revision"]==0
             for team in (0,1):
                 revisions=[f["managerTactics"][team]["revision"] for f in frames]

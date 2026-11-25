@@ -15,9 +15,66 @@ HEADER = r'''
 #include <string>
 
 namespace {
+// Assign only active outfield players, keeping the goalkeeper and physical positions.
+bool TribunApplyFormation(Team* target, int formation) {
+  if (!formation) return true;
+  struct Slot { e_PlayerRole role; float x,y; };
+  static const Slot f433[] = {
+    {e_PlayerRole_LB,-24,23},{e_PlayerRole_CB,-28,8},{e_PlayerRole_CB,-28,-8},{e_PlayerRole_RB,-24,-23},
+    {e_PlayerRole_CM,-2,15},{e_PlayerRole_DM,-8,0},{e_PlayerRole_CM,-2,-15},
+    {e_PlayerRole_CF,23,22},{e_PlayerRole_CF,28,0},{e_PlayerRole_CF,23,-22}};
+  static const Slot f442[] = {
+    {e_PlayerRole_LB,-25,23},{e_PlayerRole_CB,-28,8},{e_PlayerRole_CB,-28,-8},{e_PlayerRole_RB,-25,-23},
+    {e_PlayerRole_LM,-1,23},{e_PlayerRole_CM,-5,8},{e_PlayerRole_CM,-5,-8},{e_PlayerRole_RM,-1,-23},
+    {e_PlayerRole_CF,25,8},{e_PlayerRole_CF,25,-8}};
+  static const Slot f4231[] = {
+    {e_PlayerRole_LB,-25,23},{e_PlayerRole_CB,-28,8},{e_PlayerRole_CB,-28,-8},{e_PlayerRole_RB,-25,-23},
+    {e_PlayerRole_DM,-9,9},{e_PlayerRole_DM,-9,-9},{e_PlayerRole_LM,13,22},{e_PlayerRole_AM,13,0},
+    {e_PlayerRole_RM,13,-22},{e_PlayerRole_CF,27,0}};
+  const Slot* slots=formation==433?f433:formation==442?f442:formation==4231?f4231:nullptr;
+  if (!slots) return false;
+  std::vector<Player*> active, field;
+  target->GetActivePlayers(active);
+  if (active.size()!=11) return false;
+  for (auto* player:active) {
+    if (player->GetCards()>=2) return false;
+    if (player->GetFormationEntry().role!=e_PlayerRole_GK) field.push_back(player);
+  }
+  if (field.size()!=10) return false;
+  // Minimum cost assignment via a 10-player bitmask DP, favor existing roles and nearby slots.
+  const unsigned int total=1U<<10;
+  float cost[total];
+  int previous[total], chosen[total];
+  std::fill(cost,cost+total,1e9f);
+  cost[0]=0;
+  for (unsigned int mask=0;mask<total-1;++mask) {
+    unsigned int n=0;
+    for (unsigned int bit=mask;bit;bit>>=1) n+=bit&1U;
+    const auto old=field[n]->GetFormationEntry();
+    for (unsigned int j=0;j<10;++j) if (!(mask&(1U<<j))) {
+      const auto& s=slots[j];
+      float dx=old.position.coords[0]-s.x/52.5f,dy=old.position.coords[1]-s.y/34.0f;
+      float c=cost[mask]+dx*dx+dy*dy+(old.role==s.role?0.0f:0.35f);
+      const unsigned int next=mask|(1U<<j);
+      if(c<cost[next]){cost[next]=c;previous[next]=mask;chosen[next]=j;}
+    }
+  }
+  int assignment[10];
+  unsigned int mask=total-1;
+  for(int n=9;n>=0;--n){assignment[n]=chosen[mask];mask=previous[mask];}
+  for(int n=0;n<10;++n){
+    auto entry=field[n]->GetFormationEntry();
+    const auto& s=slots[assignment[n]];
+    entry.role=s.role;
+    entry.position=entry.databasePosition=Vector3(s.x/52.5f,s.y/34.0f,0);
+    target->SetFormationEntry(field[n]->GetID(),entry);
+    field[n]->SetDynamicFormationEntry(entry);
+  }
+  return true;
+}
 struct TribunTacticAck {
   unsigned long revision=0, appliedMatchMs=0, appliedElapsedMs=0;
-  int press=50, counter=50, support=50, width=50;
+  int press=50, counter=50, support=50, width=50, tempo=50, formation=0;
 };
 TribunTacticAck tribunTactics[2];
 void TribunApplyTactics(Match& match, bool done) {
@@ -37,15 +94,20 @@ void TribunApplyTactics(Match& match, bool done) {
     input.imbue(std::locale::classic());
     std::string magic, extra;
     long long revision, earliest;
-    int press,counter,support,width;
-    if (!(input>>magic>>revision>>earliest>>press>>counter>>support>>width) ||
-        magic!="TRIBUNTACTIC1" || (input>>extra)) continue;
+    int press,counter,support,width,tempo=50,formation=0;
+    if (!(input>>magic>>revision>>earliest>>press>>counter>>support>>width)) continue;
+    if (magic=="TRIBUNTACTIC2") {
+      if (!(input>>tempo>>formation)) continue;
+    } else if (magic!="TRIBUNTACTIC1") continue;
+    if (input>>extra) continue;
     const auto unit=[](int v){return v>=0&&v<=100;};
     auto& ack=tribunTactics[team];
     if (revision<=0 || revision>1000000 || static_cast<unsigned long>(revision)<=ack.revision ||
         earliest<0 || earliest>=5400000 || static_cast<unsigned long>(earliest)>match.GetMatchTime_ms() ||
-        !unit(press)||!unit(counter)||!unit(support)||!unit(width)) continue;
+        !unit(press)||!unit(counter)||!unit(support)||!unit(width)||!unit(tempo)) continue;
+    if (!TribunApplyFormation(target,formation)) continue;
     auto& props=target->GetTeamData()->GetTacticsWritable().userProperties;
+    props.Set("tribun_tempo",tempo/100.0f);
     props.Set("team_pressure",press/100.0f);
     props.Set("counter_attack",counter/100.0f);
     props.Set("support_distance",support/100.0f);
@@ -55,7 +117,8 @@ void TribunApplyTactics(Match& match, bool done) {
     ack.revision=static_cast<unsigned long>(revision);
     ack.appliedMatchMs=match.GetMatchTime_ms();
     ack.appliedElapsedMs=now;
-    ack.press=press;ack.counter=counter;ack.support=support;ack.width=width;
+    ack.press=press;ack.counter=counter;ack.support=support;ack.width=width;ack.tempo=tempo;
+    if(formation)ack.formation=formation;
     printf("[tribun] Live tactics team=%d revision=%lu minute=%lu\n",team,ack.revision,ack.appliedMatchMs/60000);
   }
 }
@@ -151,6 +214,10 @@ void TribunTrace(Match& match, bool done) {
       vec(player->GetMovement());
       output << ",\"direction\":";
       vec(player->GetDirectionVec());
+      const auto base = player->GetFormationEntry();
+      output << ",\"formationRole\":" << static_cast<int>(base.role)
+             << ",\"formationTarget\":";
+      vec(base.position);
       output << ",\"goalkeeper\":" << (player->GetFormationEntry().role == e_PlayerRole_GK ? "true" : "false");
       output << ",\"uniquePossession\":" << (player->HasUniquePossession() ? "true" : "false");
       output << '}';
@@ -180,7 +247,8 @@ void TribunTrace(Match& match, bool done) {
     output << "{\"team\":" << t << ",\"revision\":" << ack.revision
            << ",\"appliedMatchMs\":" << ack.appliedMatchMs << ",\"appliedElapsedMs\":" << ack.appliedElapsedMs
            << ",\"press\":" << ack.press << ",\"counter\":" << ack.counter
-           << ",\"support\":" << ack.support << ",\"width\":" << ack.width << '}';
+           << ",\"support\":" << ack.support << ",\"width\":" << ack.width
+           << ",\"tempo\":" << ack.tempo << ",\"formation\":" << ack.formation << '}';
   }
   output << "]}" << std::endl;
 }

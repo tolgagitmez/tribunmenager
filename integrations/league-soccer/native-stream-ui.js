@@ -36,7 +36,7 @@
       $('stats').textContent+='\nSarı kart: '+ys.join(' – ')+'\nKırmızı kart: '+rs.join(' – ');
      }
      if(Array.isArray(data.frame.managerTactics)){
-      for(const t of data.frame.managerTactics)if(t.revision>0)$('stats').textContent+='\n'+(t.team===0?'Ev sahibi':'Deplasman')+' · '+Math.floor(t.appliedMatchMs/60000)+'′ taktik komutu #'+t.revision+' · Baskı '+t.press+' / Kontra '+t.counter+' / Destek '+t.support+' / Genişlik '+t.width;
+      for(const t of data.frame.managerTactics)if(t.revision>0)$('stats').textContent+='\n'+(t.team===0?'Ev sahibi':'Deplasman')+' · '+Math.floor(t.appliedMatchMs/60000)+'′ taktik komutu #'+t.revision+' · Baskı '+t.press+' / Kontra '+t.counter+' / Destek '+t.support+' / Genişlik '+t.width+(Number.isInteger(t.tempo)?' / Tempo '+t.tempo:'')+(t.formation?' / Diziliş '+({433:'4-3-3',442:'4-4-2',4231:'4-2-3-1'}[t.formation]||t.formation):'');
      }
      if(data.phase==='finished'){stop();return;}
     }else if(!data.frame){
