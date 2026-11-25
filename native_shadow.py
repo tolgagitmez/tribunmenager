@@ -110,6 +110,7 @@ def execute_native(config, profile, stop=None, interactive_key=None):
         env.pop("TRIBUN_NATIVE_CLOCK_SCALE",None)
         env.pop("TRIBUN_NATIVE_QUICK_RESTARTS",None)
         env.pop("TRIBUN_NATIVE_FIXED_DURATION",None)
+        env.pop("TRIBUN_NATIVE_FINAL_THIRD_RETENTION",None)
         env.pop("TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS",None)
         env.setdefault("LP_NUM_THREADS","2")
         env.setdefault("OMP_NUM_THREADS","1")

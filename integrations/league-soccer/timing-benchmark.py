@@ -77,7 +77,7 @@ class Timing:
                     deadBallMs=self.dead_ms,transitionMs=self.transition_ms,gapMs=self.gap_ms,
                     frames=self.frames,maxObservedGapMs=self.max_observed_gap_ms,withinFiveSeconds=abs(wall-300000)<=5000)
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False):
     name,scale,quick=profile
     if attack_profile not in ("baseline","short-match"):raise ValueError("Unknown attack profile")
     trace=Path(str(out)+"."+name+".ndjson").resolve()
@@ -86,6 +86,9 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
          "TRIBUN_NATIVE_QUICK_RESTARTS":quick,"TRIBUN_LEAGUE_SOCCER_ATTACK":attack_profile,
          "LP_NUM_THREADS":"2","OMP_NUM_THREADS":"1"}
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
+    env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
+    if retention and (attack_profile!="short-match" or not fixed_duration):
+        raise ValueError("Retention diagnostic requires fixed-clock short-match")
     for k in ("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR","TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"):
         env.pop(k,None)
     stats=Timing()
@@ -136,7 +139,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         report["resources"]=r
     attack=json.loads(Path(str(trace)+".attack.json").read_text())
     if attack["engine"]!="league-soccer" or not attack.get("sampled"):raise ValueError("Missing attack report")
-    report.update(profile=name,attackProfile=attack_profile,scale=float(scale),quickRestarts=quick=="1",
+    report.update(profile=name,attackProfile=attack_profile,retention=retention,scale=float(scale),quickRestarts=quick=="1",
                   score=attack["score"],shots=attack["shots"],onTarget=attack["onTarget"],
                   controlledBoxCrossings=attack["sampled"]["controlledBoxCrossings"])
     Path(str(trace)+".timing.json").write_text(json.dumps(report,indent=2)+"\n")

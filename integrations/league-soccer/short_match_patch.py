@@ -231,6 +231,30 @@ struct FixedDurationClock {
   bool HalfDue(unsigned long now) const {return started&&!half&&Elapsed(now)>=150000UL;}
   bool FullDue(unsigned long now) const {return started&&!finished&&Elapsed(now)>=300000UL;}
 };
+// Isolated comparison against the previous short-match decision policy.
+inline bool FinalThirdRetentionEnabled() {
+  static const bool enabled=[]{
+    const char* v=std::getenv("TRIBUN_NATIVE_FINAL_THIRD_RETENTION");
+    return v && std::strcmp(v,"1")==0;
+  }();
+  return ShortMatchAttackEnabled() && enabled;
+}
+inline bool FinalThirdControlled(float depth,bool openPlay,bool controlled,bool outfield){
+  return openPlay && controlled && outfield && depth>=1.0f && depth<=36.6667f;
+}
+inline bool SafeGroundOutlet(float progress,float distance,float receiverSpace,
+                             float onsideMargin,float odds){
+  return progress>=-3.0f && progress<=18.0f && distance>=3.0f && distance<=18.0f &&
+      receiverSpace>=.55f && onsideMargin>=1.2f && odds>=.76f;
+}
+inline bool RetentionPassAllowed(float odds,float pressureDistance){
+  // Under immediate pressure preserve the native escape/clearance choices.
+  return pressureDistance<=2.2f || odds>=.52f;
+}
+inline float RetentionRiskCost(float odds,float pressureDistance){
+  if(pressureDistance<=2.2f)return 0.0f;
+  return std::max(0.0f,.76f-odds)*1.1f;
+}
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -944,4 +968,43 @@ void Referee::Process() {'''),
 
   // Tell the game page once; the full-time screen used to be re-created'''),
         ("    if (IsInPlay() && !IsInSetPiece()) {\n      matchTimeExact_ms +=", "    if (!AITactics::FixedDurationEnabled() && IsInPlay() && !IsInSetPiece()) {\n      matchTimeExact_ms +="),
+    ])
+
+    # Target the final ranking after all earlier runner/delivery/return bonuses.
+    # No new animations or ball trajectories; native pass selection remains in charge.
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  float bestTotalRating = 0.0f;\n  MateRating bestMateRating;", r'''  const bool retentionEnabled=AITactics::FinalThirdRetentionEnabled() &&
+      runningPassEnabled && AITactics::FinalThirdControlled(
+          pitchHalfW-player->GetPosition().coords[0]*attackForward,
+          match->IsInPlay() && !match->IsInSetPiece(),
+          CastPlayer()->HasUniquePossession(),CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK);
+  float bestTotalRating = 0.0f;
+  MateRating bestMateRating;'''),
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate) {", r'''      bool retentionOutlet=false;
+      float retentionOdds=0.0f;
+      if(retentionEnabled && mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
+        const auto delta=mates.at(i)->GetPosition()-player->GetPosition();
+        const float margin=passOffside-mates.at(i)->GetPosition().coords[0]*attackForward;
+        if(AITactics::SafeGroundOutlet(delta.coords[0]*attackForward,delta.GetLength(),
+            mateSit.spaceRating,margin,1.0f)){
+          retentionOdds=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
+          retentionOutlet=AITactics::SafeGroundOutlet(delta.coords[0]*attackForward,delta.GetLength(),
+              mateSit.spaceRating,margin,retentionOdds);
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        float retentionPenalty=0.0f;
+        if(retentionEnabled){
+          // Prefer a well-positioned short option only if nearly as safe as the
+          // best native pass type. Do not displace a clearly safer through ball.
+          if(retentionOutlet && retentionOdds>=mateRating.passRating-.04f){
+            mateRating.passType=e_FunctionType_ShortPass;
+            mateRating.passRating=retentionOdds;
+            mateRating.supportRating+=.30f;
+          }
+          if(!AITactics::RetentionPassAllowed(mateRating.passRating,nearestPressure))continue;
+          retentionPenalty=AITactics::RetentionRiskCost(mateRating.passRating,nearestPressure);
+        }
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+        ("        totalRating /= totalWeight2;", "        totalRating = (totalRating-retentionPenalty) / totalWeight2;"),
     ])
