@@ -103,5 +103,8 @@ int main(){
  assert(ReboundSupportEligible(.8,9,2));assert(!ReboundSupportEligible(.2,9,2));
  assert(!ReboundSupportEligible(.8,9,.1));
  assert(PrioritizeReboundShot(9,.8,.8,.7,.7));
+ assert(PrioritizeReboundShot(9,.8,.60f,.8,.8));
+ assert(!PrioritizeGoodShot(9,.8,.60f,true));
+ assert(!PrioritizeReboundShot(9,.8,.60f,.5,.8));
  assert(!PrioritizeReboundShot(9,.8,.4,.7,.7));
 }

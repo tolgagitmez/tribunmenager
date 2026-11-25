@@ -209,7 +209,8 @@ inline bool ReboundSupportEligible(float mindset,float distance,float onsideMarg
   return mindset>=.45f && distance>=3.0f && distance<=16.0f && onsideMargin>=1.0f;
 }
 inline bool PrioritizeReboundShot(float distance,float angle,float odds,float control,float skill){
-  return distance>=2.0f && distance<=16.0f && angle>=.65f && odds>=.67f && control>=.48f && skill>=.50f;
+  // A settled rebound can justify a slightly earlier shot, but only for a skilled finisher.
+  return distance>=2.0f && distance<=13.0f && angle>=.60f && odds>=.58f && control>=.65f && skill>=.65f;
 }
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
@@ -796,6 +797,7 @@ void TeamAIController::ApplyAttackingRun(Player* manualPlayer) {'''),
       const float x=clamp(std::min(predicted.coords[0]*forward-3.0f,line-1.2f),pitchHalfW-24.0f,pitchHalfW-2.0f);
       float best=10000.0f;
       for(const auto& mate:team->GetAllPlayers()){
+        if(x>line-1.2f)break; // no legal support target inside the bounded zone
         if(!mate->IsActive() || mate.get()==owner || mate.get()==team->GetGoalie())continue;
         const auto pos=mate->GetPosition();
         if(!AITactics::ReboundSupportEligible(AI_GetMindSet(mate->GetDynamicFormationEntry().role),
