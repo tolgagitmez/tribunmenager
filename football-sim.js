@@ -1973,7 +1973,7 @@ class Match{
  coordinatedAttack(team,owner,line){
   if(!owner)return null;
   const side=this.direction(team),zone=Math.abs(owner.z)>15?Math.sign(owner.z):0,old=this.attackPlans[team];
-  if(old&&old.until>this.time&&(!old.runner?.kind||old.ownerId===owner.id)&&old.zone===zone&&old.ownerTeam===this.lastTeam&&old.epoch===this.attackEpoch[team]&&old.runner?.id!==owner.id&&old.connectorId!==owner.id&&![old.runner?.id,old.connectorId].some(id=>this.players.some(p=>p.id===id&&this.arrivalHelper(p,owner)))&&(!old.runner||this.players.some(q=>q.id===old.runner.id&&q.active)))return old;
+  if(old&&old.until>this.time&&(!old.runner?.kind&&!old.outlet||old.ownerId===owner.id)&&old.zone===zone&&old.ownerTeam===this.lastTeam&&old.epoch===this.attackEpoch[team]&&old.runner?.id!==owner.id&&old.connectorId!==owner.id&&![old.runner?.id,old.connectorId].some(id=>this.players.some(p=>p.id===id&&this.arrivalHelper(p,owner)))&&(!old.runner||this.players.some(q=>q.id===old.runner.id&&q.active)))return old;
   const pool=this.field(team),opponents=this.rivals(owner),ballDepth=this.ball.x*side,counter=this.transitionUntil[team]>this.time&&this.t[team].onWin==='counter';
   const candidates=pool.filter(p=>p!==owner&&!this.taskReserved(p,['penetration'])&&!this.arrivalHelper(p,owner)&&!(p.supportIntent?.until>this.time)&&!(p.runIntent?.until>this.time)&&(p.role==='ATT'||p.role==='MID'&&p.homeX*side>7)&&p.x*side>owner.x*side-3);
   let runner=null;
@@ -2003,8 +2003,19 @@ class Match{
    const separation=dist(p,runner.point),angleGap=Math.abs(angle(Math.atan2(p.z-owner.z,p.x-owner.x),Math.atan2(runner.point.z-owner.z,runner.point.x-owner.x)));
    return base+Math.max(0,7-separation)*1.1+Math.max(0,.55-angleGap)*5;
   };
-  const connector=(centralLinks.length?centralLinks:links).sort((a,b)=>connectorCost(a)-connectorCost(b))[0];
-  const result={ownerTeam:this.lastTeam,epoch:this.attackEpoch[team],zone,until:this.time+2.6,runner,connectorId:connector?.id,...(runner?.kind?{ownerId:owner.id}:{}),...(decoy?{decoy}:{})};
+  let connector=(centralLinks.length?centralLinks:links).sort((a,b)=>connectorCost(a)-connectorCost(b))[0];
+  let outlet=null;
+  if(this.cfg.compactStrikerOutlet===true&&this.duration===300&&runner&&owner.role!=='GK'&&this.playerBrainEnabled(owner)&&this.owner===owner){
+   // Only replace a generic connector when its existing lane is closed
+   // and a different forward can show while the primary runner stays deep.
+   const blocked=!connector||this.laneRisk(owner,connector,this.passSpeed('pass',dist(owner,connector),this.t[team]),'pass',opponents)>.38;
+   if(blocked)for(const p of links){
+    const point=this.strikerOutlet(owner,p,line,opponents);
+    if(point&&(!outlet||point.value>outlet.point.value))outlet={id:p.id,point};
+   }
+   if(outlet){connector=this.players[outlet.id];this.telemetry.compactStrikerOutlets=(this.telemetry.compactStrikerOutlets||0)+1;}
+  }
+  const result={ownerTeam:this.lastTeam,epoch:this.attackEpoch[team],zone,until:this.time+2.6,runner,connectorId:connector?.id,...(runner?.kind?{ownerId:owner.id}:{}),...(decoy?{decoy}:{}),...(outlet?{outlet,ownerId:owner.id}:{})};
   this.attackPlans[team]=result;
   if(runner)this.telemetry.coordinatedRuns=(this.telemetry.coordinatedRuns||0)+1;
   return result;
@@ -2073,7 +2084,32 @@ class Match{
   }
   return result;
  }
+ // In a compact match one striker may show for a playable diagonal
+ // rather than having every forward wait on the last defensive line.
+ // A separate penetration runner and the rest-defence remain reserved.
+ strikerOutlet(owner,p,line,opponents){
+  const side=this.direction(owner.team),depth=owner.x*side;
+  if(p.role!=='ATT'||this.teamRole(p)==='winger'||p.duelRecovery>0||(p.energy??1)<.5||depth< -20||depth>24||p.x*side<depth+3||dist(owner,p)>30)return null;
+  const pressure=Math.min(20,...opponents.map(q=>dist(q,owner)));
+  if(pressure>6.5)return null;
+  const current={x:p.x,z:p.z},now=this.laneRisk(owner,current,this.passSpeed('pass',dist(owner,p),this.t[p.team]),'pass',opponents);
+  let best=null;
+  for(const dx of [-4,-2,0])for(const dz of [-5,-3,3,5]){
+   const point={x:p.x+dx*side,z:p.z+dz},gain=(point.x-owner.x)*side,range=dist(owner,point);
+   if(gain<5||gain>18||range<6||range>24||point.x*side>line-1.2||Math.abs(point.z)>21)continue;
+   const read=this.supportRead(owner,p,point,opponents);
+   if(read.space<3||read.risk>.28||read.risk>now-.08||read.earlyRisk>.40||read.readyAt>read.window||read.eta>read.window+.45)continue;
+   const value=gain*.35+read.space*.60-read.risk*15-read.eta*1.8;
+   if(!best||value>best.value)best={...point,value,risk:read.risk,space:read.space,strikerOutlet:true};
+  }
+  return best;
+ }
  connectionPoint(owner,p,baseLine,line){
+  const plan=this.attackPlans[owner.team],outlet=plan?.outlet;
+  if(this.cfg.compactStrikerOutlet===true&&this.duration===300&&outlet?.id===p.id&&plan.ownerId===owner.id&&plan.epoch===this.attackEpoch[owner.team]&&plan.until>this.time&&outlet.point.x*this.direction(owner.team)<line-.7){
+   const current=this.strikerOutlet(owner,p,line,this.rivals(owner));
+   if(current)return current;
+  }
   const side=this.direction(owner.team),depth=Math.min(line-1.0,Math.max(owner.x*side+6,baseLine+27)),ideal=clamp(owner.z*.4+Math.sign(p.homeZ||-owner.z||1)*9,-18,18);let best=null;
   const rivals=this.rivals(owner),advanced=this.playerBrainEnabled(p),personal=advanced?this.rivals(p):rivals;
   const gap=z=>{
