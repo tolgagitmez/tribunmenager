@@ -54,6 +54,16 @@ inline bool ShortMatchAttackEnabled() {
   }();
   return enabled;
 }
+// Clear central/diagonal corridor: measured in metres, relative to attacking direction.
+inline bool ClearForwardCorridor(float progress, float sideMargin, float nearestAhead,
+                                 float lateralClearance, float nearestOpponent) {
+  return progress >= 1.0f && sideMargin >= 3.0f && nearestAhead >= 4.0f &&
+         lateralClearance >= 1.8f && nearestOpponent >= 2.5f;
+}
+inline bool PrioritizeGoodShot(float distance, float angle, float odds, bool uniquePossession) {
+  return uniquePossession && distance >= 2.0f && distance <= 22.0f &&
+         angle >= 0.55f && odds >= 0.62f;
+}
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -86,4 +96,58 @@ inline float ShotOddsThreshold() {
           buffer.startTime = std::min(buffer.startTime, earlier + 1000UL);
         }
       }'''),
+    ])
+
+    # A manager fixture must have both teams CPU-controlled from initialization.
+    edit(root, "src/onthepitch/match.cpp", [
+        ("  teams[1]->DeleteHumanGamers();\n\n  // add new", r'''  teams[1]->DeleteHumanGamers();
+  if (std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE")) return;
+
+  // add new'''),
+    ])
+    edit(root, "src/onthepitch/AIsupport/AIfunctions.cpp", [
+        ("  desiredDirection = forceFieldMovement.GetNormalized(player->GetDirectionVec());", r'''  // Only a controlled outfield ball carrier in open play can take this branch.
+  // Preserve the force-field result whenever a defender blocks the corridor.
+  if (AITactics::ShortMatchAttackEnabled() && player->HasUniquePossession() &&
+      match->IsInPlay() && !match->IsInSetPiece() &&
+      player->GetFormationEntry().role != e_PlayerRole_GK) {
+    const Vector3 forward(-side, 0, 0);
+    const Vector3 towardGoal = (oppGoalPos-myPos).GetNormalized(forward);
+    float nearestOpponent=100.0f, nearestAhead=100.0f, lateralClearance=100.0f;
+    const float remaining=pitchHalfW+side*myPos.coords[0];
+    for (const auto& opp : opponentPlayerImages) {
+      const Vector3 relative=opp.position+opp.movement*future_sec-myPos;
+      nearestOpponent=std::min(nearestOpponent,relative.GetLength());
+      const float ahead=relative.coords[0]*towardGoal.coords[0]+relative.coords[1]*towardGoal.coords[1];
+      const float lateral=std::abs(relative.coords[0]*towardGoal.coords[1]-relative.coords[1]*towardGoal.coords[0]);
+      if(ahead>0 && ahead<7.0f) {
+        lateralClearance=std::min(lateralClearance,lateral);
+        if(lateral<2.2f) nearestAhead=std::min(nearestAhead,ahead);
+      }
+    }
+    if (remaining>8.0f && AITactics::ClearForwardCorridor(
+        towardGoal.coords[0]*-side*5.0f,pitchHalfH-std::abs(myPos.coords[1]+towardGoal.coords[1]*5.0f),
+        nearestAhead,lateralClearance,nearestOpponent)) {
+      // Blend, not teleport or force an animation. Normal velocity limits still apply.
+      forceFieldMovement=forceFieldMovement*0.45f+towardGoal*sprintVelocity*0.55f;
+    }
+  }
+  desiredDirection = forceFieldMovement.GetNormalized(player->GetDirectionVec());'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  float oneTouchIsHard = 0.0f;", "  const auto onBallStart = commandQueue.size();\n  float oneTouchIsHard = 0.0f;"),
+        ("      commandQueue.push_back(command);\n    }\n  }\n\n  e_Velocity enumVelocity", r'''      const Vector3 toGoal=Vector3(pitchHalfW * -team->GetSide(),0,0)-player->GetPosition();
+      const float distance=toGoal.GetLength();
+      const float angle=distance>0.01f ? toGoal.coords[0]*-team->GetSide()/distance : 0.0f;
+      // Prioritize an already accepted, high-quality shot over ordinary passing.
+      // Animation selection may still reject it and fall through to the existing queue.
+      if(AITactics::ShortMatchAttackEnabled() &&
+         AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()))
+        commandQueue.insert(commandQueue.begin()+onBallStart,command);
+      else
+        commandQueue.push_back(command);
+    }
+  }
+
+  e_Velocity enumVelocity'''),
     ])

@@ -12,7 +12,7 @@ function report(frames){
  const result={schema:1,engine:'league-soccer',frames:frames.length,nativeElapsedMs:last.elapsedMs-frames[0].elapsedMs,score:last.score.slice(),shots:stats.shots.slice(),onTarget:stats.onTarget.slice(),passes:stats.passes.slice(),completed:stats.completed.slice(),fouls:stats.fouls.slice(),possessionMs:stats.possessionMs.slice(),sampled:null};
  if(!completeTelemetry)return result;
  // Dimensions are pinned upstream gamedefines.hpp (55 x 36 half-pitch).
- const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};
+ const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),controlledForwardMeters:pair(),controlledBackwardMeters:pair(),sameCarrierMs:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};
  const owner=f=>{const p=f.players.filter(p=>p.uniquePossession);return p.length===1?p[0]:null;};
  const inside=(f,t)=>f.ball[0]*f.attackDirection[t]>=55-16.5&&f.ball[0]*f.attackDirection[t]<=55&&Math.abs(f.ball[1])<=20.15;
  for(let i=1;i<frames.length;i++){
@@ -24,6 +24,13 @@ function report(frames){
   const pa=owner(a),pb=owner(b);
   if(pa&&pb&&pa.team===pb.team){
    const t=pa.team;m.controlledMs[t]+=dt;
+   if(pa.id===pb.id){
+    const dx=(b.ball[0]-a.ball[0])*a.attackDirection[t];
+    // A sampled same-carrier displacement, not a count of individual dribbles.
+    if(Math.hypot(b.ball[0]-a.ball[0],b.ball[1]-a.ball[1],b.ball[2]-a.ball[2])<=3){
+     m.sameCarrierMs[t]+=dt;m.controlledForwardMeters[t]+=Math.max(0,dx);m.controlledBackwardMeters[t]+=Math.max(0,-dx);
+    }
+   }
    if(a.ball[0]*a.attackDirection[t]>=55/3&&b.ball[0]*b.attackDirection[t]>=55/3)m.controlledFinalThirdMs[t]+=dt;
    if(inside(a,t)&&inside(b,t))m.controlledBoxMs[t]+=dt;
    if(pa.goalkeeper&&pb.goalkeeper&&pa.id===pb.id&&inside(a,1-t)&&inside(b,1-t))m.keeperControlMs[t]+=dt;

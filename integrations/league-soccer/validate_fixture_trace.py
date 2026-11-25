@@ -11,6 +11,8 @@ def validate(trace, manifest):
     with open(trace, encoding="utf-8") as f:
         for line in f:
             frame = json.loads(line)
+            if frame.get("humanGamers") != [0,0]:
+                raise ValueError("Manager fixture must be CPU versus CPU for every frame")
             actual = {team: set() for team in expected}
             for p in frame["players"]:
                 actual[p["team"]].add(p["databaseId"])

@@ -13,6 +13,9 @@ git -C "$work/source" fetch --depth 1 origin "${upstream[1]}"
 git -C "$work/source" checkout --detach FETCH_HEAD
 test "$(git -C "$work/source" rev-parse HEAD)" = "${upstream[1]}"
 python3 "$here/instrument.py" "$work/source"
+# Exercise the actual patched C++ decision predicates before building the full game.
+c++ -std=c++17 -I"$work/source/src/onthepitch" "$here/attack-policy-test.cpp" -o "$work/attack-policy-test"
+"$work/attack-policy-test"
 if [[ $# -ge 2 ]]; then
   node "$here/fixture-adapter.cjs" "$2" "$work/fixture.txt"
   cp "$work/fixture.txt.json" "$out.fixture.json"

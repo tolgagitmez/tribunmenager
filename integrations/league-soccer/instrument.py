@@ -203,6 +203,7 @@ void TribunTrace(Match& match, bool done) {
          << ",\"setPiece\":" << (match.IsInSetPiece() ? "true" : "false")
          << ",\"inPlay\":" << (match.IsInPlay() && !match.IsInSetPiece() ? "true" : "false")
          << ",\"attackDirection\":[" << -match.GetTeam(0)->GetSide() << ',' << -match.GetTeam(1)->GetSide() << ']';
+  output << ",\"humanGamers\":[" << match.GetTeam(0)->GetHumanGamerCount() << ',' << match.GetTeam(1)->GetHumanGamerCount() << ']';
   output << ",\"players\":[";
   bool first = true;
   for (int team = 0; team < 2; ++team) {
