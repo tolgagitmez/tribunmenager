@@ -37,7 +37,7 @@ config="$work/native-match.config"
 limit=420
 if [[ "${TRIBUN_NATIVE_REALTIME:-0}" == 1 ]]; then
   scale="${TRIBUN_NATIVE_CLOCK_SCALE:-1.0}"
-  case "$scale" in 1.0|1.25|1.5) ;; *) echo "Invalid diagnostic clock scale" >&2; exit 2;; esac
+  case "$scale" in 1.0|1.10|1.25|1.5) ;; *) echo "Invalid diagnostic clock scale" >&2; exit 2;; esac
   sed "s/\"menu_smoke_match_time_scale\" \"6.0\"/\"menu_smoke_match_time_scale\" \"$scale\"/" "$config" > "$work/interactive.config"
   config="$work/interactive.config"
   grep -F "\"menu_smoke_match_time_scale\" \"$scale\"" "$config" >/dev/null

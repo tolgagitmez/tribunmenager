@@ -1,0 +1,41 @@
+name: League-Soccer integration readiness diagnostics
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/league-soccer-native]
+    paths:
+      - 'integrations/league-soccer/readiness.py'
+      - 'integrations/league-soccer/readiness-fixtures.cjs'
+      - '.github/workflows/league-soccer-readiness.yml'
+permissions:
+  contents: read
+jobs:
+  readiness:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate readiness gates
+        run: python3 -m unittest discover -s tests -p test_native_readiness.py
+      - name: Freeze three tactical scenarios
+        run: node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/readiness-fixtures"
+      - name: Build native runtime once
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/readiness-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Execute nine observed matches
+        run: python3 integrations/league-soccer/readiness.py "$RUNNER_TEMP/readiness-runtime" "$RUNNER_TEMP/readiness-fixtures" "$RUNNER_TEMP/readiness"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-readiness-diagnostics
+          path: |
+            ${{ runner.temp }}/readiness/
+            ${{ runner.temp }}/readiness-fixtures/
+          if-no-files-found: ignore
