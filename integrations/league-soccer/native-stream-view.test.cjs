@@ -15,3 +15,16 @@ test('early final rejected and authoritative data never accepted',()=>{
  const v=create(),a=packet(1,0);a.frame.done=true;
  assert.throws(()=>v.ingest(a,0));a.authoritative=true;assert.equal(v.ingest(a,0),false);
 });
+
+test('render budget avoids hidden work and caps idle/performance without capping balanced live',()=>{
+ const r=require('./native-stream-view.js').createRenderBudget();
+ assert.equal(r.next(0,{hidden:true}),null);
+ assert.equal(r.next(10,{playing:true}).dt,0);
+ assert.ok(r.next(26,{playing:true}));
+ assert.equal(r.next(42,{playing:true,mode:'performance'}),null);
+ assert.ok(r.next(60,{playing:true,mode:'performance'}));
+ assert.equal(r.next(80,{}),null);
+ assert.ok(r.next(127,{}));
+ assert.equal(r.next(130,{hidden:true}),null);
+ assert.equal(r.next(10000,{playing:true}).dt,0);
+});

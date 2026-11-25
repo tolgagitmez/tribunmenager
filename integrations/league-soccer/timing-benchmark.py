@@ -23,6 +23,8 @@ class Timing:
         self.transition_ms=0
         self.gap_ms=0
         self.frames=0
+        self.previous_wall=None
+        self.max_observed_gap_ms=0
     def ingest(self,frame,now):
         if self.final is not None:
             raise ValueError("Frame after full time")
@@ -37,6 +39,9 @@ class Timing:
         if self.previous and frame["elapsedMs"]<self.previous["elapsedMs"]:
             raise ValueError("Regressing clock")
         self.frames+=1
+        if self.first is not None and self.previous_wall is not None:
+            self.max_observed_gap_ms=max(self.max_observed_gap_ms,round((now-self.previous_wall)*1000))
+        self.previous_wall=now
         if self.first is None and frame["inPlay"] and not frame["done"]:
             self.first=frame["elapsedMs"]
             self.first_wall=now
@@ -70,7 +75,7 @@ class Timing:
         return dict(observedWallMs=wall,targetMs=300000,deviationMs=wall-300000,
                     nativeElapsedMs=native,openPlayMs=self.open_ms,setPieceMs=self.restart_ms,
                     deadBallMs=self.dead_ms,transitionMs=self.transition_ms,gapMs=self.gap_ms,
-                    frames=self.frames,withinFiveSeconds=abs(wall-300000)<=5000)
+                    frames=self.frames,maxObservedGapMs=self.max_observed_gap_ms,withinFiveSeconds=abs(wall-300000)<=5000)
 
 def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False):
     name,scale,quick=profile
@@ -97,8 +102,15 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
                 if not line.endswith(b"\n"):break
                 stats.ingest(json.loads(line),time.monotonic())
                 offset=handle.tell()
+    resources=Path(str(trace)+".resources.json")
+    resources.unlink(missing_ok=True)
+    command=["bash",str(HERE/"run-frozen.sh"),runtime,fixture,str(trace)]
+    if Path("/usr/bin/time").is_file():
+        command=["/usr/bin/time","-o",str(resources),"-f",
+                 '{"userSeconds":%U,"systemSeconds":%S,"maxRssKiB":%M,"elapsedSeconds":%e}',*command]
+    launch=time.monotonic()
     with Path(str(trace)+".log").open("wb") as log:
-        process=subprocess.Popen(["bash",str(HERE/"run-frozen.sh"),runtime,fixture,str(trace)],
+        process=subprocess.Popen(command,
                                  env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
         deadline=time.monotonic()+900
         try:
@@ -113,6 +125,15 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
                 os.killpg(process.pid,signal.SIGKILL)
                 process.wait()
     report=stats.report()
+    report.update(processWallMs=round((time.monotonic()-launch)*1000),
+                  firstObservedMonotonic=stats.first_wall,finalObservedMonotonic=stats.final_wall,
+                  traceBytes=trace.stat().st_size,resources=None)
+    if resources.exists():
+        import math
+        r=json.loads(resources.read_text())
+        if set(r)!={"userSeconds","systemSeconds","maxRssKiB","elapsedSeconds"} or any(type(v) not in (int,float) or not math.isfinite(v) or v<0 for v in r.values()):
+            raise ValueError("Invalid process resource measurement")
+        report["resources"]=r
     attack=json.loads(Path(str(trace)+".attack.json").read_text())
     if attack["engine"]!="league-soccer" or not attack.get("sampled"):raise ValueError("Missing attack report")
     report.update(profile=name,attackProfile=attack_profile,scale=float(scale),quickRestarts=quick=="1",

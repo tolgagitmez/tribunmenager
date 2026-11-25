@@ -53,5 +53,17 @@ function create(rig){
  }
  return {ingest,sample,reset};
 }
-const api={create,point};root.TribunNativeStreamView=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+// Only render at the chosen budget. Polling and authoritative frames are independent.
+function createRenderBudget(){
+ let last=null;
+ return {reset(){last=null;},next(now,{hidden=false,playing=false,mode='balanced'}={}){
+  if(hidden){last=null;return null;}
+  if(!Number.isFinite(now))return null;
+  const interval=playing?(mode==='performance'?1000/30:0):1000/15;
+  if(last!==null&&now-last+0.5<interval)return null;
+  const dt=last===null?0:Math.max(0,(now-last)/1000);
+  last=now;return {dt:Math.min(.1,dt),measuredDt:dt};
+ }};
+}
+const api={create,point,createRenderBudget};root.TribunNativeStreamView=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
