@@ -1,0 +1,16 @@
+name: Native attacking profile review tests
+on:
+  push:
+    paths:
+      - 'tools/native-attack-review.py'
+      - 'tests/test_attack_profile_review.py'
+      - '.github/workflows/native-attack-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s tests -p test_attack_profile_review.py
