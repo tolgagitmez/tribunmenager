@@ -255,6 +255,28 @@ inline float RetentionRiskCost(float odds,float pressureDistance){
   if(pressureDistance<=2.2f)return 0.0f;
   return std::max(0.0f,.76f-odds)*1.1f;
 }
+inline bool BoxLaneRunsEnabled() {
+  static const bool enabled=[]{
+    const char* v=std::getenv("TRIBUN_NATIVE_BOX_LANE_RUNS");
+    return v && std::strcmp(v,"1")==0;
+  }();
+  return ShortMatchAttackEnabled() && enabled;
+}
+inline bool BoxLaneTarget(float ballDepth,float targetDepth,float progress,
+                         float runDistance,float passDistance,float onsideMargin,
+                         float endpointClearance,float corridorClearance) {
+  return ballDepth>=17.0f && ballDepth<=34.0f &&
+      targetDepth>=4.0f && targetDepth<=16.5f && progress>=2.0f &&
+      runDistance>=2.0f && runDistance<=16.0f &&
+      passDistance>=6.0f && passDistance<=28.0f && onsideMargin>=1.2f &&
+      endpointClearance>=2.5f && corridorClearance>=1.4f;
+}
+inline float BoxLaneScore(float endpointClearance,float corridorClearance,
+                          float runDistance,float lateralChange) {
+  return std::min(6.0f,endpointClearance)*.8f+
+      std::min(5.0f,corridorClearance)*1.2f-
+      runDistance*.20f-lateralChange*.08f;
+}
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -1007,4 +1029,59 @@ void Referee::Process() {'''),
         }
         float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
         ("        totalRating /= totalWeight2;", "        totalRating = (totalRating-retentionPenalty) / totalWeight2;"),
+    ])
+
+    # A single existing secondary outlet chooses a passable central box channel.
+    # Keep wide deliveries, explicit combinations, and the final native offside clamp.
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  // stay away from opponents\n  std::vector<Player*> opponents;", r'''  if(AITactics::BoxLaneRunsEnabled() && match->IsInPlay() && !match->IsInSetPiece() &&
+      !team->GetHumanGamerCount() && designatedPlayer!=CastPlayer() &&
+      designatedPlayer->HasUniquePossession() && dynamicMindSet>=.45f &&
+      player==team->GetController()->GetForwardSupportPlayer() &&
+      !adaptedMakeRun && !combinationRun && std::abs(mainManPos.coords[1])<13.0f){
+    const float forward=-team->GetSide();
+    const float depth=pitchHalfW-mainManPos.coords[0]*forward;
+    if(depth>=17.0f && depth<=34.0f){
+      std::vector<PlayerImage> rivals;
+      mentalImage->GetTeamPlayerImages(abs(team->GetID()-1),-1,rivals);
+      const float line=AI_GetOffsideLine(match,mentalImage,abs(team->GetID()-1))*forward;
+      const float limit=std::min(line,offsideX*forward);
+      const float x=std::min(pitchHalfW-9.0f,limit-1.25f);
+      float best=-10000.0f;
+      Vector3 target;
+      for(float y:{-8.0f,0.0f,8.0f}){
+        const Vector3 candidate(x*forward,y,0);
+        const auto delta=candidate-mainManPos;
+        const float passDistance=delta.GetLength();
+        const auto run=candidate-currentPos;
+        const float runDistance=run.GetLength();
+        if(passDistance<.1f)continue;
+        float endpoint=100.0f,corridor=100.0f;
+        for(const auto& rival:rivals){
+          const auto predicted=rival.position+rival.movement*.25f;
+          endpoint=std::min(endpoint,(predicted-candidate).GetLength());
+          const auto offset=predicted-mainManPos;
+          const float u=(offset.coords[0]*delta.coords[0]+offset.coords[1]*delta.coords[1])/
+              (passDistance*passDistance);
+          if(u>.05f && u<.95f)
+            corridor=std::min(corridor,(predicted-(mainManPos+delta*u)).GetLength());
+        }
+        if(!AITactics::BoxLaneTarget(depth,pitchHalfW-x,run.coords[0]*forward,runDistance,
+             passDistance,limit-x,endpoint,corridor))continue;
+        const float score=AITactics::BoxLaneScore(endpoint,corridor,runDistance,std::abs(run.coords[1]));
+        if(score>best){best=score;target=candidate;}
+      }
+      if(best>-9999.0f){
+        ForceSpot lane;
+        lane.origin=target;
+        lane.magnetType=e_MagnetType_Attract;
+        lane.decayType=e_DecayType_Constant;
+        lane.power=1.6f;
+        forceField.push_back(lane);
+      }
+    }
+  }
+
+  // stay away from opponents
+  std::vector<Player*> opponents;'''),
     ])

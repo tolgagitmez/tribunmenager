@@ -122,6 +122,13 @@ int main(){
  assert(RetentionPassAllowed(.80,4));
  assert(RetentionRiskCost(.55,4)>RetentionRiskCost(.75,4));
  assert(RetentionRiskCost(.55,1.8)==0);
+ assert(BoxLaneTarget(25,10,5,10,18,2,3,2));
+ assert(!BoxLaneTarget(40,10,5,10,18,2,3,2));
+ assert(!BoxLaneTarget(25,18,5,10,18,2,3,2));
+ assert(!BoxLaneTarget(25,10,5,10,18,.5,3,2));
+ assert(!BoxLaneTarget(25,10,5,10,18,2,1,2));
+ assert(!BoxLaneTarget(25,10,5,10,18,2,3,.8));
+ assert(BoxLaneScore(4,4,10,4)>BoxLaneScore(2.5,1.5,10,4));
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
