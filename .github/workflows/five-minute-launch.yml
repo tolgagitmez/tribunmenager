@@ -1,0 +1,24 @@
+name: Fixed five minute local match launch
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tactics.html'
+      - 'tactics-page.js'
+      - 'manager.js'
+      - 'match-config.js'
+      - 'tests/fixture-roster.test.cjs'
+      - '.github/workflows/five-minute-launch.yml'
+permissions:
+  contents: read
+jobs:
+  local-launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: node --test tests/fixture-roster.test.cjs tests/match-startup.test.cjs
