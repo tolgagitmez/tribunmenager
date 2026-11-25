@@ -48,3 +48,17 @@ test('collective metrics measure sustained forward outlets and two box attackers
  assert.deepEqual(r.sampled.controlledWithForwardOutletMs,[400,0]);
  assert.deepEqual(r.sampled.controlledWithTwoBoxAttackersMs,[400,0]);
 });
+
+test('wide possession with a central box outlet is measured separately',()=>{
+ const f=frames();
+ for(const row of f){
+  const d=row.attackDirection[0];
+  row.players[0].position=[d*45,22,0];
+  row.players.push({id:3,team:0,position:[d*44,5,0],velocity:[0,0,0],direction:[d,0,0],uniquePossession:false,goalkeeper:false});
+ }
+ const r=report(Replay.parse(f.map(JSON.stringify).join('\n')));
+ assert.deepEqual(r.sampled.wideControlMs,[400,0]);
+ assert.deepEqual(r.sampled.wideControlWithBoxOutletMs,[400,0]);
+ f.forEach(row=>{row.players[2].position[1]=19;});
+ assert.deepEqual(report(f).sampled.wideControlWithBoxOutletMs,[0,0]);
+});

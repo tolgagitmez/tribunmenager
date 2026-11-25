@@ -79,6 +79,27 @@ inline float ProgressiveRunCost(float probeDistance, float mindset, float latera
   return probeDistance + 6.0f*(1.0f-std::max(0.0f,std::min(1.0f,mindset)))
          - std::min(10.0f,std::max(0.0f,lateralGap))*0.4f;
 }
+inline bool WideDeliveryZone(float goalDepth, float lateral) {
+  return goalDepth >= 1.0f && goalDepth <= 24.0f && lateral >= 13.0f && lateral <= 34.0f;
+}
+inline bool EligibleBoxDelivery(float recipientDepth, float recipientLateral, float distance,
+                                float onsideMargin, float odds) {
+  return recipientDepth >= 3.0f && recipientDepth <= 16.0f && recipientLateral <= 11.0f &&
+         distance >= 5.0f && distance <= 32.0f && onsideMargin >= 0.8f && odds >= 0.65f;
+}
+inline bool EligibleAerialDelivery(float recipientDepth, float recipientLateral, float distance,
+                                   float onsideMargin, float odds) {
+  // Native high-pass odds include a fixed 0.4 penalty. 0.54 means <=0.06 additional danger.
+  return recipientDepth >= 3.0f && recipientDepth <= 16.0f && recipientLateral <= 11.0f &&
+         distance >= 10.0f && distance <= 32.0f && onsideMargin >= 0.8f && odds >= 0.54f;
+}
+inline bool EligibleCutback(float senderDepth, float recipientDepth, float distance, float odds) {
+  return senderDepth <= 10.0f && recipientDepth >= senderDepth+2.0f &&
+         distance <= 20.0f && odds >= 0.65f;
+}
+inline bool EligibleDistanceShot(float distance, float angle, float skill, float odds) {
+  return distance >= 17.0f && distance <= 26.0f && angle >= 0.88f && skill >= 0.70f && odds >= 0.78f;
+}
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -237,4 +258,84 @@ inline float ShotOddsThreshold() {
           mateRating.supportRating+=0.20f;
         }
         float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+    ])
+
+    # Short-match wide attacks: only the two assigned attacking outlets receive special
+    # targets. Existing offside clamp, formation/repulsion and physical movement stay intact.
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("    if (!AITactics::IsAutomaticRunnerEligible(\n            candidate->IsActive(),", "    if (!candidate->IsActive()) continue;\n    if (!AITactics::IsAutomaticRunnerEligible(\n            candidate->IsActive(),"),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  // stay away from opponents\n  std::vector<Player*> opponents;", r'''  // Distinct box targets only while a wide teammate controls possession.
+  // A ball-side runner attacks the near-post channel; the second outlet
+  // supports centrally/far-side. No extra players are committed.
+  if (AITactics::ShortMatchAttackEnabled() && !team->GetHumanGamerCount() &&
+      designatedPlayer != CastPlayer() && designatedPlayer->HasUniquePossession() &&
+      dynamicMindSet >= 0.45f && AITactics::WideDeliveryZone(
+          pitchHalfW + mainManPos.coords[0]*team->GetSide(), std::abs(mainManPos.coords[1]))) {
+    const bool nearRun=adaptedMakeRun;
+    const bool secondOutlet=player==team->GetController()->GetForwardSupportPlayer();
+    if (nearRun || secondOutlet) {
+      const float lateralSign=mainManPos.coords[1]>=0 ? 1.0f : -1.0f;
+      const float depth=nearRun ? 7.0f : 13.0f;
+      const float y=nearRun ? lateralSign*5.5f : -lateralSign*6.0f;
+      ForceSpot boxSpot;
+      boxSpot.origin=Vector3((pitchHalfW-depth)*-team->GetSide(),y,0);
+      boxSpot.magnetType=e_MagnetType_Attract;
+      boxSpot.decayType=e_DecayType_Constant;
+      boxSpot.power=nearRun ? 1.6f : 1.25f;
+      forceField.push_back(boxSpot);
+    }
+  }
+
+  // stay away from opponents
+  std::vector<Player*> opponents;'''),
+        ("      bool runningCandidate=false;\n      float runningOdds=0.0f;", r'''      bool runningCandidate=false;
+      float runningOdds=0.0f;
+      bool deliveryCandidate=false;
+      float deliveryOdds=0.0f;
+      e_FunctionType deliveryType=e_FunctionType_ShortPass;
+      if(runningPassEnabled && AITactics::WideDeliveryZone(
+           pitchHalfW-player->GetPosition().coords[0]*attackForward,std::abs(player->GetPosition().coords[1])) &&
+           mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
+        const float senderDepth=pitchHalfW-player->GetPosition().coords[0]*attackForward;
+        const auto pos=mates.at(i)->GetPosition();
+        const float recipientDepth=pitchHalfW-pos.coords[0]*attackForward;
+        const float distance=(pos-player->GetPosition()).GetLength();
+        const float margin=passOffside-pos.coords[0]*attackForward;
+        const float lateral=std::abs(pos.coords[1]);
+        if(AITactics::EligibleBoxDelivery(recipientDepth,lateral,distance,margin,1.0f)){
+          const float ground=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
+          const float aerial=_GetPassingOdds(mates.at(i),e_FunctionType_HighPass,opponentPlayerImages);
+          if(AITactics::EligibleCutback(senderDepth,recipientDepth,distance,ground) ||
+             (distance<=20.0f && ground>=0.72f && ground>=aerial)){
+            deliveryOdds=ground;
+            deliveryType=e_FunctionType_ShortPass;
+          }else{
+            deliveryOdds=aerial;
+            deliveryType=e_FunctionType_HighPass;
+          }
+          deliveryCandidate=deliveryType==e_FunctionType_HighPass
+              ? AITactics::EligibleAerialDelivery(recipientDepth,lateral,distance,margin,deliveryOdds)
+              : AITactics::EligibleBoxDelivery(recipientDepth,lateral,distance,margin,deliveryOdds);
+        }
+      }'''),
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate) {", "      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate) {"),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(deliveryCandidate && deliveryOdds>=mateRating.passRating-0.05f){
+          mateRating.passRating=deliveryOdds;
+          mateRating.passType=deliveryType;
+          mateRating.supportRating+=0.28f;
+        }
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+        ("  if (idealShotPosFactor > 0.1f) {", r'''  const Vector3 shotVector=Vector3(pitchHalfW * -team->GetSide(),0,0)-player->GetPosition();
+  const float shotDistance=shotVector.GetLength();
+  const float shotAngle=shotDistance>0.01f ? shotVector.coords[0]*-team->GetSide()/shotDistance : 0.0f;
+  const bool distanceProbe=AITactics::ShortMatchAttackEnabled() &&
+      CastPlayer()->HasUniquePossession() && CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK &&
+      AITactics::EligibleDistanceShot(shotDistance,shotAngle,player->GetStat("technical_shot"),1.0f);
+  if (idealShotPosFactor > 0.1f || distanceProbe) {'''),
+        ("    if (odds + random(0.0f, 0.28f) > AITactics::ShotOddsThreshold()) {", r'''    const bool distanceShot=distanceProbe &&
+        AITactics::EligibleDistanceShot(shotDistance,shotAngle,player->GetStat("technical_shot"),odds);
+    if ((idealShotPosFactor > 0.1f || distanceShot) &&
+        odds + random(0.0f, 0.28f) > AITactics::ShotOddsThreshold()) {'''),
     ])

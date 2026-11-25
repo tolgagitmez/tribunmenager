@@ -23,4 +23,21 @@ int main(){
  assert(!EligibleRunningPass(-4,18,3,2,.8));
  assert(!EligibleRunningPass(12,18,.2,2,.8));
  assert(ProgressiveRunCost(10,.9,8)<ProgressiveRunCost(10,.5,1));
+ assert(WideDeliveryZone(8,22));
+ assert(!WideDeliveryZone(30,22));
+ assert(!WideDeliveryZone(8,5));
+ assert(EligibleBoxDelivery(9,6,16,2,.8));
+ assert(!EligibleBoxDelivery(9,6,16,.2,.8));
+ assert(!EligibleBoxDelivery(9,15,16,2,.8));
+ assert(!EligibleBoxDelivery(9,6,16,2,.4));
+ assert(EligibleAerialDelivery(9,6,16,2,.56));
+ assert(!EligibleAerialDelivery(9,6,16,2,.50));
+ assert(!EligibleAerialDelivery(9,6,7,2,.59));
+ assert(EligibleCutback(5,12,16,.8));
+ assert(!EligibleCutback(12,5,16,.8));
+ assert(EligibleDistanceShot(23,.95,.85,.85));
+ assert(!EligibleDistanceShot(28,.95,.85,.85));
+ assert(!EligibleDistanceShot(23,.4,.85,.85));
+ assert(!EligibleDistanceShot(23,.95,.4,.85));
+ assert(!EligibleDistanceShot(23,.95,.85,.4));
 }
