@@ -191,7 +191,7 @@ function openForm() {
 }
 function openTactics() {store();location.href='tactics.html#'+encodeURIComponent(JSON.stringify({...state,players:P}));}
 async function openMatch() {
-  store();const input={formation:state.formation,starters:state.starters,players:P,tactics:state.tactics,matchMinutes:state.matchMinutes||5,special:state.special,quality:strength(),readiness:readiness(),rules:state.rules,transferProfileId:state.transferProfileId,transferRevision:state.transferRevision};
+  store();const input={formation:state.formation,starters:state.starters,players:P,tactics:state.tactics,matchMinutes:5,fixedFiveMinute:true,special:state.special,quality:strength(),readiness:readiness(),rules:state.rules,transferProfileId:state.transferProfileId,transferRevision:state.transferRevision};
   try{const cfg=await window.TribunMatchConfig.prepare(input);window.TribunMatchConfig.launch(cfg);}
   catch(e){notify(e.message||'Maç kadrosu alınamadı.');}
 }

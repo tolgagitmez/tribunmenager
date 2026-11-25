@@ -167,3 +167,19 @@ test('normal tactics launch transports the official roster into actual match HTM
   assert.deepEqual(errors,[]);
  }finally{pages.forEach(dom=>dom.window.close());await new Promise(resolve=>server.close(resolve));}
 });
+
+test('normal local launch fixes both saved duration and rules override to five minutes',async()=>{
+ const h=harness(),source={...input(),matchMinutes:90,fixedFiveMinute:true,rules:{periodSeconds:2700,maxSubstitutions:3}};
+ const cfg=await h.api.prepare(source);
+ assert.equal(cfg.matchMinutes,5);assert.equal(cfg.rules.periodSeconds,150);assert.equal(cfg.rules.maxSubstitutions,3);
+ assert.equal(source.matchMinutes,90);
+ const repeated=await h.api.prepare({...cfg,matchMinutes:15,rules:{...cfg.rules,periodSeconds:450}});
+ assert.equal(repeated.matchMinutes,5);assert.equal(repeated.rules.periodSeconds,150);
+});
+test('diagnostic matches retain explicit long duration; normal local fixture retains other competition rules',async()=>{
+ const h=harness({token:'league-secret',reply:{...snapshot(),competitionRules:{periodSeconds:2700,maxSubstitutions:2}}});
+ const normal=await h.api.prepare({...input(),fixedFiveMinute:true,matchMinutes:90});
+ assert.equal(normal.matchMinutes,5);assert.equal(normal.rules.periodSeconds,150);assert.equal(normal.rules.maxSubstitutions,2);
+ const diagnostic=await harness().api.prepare({...input(),matchMinutes:15,rules:{periodSeconds:450}});
+ assert.equal(diagnostic.matchMinutes,15);assert.equal(diagnostic.rules.periodSeconds,450);
+});
