@@ -35,3 +35,16 @@ test('two clients, no spectators, late join and backwards system clock cannot ch
   assert.equal((await fetch(url,{method:'POST'})).status,405);
  }finally{s.closeAllConnections();await new Promise(r=>s.close(r));}
 });
+
+test('collective metrics measure sustained forward outlets and two box attackers',()=>{
+ const f=frames();
+ for(const row of f){
+  const d=row.attackDirection[0];
+  row.players[0].position=[d*35,0,0];
+  row.players.push({id:3,team:0,position:[d*41,8,0],velocity:[0,0,0],direction:[d,0,0],uniquePossession:false,goalkeeper:false});
+  row.players.push({id:4,team:0,position:[d*43,-8,0],velocity:[0,0,0],direction:[d,0,0],uniquePossession:false,goalkeeper:false});
+ }
+ const r=report(Replay.parse(f.map(JSON.stringify).join('\n')));
+ assert.deepEqual(r.sampled.controlledWithForwardOutletMs,[400,0]);
+ assert.deepEqual(r.sampled.controlledWithTwoBoxAttackersMs,[400,0]);
+});

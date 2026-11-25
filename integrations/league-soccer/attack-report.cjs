@@ -12,9 +12,12 @@ function report(frames){
  const result={schema:1,engine:'league-soccer',frames:frames.length,nativeElapsedMs:last.elapsedMs-frames[0].elapsedMs,score:last.score.slice(),shots:stats.shots.slice(),onTarget:stats.onTarget.slice(),passes:stats.passes.slice(),completed:stats.completed.slice(),fouls:stats.fouls.slice(),possessionMs:stats.possessionMs.slice(),sampled:null};
  if(!completeTelemetry)return result;
  // Dimensions are pinned upstream gamedefines.hpp (55 x 36 half-pitch).
- const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),controlledForwardMeters:pair(),controlledBackwardMeters:pair(),sameCarrierMs:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};
+ const m={observedOpenPlayMs:0,excludedGapMs:0,controlledMs:pair(),controlledFinalThirdMs:pair(),controlledBoxMs:pair(),controlledForwardMeters:pair(),controlledBackwardMeters:pair(),sameCarrierMs:pair(),controlledWithForwardOutletMs:pair(),controlledWithTwoBoxAttackersMs:pair(),observedBoxCrossings:pair(),controlledBoxCrossings:pair(),keeperControlMs:pair()};
  const owner=f=>{const p=f.players.filter(p=>p.uniquePossession);return p.length===1?p[0]:null;};
- const inside=(f,t)=>f.ball[0]*f.attackDirection[t]>=55-16.5&&f.ball[0]*f.attackDirection[t]<=55&&Math.abs(f.ball[1])<=20.15;
+ const inside=(f,t)=>inBox(f.ball,f.attackDirection[t]);
+ const inBox=(p,d)=>p[0]*d>=55-16.5&&p[0]*d<=55&&Math.abs(p[1])<=20.15;
+ const outlets=(f,p)=>f.players.filter(q=>q.team===p.team&&q.id!==p.id&&!q.goalkeeper&&(q.position[0]-p.position[0])*f.attackDirection[p.team]>=4&&Math.hypot(q.position[0]-p.position[0],q.position[1]-p.position[1])<=32).length;
+ const boxAttackers=(f,t)=>f.players.filter(p=>p.team===t&&!p.goalkeeper&&inBox(p.position,f.attackDirection[t])).length;
  for(let i=1;i<frames.length;i++){
   const a=frames[i-1],b=frames[i],dt=b.elapsedMs-a.elapsedMs;
   if(dt<=0)continue;
@@ -24,6 +27,8 @@ function report(frames){
   const pa=owner(a),pb=owner(b);
   if(pa&&pb&&pa.team===pb.team){
    const t=pa.team;m.controlledMs[t]+=dt;
+   if(outlets(a,pa)>0&&outlets(b,pb)>0)m.controlledWithForwardOutletMs[t]+=dt;
+   if(boxAttackers(a,t)>=2&&boxAttackers(b,t)>=2)m.controlledWithTwoBoxAttackersMs[t]+=dt;
    if(pa.id===pb.id){
     const dx=(b.ball[0]-a.ball[0])*a.attackDirection[t];
     // A sampled same-carrier displacement, not a count of individual dribbles.

@@ -64,6 +64,21 @@ inline bool PrioritizeGoodShot(float distance, float angle, float odds, bool uni
   return uniquePossession && distance >= 2.0f && distance <= 22.0f &&
          angle >= 0.55f && odds >= 0.62f;
 }
+// All progress values are expressed relative to the attacking direction.
+inline bool EligibleProgressiveRun(float mindset, float progress, float distance,
+                                  float onsideMargin) {
+  return mindset >= 0.45f && progress >= -3.0f && progress <= 32.0f &&
+         distance >= 5.0f && distance <= 36.0f && onsideMargin >= 0.8f;
+}
+inline bool EligibleRunningPass(float progress, float distance, float forwardSpeed,
+                                float onsideMargin, float odds) {
+  return progress >= 4.0f && distance >= 9.0f && distance <= 32.0f &&
+         forwardSpeed >= 1.5f && onsideMargin >= 0.8f && odds >= 0.65f;
+}
+inline float ProgressiveRunCost(float probeDistance, float mindset, float lateralGap) {
+  return probeDistance + 6.0f*(1.0f-std::max(0.0f,std::min(1.0f,mindset)))
+         - std::min(10.0f,std::max(0.0f,lateralGap))*0.4f;
+}
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -150,4 +165,76 @@ inline float ShotOddsThreshold() {
   }
 
   e_Velocity enumVelocity'''),
+    ])
+
+    # Retain the ordinary runner selector as baseline. Prefer eligible midfielders/forwards
+    # in a passable lane when a teammate has controlled possession.
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  float closestDistance = 10000.0f;\n  for (const auto& candidate : team->GetAllPlayers()) {", r'''  float closestDistance = 10000.0f;
+  const bool progressive = AITactics::ShortMatchAttackEnabled() &&
+      possessionPlayer->HasUniquePossession() && team->GetHumanGamerCount()==0;
+  const float forward = -team->GetSide();
+  const float offside = progressive ? AI_GetOffsideLine(team->GetMatch(),team->GetMatch()->GetMentalImage(0),abs(team->GetID()-1))*forward : 0.0f;
+  for (const auto& candidate : team->GetAllPlayers()) {'''),
+        ("    const float distance = (candidate->GetPosition() - offenseFocusPos).GetLength();\n    if (distance < closestDistance) {", r'''    float distance = (candidate->GetPosition() - offenseFocusPos).GetLength();
+    if (progressive) {
+      const Vector3 delta=candidate->GetPosition()-possessionPlayer->GetPosition();
+      const float mindset=AI_GetMindSet(candidate->GetDynamicFormationEntry().role);
+      const float margin=offside-candidate->GetPosition().coords[0]*forward;
+      if (!AITactics::EligibleProgressiveRun(mindset,delta.coords[0]*forward,delta.GetLength(),margin)) continue;
+      distance=AITactics::ProgressiveRunCost(distance,mindset,std::abs(delta.coords[1]));
+    }
+    if (distance < closestDistance) {'''),
+        ("    if (possPlayer) {\n      forwardSupportPlayer =\n          AI_GetClosestPlayer(team,", r'''    if (AITactics::ShortMatchAttackEnabled() && possPlayer && possPlayer->HasUniquePossession() &&
+        team->GetHumanGamerCount()==0) {
+      // Choose a second outlet, distinct from the committed runner. Keep centre backs
+      // and holding midfielders in their ordinary support shape.
+      forwardSupportPlayer=nullptr;
+      float best=10000.0f;
+      const float forward=-team->GetSide();
+      const float line=AI_GetOffsideLine(match,match->GetMentalImage(0),abs(team->GetID()-1))*forward;
+      for (const auto& mate:team->GetAllPlayers()) {
+        if(!mate->IsActive() || mate.get()==possPlayer ||
+           (mate.get()==attackingRunPlayer && endApplyAttackingRun_ms>match->GetActualTime_ms())) continue;
+        const Vector3 delta=mate->GetPosition()-possPlayer->GetPosition();
+        const float mindset=AI_GetMindSet(mate->GetDynamicFormationEntry().role);
+        if(!AITactics::EligibleProgressiveRun(mindset,delta.coords[0]*forward,delta.GetLength(),
+             line-mate->GetPosition().coords[0]*forward)) continue;
+        const float cost=std::abs(delta.coords[0]*forward-8.0f)+std::abs(std::abs(delta.coords[1])-9.0f);
+        if(cost<best){best=cost;forwardSupportPlayer=mate.get();}
+      }
+    } else if (possPlayer) {
+      forwardSupportPlayer =
+          AI_GetClosestPlayer(team,'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  float bestTotalRating = 0.0f;\n  MateRating bestMateRating;", r'''  const bool runningPassEnabled=AITactics::ShortMatchAttackEnabled() &&
+      CastPlayer()->HasUniquePossession() && !team->GetHumanGamerCount() &&
+      CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK;
+  const float attackForward=-team->GetSide();
+  const float passOffside=runningPassEnabled ? AI_GetOffsideLine(match,_mentalImage,abs(team->GetID()-1))*attackForward : 0.0f;
+  float bestTotalRating = 0.0f;
+  MateRating bestMateRating;'''),
+        ("      if (progressiveCandidate || supportCandidate) {", r'''      bool runningCandidate=false;
+      float runningOdds=0.0f;
+      if(runningPassEnabled && mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK) {
+        const Vector3 delta=mates.at(i)->GetPosition()-player->GetPosition();
+        const float progress=delta.coords[0]*attackForward;
+        const float distance=delta.GetLength();
+        const float speed=mates.at(i)->GetMovement().coords[0]*attackForward;
+        const float margin=passOffside-mates.at(i)->GetPosition().coords[0]*attackForward;
+        if(AITactics::EligibleRunningPass(progress,distance,speed,margin,1.0f)) {
+          runningOdds=_GetPassingOdds(mates.at(i),e_FunctionType_LongPass,opponentPlayerImages);
+          runningCandidate=AITactics::EligibleRunningPass(progress,distance,speed,margin,runningOdds);
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        // A running pass is the native lead/long pass, not an invented new ball action.
+        // Only prefer it when its existing interception score is competitive.
+        if(runningCandidate && runningOdds>=mateRating.passRating-0.08f){
+          mateRating.passType=e_FunctionType_LongPass;
+          mateRating.passRating=runningOdds;
+          mateRating.supportRating+=0.20f;
+        }
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
     ])
