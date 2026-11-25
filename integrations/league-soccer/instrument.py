@@ -175,7 +175,11 @@ void TribunTrace(Match& match, bool done) {
   previousMatch = matchMs;
   previousPeriod = period;
   havePrevious = true;
-  if (started && !done && now < last + 100) return;
+  // Exact first-clock and phase-boundary frames must not be lost to 100 ms sampling.
+  const auto& fixed=match.GetTribunFixedClock();
+  const bool boundary=AITactics::FixedDurationEnabled() && fixed.started &&
+      (now==fixed.start || now-fixed.start==150000UL);
+  if (started && !done && !boundary && now < last + 100) return;
   started = true;
   last = now;
   finished = done;
@@ -203,6 +207,12 @@ void TribunTrace(Match& match, bool done) {
          << ",\"setPiece\":" << (match.IsInSetPiece() ? "true" : "false")
          << ",\"inPlay\":" << (match.IsInPlay() && !match.IsInSetPiece() ? "true" : "false")
          << ",\"attackDirection\":[" << -match.GetTeam(0)->GetSide() << ',' << -match.GetTeam(1)->GetSide() << ']';
+  if(AITactics::FixedDurationEnabled()){
+    const auto& c=match.GetTribunFixedClock();
+    output << ",\"fixedClock\":{\"started\":" << (c.started?"true":"false")
+           << ",\"startMs\":" << c.start << ",\"elapsedMs\":" << c.Elapsed(now)
+           << ",\"half\":" << (c.half?"true":"false") << ",\"finished\":" << (c.finished?"true":"false") << '}';
+  }
   output << ",\"humanGamers\":[" << match.GetTeam(0)->GetHumanGamerCount() << ',' << match.GetTeam(1)->GetHumanGamerCount() << ']';
   output << ",\"combinations\":[";
   for (int t=0;t<2;++t) {

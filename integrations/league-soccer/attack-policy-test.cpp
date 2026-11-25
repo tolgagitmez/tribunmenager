@@ -107,4 +107,15 @@ int main(){
  assert(!PrioritizeGoodShot(9,.8,.60f,true));
  assert(!PrioritizeReboundShot(9,.8,.60f,.5,.8));
  assert(!PrioritizeReboundShot(9,.8,.4,.7,.7));
+ FixedDurationClock clock;
+ assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
+ clock.Start(3100);clock.Start(5000);
+ assert(clock.start==3100);
+ assert(clock.Nominal(153090)==2699820);
+ assert(clock.HalfDue(153100));clock.half=true;
+ assert(!clock.HalfDue(153110));
+ assert(!clock.FullDue(303090));assert(clock.FullDue(303100));
+ assert(clock.Nominal(303100)==5400000);
+ assert(clock.Elapsed(400000)==300000);
+ clock.finished=true;assert(!clock.FullDue(400000));
 }

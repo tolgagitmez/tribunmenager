@@ -212,6 +212,25 @@ inline bool PrioritizeReboundShot(float distance,float angle,float odds,float co
   // A settled rebound can justify a slightly earlier shot, but only for a skilled finisher.
   return distance>=2.0f && distance<=13.0f && angle>=.60f && odds>=.58f && control>=.65f && skill>=.65f;
 }
+// Fixed-duration pilot: regulation time includes dead balls and halftime.
+inline bool FixedDurationEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_FIXED_DURATION");
+    return value && std::strcmp(value,"1")==0;
+  }();
+  return enabled;
+}
+struct FixedDurationClock {
+  bool started=false,half=false,finished=false;
+  unsigned long start=0;
+  void Start(unsigned long now){if(!started){started=true;start=now;}}
+  unsigned long Elapsed(unsigned long now) const {
+    return started && now>=start?std::min(300000UL,now-start):0UL;
+  }
+  unsigned long Nominal(unsigned long now) const {return Elapsed(now)*18UL;}
+  bool HalfDue(unsigned long now) const {return started&&!half&&Elapsed(now)>=150000UL;}
+  bool FullDue(unsigned long now) const {return started&&!finished&&Elapsed(now)>=300000UL;}
+};
 inline float ShotOddsThreshold() {
   return ShortMatchAttackEnabled() ? 0.50f : 0.55f;
 }
@@ -846,4 +865,83 @@ void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool sh
           (team->GetController()->TribunRecoveredShot(CastPlayer()) &&
            AITactics::PrioritizeReboundShot(distance,angle,odds,
              player->GetStat("technical_ballcontrol"),player->GetStat("technical_shot")))))'''),
+    ])
+
+    # Fixed simulation-tick budget, not a wall-clock or throughput guarantee.
+    # No scale changes, skipped physics ticks or forced score.
+    edit(root, "src/onthepitch/match.hpp", [
+        ('#include "../gamedefines.hpp"', '#include "../gamedefines.hpp"\n#include "aitactics.hpp"\n#include <stdexcept>'),
+        ("  unsigned long GetMatchTime_ms() const { return matchTime_ms; }", r'''  unsigned long GetMatchTime_ms() const { return matchTime_ms; }
+  const AITactics::FixedDurationClock& GetTribunFixedClock() const {return tribunFixedClock;}'''),
+        ("  float matchTimeScale;", "  float matchTimeScale;\n  AITactics::FixedDurationClock tribunFixedClock;"),
+    ])
+    edit(root, "src/onthepitch/referee.hpp", [
+        ("  void Process();", "  void Process();\n  void TribunFixedBoundary(bool fullTime);"),
+    ])
+    edit(root, "src/onthepitch/referee.cpp", [
+        ('#include <algorithm>', '#include <algorithm>\n#include <stdexcept>\n#include "aitactics.hpp"'),
+        ("void Referee::Process() {", r'''void Referee::TribunFixedBoundary(bool fullTime) {
+  // Do not silently erase a penalty or an unresolved disciplinary foul.
+  // Reject this experimental fixture instead of publishing a compromised result.
+  if((buffer.active && buffer.desiredSetPiece==e_SetPiece_Penalty) ||
+      (foul.foulType!=0 && !foul.hasBeenProcessed))
+    throw std::runtime_error("Fixed-duration boundary conflicts with pending foul or penalty");
+  match->StopPlay();
+  match->StopSetPiece();
+  IssuePendingCautions();
+  offsidePlayers.clear();
+  buffer.active=false;
+  buffer.taker=nullptr;
+  foul.foulPlayer=nullptr;
+  foul.foulVictim=nullptr;
+  foul.foulType=0;
+  foul.advantage=false;
+  foul.hasBeenProcessed=true;
+  if(fullTime){
+    // Finish before any subsequent physics tick can modify the score.
+    match->GameOver();
+    return;
+  }
+  // Use the ordinary referee preparation and phase-change pathway.
+  buffer.desiredSetPiece=e_SetPiece_KickOff;
+  buffer.stopTime=match->GetActualTime_ms();
+  buffer.prepareTime=buffer.stopTime+1000;
+  buffer.startTime=buffer.prepareTime+1000;
+  buffer.restartPos=Vector3(0);
+  buffer.teamID=1;
+  buffer.active=true;
+  buffer.endPhase=true;
+  match->SetMatchPhase(e_MatchPhase_2ndHalf);
+}
+
+void Referee::Process() {'''),
+        ("    if (timedPeriod && match->GetAddedMinutes() >= 0 && match->GetMatchTime_ms() > periodEnd_ms &&", "    if (!AITactics::FixedDurationEnabled() && timedPeriod && match->GetAddedMinutes() >= 0 && match->GetMatchTime_ms() > periodEnd_ms &&"),
+    ])
+    edit(root, "src/onthepitch/match.cpp", [
+        ("  // Tell the game page once; the full-time screen used to be re-created", r'''  // Imported CPU league fixtures only. Clock starts on first open-play tick.
+  if (AITactics::FixedDurationEnabled() && !gameOver && !pause) {
+    if (!std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE") || GetTeam(0)->GetHumanGamerCount() ||
+        GetTeam(1)->GetHumanGamerCount() || GetConfiguration()->GetBool("match_extra_time",false))
+      throw std::runtime_error("Fixed-duration requires CPU-only regulation fixture");
+    if (matchPhase==e_MatchPhase_1stHalf && IsInPlay() && !IsInSetPiece())
+      tribunFixedClock.Start(actualTime_ms);
+    if(tribunFixedClock.started){
+      matchTime_ms=tribunFixedClock.Nominal(actualTime_ms);
+      matchTimeExact_ms=static_cast<double>(matchTime_ms);
+      addedMinutes=0;
+      if(tribunFixedClock.HalfDue(actualTime_ms)){
+        referee->TribunFixedBoundary(false);
+        tribunFixedClock.half=true;
+        addedMinutes=0;
+      }
+      if(tribunFixedClock.FullDue(actualTime_ms)){
+        referee->TribunFixedBoundary(true);
+        tribunFixedClock.finished=true;
+        pause=true;
+      }
+    }
+  }
+
+  // Tell the game page once; the full-time screen used to be re-created'''),
+        ("    if (IsInPlay() && !IsInSetPiece()) {\n      matchTimeExact_ms +=", "    if (!AITactics::FixedDurationEnabled() && IsInPlay() && !IsInSetPiece()) {\n      matchTimeExact_ms +="),
     ])

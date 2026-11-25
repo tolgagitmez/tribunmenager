@@ -72,7 +72,7 @@ class Timing:
                     deadBallMs=self.dead_ms,transitionMs=self.transition_ms,gapMs=self.gap_ms,
                     frames=self.frames,withinFiveSeconds=abs(wall-300000)<=5000)
 
-def run(runtime,fixture,out,profile,attack_profile='baseline'):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False):
     name,scale,quick=profile
     if attack_profile not in ("baseline","short-match"):raise ValueError("Unknown attack profile")
     trace=Path(str(out)+"."+name+".ndjson").resolve()
@@ -80,6 +80,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline'):
     env={**os.environ,"TRIBUN_NATIVE_REALTIME":"1","TRIBUN_NATIVE_CLOCK_SCALE":scale,
          "TRIBUN_NATIVE_QUICK_RESTARTS":quick,"TRIBUN_LEAGUE_SOCCER_ATTACK":attack_profile,
          "LP_NUM_THREADS":"2","OMP_NUM_THREADS":"1"}
+    env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     for k in ("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR","TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"):
         env.pop(k,None)
     stats=Timing()

@@ -35,8 +35,14 @@ export TRIBUN_LEAGUE_SOCCER_TRACE="$out"
 cd "$work"
 config="$work/native-match.config"
 limit=420
+if [[ "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_REALTIME:-0}" != 1 ]]; then
+  echo "Fixed duration requires real-time diagnostic mode" >&2; exit 2
+fi
 if [[ "${TRIBUN_NATIVE_REALTIME:-0}" == 1 ]]; then
   scale="${TRIBUN_NATIVE_CLOCK_SCALE:-1.0}"
+  if [[ "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "$scale" != 1.0 ]]; then
+    echo "Fixed duration requires scale 1.0" >&2; exit 2
+  fi
   case "$scale" in 1.0|1.10|1.25|1.5) ;; *) echo "Invalid diagnostic clock scale" >&2; exit 2;; esac
   sed "s/\"menu_smoke_match_time_scale\" \"6.0\"/\"menu_smoke_match_time_scale\" \"$scale\"/" "$config" > "$work/interactive.config"
   config="$work/interactive.config"
