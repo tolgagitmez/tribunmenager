@@ -13,14 +13,19 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fixture adapter unit tests
+        run: node --test integrations/league-soccer/fixture-adapter.test.cjs
       - name: Build pinned upstream and capture full match
         env:
           TRIBUN_INSTALL_NATIVE_DEPS: '1'
           TRIBUN_BUILD_JOBS: '3'
-        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/league-soccer.ndjson"
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/league-soccer.ndjson" --demo
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: league-soccer-native-trace
-          path: ${{ runner.temp }}/league-soccer.ndjson
+          path: ${{ runner.temp }}/league-soccer.ndjson*
           if-no-files-found: ignore

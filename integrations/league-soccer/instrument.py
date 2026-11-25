@@ -43,7 +43,7 @@ void TribunTrace(Match& match, bool done) {
     for (auto* player : players) {
       if (!first) output << ',';
       first = false;
-      output << "{\"id\":" << player->GetID() << ",\"team\":" << team << ",\"position\":";
+      output << "{\"id\":" << player->GetID() << ",\"team\":" << team << ",\"databaseId\":" << player->GetPlayerData()->GetDatabaseID() << ",\"position\":";
       vec(player->GetPosition());
       output << ",\"velocity\":";
       vec(player->GetMovement());
@@ -63,6 +63,8 @@ def replace_once(text, old, new):
     return text.replace(old, new, 1)
 
 def main():
+    from fixture_patch import apply
+    apply(sys.argv[1])
     path = pathlib.Path(sys.argv[1]) / "src/onthepitch/match.cpp"
     text = path.read_text(encoding="utf-8")
     if "void TribunTrace(" in text:
