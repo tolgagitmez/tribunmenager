@@ -79,3 +79,31 @@ test('legacy generated fixtures retain deterministic state with individual AI di
  for(let i=0;i<360;i++){a.step(1/60);b.step(1/60);}
  assert.equal(a.seed,b.seed);assert.deepEqual(a.ball,b.ball);assert.deepEqual(a.events,b.events);assert.deepEqual(a.score,b.score);
 });
+
+
+test('compact attack handoff refreshes a stale generic run when the next carrier advances',()=>{
+ const {m,a,b,c}=fixture();
+ m.cfg.compactAttackHandoff=true;assert.equal(m.duration,300);
+ m.owner=b;m.ball.x=b.x;
+ // Explicit generic plan from the previous ball carrier. The runner is
+ // still active but his old point no longer provides forward depth.
+ const old={ownerTeam:0,epoch:m.attackEpoch[0],zone:0,until:m.time+2.6,sourceId:a.id,sourceDepth:a.x,runner:{id:c.id,point:{x:11,z:-6},score:4}};
+ m.attackPlans[0]=old;
+ const refreshed=m.coordinatedAttack(0,b,25);
+ assert.notEqual(refreshed,old);
+ assert.equal(refreshed.sourceId,b.id);
+ assert.equal(m.telemetry.compactAttackHandoffs,1);
+ assert.equal(m.coordinatedAttack(0,b,25),refreshed);
+ assert.equal(m.telemetry.compactAttackHandoffs,1);
+});
+test('compact attack handoff preserves useful generic run after small lateral pass and leaves long matches unchanged',()=>{
+ const {m,a,b,c}=fixture();m.cfg.compactAttackHandoff=true;
+ b.x=2;m.owner=b;m.ball.x=b.x;
+ const old={ownerTeam:0,epoch:m.attackEpoch[0],zone:0,until:m.time+2.6,sourceId:a.id,sourceDepth:a.x,runner:{id:c.id,point:{x:19,z:-6},score:4}};
+ m.attackPlans[0]=old;assert.equal(m.coordinatedAttack(0,b,25),old);
+ b.x=12;m.ball.x=12;m.duration=900;
+ assert.equal(m.coordinatedAttack(0,b,25),old);
+ m.duration=300;m.cfg.compactAttackHandoff=false;
+ assert.equal(m.coordinatedAttack(0,b,25),old);
+ assert.equal(m.telemetry.compactAttackHandoffs,undefined);
+});
