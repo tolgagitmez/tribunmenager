@@ -22,6 +22,13 @@ trap 'rm -rf "$work"' EXIT
 cp -a --reflink=auto "$runtime/." "$work/"
 node "$here/fixture-adapter.cjs" "$fixture" "$work/fixture.txt"
 cp "$work/fixture.txt.json" "$out.fixture.json"
+# Mid-match activation currently crashes upstream; isolate the experimental diagnostic.
+python3 - "$out.fixture.json" <<'PY'
+import json,os,sys
+with open(sys.argv[1]) as f: manifest=json.load(f)
+if any(t.get("substitutions") for t in manifest["teams"]) and os.environ.get("TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS")!="1":
+    raise SystemExit("Native halftime substitutions quarantined: experimental diagnostic only")
+PY
 export TRIBUN_LEAGUE_SOCCER_FIXTURE="$work/fixture.txt"
 export TRIBUN_LEAGUE_SOCCER_SEED="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["seed"])' "$out.fixture.json")"
 export TRIBUN_LEAGUE_SOCCER_TRACE="$out"

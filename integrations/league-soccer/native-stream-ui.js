@@ -38,7 +38,7 @@
     if(data.frame&&view.ingest(data,performance.now())){
      current=data;advisor.ingest(data);renderAdvice();
      const seconds=Math.ceil(data.remainingMs/1000);
-     $('clock').textContent=data.source==='interactive-native'?'Çalışan C++ motoru · '+Math.floor(data.frame.matchMs/60000)+'′':String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')+' kaldı';
+     $('clock').textContent=data.source==='interactive-native'?'Çalışan C++ motoru · '+Math.floor(data.frame.matchMs/60000)+'′'+(Number.isFinite(data.observedWallMs)?' · Gerçek süre '+Math.floor(data.observedWallMs/1000)+' sn':''):String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')+' kaldı';
      $('score').textContent=(data.homeName||'Ev sahibi')+' '+data.frame.score.join(' – ')+' '+(data.awayName||'Deplasman')+' · '+Math.floor(data.frame.matchMs/60000)+'′';
      const s=data.frame.stats; $('stats').textContent=s?['Şut: '+s.shots.join(' – '),'İsabetli: '+s.onTarget.join(' – '),'Başarılı pas: '+s.completed.join(' – '),'Faul: '+s.fouls.join(' – ')].join('\n'):'';
      $('status').textContent=data.phase==='finished'?'Pilot yayın tamamlandı.':'Ortak sunucu yayını · resmî sonuç değildir.';

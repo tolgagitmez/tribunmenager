@@ -70,6 +70,10 @@ class Session:
         self.sequence=-1
         self.ended=False
         self.last_received=None
+        self.first_open=None
+        self.final_received=None
+        self.first_native_elapsed=None
+        self.final_native_elapsed=None
         self.revisions=[0,0]
         self.last_submit=[-math.inf,-math.inf]
         self.requests=[{},{}]
@@ -85,12 +89,28 @@ class Session:
                 raise ValueError("Invalid native score")
             if self.frame and (frame["elapsedMs"]<self.frame["elapsedMs"] or any(x<y for x,y in zip(score,self.frame["score"]))):
                 raise ValueError("Regressing native frame")
+            observed=self.clock()
+            if self.first_open is None and frame.get("inPlay") is True and frame["matchMs"]<2700000 and not frame["done"]:
+                self.first_open=observed
+                self.first_native_elapsed=frame["elapsedMs"]
             if frame["done"]:
                 self.ended=True
+                self.final_received=observed
+                self.final_native_elapsed=frame["elapsedMs"]
                 return
             self.frame=frame
             self.sequence+=1
             self.last_received=self.clock()
+    def close(self):
+        with self.lock:self.ended=True
+    def timing(self):
+        with self.lock:
+            if self.first_open is None or self.final_received is None:
+                return {"targetMs":300000,"observedWallMs":None,"withinFiveSeconds":False}
+            observed=round((self.final_received-self.first_open)*1000)
+            return {"targetMs":300000,"observedWallMs":observed,
+                    "nativeElapsedMs":self.final_native_elapsed-self.first_native_elapsed,
+                    "deviationMs":observed-300000,"withinFiveSeconds":abs(observed-300000)<=5000}
     def read(self,side):
         with self.lock:
             frame=self.frame
@@ -100,7 +120,8 @@ class Session:
             return dict(engine="league-soccer",authoritative=False,source="interactive-native",
                 state="running",phase="playing" if frame else "waiting",frame=frame,sequence=self.sequence,
                 side=side,canControl=can,submittedRevision=self.revisions[side],
-                appliedRevision=ack.get("revision",0),finalizing=self.ended,**self.meta)
+                appliedRevision=ack.get("revision",0),finalizing=self.ended,
+                observedWallMs=None if self.first_open is None else max(0,round(((self.final_received if self.final_received is not None else self.clock())-self.first_open)*1000)),**self.meta)
     def command(self,side,ident,values):
         if type(side) is not int or side not in (0,1):raise ControlError("Takım yetkisi yok.",403)
         with self.lock:

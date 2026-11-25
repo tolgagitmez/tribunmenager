@@ -47,6 +47,12 @@ def digest(config):
 def enabled():
     return os.environ.get("TRIBUN_NATIVE_SHADOW") == "1"
 
+def worker_count(raw=None):
+    raw=os.environ.get("TRIBUN_NATIVE_WORKERS","1") if raw is None else raw
+    if raw not in ("1","2","3"):
+        raise ValueError("TRIBUN_NATIVE_WORKERS must be 1, 2 or 3")
+    return int(raw)
+
 def enqueue(db, key, config):
     if not enabled():
         return
@@ -101,6 +107,9 @@ def execute_native(config, profile, stop=None, interactive_key=None):
         # A trusted local command mailbox must not leak into frozen league shadow jobs.
         env.pop("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR", None)
         env.pop("TRIBUN_NATIVE_REALTIME",None)
+        env.pop("TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS",None)
+        env.setdefault("LP_NUM_THREADS","2")
+        env.setdefault("OMP_NUM_THREADS","1")
         tail=None
         if interactive_key is not None:
             directory=root/"commands"
@@ -110,14 +119,21 @@ def execute_native(config, profile, stop=None, interactive_key=None):
             tail=native_live.Tail(trace,session)
             env["TRIBUN_LEAGUE_SOCCER_COMMAND_DIR"]=str(directory)
             env["TRIBUN_NATIVE_REALTIME"]="1"
+        resource_file=root/"resources.json"
+        command=["bash",str(INTEGRATION/"run-frozen.sh"),runtime,str(config_path),str(trace)]
+        # GNU time: peak single-process RSS, not aggregate memory.
+        if Path("/usr/bin/time").is_file():
+            command=["/usr/bin/time","-o",str(resource_file),"-f",'{"userSeconds":%U,"systemSeconds":%S,"maxRssKiB":%M,"elapsedSeconds":%e}',*command]
+        launch=time.monotonic()
         with (root / "native.log").open("wb") as log:
-            process = subprocess.Popen(["bash", str(INTEGRATION / "run-frozen.sh"), runtime,
-                str(config_path), str(trace)], env=env, stdout=log, stderr=subprocess.STDOUT,
+            process = subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT,
                 start_new_session=True)
             deadline = time.monotonic() + 900
             try:
                 while process.poll() is None:
                     if tail:tail.drain()
+                    if trace.exists() and trace.stat().st_size>MAX_TRACE:
+                        raise RuntimeError("Native trace exceeded size budget")
                     if stop is not None and stop.wait(.2):
                         raise RuntimeError("Native worker stopped")
                     if stop is None:
@@ -128,9 +144,11 @@ def execute_native(config, profile, stop=None, interactive_key=None):
                 if process.returncode:
                     raise RuntimeError("Native worker failed validation or execution")
             finally:
+                if tail:session.close()
                 if process.poll() is None:
                     os.killpg(process.pid, signal.SIGKILL)
                     process.wait()
+        elapsed=round((time.monotonic()-launch)*1000)
         if not 0 < trace.stat().st_size <= MAX_TRACE:
             raise RuntimeError("Native trace size invalid")
         raw = trace.read_bytes()
@@ -141,6 +159,14 @@ def execute_native(config, profile, stop=None, interactive_key=None):
         if season.get("authoritative") is not False or season.get("score") != report.get("score"):
             raise RuntimeError("Native season candidate invalid")
         report["seasonCandidate"] = season
+        report["runtimeMetrics"]={"processWallMs":elapsed,"traceBytes":len(raw),"interactiveTiming":session.timing() if tail else None}
+        if resource_file.is_file():
+            try:
+                metrics=json.loads(resource_file.read_text())
+                if all(type(v) in (float,int) and math.isfinite(v) and v>=0 for v in metrics.values()):
+                    report["runtimeMetrics"]["resources"]=metrics
+            except (ValueError,OSError,AttributeError):
+                pass
         return raw, report
 
 def validate_result(raw, report):

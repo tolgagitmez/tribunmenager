@@ -16,6 +16,13 @@ python3 "$here/instrument.py" "$work/source"
 if [[ $# -ge 2 ]]; then
   node "$here/fixture-adapter.cjs" "$2" "$work/fixture.txt"
   cp "$work/fixture.txt.json" "$out.fixture.json"
+# Mid-match activation currently crashes upstream; isolate the experimental diagnostic.
+python3 - "$out.fixture.json" <<'PY'
+import json,os,sys
+with open(sys.argv[1]) as f: manifest=json.load(f)
+if any(t.get("substitutions") for t in manifest["teams"]) and os.environ.get("TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS")!="1":
+    raise SystemExit("Native halftime substitutions quarantined: experimental diagnostic only")
+PY
   export TRIBUN_LEAGUE_SOCCER_FIXTURE="$work/fixture.txt"
   export TRIBUN_LEAGUE_SOCCER_SEED="${TRIBUN_LEAGUE_SOCCER_SEED:-$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["seed"])' "$out.fixture.json")}"
 fi

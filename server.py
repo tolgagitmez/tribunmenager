@@ -490,10 +490,16 @@ def run(host='127.0.0.1', port=None, *, with_transfers=True):
             except Exception as e:
                 print('native scheduler:',repr(e),flush=True)
                 stop.wait(1)
-    shadow_thread=None
+    shadow_threads=[]
     if native_shadow.enabled():
-        shadow_thread=threading.Thread(target=native_worker,daemon=True)
-        shadow_thread.start()
+        try:count=native_shadow.worker_count()
+        except ValueError as exc:
+            print("Native pilot disabled:",str(exc),flush=True)
+            count=0
+        for index in range(count):
+            thread=threading.Thread(target=native_worker,name=f"native-pilot-{index}",daemon=True)
+            thread.start()
+            shadow_threads.append(thread)
     threading.Thread(target=worker,daemon=True).start()
     ticker=threading.Thread(target=live_worker,daemon=True)
     ticker.start()
@@ -505,6 +511,6 @@ def run(host='127.0.0.1', port=None, *, with_transfers=True):
     finally:
         stop.set()
         ticker.join()
-        if shadow_thread is not None:shadow_thread.join(timeout=5)
+        for thread in shadow_threads:thread.join(timeout=5)
         LIVE_MATCHES.close()
 if __name__=='__main__':run()

@@ -66,7 +66,8 @@ bool TribunApplyFormation(Team* target, int formation) {
     auto entry=field[n]->GetFormationEntry();
     const auto& s=slots[assignment[n]];
     entry.role=s.role;
-    entry.position=entry.databasePosition=Vector3(s.x/52.5f,s.y/34.0f,0);
+    entry.databasePosition=Vector3(s.x/52.5f,s.y/34.0f,0);
+    entry.position=entry.databasePosition;
     target->SetFormationEntry(field[n]->GetID(),entry);
     field[n]->SetDynamicFormationEntry(entry);
   }
