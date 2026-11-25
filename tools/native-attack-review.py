@@ -15,11 +15,12 @@ FIELDS=("shots","onTarget","goals","controlledBox","finalThirdMs",
 def integer(v):
     return type(v) is int and v>=0
 
-def read_rows(report,profile):
+def read_rows(report,profile,scenarios=None):
+    scenarios=SCENARIOS if scenarios is None else scenarios
     if not isinstance(report,dict) or report.get("authoritative") is not False:
         raise ValueError("Expected non-authoritative experiment report")
     rows=report.get("rows")
-    if not isinstance(rows,list) or not rows or len(rows)>len(SCENARIOS):
+    if not isinstance(rows,list) or not rows or len(rows)>len(scenarios):
         raise ValueError("Missing or invalid pairs")
     if type(report.get("pairCount")) is not int or report["pairCount"]!=len(rows):
         raise ValueError("Pair count mismatch")
@@ -27,7 +28,7 @@ def read_rows(report,profile):
     for row in rows:
         if not isinstance(row,dict):raise ValueError("Malformed paired row")
         scenario=row.get("scenario")
-        if scenario not in SCENARIOS or scenario in seen or row.get("seed")!=SCENARIOS[scenario]:
+        if scenario not in scenarios or scenario in seen or row.get("seed")!=scenarios[scenario]:
             raise ValueError("Unexpected or duplicate scenario/seed")
         seen.add(scenario)
         for side in ("control",profile):
@@ -58,8 +59,9 @@ def recovery(rows,side):
             "rate":same/total if total else None,
             "resolvedFraction":total/(total+unresolved) if total+unresolved else None}
 
-def assess(report,profile):
-    rows,seen=read_rows(report,profile)
+def assess(report,profile,scenarios=None):
+    scenarios=SCENARIOS if scenarios is None else scenarios
+    rows,seen=read_rows(report,profile,scenarios)
     fields=FIELDS+(("twoBoxAttackersMs",) if profile=="boxRuns" else ())
     avg={s:{k:mean(r[s][k] for r in rows) for k in fields} for s in ("control",profile)}
     delta={k:avg[profile][k]-avg["control"][k] for k in fields}
@@ -69,7 +71,7 @@ def assess(report,profile):
     resolved_delta=None if a["resolvedFraction"] is None or b["resolvedFraction"] is None else b["resolvedFraction"]-a["resolvedFraction"]
     # Conservative provisional screening, not a significance test. No invented xG.
     checks={
-      "threeDistinctPairs":seen==set(SCENARIOS),
+      "threeDistinctPairs":len(seen)>=3 and seen==set(scenarios),
       "shotVolumeNotLower":delta["shots"]>=0,
       "onTargetNotLower":delta["onTarget"]>=0,
       "controlledEntriesNotLower":delta["controlledBox"]>=0,
