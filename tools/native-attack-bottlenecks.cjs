@@ -26,6 +26,29 @@ function windowAt(f,p){
   });
  });
 }
+// Distinguish a normal pass flight from a likely loss of team control.
+// Bounded forward observation, never label an unresolved ball as a turnover.
+function controlTransitions(frames){
+ const owners=frames.map(owner);
+ const counters=()=>({sameTeam:0,opponent:0,unresolved:0,stoppage:0,gap:0,passObserved:0,shotObserved:0});
+ const result=[counters(),counters()];
+ for(let i=1;i<frames.length;i++){
+  const a=frames[i-1],b=frames[i],p=owners[i-1],dt=b.elapsedMs-a.elapsedMs;
+  if(!p||owners[i]||!a.inPlay||!b.inPlay||a.attackDirection[0]!==b.attackDirection[0]||dt<=0||dt>250||!third(a,p.team))continue;
+  const t=p.team,r=result[t];let outcome='unresolved',pass=false,shot=false;
+  for(let j=i;j<frames.length;j++){
+   const f=frames[j],prev=frames[j-1];
+   if(f.elapsedMs-b.elapsedMs>1500)break;
+   if(f.elapsedMs-prev.elapsedMs>250||f.attackDirection[0]!==a.attackDirection[0]){outcome='gap';break;}
+   pass ||= f.stats.passes[t]>a.stats.passes[t];
+   shot ||= f.stats.shots[t]>a.stats.shots[t];
+   if(!f.inPlay||f.done){outcome='stoppage';break;}
+   if(owners[j]){outcome=owners[j].team===t?'sameTeam':'opponent';break;}
+  }
+  r[outcome]++;r.passObserved+=Number(pass);r.shotObserved+=Number(shot);
+ }
+ return result;
+}
 function analyze(frames){
  if(!Array.isArray(frames)||frames.length<2||!frames.at(-1).done||frames.at(-1).matchMs<5400000)throw Error('Full native trace required');
  if(!frames.every(f=>typeof f.inPlay==='boolean'&&Array.isArray(f.attackDirection)&&f.attackDirection.length===2&&[1,-1].includes(f.attackDirection[0])&&f.attackDirection[1]===-f.attackDirection[0]&&f.players.every(p=>typeof p.uniquePossession==='boolean'&&typeof p.goalkeeper==='boolean')&&f.stats?.shots?.length===2&&f.stats.shots.every(x=>Number.isSafeInteger(x)&&x>=0)))throw Error('Incomplete possession or shot telemetry');
@@ -83,7 +106,9 @@ function analyze(frames){
   r.details.sort((a,b)=>b.windowMs-a.windowMs||b.controlledMs-a.controlledMs);
   r.details=r.details.slice(0,50);
  }
- return {schema:1,engine:'league-soccer',authoritative:false,observedOpenMs,excludedGapMs,teams,
+ const passTelemetry=frames.every(f=>Array.isArray(f.stats?.passes)&&f.stats.passes.length===2&&f.stats.passes.every(x=>Number.isSafeInteger(x)&&x>=0));
+ if(passTelemetry)for(let i=1;i<frames.length;i++)for(let t=0;t<2;t++)if(frames[i].stats.passes[t]<frames[i-1].stats.passes[t])throw Error('Regressing pass counters');
+ return {schema:1,engine:'league-soccer',authoritative:false,observedOpenMs,excludedGapMs,teams,controlTransitions:passTelemetry?controlTransitions(frames):null,
  note:'Sampled episodes split immediately on lost unique control, retreat, stoppage or gap. Shot counts are actual cumulative deltas, not inferred player actions. Geometric windows are screening proxies, not proof of a missed shot or causal attribution.'};
 }
 if(require.main===module){

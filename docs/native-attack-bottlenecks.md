@@ -1,3 +1,15 @@
 # Native attacking bottlenecks — pilot 32
 Completed paired experiment [run 45717721974](https://github.com/tolgagitmez/tribunmenager/actions/runs/45717721974), one seed only: baseline vs short-match shots 2/2, on target 0/1, goals 0/1, controlled box entries 1/2, controlled final third 51.0/30.1 s, completed passes 59/67. Wide control declined 20.8 to 4.6 s and control with two box attackers declined 12.1 to 4.7 s. These observations suggest an entry/retention problem; do not infer causality from one pair. No native tuning changed while fixed-clock multi-match tests are running.
 Run `node tools/native-attack-bottlenecks.cjs trace.ndjson report.json` on each validated artifact. It separates observed controlled final-third episodes, box episodes, retreat/loss/stoppage and actual shot counter changes, including outside-episode shots. It also screens for low-ball close-range geometric windows with outfield clearance; these are conservative proxies, not native shot odds or missed chances. Episode details include timestamps for replay inspection. Gaps are excluded; missing telemetry is rejected. Unit test: `node --test tools/native-attack-bottlenecks.test.cjs`. Tool-only change intentionally leaves the current engine fingerprint unchanged and does not claim new simulation results.
+
+## Pilot 33 — actual trace inspection
+Downloaded workflow artifacts 15071816560 (run 45717721974) and 15072916984 (run 45721212697). All four complete native traces were inspected locally, using the same sampled episode/window definitions and a 1500 ms bounded control-recovery lookahead. Combined team totals:
+
+| Recording | Shots | Geometric window episodes >=200 ms | Such episodes without observed shot | Loose final-third transitions | Same-team control within window | Opposing control | Unresolved | Stoppage |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Original baseline | 2 | 0 | 0 | 38 | 25 | 7 | 5 | 1 |
+| Original short-match | 2 | 0 | 0 | 31 | 15 | 12 | 2 | 2 |
+| Fixed clock | 5 | 4 | 3 | 42 | 30 | 7 | 2 | 3 |
+| Fixed clock with commands/reserves | 7 | 1 | 1 | 56 | 38 | 5 | 9 | 4 |
+
+These are different experiments and not a controlled comparison across clock versions. Loss of unique control often represents an ordinary pass; the new lookahead distinguishes same-team reacquisition, opposing reacquisition, stoppage, gaps and unresolved intervals. Pass/shot counter changes during that interval are observed separately, not linked to specific actors. The original short-match pair shows reduced same-team reacquisition and increased opposition reacquisition in the final third, with no sustained geometric shot window. The fixed-clock fixtures show more shots but only 5 and 7 respectively. No causal conclusion or release claim. The fixed-clock run measured 300436 ms wall time; the combined live command/reserve run 309718 ms, both exact 300000 ms native. Both substitutions and all three command acknowledgements verified. No motor tuning or fingerprint changes while multi-match diagnostics are still running.

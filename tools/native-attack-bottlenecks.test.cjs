@@ -28,3 +28,18 @@ test('mirrored direction, defender blocking and missing telemetry',()=>{
  delete f.players[0].uniquePossession;
  assert.throws(()=>analyze([f,frame(1,{done:true})]),/Incomplete/);
 });
+
+test('loose control separates recovered passes, opposition control and unresolved intervals',()=>{
+ const f=[frame(0),frame(1,{owner:null}),frame(2),frame(3,{owner:null}),frame(4,{owner:1}),frame(5),frame(6,{owner:null}),frame(22,{owner:null}),frame(23,{done:true,inPlay:false,owner:null})];
+ for(let i=0;i<f.length;i++)f[i].stats.passes=[i>=1?1:0,0];
+ const r=analyze(f).controlTransitions[0];
+ assert.equal(r.sameTeam,1);assert.equal(r.opponent,1);assert.equal(r.unresolved,1);assert.equal(r.passObserved,1);
+ delete f[0].stats.passes;
+ assert.equal(analyze(f).controlTransitions,null);
+});
+test('stoppage and telemetry gap are not counted as turnovers',()=>{
+ const f=[frame(0),frame(1,{owner:null}),frame(2,{inPlay:false,owner:null}),frame(3),frame(4,{owner:null}),frame(10,{owner:1}),frame(11,{done:true,inPlay:false})];
+ for(const a of f)a.stats.passes=[0,0];
+ const r=analyze(f).controlTransitions[0];
+ assert.equal(r.stoppage,1);assert.equal(r.gap,1);assert.equal(r.opponent,0);
+});
