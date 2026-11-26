@@ -44,6 +44,16 @@ class EntrypointTest(unittest.TestCase):
             with self.assertRaises(ValueError):start.native_command(a,'win32')
         a.host='0.0.0.0'
         with self.assertRaises(ValueError):start.native_command(a,'linux')
+    def test_explicit_attack_profile(self):
+        a=self.args()
+        self.assertNotIn('--attack-profile',start.native_command(a,'linux'))
+        a.native_attack_profile='lanes'
+        self.assertEqual(start.native_command(a,'linux')[-2:],['--attack-profile','lanes'])
+        a.native_attack_profile='coordinated'
+        self.assertEqual(start.native_command(a,'linux')[-2:],['--attack-profile','coordinated'])
+        with self.assertRaises(ValueError):start.native_command(a,'win32')
+        a.native_prepare_only=True
+        with self.assertRaises(ValueError):start.native_command(a,'linux')
     def test_default_never_falls_back(self):
         with patch('start.native_command',side_effect=ValueError('not ready')),patch('start.ThreadingHTTPServer') as old:
             self.assertEqual(start.main([]),2);old.assert_not_called()

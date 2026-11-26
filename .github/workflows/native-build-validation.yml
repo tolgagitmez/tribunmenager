@@ -1,7 +1,7 @@
-name: Stage 198 native build and match evidence checkpoints
+name: Stage 200 explicit native attack profile comparison
 on:
   pull_request:
-    branches: [experiment/native-integration-validation-stage190]
+    branches: [experiment/native-verification-stage198]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
@@ -23,6 +23,9 @@ jobs:
           python3 -m py_compile integrations/league-soccer/native_gpu_display.py integrations/league-soccer/native-video-pilot.py integrations/league-soccer/native_av_queue.py
           python3 -m unittest discover -s tests -p test_native_wsl_gpu.py
           python3 -m unittest discover -s tests -p test_native_alpha.py
+          python3 -m unittest discover -s tests -p test_native_attack_profile.py
+          python3 -m unittest discover -s tests -p test_native_attack_intensity.py
+          python3 -m unittest discover -s tests -p test_native_compare_194.py
           bash -n BASLAT_NATIVE_ALFA.sh
           python3 -m unittest discover -s tests -p test_native_duel_av.py
           python3 -m unittest discover -s tests -p test_native_controlled_carry_av.py
@@ -97,11 +100,8 @@ jobs:
           bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo 2>&1 | tee "$RUNNER_TEMP/native-build.log"
       - name: Baseline private match
         id: baseline
-        env:
-          TRIBUN_AV_OFFBALL_LANES: '1'
-          TRIBUN_AV_COORDINATED_RUNS: '0'
         run: |
-          bash BASLAT.sh --native-runtime "$RUNNER_TEMP/render-runtime" --native-session-root "$RUNNER_TEMP/alpha-state" --port 18765 --native-delay 30
+          bash BASLAT.sh --native-attack-profile lanes --native-runtime "$RUNNER_TEMP/render-runtime" --native-session-root "$RUNNER_TEMP/alpha-state" --port 18765 --native-delay 30
       - name: Preserve baseline match evidence immediately
         if: always() && steps.baseline.outcome != 'skipped' && steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
@@ -116,11 +116,8 @@ jobs:
       - name: Experimental private match
         id: experimental
         if: always() && steps.build.outcome == 'success'
-        env:
-          TRIBUN_AV_OFFBALL_LANES: '1'
-          TRIBUN_AV_COORDINATED_RUNS: '1'
         run: |
-          bash BASLAT.sh --native-runtime "$RUNNER_TEMP/render-runtime" --native-session-root "$RUNNER_TEMP/coordinated-state" --port 18766 --native-delay 30
+          bash BASLAT.sh --native-attack-profile coordinated --native-runtime "$RUNNER_TEMP/render-runtime" --native-session-root "$RUNNER_TEMP/coordinated-state" --port 18766 --native-delay 30
       - name: Preserve experimental match evidence immediately
         if: always() && steps.experimental.outcome != 'skipped' && steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
