@@ -9,7 +9,7 @@ async function req(path,body){
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
  try{
   let response;
-  try{response=await fetch(path,{...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),signal:controller.signal});}
+  try{response=await fetch(path,{...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{headers:token?{'Authorization':'Bearer '+token}:{}}),signal:controller.signal});}
   catch{throw Error('Oyun sunucusuna ulaşılamadı. Sunucuyu başlatıp bağlantını kontrol ederek yeniden dene.');}
   let result;try{result=await response.json();}catch{throw Error('Lig hizmeti yanıt vermiyor. Oyunu yerel oyun sunucusu üzerinden aç.');}
   if(!response.ok)throw Error(result.error||'İşlem tamamlanamadı. Biraz sonra yeniden dene.');
@@ -42,10 +42,11 @@ function timer(){
  const active=data.active?.some(f=>f.round===match?.round&&f.home===match.home&&f.away===match.away);
  const canWatch=match?.home_score===null&&now>=match.kickoff&&(now<match.kickoff+300||active);
  const watch=$('watchLive');
+ const nativeOnly=data.matchBackend==='native-only';
  watch.hidden=!canWatch;
- if(canWatch)watch.href='match.html?live='+encodeURIComponent(match.round);
- const native=$('watchNative');if(native){native.hidden=!match||now<match.kickoff;if(match)native.href='native-match.html?round='+encodeURIComponent(match.round);}
- if(canWatch){$('countdown').textContent='CANLI';$('matchInfo').textContent='Maç başladı. İzlerken kendi takımının vuruşlarını kullanabilirsin.';}
+ if(canWatch){watch.href=(nativeOnly?'native-league-live.html?round=':'match.html?live=')+encodeURIComponent(match.round);watch.textContent=nativeOnly?'Orijinal motor yayını':'Canlı maçı izle';}
+ const native=$('watchNative');if(native){native.hidden=nativeOnly||!match||now<match.kickoff;if(match)native.href='native-match.html?round='+encodeURIComponent(match.round);}
+ if(canWatch){$('countdown').textContent='CANLI';$('matchInfo').textContent=nativeOnly?'Native deneme ligi · yerel yayın ve motor taktikleri.':'Maç başladı. İzlerken kendi takımının vuruşlarını kullanabilirsin.';}
  else if(data.active?.length){$('countdown').textContent='MAÇ GÜNÜ';$('matchInfo').textContent='Günlük maçların sonuçları tamamlandıkça lig tablosuna işlenir.';}
  else if(next){const seconds=Math.max(0,Math.ceil(next-now)),days=Math.floor(seconds/86400);$('countdown').textContent=`${days?days+'g ':''}${String(Math.floor(seconds%86400/3600)).padStart(2,'0')}:${String(Math.floor(seconds%3600/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;$('matchInfo').textContent=`Sıradaki maç günü: ${data.day}/10 · ${new Date(next*1000).toLocaleString('tr-TR')}`;}
  else{$('countdown').textContent='SEZON TAMAMLANDI';$('matchInfo').textContent='10. maç gününün sonuçlarını tabloda inceleyebilirsin.';}
@@ -70,7 +71,7 @@ function render(){
 async function refresh(){
  if(!token||refreshing)return false;
  refreshing=true;busy($('refreshBtn'),true);
- try{data=await req('/api/league/status?token='+encodeURIComponent(token));serverOffset=data.server_time-Date.now()/1000;message('');render();return true;}
+ try{data=await req('/api/league/status');serverOffset=data.server_time-Date.now()/1000;message('');render();return true;}
  catch(e){if(e.message.includes('menajer anahtarı')){storage.remove(key);token=null;data=null;$('lobby').hidden=false;$('status').hidden=true;}message(e.message);return false;}
  finally{refreshing=false;busy($('refreshBtn'),false);}
 }

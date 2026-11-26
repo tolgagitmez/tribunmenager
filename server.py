@@ -18,6 +18,7 @@ import native_league_mode as mode
 import native_shadow
 import native_live
 import native_av_gateway
+import native_private_media
 import importlib.util
 _av_spec=importlib.util.spec_from_file_location('native_av_queue',Path(__file__).resolve().parent/'integrations/league-soccer/native_av_queue.py')
 native_av_queue=importlib.util.module_from_spec(_av_spec)
@@ -376,8 +377,27 @@ class Handler(SimpleHTTPRequestHandler):
             return self.json_response(native_av_gateway.forward(root,attempt,side,round_number,body),202 if body is not None else 200)
         except (native_av_gateway.GatewayError,native_live.ControlError) as e:return self.json_response({'error':str(e)},e.status)
         except (sqlite3.Error,OSError,ValueError,TypeError):return self.json_response({'error':'Native AV erişimi kullanılamıyor.'},503)
+    def native_private_media_access(self,round_number,name):
+        root=os.environ.get('TRIBUN_NATIVE_AV_GATEWAY_ROOT')
+        if not native_private_media.local_allowed(self) or not root or Path(root).resolve().is_relative_to(ROOT.resolve()):
+            return self.json_response({'error':'Özel yerel yayın kapalı.'},403)
+        try:
+            with LOCK,closing(db()) as c:
+                attempt,side=native_private_media.authorize(c,self.transfer_token(),round_number,time.time())
+            if name=='status.json':
+                return self.json_response({'audioRequested':True,'managerSide':side,'authoritative':False,'engine':'league-soccer'})
+            mime,data=native_private_media.media_file(root,attempt,name)
+            self.send_response(200);self.send_header('Content-Type',mime);self.send_header('Content-Length',str(len(data)))
+            self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff')
+            self.send_header('Cross-Origin-Resource-Policy','same-origin');self.end_headers();self.wfile.write(data)
+        except native_av_gateway.GatewayError as e:return self.json_response({'error':str(e)},e.status)
+        except (OSError,sqlite3.Error,ValueError):return self.json_response({'error':'Yayın kullanılamıyor.'},503)
     def do_GET(self):
         p=urlsplit(self.path)
+        if p.path=='/api/league/native-av/media':
+            query=parse_qs(p.query)
+            v=query.get('round',[''])[0];name=query.get('file',[''])[0]
+            return self.native_private_media_access(int(v) if len(v)==1 and v in '0123456789' else None,name)
         if p.path=='/api/league/native-av/tactics':
             v=parse_qs(p.query).get('round',[''])[0]
             return self.native_av_access(int(v) if len(v)==1 and v in '0123456789' else None)
@@ -387,7 +407,7 @@ class Handler(SimpleHTTPRequestHandler):
             except EconomyError as e:return self.json_response({'error':str(e)},403)
         if p.path=='/api/health':return self.json_response({'ok':True,'mode':'development' if TRANSFERS_ENABLED else 'league','daily_match_seconds':300,'dailyLeague':True,'transfers':TRANSFERS_ENABLED})
         if p.path=='/api/league/status':
-            try:return self.json_response(status(parse_qs(p.query).get('token',[''])[0]))
+            try:return self.json_response(status(self.transfer_token() or parse_qs(p.query).get('token',[''])[0]))
             except LiveMatchError as e:return self.json_response({'error':str(e)},e.status)
             except ValueError as e:return self.json_response({'error':str(e)},403)
         if p.path=='/api/league/local-match':

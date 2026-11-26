@@ -35,6 +35,8 @@
   return {start:false,seek:null};
  }
  if(typeof module!=='undefined'&&module.exports){module.exports={playlist,codec,bufferDecision};return;}
+ const leagueTransport=root.TRIBUN_LEAGUE_AV;
+ const request=(name,options)=>leagueTransport?leagueTransport.request(name,options):fetch(name,options);
  const v=document.querySelector('#video'),button=document.querySelector('#start'),status=document.querySelector('#status'),sound=document.querySelector('#sound');
  let audioRequested=false;
  sound.addEventListener('click',()=>{if(audioRequested){v.muted=!v.muted;sound.textContent=v.muted?'Sesi aç':'Sesi kapat';}});
@@ -52,7 +54,7 @@
  v.addEventListener('error',()=>{if(running&&v.error){phase('error');diagnostic.playError='Media decode error '+v.error.code;}});
  async function get(name,binary=false){
   const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),8000);
-  try{const r=await fetch(name,{cache:'no-store',signal:ac.signal});if(!r.ok)throw Error('HTTP '+r.status);return await (binary?r.arrayBuffer():r.text());}finally{clearTimeout(timer);}
+  try{const r=await request(name,{cache:'no-store',signal:ac.signal});if(!r.ok)throw Error('HTTP '+r.status);return await (binary?r.arrayBuffer():r.text());}finally{clearTimeout(timer);}
  }
  async function waitPlaylist(){
   for(let i=0;i<240;i++){
@@ -75,10 +77,10 @@
    v.muted=true;sound.textContent=audioRequested?'Sesi aç':'Ses bu pilotta kapalı';
    const init=await get('init.mp4',true),mime=codec(init,audioRequested);diagnostic.mime=mime;
    const mse=!!root.MediaSource&&MediaSource.isTypeSupported(mime);
-   if(!mse&&v.canPlayType('application/vnd.apple.mpegurl')){
+   if(!mse&&!leagueTransport&&v.canPlayType('application/vnd.apple.mpegurl')){
     phase('native-hls');v.src='live.m3u8';await v.play();status.textContent='Native HLS oynatılıyor.';return;
    }
-   if(!mse)throw Error('Tarayıcı kodlayıcıyı desteklemiyor: '+mime);
+   if(!mse)throw Error(leagueTransport?'Bu özel yayın için MSE destekli tarayıcı gerekli.':'Tarayıcı kodlayıcıyı desteklemiyor: '+mime);
    phase('opening-mse');const ms=new MediaSource();objectUrl=URL.createObjectURL(ms);
    const opened=event(ms,'sourceopen');v.src=objectUrl;await opened;
    const sb=ms.addSourceBuffer(mime);
@@ -174,10 +176,10 @@
   if(!pendingRequest||pendingRequest.key!==key)pendingRequest={key,id:crypto.randomUUID(),revision:controlState.submittedRevision+1};
   submitting=true;send.disabled=true;commandStatus.textContent='Motora gönderiliyor…';
   try{
-   const response=await fetch('tactics.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({round:0,requestId:pendingRequest.id,tactics})});
+   const response=await request('tactics.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({round:leagueTransport?leagueTransport.round:0,requestId:pendingRequest.id,tactics})});
    const result=await response.json();
    if(!response.ok){if(response.status===400||response.status===403)pendingRequest=null;throw Error(result.error||'Komut reddedildi.');}
-   if(result.team!==managerSide||result.state!=='submitted-not-applied')throw Error('Geçersiz motor cevabı.');
+   if((!leagueTransport&&result.team!==managerSide)||result.state!=='submitted-not-applied')throw Error('Geçersiz motor cevabı.');
    pendingRequest.revision=result.revision;commandStatus.textContent='Gönderildi · motor onayı bekleniyor.';
   }catch(e){commandStatus.textContent=e.message;}
   finally{submitting=false;await controlPoll();}

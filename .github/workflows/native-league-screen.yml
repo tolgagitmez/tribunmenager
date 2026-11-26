@@ -1,0 +1,21 @@
+name: Stage 149 private native league screen
+on:
+  push:
+    branches: [experiment/native-league-screen-stage149]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_private_media.py
+          python3 -m unittest discover -s tests -p test_native_only_league.py
+          python3 -m unittest discover -s tests -p test_native_av_gateway.py
+          node --test tests/native-league-transport.test.cjs integrations/league-soccer/native-live-video.test.cjs
+          node --check league.js
+          python3 -m py_compile server.py native_private_media.py
