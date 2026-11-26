@@ -74,6 +74,7 @@ FILES=(
  "integrations/league-soccer/motion-matching-audit.cjs","integrations/league-soccer/motion-identity-audit.cjs",
  "integrations/league-soccer/anatomy-audit.cjs","integrations/league-soccer/collective-ai-benchmark.py",
  "integrations/league-soccer/match-pace-benchmark.py","integrations/league-soccer/release-quality.py","integrations/league-soccer/combined-ai-benchmark.py","tests/test_native_combined_ai.py",".github/workflows/native-combined-ai.yml",
+ "integrations/league-soccer/combined-capacity.py","tests/test_native_combined_capacity.py",".github/workflows/native-combined-capacity.yml",
  ".github/workflows/native-release-quality.yml","tests/test_native_release_quality.py",
 )
 def sha(path):
