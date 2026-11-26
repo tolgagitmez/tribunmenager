@@ -483,4 +483,17 @@ int main(){
  assert(clock.Nominal(303100)==5400000);
  assert(clock.Elapsed(400000)==300000);
  clock.finished=true;assert(!clock.FullDue(400000));
+ FixedDurationClock longClock(true);
+ assert(longClock.durationMs==1800000UL);
+ assert(!longClock.HalfDue(999999));
+ longClock.Start(3100);longClock.Start(5000);
+ assert(longClock.start==3100);
+ assert(longClock.Nominal(903090)==2699970UL);
+ assert(longClock.HalfDue(903100));
+ longClock.half=true;assert(!longClock.HalfDue(903110));
+ assert(!longClock.FullDue(1803090));
+ assert(longClock.FullDue(1803100));
+ assert(longClock.Nominal(1803100)==5400000UL);
+ assert(longClock.Elapsed(2000000)==1800000UL);
+ longClock.finished=true;assert(!longClock.FullDue(2000000));
 }
