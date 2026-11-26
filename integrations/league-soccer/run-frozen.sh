@@ -59,9 +59,23 @@ if [[ "$render_interval" != 0 ]]; then
   python3 "$here/render-profile.py" "$config" "$work/render-profile.config" "$render_interval"
   config="$work/render-profile.config"
 fi
-bash ./run_menu_smoke.sh ./gameplayfootball "$config" "$limit" \
+if [[ "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 ]]; then
+  [[ "${TRIBUN_NATIVE_NO_DRAW:-0}" == 1 && "${TRIBUN_NATIVE_NO_UPLOAD:-0}" == 1 && "$render_interval" == 100 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 ]] || exit 2
+  # No Xvfb, no DISPLAY, no Wayland, no OpenGL window. SDL dummy is for CPU surfaces/events.
+  log="$work/null-renderer.log"
+  if ! env -u DISPLAY -u WAYLAND_DISPLAY SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+      timeout --kill-after=10s "${limit}s" ./gameplayfootball "$config" >"$log" 2>&1; then
+    cat "$log"; exit 1
+  fi
+  cat "$log"
+  grep -Fq '[tribun-render] null-context=dummy-no-gl' "$log"
+  grep -Fq '[menu-smoke] Full match complete:' "$log"
+  grep -Fq '[menu-smoke] Full-match verification succeeded, quitting test run' "$log"
+else
+  bash ./run_menu_smoke.sh ./gameplayfootball "$config" "$limit" \
   "[menu-smoke] Full match complete:" \
   "[menu-smoke] Full-match verification succeeded, quitting test run"
+fi
 python3 "$here/validate_trace.py" "$out"
 python3 "$here/validate_fixture_trace.py" "$out" "$out.fixture.json"
 node "$here/attack-report.cjs" "$out" "$out.attack.json"
