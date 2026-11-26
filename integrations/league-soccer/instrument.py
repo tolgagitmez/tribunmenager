@@ -178,7 +178,7 @@ void TribunTrace(Match& match, bool done) {
   // Exact first-clock and phase-boundary frames must not be lost to 100 ms sampling.
   const auto& fixed=match.GetTribunFixedClock();
   const bool boundary=AITactics::FixedDurationEnabled() && fixed.started &&
-      (now==fixed.start || now-fixed.start==150000UL);
+      (now==fixed.start || now-fixed.start==fixed.durationMs/2);
   if (tribun_visual::deterministicProbe() && fixed.started) {
     const auto tick = fixed.Elapsed(now);
     if (!done && tick % 100UL != 0) return;
