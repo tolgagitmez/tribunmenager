@@ -36,6 +36,7 @@ FILES=(
  "integrations/league-soccer/limb-impact-benchmark.py",
  "integrations/league-soccer/line-break-benchmark.py",
  "integrations/league-soccer/run-lanes-benchmark.py",
+ "integrations/league-soccer/triangle-benchmark.py",
  "integrations/league-soccer/position-skinning-benchmark.py",
  "integrations/league-soccer/runtime-layout.py",
  "integrations/league-soccer/verify-substitutions.py",

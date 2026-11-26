@@ -1,0 +1,40 @@
+name: Native three-player triangle diagnostic
+on:
+  push:
+    branches: [experiment/native-triangle-stage65]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_triangle.py'
+      - '.github/workflows/native-triangle.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contact-cadence:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m py_compile integrations/league-soccer/short_match_patch.py integrations/league-soccer/instrument.py integrations/league-soccer/triangle-benchmark.py integrations/league-soccer/timing-benchmark.py
+      - run: python3 -m unittest discover -s tests -p test_native_triangle.py
+      - run: python3 -m unittest discover -s tests -p test_native_collision_pose.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/triangle-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare triangle combinations in three tactical fixtures
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/triangle-fixtures"
+          python3 integrations/league-soccer/triangle-benchmark.py "$RUNNER_TEMP/triangle-runtime" "$RUNNER_TEMP/triangle-fixtures" "$RUNNER_TEMP/triangle-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-triangle
+          path: ${{ runner.temp }}/triangle-results/
+          if-no-files-found: ignore

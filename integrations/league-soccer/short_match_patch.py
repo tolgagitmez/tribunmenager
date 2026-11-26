@@ -43,6 +43,36 @@ inline float RunLaneScore(float endpoint,float corridor,float mateGap,float prog
 }
 '''
 
+TRIANGLE_RULES = r'''// Track actual A->B contact, B control, B->C contact, C control.
+struct TriangleState {
+  int a=-1,b=-1,c=-1,stage=0;
+  unsigned long started=0,lastPass=0,expires=0,cooldown=0;
+  unsigned long startedCount=0,firstReceipts=0,secondPasses=0,completed=0;
+  void Clear(unsigned long now){if(stage)cooldown=now+1200;a=b=c=-1;stage=0;started=lastPass=expires=0;}
+  bool Begin(int first,int middle,int third,unsigned long now){
+    if(stage||now<cooldown||first<0||middle<0||third<0||first==middle||first==third||middle==third)return false;
+    a=first;b=middle;c=third;stage=1;started=lastPass=now;expires=now+2300;++startedCount;return true;
+  }
+  void Observe(int owner,unsigned long touch,bool invalid,unsigned long now){
+    if(!stage)return;
+    if(invalid||now>=expires||now<lastPass){Clear(now);return;}
+    if(owner<0||touch<=lastPass||touch>now)return;
+    if(stage==1 && owner==b){stage=2;++firstReceipts;expires=now+1600;return;}
+    if(stage==3 && owner==c){++completed;Clear(now);return;}
+    if((stage==1&&owner!=a)||(stage==2&&owner!=b)||(stage==3&&owner!=b))Clear(now);
+  }
+  bool Pass(int from,int to,unsigned long now){
+    if(stage!=2||from!=b||to!=c||now>=expires||now<lastPass)return false;
+    stage=3;lastPass=now;expires=now+2000;++secondPasses;return true;
+  }
+};
+inline bool TriangleGeometry(float progress,float distance,float width,float margin,float depth){
+  return progress>=3.0f&&progress<=20.0f&&distance>=5.0f&&distance<=22.0f&&
+      width>=3.0f&&width<=17.0f&&margin>=1.3f&&depth>=4.0f&&depth<=30.0f;
+}
+inline bool TrianglePassSafe(float odds,float nativeOdds){return odds>=.74f&&odds>=nativeOdds-.05f;}
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -1431,4 +1461,134 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
     ForceSpot spot;
     spot.origin =
         Vector3(-team->GetSide() * pitchHalfW,'''),
+    ])
+
+    # Stage 65: bounded three-player sequence based on native ball contacts and controlled receipts.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool TriangleEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_TRIANGLE");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + TRIANGLE_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.hpp", [
+        ("  const AITactics::CombinationState& GetTribunCombination() const { return tribunCombination; }", r'''  const AITactics::CombinationState& GetTribunCombination() const { return tribunCombination; }
+  const AITactics::TriangleState& GetTribunTriangle() const {return tribunTriangle;}
+  Player* TribunTriangleTarget(Player* receiver);
+  bool TribunTriangleRunner(Player* player) const;
+  bool TribunTriangleContact(Player* passer,Player* receiver,bool shortPass);'''),
+        ("  AITactics::CombinationState tribunCombination;", "  AITactics::CombinationState tribunCombination;\n  AITactics::TriangleState tribunTriangle;"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  CalculateSituation();\n  if(tribunTimedAttack.stage){", r'''  CalculateSituation();
+  if(tribunTriangle.stage){
+    const auto now=match->GetActualTime_ms();
+    auto* a=team->GetPlayer(tribunTriangle.a);
+    auto* b=team->GetPlayer(tribunTriangle.b);
+    auto* c=team->GetPlayer(tribunTriangle.c);
+    auto* own=team->GetDesignatedTeamPossessionPlayer();
+    auto* rival=match->GetTeam(abs(team->GetID()-1));
+    const bool invalid=!match->IsInPlay() || match->IsInSetPiece() || match->GetBallRetainer() ||
+        oppTeamHasUniquePossession || rival->GetLastTouchTime_ms()>=tribunTriangle.started ||
+        !a || !b || !c || !a->IsActive() || !b->IsActive() || !c->IsActive();
+    const bool confirmed=own && own->IsActive() && own->HasUniquePossession() &&
+        match->GetLastTouchPlayer()==own;
+    tribunTriangle.Observe(confirmed?own->GetID():-1,confirmed?own->GetLastTouchTime_ms():0,invalid,now);
+  }
+  if(tribunTimedAttack.stage){'''),
+        ("void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {", r'''bool TeamAIController::TribunTriangleContact(Player* passer,Player* receiver,bool shortPass){
+  if(!AITactics::TriangleEnabled()||team->GetHumanGamerCount())return false;
+  const auto now=match->GetActualTime_ms();
+  const bool valid=shortPass&&passer&&receiver&&passer!=receiver&&receiver->GetTeam()==team&&
+    passer->IsActive()&&receiver->IsActive()&&match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer();
+  if(tribunTriangle.stage){
+    if(!valid||!tribunTriangle.Pass(passer->GetID(),receiver->GetID(),now))tribunTriangle.Clear(now);
+    return true;
+  }
+  if(!valid||tribunCombination.stage||passer->GetFormationEntry().role==e_PlayerRole_GK||
+    receiver->GetFormationEntry().role==e_PlayerRole_GK||now<tribunTriangle.cooldown)return false;
+  const float forward=-team->GetSide();
+  const auto from=passer->GetPosition(),middle=receiver->GetPosition();
+  const auto first=middle-from;
+  const float depth=pitchHalfW-from.coords[0]*forward;
+  if(depth<14.0f||depth>42.0f||first.GetLength()<4.0f||first.GetLength()>16.0f||
+      std::abs(first.coords[1])<2.0f||receiver->GetStat("technical_shortpass")<.55f)return false;
+  const float line=AI_GetOffsideLine(match,match->GetMentalImage(0),abs(team->GetID()-1))*forward;
+  if(line-middle.coords[0]*forward<1.0f)return false;
+  std::vector<PlayerImage> rivals;
+  match->GetMentalImage(0)->GetTeamPlayerImages(abs(team->GetID()-1),-1,rivals);
+  Player* third=nullptr;float best=-1000.0f;
+  for(const auto& mate:team->GetAllPlayers()){
+    if(!mate->IsActive()||mate.get()==passer||mate.get()==receiver||
+        mate->GetFormationEntry().role==e_PlayerRole_GK||AI_GetMindSet(mate->GetDynamicFormationEntry().role)<.45f)continue;
+    const auto pos=mate->GetPosition(),delta=pos-middle;
+    if(!AITactics::TriangleGeometry(delta.coords[0]*forward,delta.GetLength(),std::abs(delta.coords[1]),
+          line-pos.coords[0]*forward,pitchHalfW-pos.coords[0]*forward))continue;
+    if((pos-from).GetLength()<5.0f)continue;
+    float clearance=100.0f;
+    for(const auto& rival:rivals)clearance=std::min(clearance,(rival.position+rival.movement*.25f-pos).Get2D().GetLength());
+    if(clearance<2.0f)continue;
+    const float score=std::min(clearance,8.0f)+delta.coords[0]*forward*.15f-delta.GetLength()*.08f;
+    if(score>best){best=score;third=mate.get();}
+  }
+  return third&&tribunTriangle.Begin(passer->GetID(),receiver->GetID(),third->GetID(),now);
+}
+Player* TeamAIController::TribunTriangleTarget(Player* receiver){
+  if(!receiver||!receiver->HasUniquePossession()||tribunTriangle.stage!=2||
+      receiver->GetID()!=tribunTriangle.b||match->GetActualTime_ms()>=tribunTriangle.expires)return nullptr;
+  auto* target=team->GetPlayer(tribunTriangle.c);
+  return target&&target->IsActive()?target:nullptr;
+}
+bool TeamAIController::TribunTriangleRunner(Player* player) const {
+  return player&&tribunTriangle.stage>=1&&tribunTriangle.stage<=2&&
+    player->GetID()==tribunTriangle.c&&match->GetActualTime_ms()<tribunTriangle.expires&&
+    match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer();
+}
+void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {
+  if(TribunTriangleContact(passer,receiver,shortPass))return;'''),
+        ("void TeamAIController::TribunShotContact(Player* shooter) {", "void TeamAIController::TribunShotContact(Player* shooter) {\n  tribunTriangle.Clear(match->GetActualTime_ms());"),
+        ("  tribunCombination.Clear(match->GetActualTime_ms());\n  tribunRebound.Clear();", "  tribunTriangle.Clear(match->GetActualTime_ms());\n  tribunCombination.Clear(match->GetActualTime_ms());\n  tribunRebound.Clear();"),
+    ])
+    for strategy in ("default_off.cpp","default_mid.cpp"):
+        edit(root, "src/onthepitch/player/controller/strategies/offtheball/"+strategy, [
+            ("if(team->GetController()->TribunCombinationRunner(CastPlayer())){", "if(team->GetController()->TribunCombinationRunner(CastPlayer()) || team->GetController()->TribunTriangleRunner(CastPlayer())){"),
+        ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  if (adaptedMakeRun && !chosenLane) {", r'''  if(team->GetController()->TribunTriangleRunner(CastPlayer())){
+    const float forward=-team->GetSide();
+    const float x=std::min(currentPos.coords[0]*forward+5.0f,
+        std::min(offsideX*forward-1.5f,pitchHalfW-5.0f));
+    if(x>currentPos.coords[0]*forward+1.0f){
+      ForceSpot spot;
+      spot.origin=Vector3(x*forward,clamp(currentPos.coords[1],-17.0f,17.0f),0);
+      spot.magnetType=e_MagnetType_Attract;
+      spot.decayType=e_DecayType_Constant;
+      spot.power=2.0f*runWeight;
+      forceField.push_back(spot);
+      chosenLane=true;
+    }
+  }
+  if (adaptedMakeRun && !chosenLane) {'''),
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak) {", r'''      bool triangleCandidate=false;
+      float triangleOdds=0.0f;
+      if(runningPassEnabled && team->GetController()->TribunTriangleTarget(CastPlayer())==mates.at(i)){
+        const auto pos=mates.at(i)->GetPosition(),delta=pos-player->GetPosition();
+        if(AITactics::TriangleGeometry(delta.coords[0]*attackForward,delta.GetLength(),std::abs(delta.coords[1]),
+              passOffside-pos.coords[0]*attackForward,pitchHalfW-pos.coords[0]*attackForward)){
+          triangleOdds=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
+          triangleCandidate=AITactics::TrianglePassSafe(triangleOdds,0.0f);
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(triangleCandidate && AITactics::TrianglePassSafe(triangleOdds,mateRating.passRating)){
+          mateRating.passType=e_FunctionType_ShortPass;
+          mateRating.passRating=triangleOdds;
+          mateRating.supportRating+=.48f;
+        }else if(triangleCandidate && !(progressiveCandidate||supportCandidate||runningCandidate||
+            deliveryCandidate||pressureOutlet||returnCandidate||retentionOutlet||timedCandidate||lineBreak))continue;
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
     ])
