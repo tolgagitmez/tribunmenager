@@ -1,9 +1,11 @@
 import importlib.util
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 ROOT=Path(__file__).resolve().parents[1]/"integrations/league-soccer"
+sys.path.insert(0,str(ROOT))
 spec=importlib.util.spec_from_file_location("patch",ROOT/"short_match_patch.py")
 p=importlib.util.module_from_spec(spec);spec.loader.exec_module(p)
 class ActivationRedesignTest(unittest.TestCase):

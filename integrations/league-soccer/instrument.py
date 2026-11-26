@@ -355,6 +355,23 @@ void TribunTrace(Match& match, bool done) {
       vec(base.position);
       output << ",\"goalkeeper\":" << (player->GetFormationEntry().role == e_PlayerRole_GK ? "true" : "false");
       output << ",\"uniquePossession\":" << (player->HasUniquePossession() ? "true" : "false");
+      if(AITactics::FixedDurationEnabled()&&fixed.started&&fixed.Elapsed(now)==0){
+        output << ",\"nativeAttributes\":{"
+          << "\"physical_balance\":" << player->GetStat("physical_balance")
+          << ",\"physical_agility\":" << player->GetStat("physical_agility")
+          << ",\"physical_velocity\":" << player->GetStat("physical_velocity")
+          << ",\"physical_acceleration\":" << player->GetStat("physical_acceleration")
+          << ",\"physical_shotpower\":" << player->GetStat("physical_shotpower")
+          << ",\"technical_ballcontrol\":" << player->GetStat("technical_ballcontrol")
+          << ",\"technical_dribble\":" << player->GetStat("technical_dribble")
+          << ",\"technical_shortpass\":" << player->GetStat("technical_shortpass")
+          << ",\"technical_highpass\":" << player->GetStat("technical_highpass")
+          << ",\"technical_shot\":" << player->GetStat("technical_shot")
+          << ",\"technical_volley\":" << player->GetStat("technical_volley")
+          << ",\"mental_vision\":" << player->GetStat("mental_vision")
+          << ",\"mental_calmness\":" << player->GetStat("mental_calmness")
+          << ",\"mental_resilience\":" << player->GetStat("mental_resilience") << '}';
+      }
       output << '}';
     }
   }

@@ -48,6 +48,8 @@ FILES=(
  "integrations/league-soccer/quality-qualification.py",
  "integrations/league-soccer/quality-audit.json",
  "integrations/league-soccer/activation-redesign.md",
+ "integrations/league-soccer/attribute-fixtures.cjs",
+ "integrations/league-soccer/attribute-contrast.py",
  "integrations/league-soccer/position-skinning-benchmark.py",
  "integrations/league-soccer/runtime-layout.py",
  "integrations/league-soccer/verify-substitutions.py",
