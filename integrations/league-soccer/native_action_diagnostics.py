@@ -13,6 +13,8 @@ ALTERNATIVE=re.compile(r'\[tribun-action-alternative\] phase=(-?\d+) match_ms=(\
 RETRY=re.compile(r'\[tribun-touch-retry\] phase=(-?\d+) match_ms=(\d+) team=([01]) player=(-?\d+) from=(short-pass|long-pass|high-pass|shot) to=(short-pass|ball-control)')
 GEOMETRY=re.compile(r'\[tribun-touch-geometry\] phase=(-?\d+) match_ms=(\d+) team=([01]) player=(-?\d+) action=(short-pass|long-pass|high-pass|shot) distance=(\S+) limit=(\S+) height_error=(\S+) body_angle=(\S+) player_speed=(\S+) ball_speed=(\S+) frame=(-?\d+) touch_frame=(-?\d+)')
 
+PREPARATION=re.compile(r'\[tribun-body-preparation\] phase=(-?\d+) match_ms=(\d+) team=([01]) player=(-?\d+) action=(short-pass|long-pass|high-pass|shot) body_dot=(\S+) adjustment=(\S+) clearance=(\S+)')
+
 def inspect_actions(path):
     path=Path(path)
     if not path.is_file():
@@ -27,9 +29,28 @@ def inspect_actions(path):
     geometry_counts=Counter()
     geometry_events=[]
     retry_counts=Counter()
+    preparation_counts=Counter()
+    preparation_events=[]
     with path.open('r',encoding='utf-8',errors='replace') as log:
         for line in log:
             line=line.rstrip('\r\n')
+            if line.startswith('[tribun-body-preparation]'):
+                m=PREPARATION.fullmatch(line)
+                if not m:
+                    invalid+=1
+                    continue
+                try:
+                    dot,step,clearance=map(float,m.groups()[5:8])
+                    if not all(math.isfinite(v) for v in (dot,step,clearance)) or not (-1.01<=dot<=1.01 and .12<=step<=.8 and clearance>=2.2):
+                        raise ValueError('Invalid preparation')
+                except ValueError:
+                    invalid+=1
+                    continue
+                preparation_counts[m[5]]+=1
+                if len(preparation_events)<MAX_EVENTS:
+                    preparation_events.append(dict(phase=int(m[1]),matchMs=int(m[2]),team=int(m[3]),
+                        playerId=int(m[4]),action=m[5],bodyDot=dot,adjustment=step,clearance=clearance))
+                continue
             if line.startswith('[tribun-touch-retry]'):
                 m=RETRY.fullmatch(line)
                 if not m or m[5]==m[6]:
@@ -97,5 +118,7 @@ def inspect_actions(path):
         touchGeometryCounts=dict(geometry_counts),touchGeometryEvents=geometry_events,
         touchGeometryTruncated=sum(geometry_counts.values())>len(geometry_events),
         touchRetryCounts=dict(retry_counts),touchRetryPromotions=sum(retry_counts.values()),
-        evidenceAvailable=total>0 or bool(promotions) or bool(geometry_counts) or bool(retry_counts),
-        scope='Candidates actually tried, animation selector results, and observed contact or geometry failure. Contacts can occur after possession changes. Counts are not paired requests or completion rates; movement acceptance does not prove displacement. Alternative promotions are queue-order changes, not proof of successful action. Touch retry promotions are a subset of alternative promotions, not additional actions. Geometry reasons use rounded measurements and are not a causal diagnosis. No events does not prove no problem.')
+        bodyPreparationRequests=sum(preparation_counts.values()),bodyPreparationCounts=dict(preparation_counts),
+        bodyPreparationEvents=preparation_events,bodyPreparationTruncated=sum(preparation_counts.values())>len(preparation_events),
+        evidenceAvailable=total>0 or bool(promotions) or bool(geometry_counts) or bool(retry_counts) or bool(preparation_counts),
+        scope='Candidates actually tried, animation selector results, and observed contact or geometry failure. Contacts can occur after possession changes. Counts are not paired requests or completion rates; movement acceptance does not prove displacement. Alternative promotions are queue-order changes, not proof of successful action. Touch retry promotions are a subset of alternative promotions, not additional actions. Geometry reasons use rounded measurements and are not a causal diagnosis. Body preparation requests are not evidence of accepted movement or achieved alignment. No events does not prove no problem.')
