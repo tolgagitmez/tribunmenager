@@ -223,6 +223,11 @@ def _run_match(runtime, root, job, *, check, league_browser_descriptor=None, wsl
             raise ValueError('Invalid or combined private duel experiment')
         if duel_escape=='1':
             env['TRIBUN_AV_DUEL_ESCAPE']='1'
+        pressure_hold=os.environ.get('TRIBUN_AV_PRESSURE_HOLD','0')
+        if pressure_hold not in ('0','1') or (pressure_hold=='1' and any(x=='1' for x in (leg_blend,turn_brake,dribble_control,duel_escape))):
+            raise ValueError('Invalid or combined private pressure hold experiment')
+        if pressure_hold=='1':
+            env['TRIBUN_AV_PRESSURE_HOLD']='1'
     env.update(TRIBUN_EXPECT_AUDIO='1',TRIBUN_EXPECT_CONTROL='0' if league_mode_run else '1',TRIBUN_EXPECT_FULL_PLAYBACK='1',TRIBUN_PLAYBACK_MIN_SECONDS='300')
     with (out/'native.log').open('wb') as n,(out/'browser.log').open('wb') as b:
         native=subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(out/'fixture.json'),str(out/'run'),'--audio','--interactive','--linger','60',*(['--league-control'] if league_mode_run else [])],env=env,stdout=n,stderr=subprocess.STDOUT)
