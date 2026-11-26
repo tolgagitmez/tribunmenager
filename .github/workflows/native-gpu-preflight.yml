@@ -1,0 +1,17 @@
+name: Stage 127 GPU preflight unit tests
+on:
+  push:
+    branches: [experiment/native-gpu-stage127]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_gpu_display.py
+          python3 -m unittest discover -s tests -p test_native_process_profile.py
+          python3 -m unittest discover -s tests -p test_native_av_capacity.py
+          python3 -m py_compile integrations/league-soccer/native_gpu_display.py integrations/league-soccer/native-live-video.py integrations/league-soccer/native-av-capacity.py
+          bash -n integrations/league-soccer/run-frozen.sh

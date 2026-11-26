@@ -158,6 +158,7 @@ def main():
         if control_report:
             complete=complete and control_report["traceEvidence"]["consistent"]
         report.update(status="local-live-evidence" if complete else "coverage-inconclusive",nativeClock=clock,audio=audio,
+          gpuPreflight=json.loads((out/"gpu-preflight.json").read_text()) if (out/"gpu-preflight.json").is_file() else None,
           playlist=playlist,mediaTimeline=media_audit,checks=checks,traceSha256=sha(trace),control=control_report,roster=roster,
           note="Loopback only, 2-second HLS segments. Audio when requested is native OpenAL mix, not synthetic effects. Encoded A/V timestamp continuity checked; event-by-event sound and perceptual A/V alignment not verified. Browser latency, actual renderer FPS, asset clearance, league authorization and capacity not qualified. Manager status is current engine time, not synchronized video time.")
         state["audio"]=bool(audio and audio["nonSilentCoveragePassed"]);state["phase"]="finished" if complete else "failed";write_json(report_path,report)
