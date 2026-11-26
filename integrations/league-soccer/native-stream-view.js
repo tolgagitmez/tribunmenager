@@ -16,7 +16,7 @@ function applyPresentation(actor,source,priorFrame,frame,priorTarget,target,enab
  if(oldScale!==scale||(actor.nativeFootPlant===true)!==valid)rig?.reset(actor);
  if(!enabled){
   for(const key of ['nativeAnatomy','nativeBodyBalance','nativeFootPlant','nativeMotionMatch','nativeMotionIdentity','nativeGait','nativeBlend'])delete actor[key];
-  return;
+  actor.action=actor.speed>.25?'run':'idle';return;
  }
  actor.nativeAnatomy={height:hasHeight?height:null,scale,preferredFoot:'unknown'};
  let ax=0,az=0;
@@ -31,15 +31,23 @@ function applyPresentation(actor,source,priorFrame,frame,priorTarget,target,enab
   speed>(['run','sprint'].includes(prior)?2.4:2.8)?'run':speed>(['jog','run','sprint'].includes(prior)?1.1:1.4)?'jog':'walk';
  if(valid)actor.action=actor.nativeGait;
 }
+// Key order in an equivalent JSON object is not part of its identity.
+const canonical=v=>v===null||typeof v!=='object'?JSON.stringify(v):Array.isArray(v)?'['+v.map(canonical).join(',')+']':'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';
 function create(rig,{advancedPresentation=false}={}){
  let actors=new Map(),players=[],ball=null,ballFrom=null,ballTo=null,received=0,sequence=-1,metadata=null,blendMs=0,lastFrame=null;
  function reset(){for(const a of actors.values())rig?.reset(a.actor);actors.clear();players=[];ball=null;ballFrom=null;ballTo=null;sequence=-1;metadata=null;lastFrame=null;}
  function ingest(data,now){
   if(data?.engine!=='league-soccer'||data.authoritative!==false||!data.frame||!Number.isSafeInteger(data.sequence)||data.sequence<0)return false;
   if(data.sequence<sequence)return false;
-  if(data.sequence===sequence){metadata=data;return true;}
+  // Validate duplicates too; metadata alone must not change a frozen frame.
   const f=Replay.parse(JSON.stringify(data.frame))[0];
-  if(f.done&&data.phase!=='finished')throw Error('Erken maç sonucu');
+  if(!['playing','finished'].includes(data.phase)||f.done!==(data.phase==='finished'))throw Error('Geçersiz yayın evresi');
+  if(data.sequence===sequence){
+   if(canonical(f)!==canonical(lastFrame))return false;
+   metadata=data;return true;
+  }
+  if(lastFrame&&(lastFrame.done||f.elapsedMs<lastFrame.elapsedMs||f.matchMs<lastFrame.matchMs||
+    f.score.some((n,i)=>n<lastFrame.score[i])))return false;
   const names=new Map((data.players||[]).map(p=>[p.nativeId,p]));
   const gap=sequence<0?Infinity:now-received;
   blendMs=gap>1000||f.done?0:clamp(gap,80,200);
@@ -70,14 +78,17 @@ function create(rig,{advancedPresentation=false}={}){
  function sample(now,dt){
   if(!metadata)return null;
   const t=blendMs?clamp((now-received)/blendMs,0,1):1;
+  const stale=now-received>1000&&!lastFrame.done,settled=lastFrame.done||stale;
   for(const a of actors.values()){
    const p=a.actor,q=a.target;
-   p.x=mix(a.from.x,q.x,t);p.z=mix(a.from.z,q.z,t);p.face=yaw(a.from.face,q.face,t);p.vx=q.vx;p.vz=q.vz;
-   rig?.update(p,clamp(dt,0,.1));
+   const x=mix(a.from.x,q.x,t),z=mix(a.from.z,q.z,t),face=yaw(a.from.face,q.face,t);
+   if(settled&&(p.x!==x||p.z!==z||p.face!==face))rig?.reset(p);
+   p.x=x;p.z=z;p.face=face;p.vx=q.vx;p.vz=q.vz;
+   rig?.update(p,settled?0:clamp(dt,0,.1));
   }
   for(const k of ['x','y','z'])ball[k]=mix(ballFrom[k],ballTo[k],t);
   for(const k of ['vx','vy','vz'])ball[k]=ballTo[k];
-  return {players,ball,score:metadata.frame.score.slice(),matchMs:metadata.frame.matchMs,done:metadata.frame.done,stats:metadata.frame.stats||null,sequence};
+  return {players,ball,score:lastFrame.score.slice(),matchMs:lastFrame.matchMs,done:lastFrame.done,stats:lastFrame.stats||null,sequence,stale};
  }
  function setPresentation(enabled){
   if(advancedPresentation===!!enabled)return;
@@ -87,7 +98,7 @@ function create(rig,{advancedPresentation=false}={}){
    applyPresentation(a.actor,a.source,null,lastFrame,null,a.target,advancedPresentation,rig);
   }
  }
- return {ingest,sample,reset,setPresentation};
+ return {ingest,sample,reset,setPresentation,isStale:now=>!!lastFrame&&!lastFrame.done&&now-received>1000};
 }
 // Only render at the chosen budget. Polling and authoritative frames are independent.
 function createRenderBudget(){

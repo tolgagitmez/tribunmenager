@@ -60,7 +60,7 @@ FILES=(
  "integrations/league-soccer/release_evidence.py",
  "native_shadow.py","native_live.py","native_season.py","live_match.py",
  "season_state.py","server.py","football-sim.js","player-model.js","tactics.js",
- "integrations/league-soccer/native-stream-ui.js","integrations/league-soccer/native-stream-view.js","native-match.html","integrations/league-soccer/native-stream-view.test.cjs","tests/test_native_shadow.py",
+ "integrations/league-soccer/native-stream-ui.js","integrations/league-soccer/native-stream-view.js","native-match.html","integrations/league-soccer/native-stream-view.test.cjs","tests/test_native_shadow.py","integrations/league-soccer/native-stream-browser.cjs",
  "integrations/league-soccer/native-replay.js","scene3d.js",
  "humanoid-rig.js","player-renderer.js","player-skinning.js","character-palette-constraints.js",
  "match-animation-bridge.js","ball-visual.js","gltf-asset-loader.mjs",

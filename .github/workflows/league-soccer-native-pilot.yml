@@ -91,3 +91,5 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: node integrations/league-soccer/replay-browser.cjs
+      - name: Exercise league pilot reconnect and mobile presentation
+        run: node integrations/league-soccer/native-stream-browser.cjs

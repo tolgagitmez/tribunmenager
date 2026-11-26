@@ -46,8 +46,39 @@ test('stage100 optional stream stature and gait use only received validated fram
  const p=v.sample(300,.02).players[0];assert.equal(p.nativeMotionMatch,true);assert.equal(p.nativeMotionIdentity.agility,.8);
  assert.equal(p.nativeContact,undefined);
  assert.equal(v.sample(300,0).players[1].nativeAnatomy.height,null);
- const c=packet(22,10.4);c.frame.inPlay=false;c.frame.setPiece=true;
+ const c=packet(22,10.4,[1,0]);c.frame.inPlay=false;c.frame.setPiece=true;
  assert(v.ingest(c,300));assert.equal(v.sample(300,0).players[0].nativeMotionMatch,false);
  v.setPresentation(false);assert.equal(v.sample(310,0).players[0].nativeAnatomy,undefined);
  assert.equal(v.ingest(a,400),false);
+});
+
+test('stage101 duplicate frames cannot rewrite score, positions or phase',()=>{
+ const v=create(),a=packet(20,10,[1,0]);assert(v.ingest(a,100));
+ const duplicate=JSON.parse(JSON.stringify(a));duplicate.remainingMs=200;
+ assert(v.ingest(duplicate,200));
+ duplicate.frame.score=[2,0];assert.equal(v.ingest(duplicate,300),false);
+ duplicate.frame.score=[1,0];duplicate.frame.players[0].position=[30,0,0];
+ assert.equal(v.ingest(duplicate,300),false);
+ duplicate.frame.players[0].position=[10,0,0];duplicate.phase='finished';
+ assert.throws(()=>v.ingest(duplicate,300));
+ assert.deepEqual(v.sample(300,0).score,[1,0]);
+ assert.equal(v.sample(300,0).done,false);
+});
+test('stage101 reject regression and post-final frames; reset permits new match',()=>{
+ const v=create();assert(v.ingest(packet(20,10,[1,0]),100));
+ assert.equal(v.ingest(packet(21,11,[0,0]),200),false);
+ const older=packet(21,11,[1,0]);older.frame.matchMs=0;
+ assert.equal(v.ingest(older,200),false);
+ const final=packet(22,12,[2,0]);final.frame.done=true;final.phase='finished';final.frame.matchMs=5400000;
+ assert(v.ingest(final,300));
+ assert.equal(v.ingest(packet(23,13,[2,0]),400),false);
+ assert.deepEqual(v.sample(400,0).score,[2,0]);
+ v.reset();assert(v.ingest(packet(0,0),500));
+});
+test('stage101 stalled stream freezes rig stepping and resumes on new frame',()=>{
+ const updates=[];const v=create({update(p,dt){updates.push(dt);},reset(){}});
+ const a=packet(10,1);v.ingest(a,100);v.sample(200,.02);assert.equal(updates.at(-1),.02);
+ v.ingest(a,1100);assert.equal(v.isStale(1200),true);assert.equal(v.sample(1200,.02).stale,true);
+ assert.equal(updates.at(-1),0);
+ assert(v.ingest(packet(11,1.2),1300));assert.equal(v.sample(1400,.02).stale,false);assert.equal(updates.at(-1),.02);
 });

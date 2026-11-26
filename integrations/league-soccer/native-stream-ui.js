@@ -41,12 +41,13 @@
     if(g!==generation)return;
     if(!response.ok){if([401,403,404].includes(response.status)){stop();$('status').textContent=data.error||'Erişim yok.';return;}throw Error(data.error||'Sunucu bağlantısı yok.');}
     if(data.engine!=='league-soccer'||data.authoritative!==false)throw Error('Geçersiz pilot yanıtı.');
+    if(data.frame&&!view.ingest(data,performance.now())){ $('sendTactics').disabled=true;throw Error('Eski veya çelişkili yayın karesi'); }
     $('controlPanel').hidden=data.source!=='interactive-native';
-    $('sendTactics').disabled=!data.canControl||submitting;
+    $('sendTactics').disabled=!data.frame||data.source!=='interactive-native'||!data.canControl||submitting||data.phase==='finished'||data.finalizing===true;
     if(data.source==='interactive-native'){
      $('commandState').textContent='Gönderilen #'+(data.submittedRevision||0)+' · Motor onayı #'+(data.appliedRevision||0)+(data.finalizing?' · Sonuç doğrulanıyor':'');
     }
-    if(data.frame&&view.ingest(data,performance.now())){
+    if(data.frame){
      const changed=!current||current.sequence!==data.sequence;
      current=data;if(changed){advisor.ingest(data);renderAdvice();}
      const seconds=Math.ceil(data.remainingMs/1000);
@@ -87,7 +88,7 @@
   $('adviceText').textContent=text.join('\n');
  }
  $('controlForm').onsubmit=async e=>{
-  e.preventDefault();if(!active||submitting||!current?.canControl)return;
+  e.preventDefault();if(!active||submitting||!current?.canControl||current.source!=='interactive-native'||current.phase!=='playing'||current.finalizing||view.isStale(performance.now())||$('sendTactics').disabled)return;
   const g=generation;submitting=true;$('sendTactics').disabled=true;
   const tactics=Object.fromEntries([...fields,'formation'].map(k=>[k,Number($('tactic-'+k).value)]));
   try{
@@ -106,7 +107,9 @@
  document.addEventListener('visibilitychange',()=>renderBudget.reset());
  function loop(now){
   requestAnimationFrame(loop);
-  const playing=!!current&&current.phase!=='finished'&&!current.finalizing;
+  const stale=view.isStale(now);
+  if(stale)$('sendTactics').disabled=true;
+  const playing=!!current&&current.phase!=='finished'&&!current.finalizing&&!stale;
   const tick=renderBudget.next(now,{hidden:document.hidden,playing,mode:$('quality').value});
   if(!tick)return;
   const dt=tick.dt;
@@ -115,6 +118,6 @@
   if(frame)scene.render(frame.players,frame.ball,[frame.ball.x,frame.ball.z],{},dt);
   else scene.render([],{x:0,y:.11,z:0,vx:0,vy:0,vz:0},[0,0],{},dt);
  }
- window.TRIBUN_NATIVE_STREAM_TEST={state:()=>current&&({sequence:current.sequence,score:current.frame.score,phase:current.phase}),webgl:()=>!!scene.gl,presentation:()=>({enabled:$('advancedPresentation').checked,graphics:scene.performanceMode()})};
+ window.TRIBUN_NATIVE_STREAM_TEST={state:()=>current&&({sequence:current.sequence,score:current.frame.score,phase:current.phase}),webgl:()=>!!scene.gl,presentation:()=>({enabled:$('advancedPresentation').checked,graphics:scene.performanceMode(),stale:view.isStale(performance.now()),modelReady:!!scene.playerRenderer})};
  requestAnimationFrame(loop);start();
 })();
