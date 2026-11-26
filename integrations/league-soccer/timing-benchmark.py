@@ -77,8 +77,10 @@ class Timing:
                     deadBallMs=self.dead_ms,transitionMs=self.transition_ms,gapMs=self.gap_ms,
                     frames=self.frames,maxObservedGapMs=self.max_observed_gap_ms,withinFiveSeconds=abs(wall-300000)<=5000)
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0):
     name,scale,quick=profile
+    if type(render_interval_ms) is not int or render_interval_ms not in (0,100):raise ValueError("Invalid render cadence")
+    if render_interval_ms and (not fixed_duration or any((retention,box_runs,timed_attack))):raise ValueError("Isolate fixed-clock render cadence")
     if type(render_threads) is not int or render_threads not in (1,2,3,4):raise ValueError("Invalid software renderer thread limit")
     if attack_profile not in ("baseline","short-match"):raise ValueError("Unknown attack profile")
     trace=Path(str(out)+"."+name+".ndjson").resolve()
@@ -112,7 +114,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
                 offset=handle.tell()
     resources=Path(str(trace)+".resources.json")
     resources.unlink(missing_ok=True)
-    command=["bash",str(HERE/"run-frozen.sh"),runtime,fixture,str(trace)]
+    command=["bash",str(HERE/"run-frozen.sh"),runtime,fixture,str(trace),str(render_interval_ms)]
     if Path("/usr/bin/time").is_file():
         command=["/usr/bin/time","-o",str(resources),"-f",
                  '{"userSeconds":%U,"systemSeconds":%S,"maxRssKiB":%M,"elapsedSeconds":%e}',*command]
@@ -144,7 +146,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         report["resources"]=r
     attack=json.loads(Path(str(trace)+".attack.json").read_text())
     if attack["engine"]!="league-soccer" or not attack.get("sampled"):raise ValueError("Missing attack report")
-    report.update(profile=name,attackProfile=attack_profile,softwareRenderThreads=render_threads,retention=retention,boxRuns=box_runs,timedAttack=timed_attack,scale=float(scale),quickRestarts=quick=="1",
+    report.update(profile=name,attackProfile=attack_profile,softwareRenderThreads=render_threads,configuredRenderIntervalMs=render_interval_ms,retention=retention,boxRuns=box_runs,timedAttack=timed_attack,scale=float(scale),quickRestarts=quick=="1",
                   score=attack["score"],shots=attack["shots"],onTarget=attack["onTarget"],
                   controlledBoxCrossings=attack["sampled"]["controlledBoxCrossings"])
     Path(str(trace)+".timing.json").write_text(json.dumps(report,indent=2)+"\n")

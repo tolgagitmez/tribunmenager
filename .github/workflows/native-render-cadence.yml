@@ -1,0 +1,37 @@
+name: Native graphics cadence diagnostic
+on:
+  push:
+    branches: [integration/league-soccer-native]
+    paths:
+      - 'integrations/league-soccer/render-benchmark.py'
+      - '.github/workflows/native-render-cadence.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render-cadence:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_render_cadence.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/render-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare original graphics cadence and 100 ms schedule
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/render-fixtures"
+          python3 integrations/league-soccer/render-benchmark.py "$RUNNER_TEMP/render-runtime" "$RUNNER_TEMP/render-fixtures/counter-possession.json" "$RUNNER_TEMP/render-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-render-cadence
+          path: ${{ runner.temp }}/render-results/
+          if-no-files-found: ignore

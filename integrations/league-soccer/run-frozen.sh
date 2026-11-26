@@ -5,6 +5,12 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 runtime="$(realpath "$1")"
 fixture="$(realpath "$2")"
 out="$(realpath -m "$3")"
+render_interval="${4:-0}"
+[[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
+case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+if [[ "$render_interval" != 0 && ( "${TRIBUN_NATIVE_FIXED_DURATION:-0}" != 1 || "${TRIBUN_NATIVE_REALTIME:-0}" != 1 ) ]]; then
+  echo "Render cadence experiment requires fixed real-time fixture" >&2; exit 2
+fi
 [[ -x "$runtime/gameplayfootball" && -f "$runtime/tribun-runtime.json" ]]
 python3 - "$here" "$runtime" <<'PY'
 import hashlib, json, pathlib, sys
@@ -48,6 +54,10 @@ if [[ "${TRIBUN_NATIVE_REALTIME:-0}" == 1 ]]; then
   config="$work/interactive.config"
   grep -F "\"menu_smoke_match_time_scale\" \"$scale\"" "$config" >/dev/null
   limit=850
+fi
+if [[ "$render_interval" != 0 ]]; then
+  python3 "$here/render-profile.py" "$config" "$work/render-profile.config" "$render_interval"
+  config="$work/render-profile.config"
 fi
 bash ./run_menu_smoke.sh ./gameplayfootball "$config" "$limit" \
   "[menu-smoke] Full match complete:" \
