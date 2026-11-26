@@ -1,0 +1,44 @@
+name: Stage 133 CPU isolation diagnostics
+on:
+  push:
+    branches: [experiment/native-cpu-partition-stage133]
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_cpu_partition.py
+          python3 -m unittest discover -s tests -p test_native_admission.py
+          python3 -m unittest discover -s tests -p test_native_av_capacity.py
+          python3 -m py_compile integrations/league-soccer/native-av-capacity.py
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth pulseaudio pulseaudio-utils libopenal-dev util-linux
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - name: Build original pinned engine
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/partition-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Run two matches with independent CPU affinity and same quality gates
+        run: |
+          set -euo pipefail
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/partition-fixtures"
+          python3 integrations/league-soccer/native-av-capacity.py "$RUNNER_TEMP/partition-runtime" "$RUNNER_TEMP/partition-fixtures" "$RUNNER_TEMP/partition-output" --count 2 --cpu-partition --filter-threads 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cpu-partition-evidence
+          path: |
+            ${{ runner.temp }}/partition-output/capacity-report.json
+            ${{ runner.temp }}/partition-output/*/live-report.json
+            ${{ runner.temp }}/partition-output/*/browser-playback-report.json
+          if-no-files-found: ignore

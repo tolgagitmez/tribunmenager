@@ -122,13 +122,16 @@ def stop_jobs(jobs):
 def main():
     from native_process_profile import ProcessProfile, snapshot
     from native_admission import identity, PROFILE
+    from native_cpu_partition import partition, affinity_command, cgroup_path, counters, delta
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('runtime', type=Path)
     p.add_argument('fixtures', type=Path)
     p.add_argument('out', type=Path)
     p.add_argument('--count', type=int, choices=(2, 4, 8, 16), default=2)
     p.add_argument('--filter-threads', type=int, choices=(0, 1), default=0)
+    p.add_argument('--cpu-partition', action='store_true')
     args = p.parse_args()
+    groups = partition(os.sched_getaffinity(0), args.count) if args.cpu_partition else [[] for _ in range(args.count)]
     if os.environ.get('TRIBUN_AV_ENCODER','x264') != 'x264':
         p.error('Hardware encoder concurrency is not qualified; use single-match pilot')
     if os.environ.get('TRIBUN_GPU_DISPLAY'):
@@ -147,21 +150,23 @@ def main():
     samples = []
     started = time.monotonic()
     previous = cpu()
+    group_path = cgroup_path()
+    group_start = group_previous = counters(group_path)
     try:
-        for name in names:
+        for i, name in enumerate(names):
             directory = out / name
             native_log = (out / (name + '-native.log')).open('wb')
             logs.append(native_log)
-            native = subprocess.Popen(['python3', str(HERE / 'native-live-video.py'),
-                 str(runtime), str(out / 'fixtures' / (name + '.json')), str(directory), '--audio', '--interactive', '--linger', '60'],
+            native = subprocess.Popen(affinity_command(['python3', str(HERE / 'native-live-video.py'),
+                 str(runtime), str(out / 'fixtures' / (name + '.json')), str(directory), '--audio', '--interactive', '--linger', '60'], groups[i]),
                  stdout=native_log, stderr=subprocess.STDOUT, env=env)
             jobs.append([directory, native, None])
-        for job in jobs:
+        for i, job in enumerate(jobs):
             directory = job[0]
             browser_log = (out / (directory.name + '-browser.log')).open('wb')
             logs.append(browser_log)
-            job[2] = subprocess.Popen(['node', str(HERE / 'native-live-video-browser.cjs'),
-                str(directory / 'local-url.txt')], env=env, stdout=browser_log, stderr=subprocess.STDOUT, start_new_session=True)
+            job[2] = subprocess.Popen(affinity_command(['node', str(HERE / 'native-live-video-browser.cjs'),
+                str(directory / 'local-url.txt')], groups[i]), env=env, stdout=browser_log, stderr=subprocess.STDOUT, start_new_session=True)
         while any(proc.poll() is None for _, native, browser in jobs for proc in (native, browser)):
             if time.monotonic() - started > 1200:
                 raise TimeoutError('Capacity tier exceeded 1200 seconds')
@@ -169,11 +174,14 @@ def main():
             previous, sample = host_sample(previous, out)
             sample['elapsedSeconds'] = round(time.monotonic() - started, 2)
             sample['processRoles'] = meter.observe(snapshot(), [proc.pid for _, n, b in jobs for proc in (n,b) if proc.poll() is None])
+            current_group = counters(group_path)
+            sample['cgroup'] = {**current_group, 'intervalDelta': delta(group_previous,current_group)}
+            group_previous = current_group
             samples.append(sample)
         matches = [match_result(d, n.returncode, b.returncode) for d, n, b in jobs]
         report = {**summarize(matches), 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
                   'samples': samples, 'processProfile': meter.report(), 'filterThreads': args.filter_threads, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
-                  'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
+                  'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
         (out / 'capacity-report.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps({k: v for k, v in report.items() if k != 'samples'}, indent=2))
         return 0 if report['passed'] else 1
@@ -181,7 +189,7 @@ def main():
         stop_jobs(jobs)
         matches = [match_result(d, n.returncode, b.returncode if b is not None else None) for d,n,b in jobs]
         (out / 'capacity-report.json').write_text(json.dumps({
-            'passed': False, 'productionQualified': False, 'hostIdentity': host_identity, 'profile': PROFILE, 'requestedMatches': args.count,
+            'passed': False, 'productionQualified': False, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'requestedMatches': args.count,
             'failureType': type(error).__name__, 'matches': matches, 'samples': samples,
             'resourceSummary': resource_summary(samples), 'processProfile': meter.report(), 'filterThreads': args.filter_threads
         }, indent=2) + '\n')
