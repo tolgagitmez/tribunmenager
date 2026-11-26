@@ -416,6 +416,16 @@ int main(){
  assert(!RecoveryMoveCandidate202(true,false,2.5f,1.01f));
  assert(!RecoveryMoveCandidate202(true,false,NAN,1.0f));
  assert(!RecoveryMoveCandidate202(true,false,2.5f,NAN));
+ assert(RecoveryDirectionScore203(3,1,false,0)>RecoveryDirectionScore203(3,.3f,false,0));
+ assert(RecoveryDirectionScore203(3,.75f,true,1)>RecoveryDirectionScore203(3.1f,.75f,true,0));
+ assert(RecoveryDirectionScore203(4,.75f,true,0)>RecoveryDirectionScore203(3,.75f,true,1));
+ assert(RecoveryDirectionScore203(1.65f,1,true,1)==-1000.f);
+ assert(RecoveryDirectionScore203(5,-1,true,1)==-1000.f);
+ assert(RecoveryDirectionScore203(5,1.01f,false,0)==-1000.f);
+ assert(RecoveryDirectionScore203(NAN,1,false,0)==-1000.f);
+ assert(RecoveryDirectionScore203(4,NAN,false,0)==-1000.f);
+ assert(RecoveryDirectionScore203(4,1,true,NAN)==-1000.f);
+ assert(RecoveryDirectionScore203(5,1,false,0)==RecoveryDirectionScore203(100,1,false,0));
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
