@@ -83,3 +83,28 @@ class CompareTest(unittest.TestCase):
             'error': None, 'wallGapCount': 0.5, 'longestWallGapSeconds': 3.5}}
         with self.assertRaises(ValueError):
             compare(a, a)
+
+
+    def test_provenance_matching_fixture(self):
+        a, b = sample(), sample()
+        a.update(configSha256='a'*64, traceSha256='b'*64)
+        b.update(configSha256='a'*64, traceSha256='c'*64)
+        r = compare(a, b)
+        self.assertTrue(r['provenance']['fixtureIdentityMatched'])
+        self.assertTrue(r['provenance']['independentTraceEvidence'])
+        self.assertFalse(r['causalImprovementVerified'])
+
+    def test_provenance_missing_or_mismatched(self):
+        a, b = sample(), sample()
+        self.assertIsNone(compare(a, b)['provenance']['fixtureIdentityMatched'])
+        a.update(configSha256='a'*64, traceSha256='b'*64)
+        b.update(configSha256='c'*64, traceSha256='b'*64)
+        r = compare(a, b)['provenance']
+        self.assertFalse(r['fixtureIdentityMatched'])
+        self.assertFalse(r['independentTraceEvidence'])
+
+    def test_invalid_provenance(self):
+        a = sample()
+        a['configSha256'] = 'not-a-hash'
+        with self.assertRaises(ValueError):
+            compare(a, sample())
