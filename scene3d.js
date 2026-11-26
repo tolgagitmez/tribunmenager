@@ -164,7 +164,11 @@ resetAnimation(){this.matchAnimation?.reset();this.matchPilot?.reset();this.ball
 animationStats(){return this.matchAnimation?.stats()||{players:0,transitions:0,blendedFrames:0,enabled:false};}
 resize(){const c=this.canvas,rect=c.getBoundingClientRect(),profile=this.performance,
  cap=profile.mode==='performance'?.8:profile.mode==='quality'?1.6:1.1,
- dpr=Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,cap)*profile.scale;let w=Math.max(2,Math.floor(rect.width*dpr)),h=Math.max(2,Math.floor(rect.height*dpr));if(c.width!==w||c.height!==h){c.width=w;c.height=h}this.gl.viewport(0,0,w,h)}
+ dpr=Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,cap)*profile.scale;
+ let w=Math.max(2,Math.floor(rect.width*dpr)),h=Math.max(2,Math.floor(rect.height*dpr));
+ if(this.replayRenderBudget&&window.TribunReplayPerformance){
+  [w,h]=window.TribunReplayPerformance.fitPixels(w,h,this.replayRenderBudget);
+ }if(c.width!==w||c.height!==h){c.width=w;c.height=h}this.gl.viewport(0,0,w,h)}
 uploadDynamic(m){
  const gl=this.gl,length=m.v.length;
  if(!this.dynamicVertices||this.dynamicVertices.length<length){let size=1024;while(size<length)size*=2;this.dynamicVertices=new Float32Array(size);this.dynamicCapacity=0;}
@@ -177,13 +181,15 @@ playerGroundGeometry(m,p){
  m.appendTranslated(this.groundTemplates.shadow,p.x,0,p.z);
  if(p.selected)m.appendTranslated(p.team===0?this.groundTemplates.blue:this.groundTemplates.red,p.x,0,p.z);
 }
-render(players,ball,focus,events,dt){if(!this.gl){this.renderFallback(players,ball,focus,dt);return;}let gl=this.gl;this.resize();let target=this.camera==='portrait'?[focus[0],.9,focus[1]]:this.camera==='close'?[clamp(focus[0],-47,47),.8,clamp(focus[1],-27,27)]:this.camera==='tv'?[clamp(focus[0]*.65,-32,32),0,clamp(focus[1]*.3,-10,10)]:[0,0,0];let desire=this.camera==='portrait'?[target[0]+4.4*(this.portraitScale||1),target[1]+2.6*(this.portraitScale||1),target[2]+5.5*(this.portraitScale||1)]:this.camera==='tactical'?[4,116,18]:this.camera==='close'?[target[0]+16,18,target[2]+20]:[target[0]*.65,35,60];let smoothing=clamp(dt*3,0,1);for(let i=0;i<3;i++){this.cameraSmoothing[i]+=(desire[i]-this.cameraSmoothing[i])*smoothing;this.cameraTarget[i]+=(target[i]-this.cameraTarget[i])*smoothing}
+render(players,ball,focus,events,dt){if(!this.gl){this.renderFallback(players,ball,focus,dt);return;}let gl=this.gl;this.resize();let target=this.camera==='portrait'?[focus[0],.9,focus[1]]:this.camera==='close'?[clamp(focus[0],-47,47),.8,clamp(focus[1],-27,27)]:this.camera==='tv'?[clamp(focus[0]*.65,-32,32),0,clamp(focus[1]*.3,-10,10)]:[0,0,0];let desire=this.camera==='portrait'?[target[0]+4.4*(this.portraitScale||1),target[1]+2.6*(this.portraitScale||1),target[2]+5.5*(this.portraitScale||1)]:this.camera==='tactical'?[4,116,18]:this.camera==='close'?[target[0]+16,18,target[2]+20]:[target[0]*.65,35,60];let smoothing=this.replayCameraSmooth?1-Math.exp(-Math.max(0,dt)*5):clamp(dt*3,0,1);
+ if(this.replayCameraSnap){smoothing=1;this.replayCameraSnap=false;}
+ for(let i=0;i<3;i++){this.cameraSmoothing[i]+=(desire[i]-this.cameraSmoothing[i])*smoothing;this.cameraTarget[i]+=(target[i]-this.cameraTarget[i])*smoothing}
 const kickCamera=this.managerKickView?this.managerKickCamera(this.canvas.width/this.canvas.height):null;
 let vp=kickCamera?.matrix||matmul(perspective((this.camera==='portrait'?43:this.camera==='close'?48:54)*Math.PI/180,this.canvas.width/this.canvas.height,.2,400),lookAt(this.cameraSmoothing,this.cameraTarget));gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));const draw=(buffer,count)=>{gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.enableVertexAttribArray(this.aPos);gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(this.aColor);gl.vertexAttribPointer(this.aColor,3,gl.FLOAT,false,24,12);gl.drawArrays(gl.TRIANGLES,0,count)};draw(this.staticBuffer,this.staticCount);
 let m=this.frameMesh||(this.frameMesh=new Mesh());m.v.length=0;m.ct=0;
 if(this.playerRenderer){
  const cull=this.camera==='close'&&!kickCamera&&!this.debugRig;
- gl.disableVertexAttribArray(this.aPos);gl.disableVertexAttribArray(this.aColor);this.playerRenderer.draw(players,vp,kickCamera?.eye||this.cameraSmoothing,kickCamera?'close':this.camera,dt,this.matchAnimation,{cull,instancing:this.instancingEnabled===true,animationLOD:this.performance.mode==='performance'&&!kickCamera&&!this.debugRig,ball,paletteForPlayer:p=>this.matchPilot?.paletteForPlayer(p,dt,this.matchAnimation,this.playerRenderer.assets)||null});gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));
+ gl.disableVertexAttribArray(this.aPos);gl.disableVertexAttribArray(this.aColor);this.playerRenderer.draw(players,vp,kickCamera?.eye||this.cameraSmoothing,kickCamera?'close':this.camera,dt,this.matchAnimation,{cull,instancing:this.instancingEnabled===true,animationLOD:this.performance.mode==='performance'&&!kickCamera&&!this.debugRig&&!this.replayCameraSmooth,ball,paletteForPlayer:p=>this.matchPilot?.paletteForPlayer(p,dt,this.matchAnimation,this.playerRenderer.assets)||null});gl.useProgram(this.program);gl.uniformMatrix4fv(this.mvp,false,new Float32Array(vp));
  for(const p of players){if(!p.active)continue;if(cull&&!p.selected&&!p.referee&&!window.TribunPlayerRenderer.playerInView(p,vp))continue;this.playerGroundGeometry(m,p);
  if(this.debugRig){const pose=window.TribunHumanoidRig.getPose(p),gold=[1,.72,.15];for(const l of pose.legs){m.segment(...l.hip,...l.knee,.014,gold);m.segment(...l.knee,...l.ankle,.014,gold);}for(const a of pose.arms){m.segment(...a.shoulder,...a.elbow,.012,gold);m.segment(...a.elbow,...a.wrist,.012,gold);}}}
 }else for(const p of players)this.figure(m,p,dt);
