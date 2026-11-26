@@ -182,6 +182,12 @@ function pose(p,dt=1/60){
  const fallAge=duel?.fall&&!tackleCue?duel.age:0;
  const fallW=duel?.fall&&!tackleCue?smooth(fallAge/140)*(1-smooth((fallAge-250)/650)):0;
  const fallDrop=fallW*.34;
+ // Stage 86: native GK events are independent of the legacy Match actions.
+ const keeper=!special&&p.role==='GK'&&p.nativeKeeper?.weight>0?p.nativeKeeper:null;
+ const keeperW=keeper?clamp(keeper.weight,0,1):0;
+ const keeperLow=keeper?clamp((1.1-keeper.ball.y)/1.1,0,1)*keeperW:0;
+ const keeperSide=keeper?clamp(keeper.lateral/1.2,-1,1)*keeperW:0;
+ const keeperHigh=keeper?clamp((keeper.ball.y-1.5)/.9,0,1)*keeperW:0;
  const nativePlant=p.nativeFootPlant===true&&!special&&!(p.footTouch>0)&&!(p.feintClock>0)&&!(p.feintResponseClock>0);
  const stride=(nativePlant?mix(.72,2.05,smooth(speed/7)):mix(1.0,2.2,smooth(speed/6)))*(1-defensive*.22),
  duty=nativePlant?clamp(mix(.62,.34,smooth(speed/7))+defensive*.05,.34,.67):clamp(mix(.55,.20,smooth(speed/6))+defensive*.04,.20,.60);
@@ -234,12 +240,12 @@ function pose(p,dt=1/60){
   st.nativeDrop=mix(st.nativeDrop||0,valid?clamp(-forward*.005,0,.045)*moving:0,gain);
   if(!special){nativePitch=st.nativePitch;nativeRoll=st.nativeRoll;nativeDrop=st.nativeDrop;}
  }
- const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-nativeDrop-(gesture?(.025+.055*gesturePower)*gestureWeight:0)-(control?(controlShape.drop+.025*controlPressure)*controlWeight:0)-duelDrop-.12*tackleW-.20*slideW-fallDrop;
+ const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-nativeDrop-(gesture?(.025+.055*gesturePower)*gestureWeight:0)-(control?(controlShape.drop+.025*controlPressure)*controlWeight:0)-duelDrop-.12*tackleW-.20*slideW-fallDrop-.46*keeperLow;
  const feint=feintWeight*feintSide*.12;
  const headerU=act==='header'&&p.actionClock>0?clamp((p.actionElapsed||0)/Math.max(.1,p.actionDuration||.5),0,1):0,headerWave=Math.sin(Math.PI*headerU);
  const headerBend=p.headerHeight?clamp((1.77-p.headerHeight)*headerWave,0,.8):0;
  const shieldSide=p.dribbleFoot===0?1:-1;
- const pitch=clamp((native?nativePitch:st.lean*2)+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045+(gesture?profile.lean*gestureWeight*(.5+.5*gesturePower):0)+(control?(.035+.035*controlPressure)*controlWeight:0)+duelForward*duelWeight*.16+.10*tackleW+.20*fallW,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp((native?nativeRoll:st.turn*.25)+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055 +cutWeight*cutSide*.045-(gesture?gestureSide*.07*gestureWeight:0)+(control?(.06*controlLateral-controlSide*.035*controlPressure)*controlWeight:0)+duelLateral*duelWeight*.19+duelLateral*fallW*.15,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
+ const pitch=clamp((native?nativePitch:st.lean*2)+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045+(gesture?profile.lean*gestureWeight*(.5+.5*gesturePower):0)+(control?(.035+.035*controlPressure)*controlWeight:0)+duelForward*duelWeight*.16+.10*tackleW+.20*fallW+.32*keeperLow-.08*keeperHigh,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp((native?nativeRoll:st.turn*.25)+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055 +cutWeight*cutSide*.045-(gesture?gestureSide*.07*gestureWeight:0)+(control?(.06*controlLateral-controlSide*.035*controlPressure)*controlWeight:0)+duelLateral*duelWeight*.19+duelLateral*fallW*.15+keeperSide*.16,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
  const facing=[Math.cos(p.face||0),0,Math.sin(p.face||0)],right=[-facing[2],0,facing[0]];
  const up=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
  const bodyForward=unit(sub(facing,mul(up,dot(facing,up)))),bodyRight=unit(cross(bodyForward,up)),bodyFrame={forward:bodyForward,up,right:bodyRight};
@@ -397,6 +403,11 @@ function pose(p,dt=1/60){
    const target=world(p,.12+fallW*.22,side*(.29+slideW*.08),Math.max(.45,1.02-fallW*.45-slideW*.20));
    wrist=blend(wrist,target,Math.max(tackleW*.65,fallW*.8));
   }
+  if(keeper){
+   // The unknown limb case is a stylized ready pose, not a claimed glove hit.
+   const guard=world(p,.24,side*.28,1.10-.25*keeperLow+.25*keeperHigh);
+   wrist=blend(wrist,guard,keeperW*.75);
+  }
   if(duelWeight>0){
    // Tuck elbows near an opponent; extend the opposite arm for balance.
    const away=side*duelLateral>0;
@@ -437,6 +448,7 @@ function pose(p,dt=1/60){
  if(duel)result.nativeDuel={kind:duel.kind,opponentId:duel.opponentId,age:duel.age,weight:duelWeight,drop:duelDrop,forward:duelForward,lateral:duelLateral,tripType:duel.tripType};
  if(tackleCue)result.nativeTackle={kind:tackleCue.kind,foot:tackleCue.foot,weight:tackleW,sliding:tackleCue.tackle.sliding};
  if(duel?.fall)result.nativeRecovery={age:fallAge,weight:fallW,drop:fallDrop};
+ if(keeper)result.nativeKeeper={kind:keeper.kind,profile:keeper.profile,hand:keeper.hand,weight:keeperW,held:keeper.held,targets:0,meanPalmError:null};
  if(native)result.nativeBalance={pitch:nativePitch,roll:nativeRoll,drop:nativeDrop};
  if(hasScan||st.scanYaw){result.headYaw=st.scanYaw;result.headFace=(p.face||0)+st.scanYaw;}
  let frame=bodyFrame,contactTargets=null;
@@ -478,16 +490,30 @@ function pose(p,dt=1/60){
    leg.knee=ik.joint;leg.ankle=ik.end;leg.toe=add(ik.end,sub(oldToe,oldAnkle));leg.bend=ik.bend;leg.flex=ik.flex;leg.abduct=ik.abduct;leg.targetError=ik.error;if(ik.error>1e-5)leg.stance=false;
   }
  }
+ // For the native replay, resolve each known hand independently. Catch/hold
+ // uses two stylized palms; unknown parry hand only receives a ready pose.
+ let nativePalmErrors=[];
  for(let i=0;i<2;i++){
-  const arm=arms[i],side=i?1:-1,palm=contactTargets&&contactTargets[i];
+  const arm=arms[i],side=i?1:-1;
+  let palm=contactTargets&&contactTargets[i];
+  if(keeper&&(keeper.kind!=='parry'||keeper.hand===i)){
+   const half=keeper.kind==='parry'?0:BALL_RADIUS*.72;
+   const goal=[keeper.ball.x-right[0]*side*half,keeper.ball.y,keeper.ball.z-right[2]*side*half];
+   // Offset to the incoming-facing ball surface, not the center.
+   const direction=unit(sub(goal,arm.shoulder));
+   const target=sub(goal,mul(direction,BALL_RADIUS*.75));
+   const current=add(arm.target,mul(unit(sub(arm.target,arm.shoulder)),ANATOMY.palm));
+   palm=blend(current,target,keeperW);
+  }
   const wristTarget=palm?sub(palm,mul(unit(sub(palm,arm.shoulder)),ANATOMY.palm)):arm.target;
   const pole=add(mul(frame.forward,-.65),mul(frame.right,side*.5));
   const ik=boundedLimb(arm.shoulder,wristTarget,ANATOMY.upperArm,ANATOMY.forearm,pole,LIMITS.elbow,LIMITS.shoulder,frame,side);
   const handDirection=palm?unit(sub(palm,ik.end)):unit(sub(ik.end,ik.joint));
   arms[i]={shoulder:arm.shoulder,elbow:ik.joint,wrist:ik.end,hand:add(ik.end,mul(handDirection,ANATOMY.hand)),palm:add(ik.end,mul(handDirection,ANATOMY.palm)),bend:ik.bend,flex:ik.flex,abduct:ik.abduct,target:wristTarget,targetError:ik.error};
-  if(palm){arms[i].contactTarget=palm.slice();arms[i].contactError=len(sub(arms[i].palm,palm));}
+  if(palm){arms[i].contactTarget=palm.slice();arms[i].contactError=len(sub(arms[i].palm,palm));if(keeper)nativePalmErrors.push(arms[i].contactError);}
  }
  result.presentationOffset=shift;result.contactError=contactTargets?Math.max(...arms.map(a=>a.contactError)):0;
+ if(keeper&&nativePalmErrors.length){result.nativeKeeper.targets=nativePalmErrors.length;result.nativeKeeper.meanPalmError=nativePalmErrors.reduce((a,b)=>a+b,0)/nativePalmErrors.length;}
  if(headerWave>0){
   const jump=headerWave*(p.headerHeight?clamp((p.headerHeight-1.77)/.905,0,.33):.23);
   for(const key of bodyKeys)result[key][1]+=jump;

@@ -344,6 +344,20 @@ void TribunTrace(Match& match, bool done) {
   }
   output << ']';
   match.tribunFoulEvents.clear();
+  output << ",\"ballRetainerId\":";
+  if(match.GetBallRetainer())output << match.GetBallRetainer()->GetID();else output << "null";
+  output << ",\"nativeKeeperEvents\":[";
+  bool firstKeeper=true;
+  for(const auto& k:match.tribunKeeperEvents){
+    if(!firstKeeper)output<<',';
+    firstKeeper=false;
+    output << "{\"timeMs\":" << k.timeMs << ",\"playerId\":" << k.playerId
+           << ",\"databaseId\":" << k.databaseId << ",\"team\":" << k.team
+           << ",\"kind\":\"" << k.kind << "\",\"hand\":" << k.hand << ",\"ball\":";
+    vec(k.ball);output << ",\"incomingVelocity\":";vec(k.incoming);output << '}';
+  }
+  output << ']';
+  match.tribunKeeperEvents.clear();
   const auto data = match.GetMatchData();
   output << ",\"stats\":{\"shots\":[" << data->GetShots(0) << ',' << data->GetShots(1)
          << "],\"onTarget\":[" << data->GetShotsOnTarget(0) << ',' << data->GetShotsOnTarget(1)
@@ -1721,7 +1735,14 @@ def contact_event_header(source):
   };
   std::vector<TribunDuelEvent> tribunDuelEvents;
   struct TribunFoulEvent { unsigned long timeMs; int playerId,victimId,team,tackleType; };
-  std::vector<TribunFoulEvent> tribunFoulEvents;''')
+  std::vector<TribunFoulEvent> tribunFoulEvents;
+  struct TribunKeeperEvent {
+    unsigned long timeMs;
+    int playerId,databaseId,team,hand;
+    const char* kind;
+    Vector3 ball,incoming;
+  };
+  std::vector<TribunKeeperEvent> tribunKeeperEvents;''')
 
 def contact_event_source(source):
     # All six anchors occur inside the accepted native animation contact
@@ -1754,6 +1775,29 @@ def contact_event_source(source):
             CastPlayer()->HasUniquePossession()});
         }
         '''.replace("KIND",kind)
+        source=replace_once(source,anchor,capture+anchor)
+    return '#include <cstdlib>\n'+source
+
+def keeper_event_source(source):
+    # Deflect is shared by other players. Record only actual GK branches.
+    for kind,anchor in (
+      ("catch","          match->SetBallRetainer(CastPlayer());"),
+      ("parry","          match->GetBall()->Touch(touchVec);\n          match->GetBall()->SetRotation(0, 0, 0, 0.2f"),
+    ):
+        capture=r'''          if(std::getenv("TRIBUN_LEAGUE_SOCCER_TRACE")&&
+              CastPlayer()->GetFormationEntry().role==e_PlayerRole_GK){
+            const auto part=currentAnim->anim->GetVariable("touch_bodypart");
+            const bool arm=part.find("hand")!=std::string::npos||part.find("arm")!=std::string::npos||
+                part.find("elbow")!=std::string::npos||part.find("wrist")!=std::string::npos;
+            const bool left=arm&&part.find("left")!=std::string::npos;
+            const bool right=arm&&part.find("right")!=std::string::npos;
+            const int hand=left!=right?(left?0:1):-1;
+            match->tribunKeeperEvents.push_back({match->GetActualTime_ms(),
+              static_cast<int>(CastPlayer()->GetID()),
+              static_cast<int>(CastPlayer()->GetPlayerData()->GetDatabaseID()),team->GetID(),hand,"KIND",
+              match->GetBall()->Predict(0),match->GetBall()->GetMovement()});
+          }
+'''.replace("KIND",kind)
         source=replace_once(source,anchor,capture+anchor)
     return source
 
@@ -1806,6 +1850,7 @@ def main():
     for relative,marker,transform in (
       ("match.hpp","struct TribunContactEvent",contact_event_header),
       ("player/humanoid/humanoid.cpp","tribunContactEvents.push_back",contact_event_source),
+      ("player/humanoid/humanoid.cpp","tribunKeeperEvents.push_back",keeper_event_source),
       ("match.cpp","const auto recordDuel=",duel_event_source),
       ("referee.cpp","tribunFoulEvents.push_back",foul_event_source),
     ):

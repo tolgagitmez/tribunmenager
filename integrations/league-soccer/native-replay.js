@@ -94,6 +94,16 @@
      last=e.timeMs;
     }
    }
+   if(f.ballRetainerId!==undefined)requireValue(f.ballRetainerId===null||nonneg(f.ballRetainerId),'Geçersiz top tutan oyuncu.');
+   if(f.nativeKeeperEvents!==undefined){
+    requireValue(Array.isArray(f.nativeKeeperEvents),'Geçersiz kaleci olayları.');
+    let last=prior?.elapsedMs??0;
+    for(const k of f.nativeKeeperEvents){
+     requireValue(k&&nonneg(k.timeMs)&&k.timeMs>=last&&k.timeMs<=f.elapsedMs&&nonneg(k.playerId)&&nonneg(k.databaseId)&&
+      [0,1].includes(k.team)&&['catch','parry'].includes(k.kind)&&[-1,0,1].includes(k.hand)&&vec(k.ball)&&vec(k.incomingVelocity),'Geçersiz kaleci teması.');
+     last=k.timeMs;
+    }
+   }
    if(f.stats!==undefined)requireValue(f.stats&&keys.every(k=>pair(f.stats[k])),'Geçersiz maç istatistiği.');
    if(prior)requireValue(!prior.done&&f.elapsedMs>=prior.elapsedMs&&f.score.every((v,i)=>v>=prior.score[i]),'Maç kaydı sırası geçersiz.');
    prior=f;
@@ -128,7 +138,7 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
@@ -200,6 +210,36 @@
    }
    return best;
   }
+  const keepers=new Map();
+  if(keeperMotion)for(const frame of frames)for(const k of frame.nativeKeeperEvents||[]){
+   const key=k.team+':'+k.playerId+':'+k.databaseId;
+   if(!keepers.has(key))keepers.set(key,[]);
+   keepers.get(key).push(k);
+  }
+  function keeperAt(source,time,a,b,actor,u){
+   const events=keepers.get(source.team+':'+source.id+':'+source.databaseId)||[];
+   let lo=0,hi=events.length;
+   while(lo<hi){const mid=(lo+hi)>>1;if(events[mid].timeMs<time)lo=mid+1;else hi=mid;}
+   let best=null;
+   for(const e of [events[lo-1],events[lo]]){
+    if(!e)continue;
+    const delta=time-e.timeMs;
+    if(delta< -220||delta>420)continue;
+    if(!best||Math.abs(delta)<Math.abs(time-best.timeMs))best=e;
+   }
+   const held=a.ballRetainerId===source.id&&b.ballRetainerId===source.id;
+   const point=held&&(!best||time-best.timeMs>80)?a.ball.map((v,i)=>lerp(v,b.ball[i],u)):best?.ball;
+   if(!point)return null;
+   const ball=coord(point),dx=ball.x-actor.x,dz=ball.z-actor.z;
+   if(Math.hypot(dx,dz)>2.35||ball.y<0||ball.y>2.8)return null;
+   const lateral=-Math.sin(actor.face)*dx+Math.cos(actor.face)*dz;
+   const forward=Math.cos(actor.face)*dx+Math.sin(actor.face)*dz;
+   const delta=best?time-best.timeMs:0;
+   const raw=held?1:clamp(1-Math.abs(delta)/(delta<0?220:420),0,1);
+   const profile=held?'hold':ball.y<.55?'low':ball.y>1.65?'high':Math.abs(lateral)>.7?'side':'central';
+   return {kind:held?'hold':best.kind,profile,hand:best?.hand??-1,ball,lateral,forward,deltaMs:delta,
+    weight:raw*raw*(3-2*raw),timeMs:best?.timeMs??null,held};
+  }
   let previousTime=null;
   function reset(rig){for(const p of actors.values())rig?.reset(p);actors.clear();previousTime=null;}
   function sample(ms,rig,dt=0){
@@ -253,7 +293,11 @@
     if(duelMotion||tackleMotion){
      actor.nativeDuel=actor.role==='GK'||a.setPiece||a.inPlay===false||span>200||Math.hypot(dest.x-pos.x,dest.z-pos.z)>2?null:duelAt(source,time);
     }
-    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion?step:clamp(dt,0,.1));return actor;
+    if(keeperMotion){
+     actor.nativeKeeper=actor.role==='GK'&&!a.done&&!a.setPiece&&a.inPlay!==false&&span>0&&span<=200&&
+      Math.hypot(dest.x-pos.x,dest.z-pos.z)<=2?keeperAt(source,time,a,b,actor,u):null;
+    }
+    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion||keeperMotion?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}
    const p=coord(a.ball),q=coord(b.ball),v=velocity(a.ballVelocity),w=velocity(b.ballVelocity);
