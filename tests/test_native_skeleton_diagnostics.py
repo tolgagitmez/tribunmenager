@@ -36,3 +36,13 @@ class SkeletonDiagnosticsTest(unittest.TestCase):
         r=self.read(line(left='nan,0,0')+line(frame=3))
         self.assertEqual(r['invalidLines'],2)
         self.assertFalse(r['evidenceAvailable'])
+
+
+    def test_leg_blend_measurements(self):
+        p='[tribun-leg-blend] phase=1 match_ms=1800 player=7 actual=3.0 anim=4.0 native=0.7 adjusted=0.8\n'
+        r=self.read(p+p.replace('adjusted=0.8','adjusted=0.75')+p.replace('adjusted=0.8','adjusted=1.0'))
+        self.assertEqual(r['legBlendSamples'],2)
+        self.assertEqual(r['maxLegBlendDelta'],.1)
+        self.assertEqual(r['meanLegBlendDelta'],.075)
+        self.assertEqual(r['invalidLines'],1)
+        self.assertTrue(r['evidenceAvailable'])
