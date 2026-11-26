@@ -45,6 +45,8 @@ def match_result(directory, native_rc, browser_rc):
             coverage=browser['coverageFraction'], droppedFrames=browser['droppedFrames'],
             decodedFrames=browser['decodedFrames'], fixtureSha256=native['fixtureSha256'],
             audioWindows=native['audio']['nonSilentWindows'],
+            encodedVideoMaxGapSeconds=native.get('mediaTimeline',{}).get('tracks',{}).get('video',{}).get('maxGapSeconds'),
+            browserLongestProgressIntervalMs=browser.get('longestObservedProgressIntervalMs'),
             acknowledgements=len(evidence['acknowledgements']), renderProbe=native.get('renderProbe'), softwareGLWorkers=native.get('softwareGLWorkers',2))
         result['passed'] = bool(
             native_rc == browser_rc == 0 and native['status'] == 'local-live-evidence'
