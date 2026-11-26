@@ -3,6 +3,7 @@
 import argparse
 import json
 import shutil
+import subprocess
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -37,16 +38,71 @@ class LocalHandler(SimpleHTTPRequestHandler):
         self.reply(503, {'error': 'Yerel maç modu açık. Lig hesabı için --mode league, transfer hesabı için --mode full kullan.'})
 
 
+NATIVE_BRANCH = 'experiment/native-entrypoint-stage169'
+WSL_BOOTSTRAP = r'''
+set -eu
+cd ~
+repo=tribun-manager-native-alpha-stage169
+url=https://github.com/tolgagitmez/tribunmenager.git
+branch=experiment/native-entrypoint-stage169
+command -v git >/dev/null || { echo 'Ubuntu icinde sudo apt-get install git komutunu calistir.' >&2; exit 2; }
+if [ ! -e "$repo" ]; then
+    git clone --single-branch --branch "$branch" "$url" "$repo"
+fi
+cd "$repo"
+[ "$(git config --get remote.origin.url)" = "$url" ] &&
+[ "$(git branch --show-current)" = "$branch" ] &&
+[ -z "$(git status --porcelain --untracked-files=no)" ] ||
+    { echo 'Alfa kaynak klasoru degismis; elle kontrol et.' >&2; exit 2; }
+if [ "$1" = update ]; then git pull --ff-only origin "$branch"; fi
+shift
+exec python3 integrations/league-soccer/native_alpha.py --private-diagnostic "$@"
+'''
+
+def native_command(args, platform=None):
+    platform = platform or sys.platform
+    if args.host not in ('127.0.0.1','localhost'):
+        raise ValueError('Yeni motor yalnizca yerel ozel alfa olarak calisir.')
+    options=['--port',str(args.port or 8765),'--delay',str(args.native_delay)]
+    if args.native_install_deps:options.append('--install-deps')
+    if args.native_runtime:options+=['--runtime',args.native_runtime]
+    if args.native_session_root:options+=['--session-root',args.native_session_root]
+    if args.native_prepare_only:options.append('--prepare-only')
+    if platform.startswith('linux'):
+        if args.native_update:raise ValueError('Linux kaynak kodunu git ile acikca guncelle.')
+        return [sys.executable,str(ROOT/'integrations/league-soccer/native_alpha.py'),'--private-diagnostic',*options]
+    if platform=='win32':
+        if not shutil.which('wsl.exe'):raise ValueError('Windows icin WSL2 Ubuntu gerekli. wsl --install -d Ubuntu')
+        return ['wsl.exe','--distribution','Ubuntu','--','bash','-lc',WSL_BOOTSTRAP,'tribun-alpha',
+                'update' if args.native_update else 'keep',*options]
+    raise ValueError('Native alfa su anda Linux veya WSL2 Ubuntu yolu ile calisir.')
+
 def main(argv=None):
     if sys.version_info < (3, 10):
         raise SystemExit('Python 3.10 veya daha yeni bir sürüm gerekli.')
     parser = argparse.ArgumentParser(description='Tribün Manager başlatıcısı')
-    parser.add_argument('--mode', choices=['local', 'league', 'full'], default='local')
+    parser.add_argument('--mode', choices=['native', 'local', 'league', 'full'], default='native', help='native: League-Soccer alfa; local: eski motor')
     parser.add_argument('--host', default='127.0.0.1')
-    parser.add_argument('--port', type=int, default=8000)
+    parser.add_argument('--port', type=int)
+    parser.add_argument('--native-install-deps', action='store_true')
+    parser.add_argument('--native-update', action='store_true')
+    parser.add_argument('--native-prepare-only', action='store_true')
+    parser.add_argument('--native-runtime')
+    parser.add_argument('--native-session-root')
+    parser.add_argument('--native-delay', type=int, default=120)
     args = parser.parse_args(argv)
+    if args.port is None:args.port=8765 if args.mode=='native' else 8000
     if not 1 <= args.port <= 65535:
         parser.error('Port 1–65535 arasında olmalı.')
+    if args.mode=='native':
+        try:
+            command=native_command(args)
+            print('TRIBUN MANAGER | LEAGUE-SOCCER yerel alfa. Eski motor otomatik acilmaz.',flush=True)
+            return subprocess.call(command,cwd=ROOT)
+        except (OSError,ValueError) as exc:
+            print('Yeni motor baslatilamadi: '+str(exc),file=sys.stderr)
+            return 2
+        except KeyboardInterrupt:return 130
     if args.mode == 'full':
         missing = [p for p in ['data/transfer-rules.json', 'data/player-catalog.json', 'data/club-seed.json'] if not (ROOT / p).is_file()]
         if missing:
@@ -70,4 +126,4 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

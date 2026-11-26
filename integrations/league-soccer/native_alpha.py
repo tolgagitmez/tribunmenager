@@ -43,6 +43,18 @@ def private_base(path):
         raise ValueError('Alfa klasörü yalnızca kullanıcıya ait olmalı (0700).')
     return path
 
+def find_runtime(base):
+    # Reuse only the matching build in a private, non-symlink session.
+    for session in sorted(base.glob('alpha-*'),key=lambda x:x.stat().st_mtime,reverse=True):
+        if session.is_symlink() or not session.is_dir():continue
+        st=session.stat()
+        if st.st_uid!=os.getuid() or st.st_mode&0o077:continue
+        runtime=session/'runtime'
+        if runtime.is_symlink():continue
+        try:return validate_runtime(runtime)
+        except (OSError,ValueError):continue
+    return None
+
 def execute(args,env):
     subprocess.run(args,cwd=ROOT,env=env,check=True)
 
@@ -75,8 +87,9 @@ def main():
             # Check the actual Chrome executable can start; package presence alone is insufficient.
             execute(['node','-e',"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({headless:true,channel:'chrome'});await b.close()})().catch(()=>process.exit(1))"],env)
         session=Path(tempfile.mkdtemp(prefix='alpha-',dir=base))
-        if a.runtime:
-            runtime=validate_runtime(a.runtime)
+        runtime=validate_runtime(a.runtime) if a.runtime else find_runtime(base)
+        if runtime is not None:
+            print('Eslesen hazir motor kullaniliyor.',flush=True)
         else:
             runtime=session/'runtime'
             build_env={**env,'TRIBUN_PREPARE_ONLY':'1','TRIBUN_NATIVE_RUNTIME_OUT':str(runtime),'TRIBUN_BUILD_JOBS':'2'}

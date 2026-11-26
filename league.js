@@ -45,6 +45,7 @@ function timer(){
  const watch=$('watchLive');
  watch.hidden=!canWatch;
  if(canWatch){watch.href=(nativeOnly?'native-league-live.html?round=':'match.html?live=')+encodeURIComponent(match.round);watch.textContent=nativeOnly?'Orijinal motor yayını':'Canlı maçı izle';}
+ const preparation=document.querySelector('.league-card a[href="match.html"]');if(preparation)preparation.hidden=nativeOnly;
  const native=$('watchNative');if(native){native.hidden=nativeOnly||!match||now<match.kickoff;if(match)native.href='native-match.html?round='+encodeURIComponent(match.round);}
  if(nativeOnly&&match&&match.nativeState!=='scheduled'){
   const labels={running:['MOTOR ÇALIŞIYOR','Orijinal motor çalışıyor; yayın parçaları hazırlanıyor olabilir.'],queued:['SIRADA','Karşılaşma sunucu kapasitesi bekliyor.'],preparing:['HAZIRLANIYOR','Maç kaydı hazırlanıyor.'],blocked:['BEKLETİLDİ','Önceki maç günü tamamlanmadı.'],failed:['MAÇ DURDU','Motor doğrulaması başarısız; sonuç üretilmedi.'],interrupted:['BAĞLANTI KESİLDİ','Motor işçisi bağlantısını kaybetti; otomatik tekrar yok.'],inconsistent:['KONTROL GEREKLİ','Doğrulanmış sezon sonucu bulunamadı.'],completed:['MAÇ BİTTİ','Doğrulanmış sonuç deneme ligi tablosunda.']};

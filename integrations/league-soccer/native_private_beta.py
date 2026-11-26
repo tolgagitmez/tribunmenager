@@ -5,6 +5,8 @@ from http.server import ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+from urllib.parse import unquote,urlsplit
+import posixpath
 import shutil
 import stat
 import sys
@@ -35,6 +37,27 @@ def prepare(runtime,root):
     if manifest.get('upstream')!=json.loads((HERE/'upstream.json').read_text()):raise ValueError('Wrong upstream revision')
     return private_new(root)
 
+class AlphaHandler(server.Handler):
+    """Only this disposable server changes routes; ordinary leagues stay untouched."""
+    def redirect_alpha(self):
+        path=posixpath.normpath('/'+unquote(urlsplit(self.path).path).lstrip('/'))
+        target={'/':'/native-beta-login.html','/match.html':'/league.html','/native-match.html':'/league.html'}.get(path)
+        if not target:return False
+        self.send_response(303)
+        self.send_header('Location',target)
+        self.send_header('Cache-Control','no-store')
+        self.send_header('Content-Length','0')
+        self.end_headers()
+        return True
+    def do_GET(self):
+        if not self.redirect_alpha():return super().do_GET()
+    def do_HEAD(self):
+        if not self.redirect_alpha():return super().do_HEAD()
+    def do_POST(self):
+        if urlsplit(self.path).path in ('/api/league/create','/api/league/join'):
+            return self.json_response({'error':'Bu alfa yalnizca baslaticinin olusturdugu tek ozel maca ayrilmistir.'},403)
+        return super().do_POST()
+
 def run(runtime,root,port,delay,result_seconds=30):
     root=prepare(runtime,root)
     lock=lock_host()
@@ -53,7 +76,7 @@ def run(runtime,root,port,delay,result_seconds=30):
         token_path=root/'manager-session.txt'
         fd=os.open(token_path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
         with os.fdopen(fd,'w') as f:f.write(account['token']+'\n')
-        with ThreadingHTTPServer(('127.0.0.1',port),server.Handler) as http:
+        with ThreadingHTTPServer(('127.0.0.1',port),AlphaHandler) as http:
             thread=threading.Thread(target=http.serve_forever,daemon=True);thread.start()
             try:
                 print('Yerel özel deneme: http://127.0.0.1:'+str(http.server_port)+'/native-beta-login.html',flush=True)

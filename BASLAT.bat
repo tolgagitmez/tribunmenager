@@ -3,7 +3,6 @@ chcp 65001 >nul
 cd /d "%~dp0"
 where py >nul 2>nul
 if %errorlevel% equ 0 (
-  start "" http://localhost:8000
   py -3 start.py %*
 ) else (
   where python >nul 2>nul
@@ -12,7 +11,6 @@ if %errorlevel% equ 0 (
     pause
     exit /b 1
   )
-  start "" http://localhost:8000
   python start.py %*
 )
 pause
