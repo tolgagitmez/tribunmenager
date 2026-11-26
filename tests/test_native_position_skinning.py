@@ -31,7 +31,7 @@ int main(){
             subprocess.run(["c++","-std=c++17",str(p/"test.cpp"),"-o",str(p/"test")],check=True)
             subprocess.run([str(p/"test")],check=True)
     def test_transform_preserves_positions_and_pose(self):
-        src='''#include "humanoidbase.hpp"
+        src='''#include "humanoid.hpp"
 void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {
   int uploadVertices = true;
   int uploadNormals = true;

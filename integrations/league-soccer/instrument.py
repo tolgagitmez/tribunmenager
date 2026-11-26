@@ -672,8 +672,8 @@ inline Channels channels(bool isolated,bool requested,bool updateSrc) {
 '''
 
 def optimize_skinning_channels(source):
-    source = replace_once(source, '#include "humanoidbase.hpp"',
-        '#include "humanoidbase.hpp"\n#include "tribun_skinning_channels.hpp"\n#include <cstdlib>\n#include <cstdio>\n#include <cstring>')
+    source = replace_once(source, '#include "humanoid.hpp"',
+        '#include "humanoid.hpp"\n#include "tribun_skinning_channels.hpp"\n#include <cstdlib>\n#include <cstdio>\n#include <cstring>')
     return replace_once(source, """void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {
   int uploadVertices = true;
   int uploadNormals = true;

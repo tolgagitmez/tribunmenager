@@ -1,0 +1,45 @@
+name: Native integrated server profile diagnostic
+on:
+  push:
+    branches: [experiment/native-integrated-stage50]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_integrated_profile.py'
+      - 'tests/test_native_position_skinning.py'
+      - '.github/workflows/native-integrated-profile.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integrated:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_position_skinning.py
+      - run: python3 -m unittest discover -s tests -p test_native_integrated_profile.py
+      - name: Build corrected pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/integrated-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Verify isolated skinning after source anchor correction
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/integrated-fixtures"
+          python3 integrations/league-soccer/position-skinning-benchmark.py "$RUNNER_TEMP/integrated-runtime" "$RUNNER_TEMP/integrated-fixtures/balanced.json" "$RUNNER_TEMP/corrected-skinning"
+      - name: Compare integrated profile and gate 2 and 4 simultaneous matches
+        run: |
+          python3 integrations/league-soccer/integrated-profile.py "$RUNNER_TEMP/integrated-runtime" "$RUNNER_TEMP/integrated-fixtures" "$RUNNER_TEMP/integrated-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-integrated-profile
+          path: |
+            ${{ runner.temp }}/corrected-skinning/
+            ${{ runner.temp }}/integrated-results/
+          if-no-files-found: ignore
