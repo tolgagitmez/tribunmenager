@@ -3424,6 +3424,11 @@ void OpenGLRenderer3D::RenderAABB'''),
   }();
   return enabled;
 }
+inline bool RecoveryMoveCandidate202(bool useMovement,bool shotQueued,float speed,float alignment){
+  return useMovement && !shotQueued && std::isfinite(speed) &&
+      std::isfinite(alignment) && speed>=1.2f && speed<=3.5f &&
+      alignment>=.85f && alignment<=1.001f;
+}
 struct IdleRecoveryWatch {
   bool tracking=false;
   int phase=-1;
@@ -3477,6 +3482,7 @@ struct FixedDurationClock {'''),
         ("  _SetInput(rawInputDirection, rawInputVelocityFloat);", r'''  // Only a settled, repeatedly stationary AI-controlled carrier reaches
   // this branch. Ordinary ball protection, running, keeper and set pieces
   // retain the native decisions. No forced ball touch or animation reset.
+  bool tribunRecoveryMove202=false;
   const auto recoveryNow=match->GetActualTime_ms();
   const bool continueIdleMove=AITactics::IdleRecoveryEnabled() && tribunIdleRecovery.ContinueMove(recoveryNow);
   if(manualMovement)tribunIdleRecovery.StopMove();
@@ -3539,6 +3545,7 @@ struct FixedDurationClock {'''),
       for(const auto& rival:rivals)nearest=std::min(nearest,(p-rival.position).GetLength());
       if(found){
         rawInputDirection=direction;rawInputVelocityFloat=2.5f;
+        tribunRecoveryMove202=true;
         if(recoverIdle)tribunIdleRecovery.BeginMove(recoveryNow);
         action="safe-move";
       }else{
@@ -3556,6 +3563,27 @@ struct FixedDurationClock {'''),
         player->GetID(),action);
   }
   _SetInput(rawInputDirection, rawInputVelocityFloat);'''),
+        (r'''    // ball control?
+    _BallControlCommand(commandQueue, false, false,
+                        false);  // last param true == enable sticky run direction.''', r'''    // ball control?
+    const auto tribunRecoveryQueueSize=commandQueue.size();
+    _BallControlCommand(commandQueue, false, false,
+                        false);  // last param true == enable sticky run direction.
+    if(tribunRecoveryMove202 && commandQueue.size()==tribunRecoveryQueueSize+1){
+      const auto& candidate=commandQueue.back();
+      bool shotQueued=false;
+      for(const auto& queued:commandQueue)
+        if(queued.desiredFunctionType==e_FunctionType_Shot)shotQueued=true;
+      const float alignment=candidate.desiredDirection.GetDotProduct(rawInputDirection);
+      if(candidate.desiredFunctionType==e_FunctionType_BallControl &&
+          AITactics::RecoveryMoveCandidate202(candidate.useDesiredMovement,shotQueued,
+              candidate.desiredVelocityFloat,alignment)){
+        // Keep every command; the native animation selector still validates contact.
+        std::rotate(commandQueue.begin(),commandQueue.end()-1,commandQueue.end());
+        if(recoverIdle)std::fprintf(stderr,"[tribun-idle-move202] phase=%d match_ms=%lu player=%d queued=1\n",
+            static_cast<int>(match->GetMatchPhase()),static_cast<unsigned long>(match->GetMatchTime_ms()),player->GetID());
+      }
+    }'''),
     ])
 
 
