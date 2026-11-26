@@ -73,6 +73,18 @@
      lastContact=e.timeMs;
     }
    }
+   if(f.nativeDuels!==undefined){
+    requireValue(Array.isArray(f.nativeDuels),'Geçersiz mücadele listesi.');
+    let lastDuel=prior?.elapsedMs??0;
+    for(const d of f.nativeDuels){
+     requireValue(d&&nonneg(d.timeMs)&&d.timeMs>=lastDuel&&d.timeMs<=f.elapsedMs&&
+      nonneg(d.playerId)&&nonneg(d.databaseId)&&[0,1].includes(d.team)&&nonneg(d.opponentId)&&d.opponentId!==d.playerId&&
+      ['bump','trip','tackle-trip'].includes(d.kind)&&[0,1,2,3].includes(d.tripType)&&vec(d.direction)&&
+      finite(d.displacement)&&d.displacement>=0&&finite(d.relativeSpeed)&&d.relativeSpeed>=0&&
+      finite(d.balance)&&typeof d.possession==='boolean','Geçersiz motor mücadelesi.');
+     lastDuel=d.timeMs;
+    }
+   }
    if(f.stats!==undefined)requireValue(f.stats&&keys.every(k=>pair(f.stats[k])),'Geçersiz maç istatistiği.');
    if(prior)requireValue(!prior.done&&f.elapsedMs>=prior.elapsedMs&&f.score.every((v,i)=>v>=prior.score[i]),'Maç kaydı sırası geçersiz.');
    prior=f;
@@ -107,7 +119,7 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
@@ -150,6 +162,30 @@
      contextRecorded:!!c};
    }
    return cue;
+  }
+  const duels=new Map();
+  if(duelMotion)for(const frame of frames)for(const d of frame.nativeDuels||[]){
+   const key=d.team+':'+d.playerId+':'+d.databaseId;
+   if(!duels.has(key))duels.set(key,[]);
+   duels.get(key).push(d);
+  }
+  function duelAt(source,time){
+   const events=duels.get(source.team+':'+source.id+':'+source.databaseId)||[];
+   let lo=0,hi=events.length;
+   while(lo<hi){const mid=(lo+hi)>>1;if(events[mid].timeMs<=time)lo=mid+1;else hi=mid;}
+   let best=null;
+   for(let i=lo-1;i>=0;i--){
+    const d=events[i],age=time-d.timeMs;
+    if(age>420)break;
+    const duration=d.kind==='bump'?180:420;
+    if(age>=duration)continue;
+    const strength=d.kind==='bump'?clamp(d.displacement/.065,0,1)*(.45+.55*clamp(d.relativeSpeed/7,0,1)):
+     clamp(.48+.15*d.tripType,0,1);
+    const recovery=1-age/duration,weight=strength*recovery*recovery;
+    if(!best||weight>best.weight)best={kind:d.kind,timeMs:d.timeMs,age,weight,direction:coord(d.direction),
+     balance:clamp(d.balance,0,1),possession:d.possession,opponentId:d.opponentId,tripType:d.tripType};
+   }
+   return best;
   }
   let previousTime=null;
   function reset(rig){for(const p of actors.values())rig?.reset(p);actors.clear();previousTime=null;}
@@ -201,7 +237,10 @@
      const cue=actor.role==='GK'||a.setPiece||b.setPiece||a.inPlay===false||b.inPlay===false||span>200?null:contactAt(source,time);
      actor.nativeContact=cue&&Math.hypot(cue.ball.x-actor.x,cue.ball.z-actor.z)<=1.15?cue:null;
     }
-    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion?step:clamp(dt,0,.1));return actor;
+    if(duelMotion){
+     actor.nativeDuel=actor.role==='GK'||a.setPiece||a.inPlay===false||span>200||Math.hypot(dest.x-pos.x,dest.z-pos.z)>2?null:duelAt(source,time);
+    }
+    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}
    const p=coord(a.ball),q=coord(b.ball),v=velocity(a.ballVelocity),w=velocity(b.ballVelocity);

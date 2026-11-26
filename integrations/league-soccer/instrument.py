@@ -319,6 +319,20 @@ void TribunTrace(Match& match, bool done) {
   }
   output << ']';
   match.tribunContactEvents.clear();
+  output << ",\"nativeDuels\":[";
+  bool firstDuel=true;
+  for(const auto& d:match.tribunDuelEvents){
+    if(!firstDuel)output<<',';
+    firstDuel=false;
+    output << "{\"timeMs\":" << d.timeMs << ",\"playerId\":" << d.playerId
+           << ",\"databaseId\":" << d.databaseId << ",\"team\":" << d.team
+           << ",\"opponentId\":" << d.opponentId << ",\"tripType\":" << d.tripType
+           << ",\"kind\":\"" << d.kind << "\",\"direction\":";vec(d.direction);
+    output << ",\"displacement\":" << d.displacement << ",\"relativeSpeed\":" << d.relativeSpeed
+           << ",\"balance\":" << d.balance << ",\"possession\":" << (d.possession?"true":"false") << '}';
+  }
+  output << ']';
+  match.tribunDuelEvents.clear();
   const auto data = match.GetMatchData();
   output << ",\"stats\":{\"shots\":[" << data->GetShots(0) << ',' << data->GetShots(1)
          << "],\"onTarget\":[" << data->GetShotsOnTarget(0) << ',' << data->GetShotsOnTarget(1)
@@ -1685,7 +1699,16 @@ def contact_event_header(source):
     float opponentDistance,dribbleSkill,controlSkill;
     bool knockOn,uniquePossession;
   };
-  std::vector<TribunContactEvent> tribunContactEvents;''')
+  std::vector<TribunContactEvent> tribunContactEvents;
+  struct TribunDuelEvent {
+    unsigned long timeMs;
+    int playerId,databaseId,team,opponentId,tripType;
+    const char* kind;
+    Vector3 direction;
+    float displacement,relativeSpeed,balance;
+    bool possession;
+  };
+  std::vector<TribunDuelEvent> tribunDuelEvents;''')
 
 def contact_event_source(source):
     # All four anchors occur inside the accepted native animation contact
@@ -1719,6 +1742,35 @@ def contact_event_source(source):
         source=replace_once(source,anchor,capture+anchor)
     return source
 
+def duel_event_source(source):
+    # Observe existing corrections and trip notices, never modify the solver.
+    anchor = "  float distanceFactor = 0.72f;"
+    source = replace_once(source, anchor, r'''  const auto recordDuel=[&](Player* victim,Player* opponent,const char* kind,
+      const Vector3& direction,float displacement,int tripType){
+    if(!std::getenv("TRIBUN_LEAGUE_SOCCER_TRACE")||victim->GetTeamID()==opponent->GetTeamID())return;
+    tribunDuelEvents.push_back({GetActualTime_ms(),static_cast<int>(victim->GetID()),
+      static_cast<int>(victim->GetPlayerData()->GetDatabaseID()),victim->GetTeamID(),
+      static_cast<int>(opponent->GetID()),tripType,kind,direction,displacement,
+      (victim->GetMovement()-opponent->GetMovement()).GetLength(),
+      victim->GetStat("physical_balance"),victim->HasUniquePossession()});
+  };
+''' + anchor)
+    source = replace_once(source,"      p1->OffsetPosition(offset1);\n      p2->OffsetPosition(offset2);",r'''      if(offset1.GetLength()>.0001f)
+        recordDuel(p1,p2,"bump",offset1.GetNormalized(0),offset1.GetLength(),0);
+      if(offset2.GetLength()>.0001f)
+        recordDuel(p2,p1,"bump",offset2.GetNormalized(0),offset2.GetLength(),0);
+      p1->OffsetPosition(offset1);
+      p2->OffsetPosition(offset2);''')
+    for victim,opponent,sign in (("p1","p2",""),("p2","p1","-")):
+        notice=f"referee->TripNotice({victim}, {opponent}, tripType);"
+        # Different indentation distinguishes ordinary collision from the
+        # confirmed tackling geometry branch in the pinned upstream.
+        source=replace_once(source,"          "+notice+"\n          "+victim+"->Injure",
+          f'          recordDuel({victim},{opponent},"trip",{sign}bounceVec,0.0f,tripType);\n          '+notice+"\n          "+victim+"->Injure")
+        source=replace_once(source,"                "+notice+"\n                AddExcitementBoost",
+          f'                recordDuel({victim},{opponent},"tackle-trip",tripVec,0.0f,tripType);\n                '+notice+"\n                AddExcitementBoost")
+    return source
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -1728,6 +1780,7 @@ def main():
     for relative,marker,transform in (
       ("match.hpp","struct TribunContactEvent",contact_event_header),
       ("player/humanoid/humanoid.cpp","tribunContactEvents.push_back",contact_event_source),
+      ("match.cpp","const auto recordDuel=",duel_event_source),
     ):
         target=contact_root/relative
         source=target.read_text(encoding="utf-8")

@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: '22'
       - name: Fixture adapter unit tests
-        run: node --test integrations/league-soccer/fixture-adapter.test.cjs integrations/league-soccer/native-replay.test.cjs integrations/league-soccer/native-foot-plant.test.cjs integrations/league-soccer/native-contact-sync.test.cjs integrations/league-soccer/native-strike-motion.test.cjs integrations/league-soccer/native-control-motion.test.cjs integrations/league-soccer/broadcast.test.cjs integrations/league-soccer/compare-attacks.test.cjs integrations/league-soccer/native-stream-view.test.cjs integrations/league-soccer/native-advisor.test.cjs
+        run: node --test integrations/league-soccer/fixture-adapter.test.cjs integrations/league-soccer/native-replay.test.cjs integrations/league-soccer/native-foot-plant.test.cjs integrations/league-soccer/native-contact-sync.test.cjs integrations/league-soccer/native-strike-motion.test.cjs integrations/league-soccer/native-control-motion.test.cjs integrations/league-soccer/native-duel-motion.test.cjs integrations/league-soccer/broadcast.test.cjs integrations/league-soccer/compare-attacks.test.cjs integrations/league-soccer/native-stream-view.test.cjs integrations/league-soccer/native-advisor.test.cjs
       - name: Python shadow queue tests
         run: python3 -m unittest discover -s tests -p 'test_native_*.py'
       - name: Build pinned upstream and capture full match
@@ -40,6 +40,8 @@ jobs:
         run: node integrations/league-soccer/contact-sync-benchmark.cjs "$RUNNER_TEMP/league-soccer.ndjson" > "$RUNNER_TEMP/league-soccer.ndjson.contact-sync.json"
       - name: Audit recorded control gesture coverage
         run: node integrations/league-soccer/control-motion-audit.cjs "$RUNNER_TEMP/league-soccer.ndjson" > "$RUNNER_TEMP/league-soccer.ndjson.control-motion.json"
+      - name: Audit native duel reaction coverage
+        run: node integrations/league-soccer/duel-motion-audit.cjs "$RUNNER_TEMP/league-soccer.ndjson" > "$RUNNER_TEMP/league-soccer.ndjson.duel-motion.json"
       - name: Verify reusable native runtime from frozen fixture
         run: |
           node -e 'process.stdout.write(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/native-config.json"
