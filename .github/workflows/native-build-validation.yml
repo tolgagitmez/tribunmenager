@@ -1,7 +1,7 @@
-name: Stage 212 native evidence reporting
+name: Stage 213 native run target validation
 on:
   pull_request:
-    branches: [experiment/native-test-repair-stage211]
+    branches: [experiment/native-evidence-reporting-stage212]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
