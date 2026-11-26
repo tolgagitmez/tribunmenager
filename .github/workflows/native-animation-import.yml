@@ -1,0 +1,50 @@
+name: Pinned native animation conversion
+on:
+  push:
+    branches: [experiment/native-animation-import-stage112]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  convert:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s tests -p test_upstream_animation_convert.py
+      - name: Fetch pinned source and convert seven real clips
+        run: |
+          source="$RUNNER_TEMP/upstream-animation-source"
+          git init -q "$source"
+          git -C "$source" remote add origin https://github.com/awest813/League-Soccer.git
+          revision="$(python3 -c 'import json;print(json.load(open("integrations/league-soccer/upstream.json"))["revision"])')"
+          git -C "$source" fetch --depth 1 origin "$revision"
+          git -C "$source" checkout --detach FETCH_HEAD
+          python3 integrations/league-soccer/upstream-animation-convert.py "$source" "$RUNNER_TEMP/native-animation-conversion"
+      - name: Verify all seven animation buffers and channels
+        run: |
+          python3 - "$RUNNER_TEMP/native-animation-conversion/native-animation-skeleton.gltf" <<'PY'
+          import base64,json,sys,struct,math
+          g=json.load(open(sys.argv[1]))
+          assert len(g["animations"])==7 and len(g["nodes"])==14
+          b=base64.b64decode(g["buffers"][0]["uri"].split(",")[1])
+          assert len(b)==g["buffers"][0]["byteLength"]
+          for a in g["animations"]:
+              assert len(a["channels"])==14
+              for s in a["samplers"]:
+                  t=g["accessors"][s["input"]];v=g["accessors"][s["output"]]
+                  assert t["count"]==v["count"]
+                  tv=g["bufferViews"][t["bufferView"]];vv=g["bufferViews"][v["bufferView"]]
+                  ts=struct.unpack_from("<"+"f"*t["count"],b,tv["byteOffset"])
+                  assert all(x<y for x,y in zip(ts,ts[1:]))
+                  width={"VEC3":3,"VEC4":4}[v["type"]]
+                  vals=struct.unpack_from("<"+"f"*(v["count"]*width),b,vv["byteOffset"])
+                  assert all(math.isfinite(x) for x in vals)
+                  if width==4:
+                      assert all(abs(sum(x*x for x in vals[i:i+4])-1)<1e-5 for i in range(0,len(vals),4))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: animation-conversion-report
+          path: ${{ runner.temp }}/native-animation-conversion/conversion-report.json
+          if-no-files-found: error
