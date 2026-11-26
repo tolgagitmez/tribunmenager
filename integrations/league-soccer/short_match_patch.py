@@ -2984,3 +2984,57 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
   }
 }'''),
     ])
+
+    # Stage 160: keep logical VAO identity separate from the resolved
+    # double-buffered GL handle within one synchronous draw-queue call.
+    edit(root, "src/systems/graphics/rendering/opengl_renderer3d.cpp", [
+        ('#include "opengl_renderer3d.hpp"', '#include "opengl_renderer3d.hpp"\n#include <cstdlib>\n#include <cstring>\n#include <cstdio>'),
+        ('''  signed int currentBoundBuffer = -1;
+''', r'''  signed int currentBoundBuffer = -1;
+  const char* vaoMode = std::getenv("TRIBUN_AV_VAO_CACHE");
+  const bool measureVao = vaoMode && (std::strcmp(vaoMode,"0")==0 || std::strcmp(vaoMode,"1")==0);
+  const bool cacheVao = measureVao && std::strcmp(vaoMode,"1")==0;
+  signed int currentLogicalBuffer = -1;
+  unsigned long long entries = 0, binds = 0, repeatedLogical = 0;
+'''),
+        ('''    if (currentBoundBuffer != vertexBuffer->GetVaoID()) {
+      bufferSwitches++;
+
+      int vaoID = vertexBuffer->GetVaoID();''', r'''    const int logicalVao = vertexBuffer->GetVaoID();
+    if (measureVao) {
+      ++entries;
+      if (currentLogicalBuffer == logicalVao) ++repeatedLogical;
+    }
+    // The renderer processes this queue serially. VAOReadIndex and the
+    // ping-pong map are not mutated inside this call.
+    if ((cacheVao ? currentLogicalBuffer : currentBoundBuffer) != logicalVao) {
+      bufferSwitches++;
+
+      int vaoID = logicalVao;'''),
+        ('''      currentBoundBuffer = vaoID;
+      mapping.glBindVertexArray(vaoID);''', r'''      currentBoundBuffer = vaoID;
+      mapping.glBindVertexArray(vaoID);
+      if (measureVao) ++binds;'''),
+        ('''    // glPushMatrix();
+
+    // slow, why?''', r'''    currentLogicalBuffer = logicalVao;
+
+    // glPushMatrix();
+
+    // slow, why?'''),
+        ('''  mapping.glBindVertexArray(0);
+}
+
+void OpenGLRenderer3D::RenderAABB''', r'''  mapping.glBindVertexArray(0);
+  if (measureVao) {
+    // Single renderer thread; no per-entry logging or GL queries.
+    static unsigned long long calls=0,totalEntries=0,totalBinds=0,totalRepeated=0;
+    ++calls; totalEntries+=entries; totalBinds+=binds; totalRepeated+=repeatedLogical;
+    if (calls%256==0)
+      std::fprintf(stderr,"[tribun-vao-cache] mode=%d calls=%llu entries=%llu binds=%llu repeats=%llu\n",
+                   cacheVao?1:0,calls,totalEntries,totalBinds,totalRepeated);
+  }
+}
+
+void OpenGLRenderer3D::RenderAABB'''),
+    ])

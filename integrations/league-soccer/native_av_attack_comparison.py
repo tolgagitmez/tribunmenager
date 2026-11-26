@@ -27,7 +27,7 @@ def compare(rows):
         else:result['passed']=False
     return result
 
-def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None):
+def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None,vao_cache=None):
     root.mkdir(mode=0o700)
     out=root/'run'
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_NATIVE_','TRIBUN_AV_','TRIBUN_GPU_','TRIBUN_LEAGUE_SOCCER_','TRIBUN_EXPECT_','TRIBUN_PLAYBACK_'))}
@@ -44,6 +44,10 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
         if type(skin_cache) is not int or skin_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048:
             raise ValueError('Unsupported skinning experiment')
         env['TRIBUN_AV_SKIN_CACHE']=str(skin_cache)
+    if vao_cache is not None:
+        if type(vao_cache) is not int or vao_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048 or skin_cache is not None:
+            raise ValueError('Unsupported VAO experiment')
+        env['TRIBUN_AV_VAO_CACHE']=str(vao_cache)
     children=[];error=None
     fixture_sha=hashlib.sha256(fixture.read_bytes()).hexdigest()
     try:
@@ -104,6 +108,14 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
             log=out/'native-match.game.log'
             if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
             result['skinEvidence']=parse_skin(log.read_text(errors='replace'),skin_cache)
+        except (OSError,ValueError):result['passed']=False
+    if vao_cache is not None:
+        from native_vao_cache_comparison import parse_vao
+        result.update(vaoCache=vao_cache,vaoEvidence=None)
+        try:
+            log=out/'native-match.game.log'
+            if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
+            result['vaoEvidence']=parse_vao(log.read_text(errors='replace'),vao_cache)
         except (OSError,ValueError):result['passed']=False
     return result
 
