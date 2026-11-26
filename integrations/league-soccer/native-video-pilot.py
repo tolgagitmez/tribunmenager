@@ -2,6 +2,7 @@
 import argparse,hashlib,importlib.util,json,math,os,signal,subprocess,time
 from pathlib import Path
 from native_audio_capture import private_audio, audio_config
+from native_audio_ownership import probe as audio_owner_probe
 from native_hw_encoder import selected, preflight
 HERE=Path(__file__).resolve().parent
 def require(ok,message):
@@ -59,7 +60,7 @@ def _capture_window(config,limit,audio_env):
         save(video.parent/"encoder-preflight.json",preflight(backend,device,index))
     progress=video.with_suffix(".progress");capture_log=video.with_suffix(".capture.log")
     game_log=video.with_suffix(".game.log");offset=0;first=kickoff=final=None;last=None;encoder=None
-    sink_input=False;next_audio_probe=0.0;child_env=audio_env or os.environ.copy()
+    sink_input=False;next_audio_probe=0.0;audio_probes={};child_env=audio_env or os.environ.copy()
     gl_workers=os.environ.get("TRIBUN_AV_GL_WORKERS","2")
     swap_enabled=os.environ.get("TRIBUN_AV_SWAP_PROBE","0")
     require(gl_workers in ("1","2") and swap_enabled in ("0","1"),"Invalid render diagnostic")
@@ -117,8 +118,10 @@ def _capture_window(config,limit,audio_env):
             while game.poll() is None:
                 drain()
                 if audio_env is not None and not sink_input and time.monotonic()>=next_audio_probe:
-                    result=subprocess.run(["pactl","list","short","sink-inputs"],env=child_env,capture_output=True,text=True,timeout=3,check=True)
-                    sink_input=bool(result.stdout.strip());next_audio_probe=time.monotonic()+2
+                    status=audio_owner_probe(child_env,game.pid)
+                    audio_probes[status]=audio_probes.get(status,0)+1
+                    save(video.parent/"native-audio-ownership.json",{"ownedInputObserved":status=="owned","probeCounts":audio_probes})
+                    sink_input=status=="owned";next_audio_probe=time.monotonic()+2
                 if encoder.poll() is not None and final is None:raise RuntimeError("Video encoder stopped before full time")
                 time.sleep(.075)
             drain()
@@ -129,13 +132,13 @@ def _capture_window(config,limit,audio_env):
     require("[menu-smoke] Full match complete:" in logs and "[menu-smoke] Full-match verification succeeded, quitting test run" in logs,"Missing native completion markers")
     if audio_env is not None:
         require("falling back to silent audio" not in logs and "using silent audio" not in logs,"Native OpenAL fallback to silent audio")
-        require(sink_input,"Native OpenAL sink input never observed")
+        require(sink_input,"Native OpenAL owned sink input never observed")
     swap_report=None
     if swap_enabled=="1":
         from native_swap_probe import summarize
         swap_report=summarize(swap_base,kickoff,final)
         save(video.parent/"native-render-report.json",swap_report)
-    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"videoEncoder":backend,"renderProbe":swap_report,"softwareGLWorkers":int(gl_workers)})
+    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"nativeSinkOwnershipVerified":sink_input,"audioProbeCounts":audio_probes,"videoEncoder":backend,"renderProbe":swap_report,"softwareGLWorkers":int(gl_workers)})
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)

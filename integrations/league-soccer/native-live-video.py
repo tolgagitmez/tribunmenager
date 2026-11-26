@@ -155,7 +155,7 @@ def main():
         complete=complete and media_audit["timelinePassed"]
         audio=None
         if a.audio:
-            V.require(capture.get("audio") is True and capture.get("nativeSinkInputObserved") is True,"No native sound producer observed")
+            V.require(capture.get("audio") is True and capture.get("nativeSinkInputObserved") is True and capture.get("nativeSinkOwnershipVerified") is True,"No native sound producer observed")
             audio=audit_audio(media/"live.m3u8",checks["observedWallSeconds"])
             complete=complete and audio["nonSilentCoveragePassed"]
         control_report=control.report() if control else None
@@ -167,7 +167,7 @@ def main():
             write_json(out/"native-motion-report.json",motion)
         report.update(status="local-live-evidence" if complete else "coverage-inconclusive",nativeClock=clock,audio=audio,
           gpuPreflight=json.loads((out/"gpu-preflight.json").read_text()) if (out/"gpu-preflight.json").is_file() else None,
-          motionAudit=motion,renderProbe=capture.get("renderProbe"),softwareGLWorkers=capture.get("softwareGLWorkers",2),
+          audioOwnership={"verified":capture.get("nativeSinkOwnershipVerified"),"probeCounts":capture.get("audioProbeCounts",{})},motionAudit=motion,renderProbe=capture.get("renderProbe"),softwareGLWorkers=capture.get("softwareGLWorkers",2),
           videoEncoder=capture.get("videoEncoder","x264"),encoderPreflight=json.loads((out/"encoder-preflight.json").read_text()) if (out/"encoder-preflight.json").is_file() else None,
           playlist=playlist,mediaTimeline=media_audit,checks=checks,traceSha256=sha(trace),control=control_report,roster=roster,
           note="Loopback only, 2-second HLS segments. Audio when requested is native OpenAL mix, not synthetic effects. Encoded A/V timestamp continuity checked; event-by-event sound and perceptual A/V alignment not verified. Browser latency, actual renderer FPS, asset clearance, league authorization and capacity not qualified. Manager status is current engine time, not synchronized video time.")
