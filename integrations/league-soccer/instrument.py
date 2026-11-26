@@ -455,6 +455,63 @@ def select_null_renderer(source):
     renderer3DTask = new OpenGLRenderer3D();
   }''')
 
+def lightweight_match(source):
+    """Omit optional scene assets, not animation collection, pitch RNG or excitement."""
+    source = replace_once(source, '#include "match.hpp"',
+                          '#include "match.hpp"\n#include <cstdlib>\n#include <cstdio>\n#include <string>')
+    source = replace_once(source, "const float crowdGainUpdateThreshold = 0.001f;",
+        """const float crowdGainUpdateThreshold = 0.001f;
+static bool TribunLeanScene() {
+  const char* lean = std::getenv("TRIBUN_NATIVE_LEAN_SCENE");
+  const char* nullRenderer = std::getenv("TRIBUN_NATIVE_NULL_RENDERER");
+  const char* draw = std::getenv("TRIBUN_NATIVE_NO_DRAW");
+  const char* upload = std::getenv("TRIBUN_NATIVE_NO_UPLOAD");
+  return lean && std::string(lean) == "1" &&
+         nullRenderer && std::string(nullRenderer) == "1" &&
+         draw && std::string(draw) == "1" && upload && std::string(upload) == "1";
+}""")
+    source = replace_once(source, "  if (!SuperDebug()) {\n    tmpStadiumNode",
+                          "  if (!SuperDebug() && !TribunLeanScene()) {\n    tmpStadiumNode")
+    source = replace_once(source, "  if (SuperDebug())\n    tmpStadiumNode",
+                          "  if (SuperDebug() || TribunLeanScene())\n    tmpStadiumNode")
+    source = replace_once(source, '  Log(e_Notice, "Match", "Match", "Loading crowd sounds");',
+        '''  if (TribunLeanScene()) {
+    std::printf("[tribun-lean] pitch-only=1 crowd-audio=0\\n");
+    std::fflush(stdout);
+  } else {
+  Log(e_Notice, "Match", "Match", "Loading crowd sounds");''')
+    source = replace_once(source, "  GetScene3D()->AddObject(crowd02);",
+                          "  GetScene3D()->AddObject(crowd02);\n  }")
+    source = replace_once(source, "  scene3D->DeleteObject(crowd01);\n  scene3D->DeleteObject(crowd02);",
+                          "  if (crowd01) scene3D->DeleteObject(crowd01);\n  if (crowd02) scene3D->DeleteObject(crowd02);")
+    # Retain excitement and event-decay updates before omitting audio gain handling.
+    source = replace_once(source, "  const float effectiveExcitement = clamp(excitement + excitementEventBoost, 0.0f, 1.0f);",
+                          "  if (TribunLeanScene()) return;\n  const float effectiveExcitement = clamp(excitement + excitementEventBoost, 0.0f, 1.0f);")
+    return source
+
+def lightweight_audio(source):
+    source = replace_once(source, '#include "audio_system.hpp"',
+                          '#include "audio_system.hpp"\n#include <cstdlib>\n#include <string>')
+    source = replace_once(source, "const std::string requestedRenderer = config.Get(",
+                          "std::string requestedRenderer = config.Get(")
+    return replace_once(source, '''  );
+
+#ifdef GF_USE_OPENAL
+  if (requestedRenderer == "openal") {''', '''  );
+  const char* lean = std::getenv("TRIBUN_NATIVE_LEAN_SCENE");
+  const char* nullRenderer = std::getenv("TRIBUN_NATIVE_NULL_RENDERER");
+  const char* draw = std::getenv("TRIBUN_NATIVE_NO_DRAW");
+  const char* upload = std::getenv("TRIBUN_NATIVE_NO_UPLOAD");
+  if (lean && std::string(lean) == "1" && nullRenderer &&
+      std::string(nullRenderer) == "1" && draw && std::string(draw) == "1" &&
+      upload && std::string(upload) == "1") {
+    requestedRenderer = "null";
+    Log(e_Notice, "AudioSystem", "Initialize", "[tribun-lean] audio-backend=null");
+  }
+
+#ifdef GF_USE_OPENAL
+  if (requestedRenderer == "openal") {''')
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -474,8 +531,15 @@ def main():
     system_source = system_path.read_text(encoding="utf-8")
     if "new TribunNullRenderer3D()" not in system_source:
         system_path.write_text(select_null_renderer(system_source), encoding="utf-8")
+    audio_path = pathlib.Path(sys.argv[1]) / "src/systems/audio/audio_system.cpp"
+    audio_source = audio_path.read_text(encoding="utf-8")
+    if "[tribun-lean] audio-backend=null" not in audio_source:
+        audio_path.write_text(lightweight_audio(audio_source), encoding="utf-8")
     path = pathlib.Path(sys.argv[1]) / "src/onthepitch/match.cpp"
     text = path.read_text(encoding="utf-8")
+    if "static bool TribunLeanScene()" not in text:
+        text = lightweight_match(text)
+        path.write_text(text, encoding="utf-8")
     if "void TribunTrace(" in text:
         return
     anchor = "const unsigned int replaySize_ms = 10000;"

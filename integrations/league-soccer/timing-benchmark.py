@@ -93,8 +93,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False):
     name,scale,quick=profile
+    if type(lean_scene) is not bool or (lean_scene and (not null_renderer or shared_assets)):
+        raise ValueError("Lean scene requires isolated null backend and full-copy runtime")
     if type(shared_assets) is not bool or type(sample_pss) is not bool or ((shared_assets or sample_pss) and not null_renderer):
         raise ValueError("Shared asset/PSS diagnostic requires null backend")
     if type(null_renderer) is not bool or (null_renderer and not (no_draw and no_upload)):
@@ -116,6 +118,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_NO_UPLOAD"]="1" if no_upload else "0"
     env["TRIBUN_NATIVE_NULL_RENDERER"]="1" if null_renderer else "0"
     env["TRIBUN_NATIVE_SHARED_ASSETS"]="1" if shared_assets else "0"
+    env["TRIBUN_NATIVE_LEAN_SCENE"]="1" if lean_scene else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -178,7 +181,13 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         raise ValueError("Missing native geometry-upload marker")
     if null_renderer and "[tribun-render] null-context=dummy-no-gl" not in Path(str(trace)+".log").read_text(errors="replace"):
         raise ValueError("Missing null renderer context marker")
+    if lean_scene:
+        log_text=Path(str(trace)+".log").read_text(errors="replace")
+        if any(marker not in log_text for marker in ("[tribun-lean] pitch-only=1 crowd-audio=0","[tribun-lean] audio-backend=null")):
+            raise ValueError("Missing lean scene evidence")
     report=stats.report()
+    report["leanScene"]=lean_scene
+    report["launchToKickoffMs"]=round((stats.first_wall-launch)*1000)
     report["sharedAssets"]=shared_assets
     if shared_assets:
         if not layout.is_file():raise ValueError("Missing shared asset layout evidence")

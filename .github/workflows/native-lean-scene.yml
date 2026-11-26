@@ -1,0 +1,39 @@
+name: Native lean scene diagnostic
+on:
+  push:
+    branches: [experiment/native-lean-stage46]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_lean_scene.py'
+      - '.github/workflows/native-lean-scene.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lean-scene:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_lean_scene.py
+      - run: python3 -m unittest discover -s tests -p test_native_null_renderer.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/lean-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare full and lean null scenes
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/lean-fixtures"
+          python3 integrations/league-soccer/lean-scene-benchmark.py "$RUNNER_TEMP/lean-runtime" "$RUNNER_TEMP/lean-fixtures/balanced.json" "$RUNNER_TEMP/lean-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-lean-scene
+          path: ${{ runner.temp }}/lean-results/
+          if-no-files-found: ignore
