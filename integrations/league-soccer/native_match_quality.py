@@ -86,4 +86,9 @@ def inspect(directory):
         from native_stall_diagnostics import inspect_trace
         result['stallDiagnostics']['carrier']=inspect_trace(trace)
     except (OSError,ValueError,KeyError,TypeError,AttributeError) as exc:result['errors']['stallDiagnostics']=type(exc).__name__
+    result['actionExecution']=None
+    try:
+        from native_action_diagnostics import inspect_actions
+        result['actionExecution']=inspect_actions(directory/'native-match.game.log')
+    except (OSError,ValueError,TypeError) as exc:result['errors']['actionExecution']=type(exc).__name__
     return result
