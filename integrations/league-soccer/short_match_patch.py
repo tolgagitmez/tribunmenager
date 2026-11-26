@@ -1242,7 +1242,13 @@ Vector3 AI_GetForceFieldMovement'''),
     const bool confirmed=own && own->HasUniquePossession() &&
         team->GetLastTouchPlayer()==own && own->GetLastTouchTime_ms()>tribunCombination.lastPass;
     const int owner=confirmed ? own->GetID() : -1;
+    const int oldStage=tribunCombination.stage,oldA=tribunCombination.passer,oldB=tribunCombination.receiver;
+    const auto oldCompleted=tribunCombination.completed;
     tribunCombination.Observe(owner,confirmed,interrupted,now);
+    if(AITactics::Combination187Enabled() && oldStage!=tribunCombination.stage)
+      printf("[tribun-combination187] team=%d kind=wall event=%s a=%d b=%d c=%d\n",
+          team->GetID(),tribunCombination.stage==2?"receipt":tribunCombination.completed>oldCompleted?"complete":"cancel",
+          oldA,oldB,oldA);
   }
   if (!teamHasPossession)'''),
         ("      prevTeamHasPossession && !teamHasPossession){", "      prevTeamHasPossession && !teamHasPossession && !tribunCombination.stage){"),
@@ -1256,8 +1262,12 @@ Vector3 AI_GetForceFieldMovement'''),
     tribunCombination.Clear(now);return;
   }
   if(tribunCombination.stage){
-    if(!tribunCombination.ReturnPass(passer->GetID(),receiver->GetID(),now))
-      tribunCombination.Clear(now);
+    const int oldA=tribunCombination.passer,oldB=tribunCombination.receiver;
+    const bool returned=tribunCombination.ReturnPass(passer->GetID(),receiver->GetID(),now);
+    if(!returned)tribunCombination.Clear(now);
+    if(AITactics::Combination187Enabled())
+      printf("[tribun-combination187] team=%d kind=wall event=%s a=%d b=%d c=%d\n",
+          team->GetID(),returned?"second":"cancel",oldA,oldB,oldA);
     return;
   }
   const float forward=-team->GetSide();
@@ -1978,7 +1988,12 @@ inline bool RunLanesEnabled() {
         !a || !b || !c || !a->IsActive() || !b->IsActive() || !c->IsActive();
     const bool confirmed=own && own->IsActive() && own->HasUniquePossession() &&
         match->GetLastTouchPlayer()==own;
+    const int oldStage=tribunTriangle.stage,oldA=tribunTriangle.a,oldB=tribunTriangle.b,oldC=tribunTriangle.c;
+    const auto oldCompleted=tribunTriangle.completed;
     tribunTriangle.Observe(confirmed?own->GetID():-1,confirmed?own->GetLastTouchTime_ms():0,invalid,now);
+    if(AITactics::Combination187Enabled() && oldStage!=tribunTriangle.stage)
+      printf("[tribun-combination187] team=%d kind=triangle event=%s a=%d b=%d c=%d\n",
+          team->GetID(),tribunTriangle.stage==2?"receipt":tribunTriangle.completed>oldCompleted?"complete":"cancel",oldA,oldB,oldC);
   }
   if(tribunTimedAttack.stage){'''),
         ("void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {", r'''bool TeamAIController::TribunTriangleContact(Player* passer,Player* receiver,bool shortPass){
@@ -1992,7 +2007,12 @@ inline bool RunLanesEnabled() {
   const bool valid=shortPass&&passer&&receiver&&passer!=receiver&&receiver->GetTeam()==team&&
     passer->IsActive()&&receiver->IsActive()&&match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer();
   if(tribunTriangle.stage){
-    if(!valid||!tribunTriangle.Pass(passer->GetID(),receiver->GetID(),now))tribunTriangle.Clear(now);
+    const int oldA=tribunTriangle.a,oldB=tribunTriangle.b,oldC=tribunTriangle.c;
+    const bool second=valid&&tribunTriangle.Pass(passer->GetID(),receiver->GetID(),now);
+    if(!second)tribunTriangle.Clear(now);
+    if(AITactics::Combination187Enabled())
+      printf("[tribun-combination187] team=%d kind=triangle event=%s a=%d b=%d c=%d\n",
+          team->GetID(),second?"second":"cancel",oldA,oldB,oldC);
     return true;
   }
   if(!valid||tribunCombination.stage||passer->GetFormationEntry().role==e_PlayerRole_GK||
