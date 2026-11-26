@@ -4,27 +4,58 @@ import json
 from pathlib import Path
 
 
+REQUIRED_DIAGNOSTICS = ('actionExecution', 'skeletonMotion', 'transitionMotion',
+                        'dribbleControl', 'duelEscape', 'pressureHold',
+                        'passTiming', 'combinations', 'offballLanes')
+
+
+def object_or_empty(value):
+    return value if isinstance(value, dict) else {}
+
+
+def valid_score(value):
+    return isinstance(value, list) and len(value) == 2 and all(type(n) is int and n >= 0 for n in value)
+
+
+def valid_counts(value, allowed):
+    return isinstance(value, dict) and set(value) <= allowed and all(type(n) is int and n >= 0 for n in value.values())
+
+
 def validate(report, mode):
-    quality = report.get('quality') or {}
-    football = quality.get('football') or {}
-    presentation = quality.get('presentation') or {}
-    lanes = quality.get('offballLanes') or {}
-    selected = lanes.get('sampledSelections') or {}
-    coordination = lanes.get('coordinationSamples') or {}
+    if mode not in ('lanes', 'coordinated'):
+        raise ValueError('Invalid mode')
+    report = object_or_empty(report)
+    quality = object_or_empty(report.get('quality'))
+    football = object_or_empty(quality.get('football'))
+    presentation = object_or_empty(quality.get('presentation'))
+    lanes = object_or_empty(quality.get('offballLanes'))
+    selected = lanes.get('sampledSelections')
+    coordination = lanes.get('coordinationSamples')
+    checks_data = object_or_empty(presentation.get('checks'))
+    stall = object_or_empty(quality.get('stallDiagnostics'))
+    missing = [name for name in REQUIRED_DIAGNOSTICS if not isinstance(quality.get(name), dict)]
+    if not isinstance(stall.get('carrier'), dict):
+        missing.append('stallDiagnostics.carrier')
+    dribble = object_or_empty(quality.get('dribbleControl'))
+    for field in ('touches', 'separation'):
+        if not isinstance(dribble.get(field), dict):
+            missing.append('dribbleControl.' + field)
+    valid_selected = valid_counts(selected, {'primary', 'secondary'})
+    valid_coordination = valid_counts(coordination, {'paired', 'unpaired'})
     errors = quality.get('errors')
     def positive(value):
         return type(value) is int and value > 0
     checks = {
         'privateMatchPassed': report.get('passed') is True,
-        'completeFootballEvidence': bool(football) and football.get('score') == report.get('score'),
-        'fiveMinuteClock': presentation.get('nativeElapsedMs') == 300000 and (presentation.get('checks') or {}).get('fiveMinuteWall') is True,
-        'browserPlayback': (presentation.get('checks') or {}).get('fullBrowserPlayback') is True,
-        'allDiagnosticsReadable': errors == {},
-        'laneEvidence': lanes.get('evidenceAvailable') is True and any(positive(n) for n in selected.values()),
-        'validLaneRecords': lanes.get('invalidLines') == 0,
-        'modeEvidence': (positive(coordination.get('paired')) if mode == 'coordinated' else not coordination),
+        'completeFootballEvidence': valid_score(report.get('score')) and valid_score(football.get('score')) and football['score'] == report['score'],
+        'fiveMinuteClock': presentation.get('nativeElapsedMs') == 300000 and checks_data.get('fiveMinuteWall') is True,
+        'browserPlayback': checks_data.get('fullBrowserPlayback') is True,
+        'allDiagnosticsReadable': errors == {} and not missing,
+        'laneEvidence': lanes.get('evidenceAvailable') is True and valid_selected and any(positive(n) for n in selected.values()),
+        'validLaneRecords': type(lanes.get('invalidLines')) is int and lanes['invalidLines'] == 0,
+        'modeEvidence': valid_coordination and (positive(coordination.get('paired')) if mode == 'coordinated' else not coordination),
     }
-    return {'mode': mode, 'checks': checks, 'passed': all(checks.values()),
+    return {'mode': mode, 'checks': checks, 'passed': all(checks.values()), 'missingDiagnostics': missing,
             'productionQualified': False, 'subjectiveQualityVerified': False,
             'scope': 'Evidence completeness only; independent matches do not establish a causal improvement. Zero observed paired selections fails evidence, not necessarily the engine.'}
 
