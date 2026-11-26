@@ -220,6 +220,11 @@ if [[ "${TRIBUN_NATIVE_REALTIME:-0}" == 1 ]]; then
   grep -F "\"menu_smoke_match_time_scale\" \"$scale\"" "$config" >/dev/null
   limit=850
 fi
+if [[ -n "${TRIBUN_AV_RENDER_SIZE:-}" ]]; then
+  [[ -n "${TRIBUN_NATIVE_VIDEO_OUT:-}" && -n "${TRIBUN_NATIVE_HLS_DIR:-}" && "${TRIBUN_NATIVE_AUDIO_CAPTURE:-0}" == 1 && "${TRIBUN_NATIVE_VIDEO_CONTROL:-0}" == 0 && "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" == baseline && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_REALTIME:-0}" == 1 && "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 0 && "${TRIBUN_NATIVE_NO_DRAW:-0}" == 0 && "${TRIBUN_NATIVE_NO_UPLOAD:-0}" == 0 && -z "${TRIBUN_GPU_DISPLAY:-}" && "${TRIBUN_AV_ENCODER:-x264}" == x264 && "$render_interval" == 0 && "$active_policies" == 0 ]] || { echo "Private noninteractive software HLS resolution experiment required" >&2; exit 2; }
+  python3 "$here/native_render_resolution.py" "$config" "$work/resolution.config" "$TRIBUN_AV_RENDER_SIZE"
+  config="$work/resolution.config"
+fi
 if [[ "$render_interval" != 0 ]]; then
   python3 "$here/render-profile.py" "$config" "$work/render-profile.config" "$render_interval"
   config="$work/render-profile.config"

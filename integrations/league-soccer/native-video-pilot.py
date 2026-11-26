@@ -97,6 +97,12 @@ def _capture_window(config,limit,audio_env):
                     window=found.stdout.splitlines()[0].strip();break
                 time.sleep(.1)
             require(window is not None and window.isdigit(),"Native SDL window not found")
+            window_geometry=None
+            requested_size=os.environ.get("TRIBUN_AV_RENDER_SIZE")
+            if requested_size:
+                from native_render_resolution import verify_geometry
+                geometry=subprocess.check_output(["xdotool","getwindowgeometry","--shell",window],text=True,timeout=5)
+                window_geometry=verify_geometry(geometry,requested_size)
             output_args=["-movflags","+faststart",str(video)]
             if hls:
                 output_args=[*gop_args,
@@ -157,7 +163,7 @@ def _capture_window(config,limit,audio_env):
         from native_swap_probe import summarize
         swap_report=summarize(swap_base,kickoff,final)
         save(video.parent/"native-render-report.json",swap_report)
-    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"nativeSinkOwnershipVerified":sink_input,"audioProbeCounts":audio_probes,"videoEncoder":backend,"renderProbe":swap_report,"softwareGLWorkers":int(gl_workers),"encoderThreads":int(encoder_threads),"hardwareContext":context_report})
+    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"nativeSinkOwnershipVerified":sink_input,"audioProbeCounts":audio_probes,"videoEncoder":backend,"renderProbe":swap_report,"softwareGLWorkers":int(gl_workers),"encoderThreads":int(encoder_threads),"hardwareContext":context_report,"windowGeometry":window_geometry})
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)

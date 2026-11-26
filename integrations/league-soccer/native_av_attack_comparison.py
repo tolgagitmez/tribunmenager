@@ -27,11 +27,15 @@ def compare(rows):
         else:result['passed']=False
     return result
 
-def run_one(runtime,fixture,root,profile):
+def run_one(runtime,fixture,root,profile,*,render_size=None):
     root.mkdir(mode=0o700)
     out=root/'run'
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_NATIVE_','TRIBUN_AV_','TRIBUN_GPU_','TRIBUN_LEAGUE_SOCCER_','TRIBUN_EXPECT_','TRIBUN_PLAYBACK_'))}
     env.update(TRIBUN_EXPECT_AUDIO='1',TRIBUN_EXPECT_CONTROL='0',TRIBUN_EXPECT_FULL_PLAYBACK='1',TRIBUN_PLAYBACK_MIN_SECONDS='300',TRIBUN_EXPECT_SUSTAINED='0')
+    if render_size is not None:
+        from native_render_resolution import SIZES
+        if render_size not in SIZES or profile!='baseline':raise ValueError('Unsupported resolution experiment')
+        env.update(TRIBUN_AV_RENDER_SIZE=render_size,TRIBUN_AV_SWAP_PROBE='1')
     children=[];error=None
     fixture_sha=hashlib.sha256(fixture.read_bytes()).hexdigest()
     try:
@@ -65,7 +69,19 @@ def run_one(runtime,fixture,root,profile):
             and n['mediaTimeline']['timelinePassed'] is True and quality['presentation']['checks']['fiveMinuteWall']
             and quality['presentation']['checks']['fullBrowserPlayback'] and b['videoWidth']==1280 and b['videoHeight']==720)
     except (OSError,ValueError,KeyError,TypeError):pass
-    return {'profile':profile,'fixtureSha256':fixture_sha,'passed':passed,'failureType':error,'quality':quality}
+    result={'profile':profile,'fixtureSha256':fixture_sha,'passed':passed,'failureType':error,'quality':quality}
+    if render_size is not None:
+        result.update(renderSize=render_size,windowGeometry=None,renderProbe=None)
+        try:
+            capture=json.loads((out/'native-match.capture.json').read_text())
+            result.update(windowGeometry=capture['windowGeometry'],renderProbe=capture['renderProbe'])
+            from native_render_resolution import SIZES
+            width,height=SIZES[render_size]
+            geometry=result['windowGeometry']
+            result['passed']=bool(passed and geometry['verified'] is True and geometry['requested']==render_size
+                and (geometry['width'],geometry['height'])==(width,height) and result['renderProbe']['observed'] is True)
+        except (OSError,ValueError,KeyError,TypeError):result['passed']=False
+    return result
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
