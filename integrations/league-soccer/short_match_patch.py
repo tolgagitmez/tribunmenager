@@ -225,6 +225,38 @@ struct FinishProbe {
 };
 '''
 
+KEEPER_RULES = r'''inline float KeeperRead(float positioning,float reaction,float calm){
+  return .45f*std::clamp(positioning,0.0f,1.0f)+.35f*std::clamp(reaction,0.0f,1.0f)+.20f*std::clamp(calm,0.0f,1.0f);
+}
+inline bool NarrowEligible(float depth,float lateral,float gap,float towardGoal,float cover,float helper,float skill){
+  return depth>=5.0f&&depth<=19.0f&&lateral<=13.0f&&gap<=1.2f&&towardGoal>=.4f&&
+      cover>=3.0f&&helper>=5.0f&&skill>=.45f;
+}
+inline float NarrowDepth(float depth,float lateral,float skill){
+  return std::clamp(depth*(.24f+.18f*skill)-.10f*lateral,1.4f,std::min(7.0f,depth-2.0f));
+}
+inline bool KeeperIntercept(float depth,float y,float height,float distance,int eta,int arrival,float skill){
+  const int reaction=static_cast<int>(100.0f-60.0f*std::clamp(skill,0.0f,1.0f));
+  return depth>=.6f&&depth<=7.0f&&std::abs(y)<=5.0f&&height>=.11f&&height<=1.65f&&
+      distance>=.35f&&distance<=5.0f&&eta>=0&&arrival>=100&&arrival<=850&&eta+reaction<=arrival;
+}
+struct KeeperProbe {
+  int keeper=-1,kind=0;unsigned long start=0,expires=0,cooldown=0;
+  unsigned long narrows=0,intercepts=0,controls=0,touches=0,closed=0;
+  void Clear(unsigned long now){if(kind){++closed;cooldown=now+350;}keeper=-1;kind=0;}
+  bool Begin(int id,int type,unsigned long now){
+    if(kind||now<cooldown||id<0||(type!=1&&type!=2))return false;
+    keeper=id;kind=type;start=now;expires=now+1300;
+    if(type==1)++narrows;else ++intercepts;return true;
+  }
+  void Observe(bool touch,bool control,bool invalid,unsigned long touchedAt,unsigned long now){
+    if(!kind)return;
+    if(!invalid&&touch&&touchedAt>start&&touchedAt<=now){++touches;if(control)++controls;Clear(now);return;}
+    if(invalid||now>=expires||now<start)Clear(now);
+  }
+};
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -2082,11 +2114,11 @@ Vector3 AI_GetForceFieldMovement'''),
         ("    odds = std::pow(odds, 0.5f);", r'''    bool finishEvaluated=false,finishChanged=false,finishPriority=false;
     if(AITactics::FinishEnabled()&&CastPlayer()->HasUniquePossession()&&match->IsInPlay()&&
         !match->IsInSetPiece()&&!match->GetBallRetainer()&&!team->GetHumanGamerCount()&&
-        player->GetFormationEntry().role!=e_PlayerRole_GK){
+        CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK){
       const float skill=player->GetStat("technical_shot");
       const auto from=player->GetPosition()+player->GetMovement()*.12f;
       const float forward=-team->GetSide();
-      const auto* keeper=match->GetTeam(abs(team->GetID()-1))->GetGoalie();
+      auto* keeper=match->GetTeam(abs(team->GetID()-1))->GetGoalie();
       if(keeper&&keeper->IsActive()&&AITactics::FinishEligible(shotDistance,shotAngle,skill,odds)){
         std::vector<PlayerImage> outfield;
         for(const auto& rival:opponentPlayerImages)
@@ -2132,4 +2164,103 @@ Vector3 AI_GetForceFieldMovement'''),
   }
 
   e_Velocity enumVelocity'''),
+    ])
+
+    # Stage 70: conservative 1v1 angle narrowing and reachable shot interception.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool KeeperAIEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_KEEPER_AI");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + KEEPER_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  AITactics::FinishProbe tribunFinishProbes[2];", "  AITactics::FinishProbe tribunFinishProbes[2];\n  AITactics::KeeperProbe tribunKeeperProbes[2];"),
+    ])
+    edit(root, "src/onthepitch/match.cpp", [
+        ("    if(AITactics::HoldUpEnabled()){", r'''    if(AITactics::KeeperAIEnabled()){
+      for(int t=0;t<2;++t){
+        auto& probe=tribunKeeperProbes[t];
+        if(!probe.kind)continue;
+        auto* keeper=teams[t]->GetGoalie();
+        const bool invalid=!IsInPlay()||IsInSetPiece()||!keeper||!keeper->IsActive()||keeper->GetID()!=probe.keeper;
+        const bool touch=keeper&&GetLastTouchPlayer()==keeper;
+        const bool control=keeper&&(keeper->HasUniquePossession()||GetBallRetainer()==keeper);
+        probe.Observe(touch,control,invalid,keeper?keeper->GetLastTouchTime_ms():0,actualTime_ms);
+      }
+    }
+    if(AITactics::HoldUpEnabled()){'''),
+        ("  for(auto& probe:tribunFinishProbes)probe.Clear();",
+         "  for(auto& probe:tribunFinishProbes)probe.Clear();\n  for(auto& probe:tribunKeeperProbes)probe.Clear(GetActualTime_ms());"),
+    ])
+    edit(root, "src/onthepitch/player/controller/strategies/offtheball/goalie_default.cpp", [
+        ("  direction = targetPos - player->GetPosition();", r'''  if(AITactics::KeeperAIEnabled()&&match->IsInPlay()&&!match->IsInSetPiece()&&
+      !match->GetBallRetainer()&&!team->GetHumanGamerCount()&&!claimingLooseBall&&
+      !team->HasUniquePossession()&&team->GetController()->GetEndApplyKeeperRush_ms()<=match->GetActualTime_ms()){
+    const float side=team->GetSide();
+    const float skill=AITactics::KeeperRead(player->GetStat("mental_defensivepositioning"),
+        player->GetStat("physical_reaction"),player->GetStat("mental_calmness"));
+    const auto now=match->GetActualTime_ms();
+    auto& probe=match->tribunKeeperProbes[team->GetID()];
+    const auto eta=[&](const Vector3& point){
+      return static_cast<int>(AI_GetTimeNeededForDistance_ms(player->GetPosition(),player->GetMovement(),
+          point,player->GetMaxVelocity(),false,-1,false).usual_ms);
+    };
+    if(IsBallBoundForGoal()){
+      // Existing native deflect/pickup commands remain authoritative.
+      // Select an earlier reachable low trajectory point only before goal-line crossing.
+      const auto current=mentalImage->GetBallPrediction(0);
+      if(pitchHalfW-current.coords[0]*side>0.6f&&pitchHalfW-current.coords[0]*side<30.0f){
+        for(unsigned int ms=100;ms<=850;ms+=50){
+          const auto predicted=mentalImage->GetBallPrediction(ms);
+          const float depth=pitchHalfW-predicted.coords[0]*side;
+          if(depth<.6f)break;
+          const auto ground=predicted.Get2D();
+          const float distance=(ground-player->GetPosition()).GetLength();
+          if(!AITactics::KeeperIntercept(depth,predicted.coords[1],predicted.coords[2],distance,0,ms,skill))continue;
+          if(depth<=pitchHalfW-targetPos.coords[0]*side+.35f)continue;
+          if(!AITactics::KeeperIntercept(depth,predicted.coords[1],predicted.coords[2],distance,eta(ground),ms,skill))continue;
+          targetPos=ground;maxVelocity=sprintVelocity;
+          probe.Begin(CastPlayer()->GetID(),2,now);
+          break;
+        }
+      }
+    }else{
+      auto* opp=controller->GetOppTeam()->GetDesignatedTeamPossessionPlayer();
+      if(opp&&opp->IsActive()&&opp->HasUniquePossession()){
+        const auto ball=mentalImage->GetBallPrediction(0).Get2D();
+        const auto carrier=opp->GetPosition().Get2D();
+        const auto predicted=(carrier+opp->GetMovement()*.20f).Get2D();
+        const float depth=pitchHalfW-predicted.coords[0]*side;
+        const float lateral=std::abs(predicted.coords[1]);
+        const float gap=(ball-carrier).GetLength();
+        if(AITactics::NarrowEligible(depth,lateral,gap,opp->GetMovement().coords[0]*side,100,100,skill)){
+          std::vector<Player*> mates,rivals;
+          team->GetActivePlayers(mates);controller->GetOppTeam()->GetActivePlayers(rivals);
+          float cover=100.0f,helper=100.0f;
+          for(auto* mate:mates)if(mate!=CastPlayer()&&mate->IsActive()&&
+              mate->GetPosition().coords[0]*side>=carrier.coords[0]*side-.5f)
+            cover=std::min(cover,(mate->GetPosition()+mate->GetMovement()*.2f-predicted).Get2D().GetLength());
+          for(auto* rival:rivals)if(rival!=opp&&rival->IsActive()&&
+              rival->GetPosition().coords[0]*side>=carrier.coords[0]*side-2.0f)
+            helper=std::min(helper,(rival->GetPosition()-carrier).Get2D().GetLength());
+          if(AITactics::NarrowEligible(depth,lateral,gap,opp->GetMovement().coords[0]*side,cover,helper,skill)){
+            const float d=AITactics::NarrowDepth(depth,lateral,skill);
+            // Position on the ball-to-goal-center ray, bounded away from the attacker.
+            const Vector3 candidate((pitchHalfW-d)*side,clamp(predicted.coords[1]*d/depth,-3.3f,3.3f),0);
+            const float currentDepth=pitchHalfW-targetPos.coords[0]*side;
+            if(d>currentDepth+.35f&&(candidate-carrier).GetLength()>=2.0f&&eta(candidate)<=850){
+              targetPos=candidate;maxVelocity=sprintVelocity;
+              probe.Begin(CastPlayer()->GetID(),1,now);
+            }
+          }
+        }
+      }
+    }
+  }
+  direction = targetPos - player->GetPosition();'''),
     ])
