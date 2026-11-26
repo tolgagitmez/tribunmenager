@@ -96,11 +96,13 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False,run_lanes=False,triangle=False,creative_carry=False,duel=False,hold_up=False,finish=False,keeper_ai=False,defense_shape=False,transition=False,role_profile=False,close_touch=False,motion_smooth=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False,run_lanes=False,triangle=False,creative_carry=False,duel=False,hold_up=False,finish=False,keeper_ai=False,defense_shape=False,transition=False,role_profile=False,close_touch=False,motion_smooth=False,collective_ai=False):
     name,scale,quick=profile
-    attack_policies=(line_break,run_lanes,triangle,creative_carry,duel,hold_up,finish,keeper_ai,defense_shape,transition,role_profile,close_touch,motion_smooth)
+    attack_policies=(line_break,run_lanes,triangle,creative_carry,duel,hold_up,finish,keeper_ai,defense_shape,transition,role_profile,close_touch,motion_smooth,collective_ai)
     if any(type(v) is not bool for v in attack_policies) or sum(attack_policies)>1:
         raise ValueError("Independent attack policies cannot be combined before qualification")
+    if collective_ai and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((retention,box_runs,timed_attack,collision_pose,determinism_probe))):
+        raise ValueError("Collective AI requires isolated fixed-clock short-match")
     if motion_smooth and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((retention,box_runs,timed_attack,collision_pose,determinism_probe))):
         raise ValueError("Motion smoothing requires isolated fixed-clock short-match")
     if close_touch and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((retention,box_runs,timed_attack,collision_pose,determinism_probe))):
@@ -204,6 +206,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_KEEPER_AI"]="1" if keeper_ai else "0"
     env["TRIBUN_NATIVE_DEFENSE_SHAPE"]="1" if defense_shape else "0"
     env["TRIBUN_NATIVE_TRANSITION"]="1" if transition else "0"
+    env["TRIBUN_NATIVE_COLLECTIVE_AI"]="1" if collective_ai else "0"
     env["TRIBUN_NATIVE_ROLE_PROFILE"]="1" if role_profile else "0"
     env["TRIBUN_NATIVE_CLOSE_TOUCH"]="1" if close_touch else "0"
     env["TRIBUN_NATIVE_MOTION_SMOOTH"]="1" if motion_smooth else "0"
@@ -300,18 +303,19 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     report["chainImpact"]=chain_impact
     report["limbImpact"]=limb_impact
     report["lineBreak"]=line_break
-    report["runLanes"]=run_lanes
-    report["triangle"]=triangle
+    report["runLanes"]=run_lanes or collective_ai
+    report["triangle"]=triangle or collective_ai
     report["creativeCarry"]=creative_carry
     report["duel"]=duel
     report["holdUp"]=hold_up
     report["finish"]=finish
     report["keeperAI"]=keeper_ai
-    report["defenseShape"]=defense_shape
-    report["transition"]=transition
+    report["defenseShape"]=defense_shape or collective_ai
+    report["transition"]=transition or collective_ai
     report["roleProfile"]=role_profile
     report["closeTouch"]=close_touch
     report["motionSmooth"]=motion_smooth
+    report["collectiveAI"]=collective_ai
     if line_break or null_renderer:
         import re
         found=re.findall(r"\[tribun-linebreak\] mode=(linebreak|off) candidates=(\d+),(\d+) selected=(\d+),(\d+)",log_text)
@@ -320,12 +324,12 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         _,a,b,c,d=found[0]
         report["lineBreakProbe"]={"candidates":[int(a),int(b)],"selected":[int(c),int(d)]}
         lanes=re.findall(r"\[tribun-runlanes\] mode=(lanes|off) attempts=(\d+),(\d+) primary=(\d+),(\d+) secondary=(\d+),(\d+)",log_text)
-        if len(lanes)!=1 or lanes[0][0]!=("lanes" if run_lanes else "off"):
+        if len(lanes)!=1 or lanes[0][0]!=("lanes" if run_lanes or collective_ai else "off"):
             raise ValueError("Missing run lane evidence")
         _,a,b,c,d,e,f=lanes[0]
         report["runLaneProbe"]={"attempts":[int(a),int(b)],"primary":[int(c),int(d)],"secondary":[int(e),int(f)]}
         tri=re.findall(r"\[tribun-triangle\] mode=(triangle|off) started=(\d+),(\d+) received=(\d+),(\d+) passed=(\d+),(\d+) completed=(\d+),(\d+)",log_text)
-        if len(tri)!=1 or tri[0][0]!=("triangle" if triangle else "off"):
+        if len(tri)!=1 or tri[0][0]!=("triangle" if triangle or collective_ai else "off"):
             raise ValueError("Missing triangle evidence")
         _,a,b,c,d,e,f,g,h=tri[0]
         report["triangleProbe"]={"started":[int(a),int(b)],"received":[int(c),int(d)],"passed":[int(e),int(f)],"completed":[int(g),int(h)]}
@@ -352,7 +356,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
             counts=list(map(int,counts))
             if not all(a>=b for a,b in zip(counts,counts[1:])):
                 raise ValueError("Inconsistent policy funnel")
-            if not {"triangle":triangle,"duel":duel,"hold":hold_up}[key] and any(counts):
+            if not {"triangle":triangle or collective_ai,"duel":duel,"hold":hold_up}[key] and any(counts):
                 raise ValueError("Inactive policy recorded decisions")
             report["attackFunnels"].setdefault(key,{})[team]=dict(zip(("inspected","context","geometry","available","started"),counts))
         finishes=re.findall(r"\[tribun-finish\] mode=(finish|off) decisions=(\d+),(\d+) aims=(\d+),(\d+) priorities=(\d+),(\d+) contacts=(\d+),(\d+)",log_text)
@@ -366,12 +370,12 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         values=list(map(int,keepers[0][1:]))
         report["keeperProbe"]={k:values[2*j:2*j+2] for j,k in enumerate(("narrows","intercepts","touches","controls","closed"))}
         shape=re.findall(r"\[tribun-defense\] mode=(shape|off) targets=(\d+),(\d+) suppressed=(\d+),(\d+) samples=(\d+),(\d+) exposed=(\d+),(\d+)",log_text)
-        if len(shape)!=1 or shape[0][0]!=("shape" if defense_shape else "off"):
+        if len(shape)!=1 or shape[0][0]!=("shape" if defense_shape or collective_ai else "off"):
             raise ValueError("Missing defense shape evidence")
         values=list(map(int,shape[0][1:]))
         report["defenseProbe"]={k:values[2*j:2*j+2] for j,k in enumerate(("targets","suppressed","samples","exposed"))}
         transitions=re.findall(r"\[tribun-transition\] mode=(transition|off) wins=(\d+),(\d+) losses=(\d+),(\d+) counters=(\d+),(\d+) presses=(\d+),(\d+) retreats=(\d+),(\d+) forward=(\d+),(\d+) regains=(\d+),(\d+)",log_text)
-        if len(transitions)!=1 or transitions[0][0]!=("transition" if transition else "off"):
+        if len(transitions)!=1 or transitions[0][0]!=("transition" if transition or collective_ai else "off"):
             raise ValueError("Missing transition evidence")
         values=list(map(int,transitions[0][1:]))
         report["transitionProbe"]={k:values[2*j:2*j+2] for j,k in enumerate(("wins","losses","counters","presses","retreats","forward","regains"))}

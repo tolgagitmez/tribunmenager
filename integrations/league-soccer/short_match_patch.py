@@ -1743,10 +1743,18 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
 
     # Stage 64: choose separated, passable targets for the existing two attacking outlets.
     edit(root, "src/onthepitch/aitactics.hpp", [
-        ("struct FixedDurationClock {", r'''inline bool RunLanesEnabled() {
+        ("struct FixedDurationClock {", r'''inline bool CollectiveEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_COLLECTIVE_AI");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+inline bool RunLanesEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_RUN_LANES");
-    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+    return (CollectiveEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
   return enabled;
@@ -1766,6 +1774,7 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
   if(AITactics::RunLanesEnabled() && match->IsInPlay() && !match->IsInSetPiece() &&
       !team->GetHumanGamerCount() && designatedPlayer!=CastPlayer() &&
       designatedPlayer->HasUniquePossession() && !combinationRun && dynamicMindSet>=.45f &&
+      (!AITactics::CollectiveEnabled() || team->GetController()->GetTribunTriangle().stage==0) &&
       (primaryLane || secondaryLane) && std::abs(mainManPos.coords[1])<13.0f){
     const float forward=-team->GetSide();
     const float carrierDepth=pitchHalfW-mainManPos.coords[0]*forward;
@@ -1831,7 +1840,7 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
         ("struct FixedDurationClock {", r'''inline bool TriangleEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_TRIANGLE");
-    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+    return (CollectiveEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
   return enabled;
@@ -1866,6 +1875,10 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
         ("void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {", r'''bool TeamAIController::TribunTriangleContact(Player* passer,Player* receiver,bool shortPass){
   if(!AITactics::TriangleEnabled()||team->GetHumanGamerCount())return false;
   const auto now=match->GetActualTime_ms();
+  // A confirmed counter owns the attacking plan until its short window ends.
+  if(AITactics::CollectiveEnabled()&&tribunTransition.Winning(now)){
+    tribunTriangle.Clear(now);return false;
+  }
   ++tribunTriangle.inspected;
   const bool valid=shortPass&&passer&&receiver&&passer!=receiver&&receiver->GetTeam()==team&&
     passer->IsActive()&&receiver->IsActive()&&match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer();
@@ -2474,7 +2487,7 @@ Vector3 AI_GetForceFieldMovement'''),
         ("struct FixedDurationClock {", r'''inline bool DefenseShapeEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_DEFENSE_SHAPE");
-    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+    return (CollectiveEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
   return enabled;
@@ -2569,7 +2582,7 @@ Vector3 AI_GetForceFieldMovement'''),
         ("struct FixedDurationClock {", r'''inline bool TransitionEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_TRANSITION");
-    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+    return (CollectiveEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
   return enabled;
@@ -2592,6 +2605,7 @@ Vector3 AI_GetForceFieldMovement'''),
     const bool oppControl=oppPlayer&&oppPlayer->HasUniquePossession()&&match->GetLastTouchPlayer()==oppPlayer;
     const int event=tribunTransition.Observe(ownControl&&!oppControl?1:oppControl&&!ownControl?0:-1,now,open);
     if(event){
+      if(AITactics::CollectiveEnabled())tribunTriangle.Clear(now);
       const float side=team->GetSide();
       const auto ball=match->GetBall()->Predict(0).Get2D();
       const auto& tactics=team->GetTeamData()->GetTactics().userProperties;
@@ -2642,6 +2656,7 @@ Vector3 AI_GetForceFieldMovement'''),
       float counterOdds=0;
       e_FunctionType counterType=e_FunctionType_ShortPass;
       if(runningPassEnabled&&AITactics::TransitionEnabled()&&
+          (!AITactics::CollectiveEnabled()||!triangleCandidate)&&
           team->GetController()->GetTribunTransition().Winning(match->GetActualTime_ms())&&
           mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
         const auto pos=mates.at(i)->GetPosition(),delta=pos-player->GetPosition();
