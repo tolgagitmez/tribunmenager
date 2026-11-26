@@ -55,6 +55,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_native_combination_diagnostics.py
           python3 -m unittest discover -s tests -p test_native_offball_diagnostics.py
           python3 -m unittest discover -s tests -p test_native_integration_gate.py
+          python3 -m unittest discover -s tests -p test_native_evidence_summary.py
           python3 -m unittest discover -s tests -p test_native_match_quality.py
           python3 -m unittest discover -s tests -p test_native_private_beta.py
           python3 -m py_compile integrations/league-soccer/native_private_beta.py
