@@ -422,6 +422,9 @@ void TribunTrace(Match& match, bool done) {
       output << ",\"goalkeeper\":" << (player->GetFormationEntry().role == e_PlayerRole_GK ? "true" : "false");
       output << ",\"uniquePossession\":" << (player->HasUniquePossession() ? "true" : "false");
       output << ",\"heightMetres\":" << player->GetPlayerData()->GetHeight();
+      const auto motionFunction=player->GetCurrentFunctionType();
+      output << ",\"groundAction\":\"" << (motionFunction==e_FunctionType_Trip?"trip":
+        motionFunction==e_FunctionType_Sliding?"slide":"other") << '"';
       // Raw traits and current fatigue are separate; effective attributes
       // already include fatigue and must not be multiplied by it twice.
       output << ",\"motionIdentity\":{\"agility\":" << player->GetPlayerData()->GetStat("physical_agility")

@@ -57,6 +57,7 @@
    for(const p of f.players){
     requireValue(p&&[0,1].includes(p.team)&&nonneg(p.id)&&!seen.has(p.id)&&vec(p.position)&&vec(p.velocity)&&vec(p.direction),'Geçersiz oyuncu verisi.');
     requireValue(p.databaseId===undefined||nonneg(p.databaseId),'Geçersiz kadro kimliği.');
+    if(p.groundAction!==undefined)requireValue(['trip','slide','other'].includes(p.groundAction),'Geçersiz motor yer hareketi.');
     if(p.heightMetres!==undefined)requireValue(finite(p.heightMetres)&&p.heightMetres>0,'Geçersiz motor boyu.');
     if(p.motionIdentity!==undefined)requireValue(p.motionIdentity&&
      ['agility','velocity','acceleration','balance','dribble','control','fatigueFactor'].every(k=>finite(p.motionIdentity[k])),'Geçersiz hareket karakteri.');
@@ -141,10 +142,11 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false,motionMatching=false,playerMotionIdentity=false,playerAnatomy=false,clipLibrary=null,contactPrecision=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false,motionMatching=false,playerMotionIdentity=false,playerAnatomy=false,clipLibrary=null,contactPrecision=false,groundRecovery=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   // The combined profile enables all prior opt-in layers, but remains a
   // presentation experiment; the recorded match is still authoritative.
+  if(groundRecovery)contactPrecision=true;
   if(clipLibrary||contactPrecision)playerAnatomy=true;
   if(playerAnatomy)playerMotionIdentity=true;
   if(playerMotionIdentity)motionMatching=true;
@@ -380,6 +382,18 @@
     }
     if(clipLibrary)actor.nativeClipLibrary=actor.nativeBlend?clipLibrary:null;
     if(contactPrecision)actor.nativeContactPrecision=actor.nativeBlend===true;
+    if(groundRecovery){
+     // Require a native state in the current sample, not merely proximity.
+     // A fast native player never receives a cosmetic ground fall.
+     const d=actor.nativeDuel,c=actor.nativeContact,action=source.groundAction;
+     const eligible=actor.nativeBlend&&actor.role!=='GK'&&!actor.nativeAerial&&!actor.nativeKeeper;
+     actor.nativeGroundRecovery=null;
+     if(eligible&&action==='trip'&&d?.fall&&d.tripType>=2&&speed<2.2&&(!c||c.weight<.1)){
+      actor.nativeGroundRecovery={kind:'fall',age:d.age,direction:d.direction,opponentId:d.opponentId,timeMs:d.timeMs,balance:d.balance};
+     }else if(eligible&&action==='slide'&&c?.tackle?.sliding&&speed<3.8){
+      actor.nativeGroundRecovery={kind:'slide',deltaMs:c.deltaMs,foot:c.foot,weight:c.weight,timeMs:c.timeMs};
+     }
+    }
     active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion||keeperMotion||aerialMotion?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}

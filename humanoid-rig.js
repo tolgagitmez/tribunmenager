@@ -313,6 +313,20 @@ function refineNativeContact(result,p,frame,anatomy,scale){
  if(report.length)result.nativeContactPrecision=report;
  return result;
 }
+// Stage 94: phase envelope for a native-confirmed severe trip or slide.
+// No extrapolated fall during an unconfirmed engine state.
+function groundEnvelope(c,speed){
+ if(!c)return null;
+ if(c.kind==='fall'){
+  const age=clamp(c.age,0,900),weight=smooth(age/180)*(1-smooth((age-360)/540))* (1-smooth((speed-.8)/1.4));
+  return {kind:'fall',phase:age<180?'descent':age<360?'ground':'rise',weight,age};
+ }
+ if(c.kind==='slide'){
+  const weight=clamp(c.weight,0,1)*(1-smooth((speed-2.3)/1.5));
+  return {kind:'slide',phase:c.deltaMs<0?'approach':'recovery',weight,age:c.deltaMs};
+ }
+ return null;
+}
 function pose(p,dt=1/60){
  const anatomy=anatomyFor(p),bodyScale=anatomy.height/ANATOMY.height,ground=GROUND*bodyScale;
  const st=getState(p);dt=clamp(Number(dt)||0,0,.1);
@@ -370,7 +384,9 @@ function pose(p,dt=1/60){
  const aerialJump=aerial?clamp((aerial.ball.y-1.85)*.82,0,.36)*aerialW:0;
  const aerialCrouch=aerial?clamp((1.77-aerial.ball.y)*.30,0,.24)*aerialW:0;
  const aerialLanding=aerial&&aerial.deltaMs>90?Math.sin(Math.PI*clamp((aerial.deltaMs-90)/270,0,1))*.055:0;
- const nativePlant=p.nativeFootPlant===true&&!special&&!(p.footTouch>0)&&!(p.feintClock>0)&&!(p.feintResponseClock>0);
+ const groundCue=!special&&!gesture&&!control&&!aerial&&!keeper?groundEnvelope(p.nativeGroundRecovery,speed):null;
+ const groundW=groundCue?.weight??0,groundFall=groundCue?.kind==='fall'?groundW:0,groundSlide=groundCue?.kind==='slide'?groundW:0;
+ const nativePlant=p.nativeFootPlant===true&&groundFall<.05&&!special&&!(p.footTouch>0)&&!(p.feintClock>0)&&!(p.feintResponseClock>0);
  // Profile selection is replay-local and uses recorded velocity, acceleration
  // and facing change. Contact protection remains in the existing pose layer.
  if(p.nativeMotionMatch===true&&nativePlant){
@@ -445,7 +461,7 @@ function pose(p,dt=1/60){
  const blended=p.nativeBlend===true&&!special;
  if(!blended)st.nativeBlend=null;
  const primary=recorded||aerial||keeper;
- const clipCue=!special?nativeClipCue(p,st.phase,primary,duel):null;
+ const clipCue=!special&&groundW<.05?nativeClipCue(p,st.phase,primary,duel):null;
  const protect=primary?clamp(primary.weight,0,1):0;
  const gain=1-Math.exp(-dt*18);
  if(blended){
@@ -463,7 +479,14 @@ function pose(p,dt=1/60){
   s[i]=s[i]?blend(s[i],local,follow):local;
   return bypass?v:fromLocal(s[i]);
  };
- const up=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
+ // Rotate the entire torso frame for a ground action, not individual
+ // spine bones beyond their anatomical joint limits. Legs/arms solve
+ // against the resulting body frame, preserving their lengths.
+ const downDir=groundFall>0?unit(add(mul(facing,Math.abs(duelForward)+Math.abs(duelLateral)<.05?1:duelForward),mul(right,duelLateral))):mul(facing,-1);
+ const upright=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
+ const groundAngle=groundFall*1.22+groundSlide*.70;
+ const up=groundW>0?unit(blend(upright,add(mul([0,1,0],Math.cos(groundAngle)),mul(downDir,Math.sin(groundAngle))),clamp(groundW*1.5,0,1))):upright;
+ if(groundW>0)hipHeight=mix(hipHeight,(groundFall>0?.30:.36)*bodyScale,groundW);
  const bodyForward=unit(sub(facing,mul(up,dot(facing,up)))),bodyRight=unit(cross(bodyForward,up)),bodyFrame={forward:bodyForward,up,right:bodyRight};
  const pelvis=world(p,strike*.04,0,hipHeight),torsoBase=add(pelvis,mul(up,anatomy.pelvis));
  const torsoMid=add(torsoBase,mul(up,anatomy.spine)),torsoUpper=add(torsoMid,mul(up,anatomy.chest));
@@ -598,9 +621,14 @@ function pose(p,dt=1/60){
    const recovery=world(p,.08+(i?1:-1)*duelForward*.14,side*(.15+.13*fallW),ground);
    foot=blend(foot,recovery,fallW*.7);stance=false;
   }
+  if(groundW>0&&!nativeContact){
+   const crouch=groundFall>0?world(p,-.18*duelForward,side*.22*bodyScale-.20*duelLateral,ground):
+    world(p,-.26,side*.22*bodyScale,ground+.05);
+   foot=blend(foot,crouch,groundW);stance=false;
+  }
   // The contact foot and planted foot remain authoritative. Only a free
   // swing target is filtered, and the existing anatomical solver follows.
-  foot=filterTarget('feet',i,foot,stance||nativeContact||aerialW>0);
+  foot=filterTarget('feet',i,foot,stance||nativeContact||aerialW>0||groundW>0);
   const requestedStance=stance,requestedFoot=foot.slice(),legIK=boundedLimb(hip,foot,anatomy.thigh,anatomy.shin,facing,LIMITS.knee,LIMITS.hip,bodyFrame,side);
   foot=legIK.end;if(legIK.error>1e-5)stance=false;
   const toe=add(foot,[Math.cos(footFace)*.20*bodyScale,-.075*bodyScale,Math.sin(footFace)*.20*bodyScale]);
@@ -663,12 +691,18 @@ function pose(p,dt=1/60){
    wrist=blend(wrist,target,shieldWeight*.92);
   }
   if(act==='throw'&&p.actionClock>0){const u=smooth((p.actionElapsed||0)/Math.max(.1,p.contactTime||.55));wrist=blend(wrist,world(p,mix(-.06,.4,u),side*.12,1.95),action);}
+  if(groundW>0){
+   // Hand support target, not a promise of physically planted palms.
+   const target=groundFall>0?world(p,duelForward*.52+.10,duelLateral*.42+side*.29*bodyScale,.12*bodyScale):
+    world(p,-.30,side*.34*bodyScale,.24*bodyScale);
+   wrist=blend(wrist,target,groundW);
+  }
   if(clipCue){
    const [f,u,s]=clipCue.arms[i];
    const desired=add(shoulder,add(add(mul(bodyForward,f*bodyScale),mul(up,u*bodyScale)),mul(bodyRight,s*bodyScale)));
    wrist=blend(wrist,desired,clipCue.weight);
   }
-  wrist=filterTarget('arms',i,wrist,!!keeper&&keeperW>.75);
+  wrist=filterTarget('arms',i,wrist,(!!keeper&&keeperW>.75)||groundW>0);
   arms.push({shoulder,target:wrist});
  }
  let result={pelvis,neck,head,headTop,torsoBase,torsoMid,torsoUpper,legs,arms,activity:st.activity,sprint,kick,tackle,diving,celebrating,protest,face:p.face,action:act,weight:action,turn:st.turn,feintWeight,shieldWeight,defenderMisread,wallPassWeight,cutWeight,burstWeight};
@@ -766,6 +800,11 @@ function pose(p,dt=1/60){
   for(const arm of arms)for(const key of ['shoulder','elbow','wrist','hand','palm','target'])arm[key][1]+=jump;
  }
  if(p.nativeContactPrecision===true&&!special)refineNativeContact(result,p,frame,anatomy,bodyScale);
+ if(groundCue){
+  result.nativeGroundRecovery={...groundCue,pelvisHeight:result.pelvis[1],
+   supportPalmHeight:Math.min(...result.arms.map(a=>a.palm[1])),
+   lowestToe:Math.min(...result.legs.map(l=>l.toe[1]))};
+ }
  st.prevX=p.x;st.prevZ=p.z;st.lastFace=p.face||0;st.prevSpeed=speed;st.lastAction=act;st.pose=result;
  return result;
 }
@@ -783,7 +822,7 @@ function boneFrames(pose){
  Object.freeze(frames);frameCache.set(pose,frames);return frames;
 }
 function reset(p){rigs.delete(p);}
-const API={surfaceError,sphereSurface,refineNativeContact,sampleClipArms,nativeClipCue,anatomyFor,bodyScaleFor,motionIdentityFactors,matchNativeStep,pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
+const API={groundEnvelope,surfaceError,sphereSurface,refineNativeContact,sampleClipArms,nativeClipCue,anatomyFor,bodyScaleFor,motionIdentityFactors,matchNativeStep,pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 global.TribunHumanoidRig=API;
 })(typeof window!=='undefined'?window:globalThis);
