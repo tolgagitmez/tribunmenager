@@ -45,6 +45,7 @@ jobs:
           node --check league.js
           python3 -m unittest discover -s tests -p test_native_stall_diagnostics.py
           python3 -m unittest discover -s tests -p test_native_action_diagnostics.py
+          python3 -m unittest discover -s tests -p test_native_animation_rejections.py
           python3 -m unittest discover -s tests -p test_native_skeleton_diagnostics.py
           python3 -m unittest discover -s tests -p test_native_transition_motion.py
           python3 -m unittest discover -s tests -p test_native_dribble_diagnostics.py
