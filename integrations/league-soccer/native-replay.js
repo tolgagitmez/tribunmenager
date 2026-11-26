@@ -68,7 +68,7 @@
      requireValue(e&&nonneg(e.timeMs)&&e.timeMs>=lastContact&&e.timeMs<=f.elapsedMs&&
       nonneg(e.playerId)&&nonneg(e.databaseId)&&[0,1].includes(e.team)&&[-1,0,1].includes(e.foot)&&
       ['trap','control','pass','shot','standing-tackle','sliding-tackle'].includes(e.kind)&&
-      (e.technique===undefined||['none','short-pass','long-pass','high-pass','shot'].includes(e.technique))&&vec(e.ball)&&vec(e.impulseVelocity)&&
+      (e.technique===undefined||['none','short-pass','long-pass','high-pass','shot'].includes(e.technique))&&(e.headContact===undefined||typeof e.headContact==='boolean')&&vec(e.ball)&&vec(e.impulseVelocity)&&
       (e.controlContext===undefined||validControl(e.controlContext)),'Geçersiz motor teması.');
      lastContact=e.timeMs;
     }
@@ -138,7 +138,7 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
@@ -240,6 +240,37 @@
    return {kind:held?'hold':best.kind,profile,hand:best?.hand??-1,ball,lateral,forward,deltaMs:delta,
     weight:raw*raw*(3-2*raw),timeMs:best?.timeMs??null,held};
   }
+  const aerial=new Map();
+  if(aerialMotion)for(const frame of frames)for(const e of frame.nativeContacts||[]){
+   if(e.headContact!==true||e.foot!==-1||e.ball[2]<.65||e.ball[2]>2.8)continue;
+   const key=e.team+':'+e.playerId+':'+e.databaseId;
+   if(!aerial.has(key))aerial.set(key,[]);
+   aerial.get(key).push(e);
+  }
+  function aerialAt(source,time,actor){
+   const events=aerial.get(source.team+':'+source.id+':'+source.databaseId)||[];
+   let lo=0,hi=events.length;
+   while(lo<hi){const mid=(lo+hi)>>1;if(events[mid].timeMs<time)lo=mid+1;else hi=mid;}
+   let best=null;
+   for(const e of [events[lo-1],events[lo]]){
+    if(!e)continue;
+    const delta=time-e.timeMs;
+    if(delta< -300||delta>360)continue;
+    if(!best||Math.abs(delta)<Math.abs(time-best.timeMs))best=e;
+   }
+   if(!best)return null;
+   const ball=coord(best.ball),dx=ball.x-actor.x,dz=ball.z-actor.z;
+   if(Math.hypot(dx,dz)>1.2)return null;
+   const delta=time-best.timeMs,raw=clamp(1-Math.abs(delta)/(delta<0?300:360),0,1);
+   const weight=raw*raw*(3-2*raw);
+   const movement=best.controlContext?.playerVelocity;
+   const speed=movement?Math.hypot(movement[0],movement[1]):null;
+   const contested=best.controlContext?best.controlContext.opponentDistance<1.1:false;
+   const profile=ball.y<1.55?'stoop':ball.y>1.95?'jump':speed!==null&&speed>2.5?'running':'standing';
+   return {timeMs:best.timeMs,kind:best.kind,profile,ball,deltaMs:delta,weight,
+    contested,speed,forward:Math.cos(actor.face)*dx+Math.sin(actor.face)*dz,
+    lateral:-Math.sin(actor.face)*dx+Math.cos(actor.face)*dz};
+  }
   let previousTime=null;
   function reset(rig){for(const p of actors.values())rig?.reset(p);actors.clear();previousTime=null;}
   function sample(ms,rig,dt=0){
@@ -297,7 +328,11 @@
      actor.nativeKeeper=actor.role==='GK'&&!a.done&&!a.setPiece&&a.inPlay!==false&&span>0&&span<=200&&
       Math.hypot(dest.x-pos.x,dest.z-pos.z)<=2?keeperAt(source,time,a,b,actor,u):null;
     }
-    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion||keeperMotion?step:clamp(dt,0,.1));return actor;
+    if(aerialMotion){
+     actor.nativeAerial=actor.role!=='GK'&&!a.done&&!a.setPiece&&!b.setPiece&&a.inPlay!==false&&b.inPlay!==false&&
+      span>0&&span<=200&&Math.hypot(dest.x-pos.x,dest.z-pos.z)<=2?aerialAt(source,time,actor):null;
+    }
+    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion||keeperMotion||aerialMotion?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}
    const p=coord(a.ball),q=coord(b.ball),v=velocity(a.ballVelocity),w=velocity(b.ballVelocity);

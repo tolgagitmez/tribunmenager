@@ -306,7 +306,8 @@ void TribunTrace(Match& match, bool done) {
     firstContact=false;
     output << "{\"timeMs\":" << c.timeMs << ",\"playerId\":" << c.playerId
            << ",\"databaseId\":" << c.databaseId << ",\"team\":" << c.team
-           << ",\"kind\":\"" << c.kind << "\",\"technique\":\"" << c.technique << "\",\"foot\":" << c.foot << ",\"ball\":";
+           << ",\"kind\":\"" << c.kind << "\",\"technique\":\"" << c.technique << "\",\"foot\":" << c.foot
+           << ",\"headContact\":" << (c.headContact?"true":"false") << ",\"ball\":";
     vec(c.ball);
     output << ",\"impulseVelocity\":";vec(c.velocity);
     output << ",\"controlContext\":{\"incomingVelocity\":";vec(c.incoming);
@@ -1722,7 +1723,7 @@ def contact_event_header(source):
     const char* technique;
     Vector3 ball,velocity,incoming,playerMovement,facing;
     float opponentDistance,dribbleSkill,controlSkill;
-    bool knockOn,uniquePossession;
+    bool knockOn,uniquePossession,headContact;
   };
   std::vector<TribunContactEvent> tribunContactEvents;
   struct TribunDuelEvent {
@@ -1772,7 +1773,7 @@ def contact_event_source(source):
             std::isfinite(opponentDistance)?std::max(0.0f,opponentDistance):100.0f,
             CastPlayer()->GetStat("technical_dribble"),CastPlayer()->GetStat("technical_ballcontrol"),
             (currentAnim->originatingCommand.modifier&e_PlayerCommandModifier_KnockOn)!=0,
-            CastPlayer()->HasUniquePossession()});
+            CastPlayer()->HasUniquePossession(),part=="head"});
         }
         '''.replace("KIND",kind)
         source=replace_once(source,anchor,capture+anchor)

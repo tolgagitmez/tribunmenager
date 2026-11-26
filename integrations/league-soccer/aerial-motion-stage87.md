@@ -1,0 +1,3 @@
+# Stage 87 — native header and aerial presentation
+
+Opt-in replay only. Accepted native touches now explicitly expose whether the animation-selected body part is exactly "head". No height-only header inference. Low/standing/running/jump presentation profiles use recorded contact height and player movement. The bounded whole-rig lift, torso and arm cues, crouch and landing recovery preserve solved bone lengths and do not write simulated positions or ball trajectory. Nearby opponent only changes stylistic arm posture; no opponent jump, duel success, physical leap, header AI or exact forehead collision is inferred. Head-center proxy diagnostic is not mesh contact. No new motion capture or production change. Old traces remain compatible.

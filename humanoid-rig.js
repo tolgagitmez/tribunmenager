@@ -188,6 +188,12 @@ function pose(p,dt=1/60){
  const keeperLow=keeper?clamp((1.1-keeper.ball.y)/1.1,0,1)*keeperW:0;
  const keeperSide=keeper?clamp(keeper.lateral/1.2,-1,1)*keeperW:0;
  const keeperHigh=keeper?clamp((keeper.ball.y-1.5)/.9,0,1)*keeperW:0;
+ // Stage 87: a recorded head contact, never a guessed header from height.
+ const aerial=!special&&!gesture&&!control&&!tackleCue&&!keeper&&p.nativeAerial?.weight>0?p.nativeAerial:null;
+ const aerialW=aerial?clamp(aerial.weight,0,1):0;
+ const aerialJump=aerial?clamp((aerial.ball.y-1.85)*.82,0,.36)*aerialW:0;
+ const aerialCrouch=aerial?clamp((1.77-aerial.ball.y)*.30,0,.24)*aerialW:0;
+ const aerialLanding=aerial&&aerial.deltaMs>90?Math.sin(Math.PI*clamp((aerial.deltaMs-90)/270,0,1))*.055:0;
  const nativePlant=p.nativeFootPlant===true&&!special&&!(p.footTouch>0)&&!(p.feintClock>0)&&!(p.feintResponseClock>0);
  const stride=(nativePlant?mix(.72,2.05,smooth(speed/7)):mix(1.0,2.2,smooth(speed/6)))*(1-defensive*.22),
  duty=nativePlant?clamp(mix(.62,.34,smooth(speed/7))+defensive*.05,.34,.67):clamp(mix(.55,.20,smooth(speed/6))+defensive*.04,.20,.60);
@@ -240,12 +246,12 @@ function pose(p,dt=1/60){
   st.nativeDrop=mix(st.nativeDrop||0,valid?clamp(-forward*.005,0,.045)*moving:0,gain);
   if(!special){nativePitch=st.nativePitch;nativeRoll=st.nativeRoll;nativeDrop=st.nativeDrop;}
  }
- const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-nativeDrop-(gesture?(.025+.055*gesturePower)*gestureWeight:0)-(control?(controlShape.drop+.025*controlPressure)*controlWeight:0)-duelDrop-.12*tackleW-.20*slideW-fallDrop-.46*keeperLow;
+ const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-nativeDrop-(gesture?(.025+.055*gesturePower)*gestureWeight:0)-(control?(controlShape.drop+.025*controlPressure)*controlWeight:0)-duelDrop-.12*tackleW-.20*slideW-fallDrop-.46*keeperLow-aerialCrouch-aerialLanding;
  const feint=feintWeight*feintSide*.12;
  const headerU=act==='header'&&p.actionClock>0?clamp((p.actionElapsed||0)/Math.max(.1,p.actionDuration||.5),0,1):0,headerWave=Math.sin(Math.PI*headerU);
  const headerBend=p.headerHeight?clamp((1.77-p.headerHeight)*headerWave,0,.8):0;
  const shieldSide=p.dribbleFoot===0?1:-1;
- const pitch=clamp((native?nativePitch:st.lean*2)+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045+(gesture?profile.lean*gestureWeight*(.5+.5*gesturePower):0)+(control?(.035+.035*controlPressure)*controlWeight:0)+duelForward*duelWeight*.16+.10*tackleW+.20*fallW+.32*keeperLow-.08*keeperHigh,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp((native?nativeRoll:st.turn*.25)+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055 +cutWeight*cutSide*.045-(gesture?gestureSide*.07*gestureWeight:0)+(control?(.06*controlLateral-controlSide*.035*controlPressure)*controlWeight:0)+duelLateral*duelWeight*.19+duelLateral*fallW*.15+keeperSide*.16,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
+ const pitch=clamp((native?nativePitch:st.lean*2)+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045+(gesture?profile.lean*gestureWeight*(.5+.5*gesturePower):0)+(control?(.035+.035*controlPressure)*controlWeight:0)+duelForward*duelWeight*.16+.10*tackleW+.20*fallW+.32*keeperLow-.08*keeperHigh+(aerial?clamp(aerial.forward*.18+(1.77-aerial.ball.y)*.24,-.08,.28)*aerialW:0),LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp((native?nativeRoll:st.turn*.25)+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055 +cutWeight*cutSide*.045-(gesture?gestureSide*.07*gestureWeight:0)+(control?(.06*controlLateral-controlSide*.035*controlPressure)*controlWeight:0)+duelLateral*duelWeight*.19+duelLateral*fallW*.15+keeperSide*.16+(aerial?clamp(aerial.lateral*.15,-.12,.12)*aerialW:0),LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
  const facing=[Math.cos(p.face||0),0,Math.sin(p.face||0)],right=[-facing[2],0,facing[0]];
  const up=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
  const bodyForward=unit(sub(facing,mul(up,dot(facing,up)))),bodyRight=unit(cross(bodyForward,up)),bodyFrame={forward:bodyForward,up,right:bodyRight};
@@ -403,6 +409,10 @@ function pose(p,dt=1/60){
    const target=world(p,.12+fallW*.22,side*(.29+slideW*.08),Math.max(.45,1.02-fallW*.45-slideW*.20));
    wrist=blend(wrist,target,Math.max(tackleW*.65,fallW*.8));
   }
+  if(aerial){
+   const target=world(p,-.10,side*(aerial.contested?.39:.31),1.22);
+   wrist=blend(wrist,target,aerialW*.78);
+  }
   if(keeper){
    // The unknown limb case is a stylized ready pose, not a claimed glove hit.
    const guard=world(p,.24,side*.28,1.10-.25*keeperLow+.25*keeperHigh);
@@ -449,6 +459,7 @@ function pose(p,dt=1/60){
  if(tackleCue)result.nativeTackle={kind:tackleCue.kind,foot:tackleCue.foot,weight:tackleW,sliding:tackleCue.tackle.sliding};
  if(duel?.fall)result.nativeRecovery={age:fallAge,weight:fallW,drop:fallDrop};
  if(keeper)result.nativeKeeper={kind:keeper.kind,profile:keeper.profile,hand:keeper.hand,weight:keeperW,held:keeper.held,targets:0,meanPalmError:null};
+ if(aerial)result.nativeAerial={profile:aerial.profile,kind:aerial.kind,weight:aerialW,jump:aerialJump,landing:aerialLanding,contested:aerial.contested,headError:null};
  if(native)result.nativeBalance={pitch:nativePitch,roll:nativeRoll,drop:nativeDrop};
  if(hasScan||st.scanYaw){result.headYaw=st.scanYaw;result.headFace=(p.face||0)+st.scanYaw;}
  let frame=bodyFrame,contactTargets=null;
@@ -514,6 +525,16 @@ function pose(p,dt=1/60){
  }
  result.presentationOffset=shift;result.contactError=contactTargets?Math.max(...arms.map(a=>a.contactError)):0;
  if(keeper&&nativePalmErrors.length){result.nativeKeeper.targets=nativePalmErrors.length;result.nativeKeeper.meanPalmError=nativePalmErrors.reduce((a,b)=>a+b,0)/nativePalmErrors.length;}
+ if(aerial){
+  // Translate the complete solved skeleton, not the simulated actor.
+  // Whole-rig lift preserves each solved bone length.
+  for(const key of bodyKeys)result[key][1]+=aerialJump;
+  for(const leg of legs){for(const key of ['hip','knee','ankle','toe','target'])leg[key][1]+=aerialJump;if(aerialJump>.001)leg.stance=false;}
+  for(const arm of arms)for(const key of ['shoulder','elbow','wrist','hand','palm','target'])arm[key][1]+=aerialJump;
+  const center=[aerial.ball.x,aerial.ball.y,aerial.ball.z];
+  // Head center is a proxy, not the rendered forehead or collision mesh.
+  result.nativeAerial.headError=Math.abs(len(sub(result.head,center))-(BALL_RADIUS+.10));
+ }
  if(headerWave>0){
   const jump=headerWave*(p.headerHeight?clamp((p.headerHeight-1.77)/.905,0,.33):.23);
   for(const key of bodyKeys)result[key][1]+=jump;
