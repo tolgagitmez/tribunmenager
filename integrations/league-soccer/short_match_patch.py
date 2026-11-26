@@ -4017,6 +4017,94 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 186: prefer reachable native lead passes using moving defender
+    # corridor samples. Do not replace native pass aim, power or physics.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool PassTiming186Enabled(){
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_AV_PASS_TIMING");
+    return value && std::strcmp(value,"1")==0 && IdleRecoveryEnabled();
+  }();
+  return enabled;
+}
+inline float NativeLeadDelay(float distance){
+  return .7f*std::pow(std::clamp(.3f+.05f*distance,0.0f,1.0f),.7f);
+}
+inline bool LeadTimingSafe(float progress,float distance,float runSpeed,float margin,
+    float clearance,float corridor,float odds,float reachError){
+  return std::isfinite(progress)&&std::isfinite(distance)&&std::isfinite(runSpeed)&&
+      std::isfinite(margin)&&std::isfinite(clearance)&&std::isfinite(corridor)&&
+      std::isfinite(odds)&&std::isfinite(reachError)&&
+      progress>=3.0f&&progress<=23.0f&&distance>=7.0f&&distance<=26.0f&&
+      runSpeed>=1.6f&&margin>=1.5f&&clearance>=2.0f&&corridor>=1.4f&&
+      odds>=.76f&&odds<=1.0f&&reachError>=0&&reachError<=1.8f;
+}
+inline float LeadTimingBonus(float corridor,float clearance,float odds){
+  return .18f+.12f*std::clamp((corridor-1.4f)/2.0f,0.0f,1.0f)+
+      .10f*std::clamp((clearance-2.0f)/3.0f,0.0f,1.0f)+
+      .05f*std::clamp((odds-.76f)/.24f,0.0f,1.0f);
+}
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("    float proximityRating;\n    e_FunctionType passType;", "    float proximityRating;\n    bool timing186=false;\n    e_FunctionType passType;"),
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet || counterCandidate || paceCandidate) {", r'''      bool timing186=false;
+      float timingOdds=0.0f,timingCorridor=0.0f,timingClearance=0.0f;
+      if(AITactics::PassTiming186Enabled() && CastPlayer()->HasUniquePossession() &&
+          match->GetLastTouchPlayer()==player && !team->GetHumanGamerCount() &&
+          CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK &&
+          mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK &&
+          mates.at(i)->IsActive() && match->IsInPlay() && !match->IsInSetPiece() &&
+          !match->GetBallRetainer()){
+        const auto origin=(player->GetPosition()+player->GetMovement().GetNormalized(0)*.2f).Get2D();
+        const auto recipient=mates.at(i)->GetPosition().Get2D();
+        const auto movement=mates.at(i)->GetMovement().Get2D();
+        const float distance=(recipient-origin).GetLength();
+        const float margin=AI_GetOffsideLine(match,_mentalImage,abs(team->GetID()-1))*attackForward-
+            recipient.coords[0]*attackForward;
+        const float progress=(recipient-origin).coords[0]*attackForward;
+        const float runSpeed=movement.coords[0]*attackForward;
+        if(AITactics::LeadTimingSafe(progress,distance,runSpeed,margin,100,100,1,0)){
+          const auto future=recipient+movement*AITactics::NativeLeadDelay(distance);
+          // Match the native forced-target long pass's forward offset.
+          const auto target=future+Vector3(attackForward*(future-origin).GetLength()*.2f,0,0);
+          const float travel=.7f+(target-origin).GetLength()*.03f;
+          const float reachError=(target-(recipient+movement*travel)).GetLength();
+          if(std::abs(target.coords[0])<pitchHalfW-1.0f && std::abs(target.coords[1])<pitchHalfH-1.0f){
+            timingClearance=100;timingCorridor=100;
+            for(const auto& opp:opponentPlayerImages){
+              timingClearance=std::min(timingClearance,(target-opp.position-opp.movement*travel).Get2D().GetLength());
+              for(float fraction:{.2f,.4f,.6f,.8f}){
+                const auto point=origin+(target-origin)*fraction;
+                timingCorridor=std::min(timingCorridor,(point-opp.position-opp.movement*(travel*fraction)).Get2D().GetLength());
+              }
+            }
+            timingOdds=std::min(_GetPassingOdds(mates.at(i),e_FunctionType_LongPass,opponentPlayerImages),
+                _GetPassingOdds(target,e_FunctionType_LongPass,opponentPlayerImages));
+            timing186=AITactics::LeadTimingSafe(progress,distance,runSpeed,margin,timingClearance,
+                timingCorridor,timingOdds,reachError);
+          }
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet || counterCandidate || paceCandidate || timing186) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(timing186 && timingOdds>=mateRating.passRating-.025f){
+          mateRating.passType=e_FunctionType_LongPass;
+          mateRating.passRating=timingOdds;
+          mateRating.supportRating+=AITactics::LeadTimingBonus(timingCorridor,timingClearance,timingOdds);
+          mateRating.timing186=true;
+        }else if(timing186 && !(progressiveCandidate||supportCandidate||runningCandidate||deliveryCandidate||
+            pressureOutlet||returnCandidate||retentionOutlet||timedCandidate||lineBreak||triangleCandidate||
+            holdOutlet||counterCandidate||paceCandidate))continue;
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+        ("    _AddPass(commandQueue, bestMateRating.player, bestMateRating.passType);", r'''    _AddPass(commandQueue, bestMateRating.player, bestMateRating.passType);
+    if(bestMateRating.timing186)
+      printf("[tribun-pass-timing] team=%d passer=%d receiver=%d match_ms=%lu odds=%.5f\n",
+          team->GetID(),player->GetID(),bestMateRating.player->GetID(),
+          static_cast<unsigned long>(match->GetMatchTime_ms()),bestMateRating.passRating);'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
