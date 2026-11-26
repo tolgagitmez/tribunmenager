@@ -6,12 +6,14 @@
 </style></head><body>
 <a href="match.html">Normal maç ekranı</a>
 <h1>League-Soccer · 3D maç kaydı</h1>
+<p>Beta deneme aracıyla oluşturulan maç paketindeki <code>match.candidate.ndjson</code> ve <code>match.candidate.ndjson.fixture.json</code> dosyalarını seç. Bu ekran önceden hesaplanmış maçı gösterir; canlı taktik veya oyuncu değişikliği yapmaz.</p>
 <p>Yeni motorun gerçek konum ve skor kayıtlarını Tribün Manager'ın mevcut 3D stadyumunda izle. Bu ayrı bir test ekranıdır; lig sonucu kaydetmez. Deneysel animasyon seçenekleri motorun kayıtlı temasları ve mevcut proje klipleriyle çalışır.</p>
 <label>Motor kaydı (.ndjson) <input type="file" id="file" accept=".ndjson,.jsonl"></label>
 <label>İsteğe bağlı kadro eşleştirmesi (.fixture.json) <input type="file" id="manifest" accept=".json"></label>
 <div class="row"><div id="score" aria-live="polite">Kayıt seçin</div><span id="renderMode">3D hazırlanıyor</span></div>
 <canvas id="pitch" width="960" height="540" aria-label="League-Soccer maç görüntüsü"></canvas>
 <div class="row"><button id="play" disabled>Oynat</button><button id="broadcast" disabled>5 dakikalık yayın</button><span id="broadcastClock"></span><button id="camera">Kamera: TV</button><label>Hız <select id="speed"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><label>Grafik <select id="quality"><option value="performance">Performans</option><option value="balanced" selected>Dengeli</option><option value="quality">Kalite</option></select></label></div>
+<div class="row"><button id="betaPresentation" type="button">Beta 3D profilini aç</button><button id="basicPresentation" type="button">Temel görüntüye dön</button></div>
 <label><input type="checkbox" id="bodyBalance"> Deneysel vücut dengesi (79. aşama; yalnızca görüntü)</label>
 <label><input type="checkbox" id="footPlant"> Deneysel ayak teması (80. aşama; yalnızca görüntü)</label>
 <label><input type="checkbox" id="contactSync"> Deneysel gerçek top teması (81. aşama; yeni motor kayıtları)</label>

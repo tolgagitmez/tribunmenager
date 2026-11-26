@@ -10,7 +10,7 @@ const scheduler=window.TribunReplayPerformance.create();
 let optimized=false,modelSeen=null,layoutKey='',sampleCalls=0,renderCalls=0,lastHud=0;
 function invalidate(now=performance.now(),settle=0){scheduler.invalidate(now,settle);}
 function stop(){playing=false;last=null;$('play').textContent='Oynat';}
-function endBroadcast(){broadcast=null;$('bodyBalance').disabled=$('footPlant').disabled=$('contactSync').disabled=$('strikeMotion').disabled=$('controlMotion').disabled=$('duelMotion').disabled=$('tackleMotion').disabled=$('keeperMotion').disabled=$('aerialMotion').disabled=$('animationBlend').disabled=$('motionMatching').disabled=$('playerMotionIdentity').disabled=$('playerAnatomy').disabled=$('nativeClips').disabled=$('contactPrecision').disabled=$('groundRecovery').disabled=$('keeperCompletion').disabled=false;$('play').disabled=$('seek').disabled=$('speed').disabled=!replay;$('broadcast').disabled=!replay?.complete;$('broadcast').textContent='5 dakikalık yayın';}
+function endBroadcast(){broadcast=null;$('betaPresentation').disabled=$('basicPresentation').disabled=false;$('bodyBalance').disabled=$('footPlant').disabled=$('contactSync').disabled=$('strikeMotion').disabled=$('controlMotion').disabled=$('duelMotion').disabled=$('tackleMotion').disabled=$('keeperMotion').disabled=$('aerialMotion').disabled=$('animationBlend').disabled=$('motionMatching').disabled=$('playerMotionIdentity').disabled=$('playerAnatomy').disabled=$('nativeClips').disabled=$('contactPrecision').disabled=$('groundRecovery').disabled=$('keeperCompletion').disabled=false;$('play').disabled=$('seek').disabled=$('speed').disabled=!replay;$('broadcast').disabled=!replay?.complete;$('broadcast').textContent='5 dakikalık yayın';}
 function reset(){replay?.reset(rig);scene.resetAnimation();last=null;current=null;if(optimized)scene.replayCameraSnap=true;invalidate();}
 function draw(dt=0,renderDt=dt,reuse=false){
  const started=performance.now();
@@ -48,6 +48,18 @@ async function ensureClips(){
  })();
  return clipPromise;
 }
+const presentationOptions=['bodyBalance','footPlant','contactSync','strikeMotion','controlMotion','duelMotion','tackleMotion','keeperMotion','aerialMotion','animationBlend','motionMatching','playerMotionIdentity','playerAnatomy','nativeClips','contactPrecision','groundRecovery','keeperCompletion','renderOptimization'];
+function applyPreset(enabled){
+ if(broadcast)return;
+ const at=position,wasPlaying=playing;
+ for(const id of presentationOptions)$(id).checked=enabled;
+ optimized=enabled;configureGraphics();
+ load();position=Math.min(at,replay?.duration||0);reset();draw();
+ if(replay&&wasPlaying&&position<replay.duration){playing=true;last=null;$('play').textContent='Duraklat';}
+ if(enabled)ensureClips();
+}
+$('betaPresentation').onclick=()=>applyPreset(true);
+$('basicPresentation').onclick=()=>applyPreset(false);
 $('nativeClips').onchange=()=>{if(!broadcast){load();if($('nativeClips').checked)ensureClips();}};
 $('file').onchange=async()=>{
  const token=++generation;frames=null;manifest=null;$('manifest').value='';load();
@@ -70,6 +82,7 @@ $('broadcast').onclick=()=>{
   broadcast=window.TribunNativeBroadcast.create(frames);
   stop();reset();position=0;broadcastStart=performance.now();
   $('play').disabled=$('seek').disabled=$('speed').disabled=true;$('bodyBalance').disabled=$('footPlant').disabled=$('contactSync').disabled=$('strikeMotion').disabled=$('controlMotion').disabled=$('duelMotion').disabled=$('tackleMotion').disabled=$('keeperMotion').disabled=$('aerialMotion').disabled=$('animationBlend').disabled=$('motionMatching').disabled=$('playerMotionIdentity').disabled=$('playerAnatomy').disabled=$('nativeClips').disabled=$('contactPrecision').disabled=$('groundRecovery').disabled=$('keeperCompletion').disabled=true;
+  $('betaPresentation').disabled=$('basicPresentation').disabled=true;
   $('broadcast').textContent='Yayını kapat';
  }catch(e){$('status').textContent=e.message;}
 };
@@ -120,7 +133,7 @@ function loop(now){
  }
  requestAnimationFrame(loop);
 }
-window.TRIBUN_NATIVE_REPLAY_TEST={state:()=>current&&({score:current.score,players:current.players.length,ball:current.ball,done:current.done}),webgl:()=>!!scene.gl,modelReady:()=>!!scene.playerRenderer,clipStatus:()=>clipStatus,clipCount:()=>clipLibrary?Object.keys(clipLibrary).length:0,clipSamples:()=>current?.players.filter(p=>rig.getPose(p).nativeClip).length||0,
+window.TRIBUN_NATIVE_REPLAY_TEST={state:()=>current&&({score:current.score,players:current.players.length,ball:current.ball,done:current.done,elapsedMs:current.elapsedMs}),webgl:()=>!!scene.gl,modelReady:()=>!!scene.playerRenderer,clipStatus:()=>clipStatus,clipCount:()=>clipLibrary?Object.keys(clipLibrary).length:0,clipSamples:()=>current?.players.filter(p=>rig.getPose(p).nativeClip).length||0,
  performance:()=>({optimized,sampleCalls,renderCalls,scheduler:scheduler.stats(),scene:scene.performanceMode()})};
 requestAnimationFrame(loop);
 })();

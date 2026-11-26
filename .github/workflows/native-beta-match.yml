@@ -1,0 +1,48 @@
+name: Native beta replay package
+on:
+  push:
+    branches: [experiment/native-beta-stage105]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Non-authoritative test profile'
+        type: choice
+        options: [reference, combined]
+        default: reference
+permissions:
+  contents: read
+jobs:
+  beta:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test integrations/league-soccer/beta-fixture.test.cjs
+      - run: python3 -m unittest discover -s tests -p test_native_beta_match.py
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/beta-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Generate verified native replay
+        env:
+          BETA_PROFILE: ${{ inputs.profile || 'reference' }}
+        run: python3 integrations/league-soccer/beta-match.py "$RUNNER_TEMP/beta-runtime" "$RUNNER_TEMP/beta-package" --profile "$BETA_PROFILE" --home-style counter --home-press 75 --away-style possession --away-passing short
+      - name: Exercise actual beta replay on WebGL
+        run: node integrations/league-soccer/replay-browser.cjs "$RUNNER_TEMP/beta-package/match.candidate.ndjson"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-beta-replay
+          path: |
+            ${{ runner.temp }}/beta-package/beta-package.json
+            ${{ runner.temp }}/beta-package/fixture.json
+            ${{ runner.temp }}/beta-package/match.candidate.ndjson
+            ${{ runner.temp }}/beta-package/match.candidate.ndjson.fixture.json
+          if-no-files-found: error
