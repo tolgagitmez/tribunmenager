@@ -8,6 +8,11 @@ out="$(realpath -m "$3")"
 render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+case "${TRIBUN_NATIVE_TRANSITION:-0}" in
+  0) ;;
+  1) [[ "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" == short-match && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_COLLISION_POSE:-0}" == 0 && "${TRIBUN_NATIVE_DETERMINISM:-0}" == 0 && "${TRIBUN_NATIVE_FINAL_THIRD_RETENTION:-0}" == 0 && "${TRIBUN_NATIVE_BOX_LANE_RUNS:-0}" == 0 && "${TRIBUN_NATIVE_TIMED_ATTACK:-0}" == 0 && "${TRIBUN_NATIVE_LINE_BREAK:-0}" == 0 && "${TRIBUN_NATIVE_RUN_LANES:-0}" == 0 && "${TRIBUN_NATIVE_TRIANGLE:-0}" == 0 && "${TRIBUN_NATIVE_CREATIVE_CARRY:-0}" == 0 && "${TRIBUN_NATIVE_DUEL:-0}" == 0 && "${TRIBUN_NATIVE_HOLD_UP:-0}" == 0 && "${TRIBUN_NATIVE_FINISH:-0}" == 0 && "${TRIBUN_NATIVE_KEEPER_AI:-0}" == 0 && "${TRIBUN_NATIVE_DEFENSE_SHAPE:-0}" == 0 ]] || { echo "Transition require isolated fixed-clock short-match" >&2; exit 2; } ;;
+  *) echo "Invalid transition flag" >&2; exit 2;;
+esac
 case "${TRIBUN_NATIVE_DEFENSE_SHAPE:-0}" in
   0) ;;
   1) [[ "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" == short-match && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_COLLISION_POSE:-0}" == 0 && "${TRIBUN_NATIVE_DETERMINISM:-0}" == 0 && "${TRIBUN_NATIVE_FINAL_THIRD_RETENTION:-0}" == 0 && "${TRIBUN_NATIVE_BOX_LANE_RUNS:-0}" == 0 && "${TRIBUN_NATIVE_TIMED_ATTACK:-0}" == 0 && "${TRIBUN_NATIVE_LINE_BREAK:-0}" == 0 && "${TRIBUN_NATIVE_RUN_LANES:-0}" == 0 && "${TRIBUN_NATIVE_TRIANGLE:-0}" == 0 && "${TRIBUN_NATIVE_CREATIVE_CARRY:-0}" == 0 && "${TRIBUN_NATIVE_DUEL:-0}" == 0 && "${TRIBUN_NATIVE_HOLD_UP:-0}" == 0 && "${TRIBUN_NATIVE_FINISH:-0}" == 0 && "${TRIBUN_NATIVE_KEEPER_AI:-0}" == 0 ]] || { echo "Defense shape require isolated fixed-clock short-match" >&2; exit 2; } ;;

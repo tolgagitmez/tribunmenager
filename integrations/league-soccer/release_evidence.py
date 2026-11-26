@@ -43,6 +43,7 @@ FILES=(
  "integrations/league-soccer/finish-benchmark.py",
  "integrations/league-soccer/keeper-ai-benchmark.py",
  "integrations/league-soccer/defense-shape-benchmark.py",
+ "integrations/league-soccer/transition-benchmark.py",
  "integrations/league-soccer/position-skinning-benchmark.py",
  "integrations/league-soccer/runtime-layout.py",
  "integrations/league-soccer/verify-substitutions.py",

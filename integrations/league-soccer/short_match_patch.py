@@ -280,6 +280,39 @@ struct DefenseProbe {
 };
 '''
 
+TRANSITION_RULES = r'''// Stable team possession changes only after a confirmed 80 ms spell.
+// Neutral intervals do not count as turnovers.
+struct TransitionState {
+  int stable=-1,pending=-1; unsigned long pendingAt=0,lastConfirmed=0,winUntil=0,lossUntil=0;
+  bool counter=false,press=false;
+  unsigned long wins=0,losses=0,counters=0,presses=0,retreats=0,forwardPasses=0,regains=0;
+  void Reset(){stable=pending=-1;pendingAt=lastConfirmed=winUntil=lossUntil=0;counter=press=false;}
+  int Observe(int side,unsigned long now,bool open){
+    if(!open||now<lastConfirmed){Reset();return 0;}
+    if(side<0){pending=-1;if(stable>=0&&now-lastConfirmed>1200){stable=-1;counter=press=false;winUntil=lossUntil=0;}return 0;}
+    if(side!=pending){pending=side;pendingAt=now;return 0;}
+    if(now-pendingAt<80)return 0;
+    lastConfirmed=now;
+    if(stable<0){stable=side;return 0;}
+    if(stable==side)return 0;
+    stable=side;
+    if(side==1){if(press&&now<lossUntil)++regains;++wins;winUntil=now+1800;lossUntil=0;press=false;counter=false;return 1;}
+    ++losses;lossUntil=now+1000;winUntil=0;counter=false;press=false;return -1;
+  }
+  bool Winning(unsigned long now)const{return stable==1&&counter&&now<winUntil;}
+  bool Losing(unsigned long now)const{return stable==0&&now<lossUntil;}
+};
+inline bool TransitionCounter(float counter,float depth,int cover,float space,int goalDiff,bool late){
+  return depth>=18&&depth<=80&&space>=3.0f&&cover<=4&&counter>=(late&&goalDiff>0?.8f:.58f);
+}
+inline bool TransitionPress(float press,float territory,float distance,int cover,int goalDiff,bool late){
+  return territory>=.45f&&distance<=5.0f&&cover>=3&&press>=(late&&goalDiff<0?.52f:.65f);
+}
+inline bool TransitionPass(float progress,float distance,float margin,float space,float odds,float nativeOdds){
+  return progress>=5&&distance>=7&&distance<=27&&margin>=1.3f&&space>=.55f&&odds>=.73f&&odds>=nativeOdds-.04f;
+}
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -2381,4 +2414,102 @@ Vector3 AI_GetForceFieldMovement'''),
       }
     }
     if(AITactics::KeeperAIEnabled()){'''),
+    ])
+
+    # Stage 72: confirmed turnovers, bounded counter windows and safe recovery policy.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool TransitionEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_TRANSITION");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + TRANSITION_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.hpp", [
+        ("  const AITactics::TriangleState& GetTribunTriangle() const {return tribunTriangle;}", "  const AITactics::TriangleState& GetTribunTriangle() const {return tribunTriangle;}\n  const AITactics::TransitionState& GetTribunTransition() const {return tribunTransition;}"),
+        ("  AITactics::TriangleState tribunTriangle;", "  AITactics::TriangleState tribunTriangle;\n  AITactics::TransitionState tribunTransition;\n  float tribunTransitionPassX=0;"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  CalculateSituation();\n  if(tribunTriangle.stage){", r'''  CalculateSituation();
+  if(AITactics::TransitionEnabled()&&!team->GetHumanGamerCount()){
+    const auto now=match->GetActualTime_ms();
+    auto* rival=match->GetTeam(abs(team->GetID()-1));
+    auto* ownPlayer=team->GetDesignatedTeamPossessionPlayer();
+    auto* oppPlayer=rival->GetDesignatedTeamPossessionPlayer();
+    const bool open=match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer();
+    const bool ownControl=ownPlayer&&ownPlayer->HasUniquePossession()&&match->GetLastTouchPlayer()==ownPlayer;
+    const bool oppControl=oppPlayer&&oppPlayer->HasUniquePossession()&&match->GetLastTouchPlayer()==oppPlayer;
+    const int event=tribunTransition.Observe(ownControl&&!oppControl?1:oppControl&&!ownControl?0:-1,now,open);
+    if(event){
+      const float side=team->GetSide();
+      const auto ball=match->GetBall()->Predict(0).Get2D();
+      const auto& tactics=team->GetTeamData()->GetTactics().userProperties;
+      const float press=tactics.GetReal("team_pressure",.5f),counter=tactics.GetReal("counter_attack",.5f);
+      const int goalDiff=match->GetMatchData()->GetGoalCount(team->GetID())-match->GetMatchData()->GetGoalCount(rival->GetID());
+      const bool late=match->GetMatchTime_ms()>=4200000;
+      std::vector<Player*> mates,rivals;team->GetActivePlayers(mates);rival->GetActivePlayers(rivals);
+      if(event==1&&ownPlayer){
+        int cover=0;float space=100.0f;
+        const auto probe=ball+Vector3(-side*5.0f,0,0);
+        for(auto* other:rivals)if(other!=rival->GetGoalie()){
+          if(other->GetPosition().coords[0]*side<ball.coords[0]*side&&
+              std::abs(other->GetPosition().coords[1]-ball.coords[1])<15.0f)++cover;
+          space=std::min(space,(other->GetPosition()+other->GetMovement()*.2f-probe).Get2D().GetLength());
+        }
+        if(AITactics::TransitionCounter(counter,pitchHalfW+ball.coords[0]*side,cover,space,goalDiff,late)){
+          tribunTransition.counter=true;++tribunTransition.counters;
+          auto* runner=SelectAttackingRunPlayer(team);
+          if(runner&&runner!=ownPlayer&&runner->IsActive()&&AI_GetMindSet(runner->GetDynamicFormationEntry().role)>=.55f&&
+              (runner->GetPosition()-ball).GetLength()<=30.0f)ApplyAttackingRun(runner);
+        }
+      }else if(event==-1){
+        int cover=0;float nearest=1000.0f;
+        for(auto* mate:mates)if(mate!=team->GetGoalie()){
+          if(mate->GetPosition().coords[0]*side>=ball.coords[0]*side+1.0f)++cover;
+          nearest=std::min(nearest,(mate->GetPosition()-ball).Get2D().GetLength());
+        }
+        const float territory=AITactics::GetAttackingTerritory(ball.coords[0],side,pitchHalfW);
+        tribunTransition.press=AITactics::TransitionPress(press,territory,nearest,cover,goalDiff,late);
+        if(tribunTransition.press){++tribunTransition.presses;ApplyZonePressure();}
+        else{++tribunTransition.retreats;zonePressureActive=false;endApplyTeamPressure_ms=now;teamPressurePlayer=nullptr;}
+        endApplyAttackingRun_ms=now;attackingRunPlayer=nullptr;forwardSupportPlayer=nullptr;
+      }
+    }
+  }
+  if(tribunTriangle.stage){'''),
+        ("      if (AITactics::ShouldStartZonePressure(pressureSetting, territory, primaryDistance))", r'''      if ((!AITactics::TransitionEnabled() ||
+            (tribunTransition.Losing(match->GetActualTime_ms())&&tribunTransition.press)) &&
+          AITactics::ShouldStartZonePressure(pressureSetting, territory, primaryDistance))'''),
+        ("  if(TribunTriangleContact(passer,receiver,shortPass))return;", r'''  if(AITactics::TransitionEnabled()&&passer&&receiver&&receiver->GetTeam()==team&&
+      tribunTransition.Winning(match->GetActualTime_ms())&&
+      (receiver->GetPosition().coords[0]-passer->GetPosition().coords[0])*-team->GetSide()>=5.0f)
+    ++tribunTransition.forwardPasses;
+  if(TribunTriangleContact(passer,receiver,shortPass))return;'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet) {", r'''      bool counterCandidate=false;
+      float counterOdds=0;
+      e_FunctionType counterType=e_FunctionType_ShortPass;
+      if(runningPassEnabled&&AITactics::TransitionEnabled()&&
+          team->GetController()->GetTribunTransition().Winning(match->GetActualTime_ms())&&
+          mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
+        const auto pos=mates.at(i)->GetPosition(),delta=pos-player->GetPosition();
+        const float progress=delta.coords[0]*attackForward;
+        const float margin=passOffside-pos.coords[0]*attackForward;
+        if(AITactics::TransitionPass(progress,delta.GetLength(),margin,mateSit.spaceRating,1.0f,0.0f)){
+          const float a=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
+          const float b=_GetPassingOdds(mates.at(i),e_FunctionType_LongPass,opponentPlayerImages);
+          counterType=b>a?e_FunctionType_LongPass:e_FunctionType_ShortPass;counterOdds=std::max(a,b);
+          counterCandidate=AITactics::TransitionPass(progress,delta.GetLength(),margin,mateSit.spaceRating,counterOdds,0.0f);
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet || counterCandidate) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(counterCandidate&&counterOdds>=mateRating.passRating-.04f){
+          mateRating.passType=counterType;mateRating.passRating=counterOdds;mateRating.supportRating+=.32f;
+        }else if(counterCandidate&&!(progressiveCandidate||supportCandidate||runningCandidate||deliveryCandidate||
+            pressureOutlet||returnCandidate||retentionOutlet||timedCandidate||lineBreak||triangleCandidate||holdOutlet))continue;
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
     ])
