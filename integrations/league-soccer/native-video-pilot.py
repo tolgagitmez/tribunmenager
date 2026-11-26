@@ -56,6 +56,12 @@ def _capture_window(config,limit,audio_env):
     backend,device,index,encoder_plan=selected(os.environ)
     require(backend=="x264" or hls,"Hardware encoding requires private HLS")
     init_args,encode_args,gop_args=encoder_plan
+    encoder_threads=os.environ.get("TRIBUN_AV_X264_THREADS","2")
+    require(encoder_threads in ("1","2"),"Invalid encoder thread count")
+    require(encoder_threads=="2" or (hls and backend=="x264"),"Thread experiment requires local software HLS")
+    if backend=="x264":
+        encode_args=encode_args[:]
+        encode_args[encode_args.index("-threads")+1]=encoder_threads
     if backend!="x264":
         save(video.parent/"encoder-preflight.json",preflight(backend,device,index))
     progress=video.with_suffix(".progress");capture_log=video.with_suffix(".capture.log")
@@ -138,7 +144,7 @@ def _capture_window(config,limit,audio_env):
         from native_swap_probe import summarize
         swap_report=summarize(swap_base,kickoff,final)
         save(video.parent/"native-render-report.json",swap_report)
-    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"nativeSinkOwnershipVerified":sink_input,"audioProbeCounts":audio_probes,"videoEncoder":backend,"renderProbe":swap_report,"softwareGLWorkers":int(gl_workers)})
+    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"nativeSinkOwnershipVerified":sink_input,"audioProbeCounts":audio_probes,"videoEncoder":backend,"renderProbe":swap_report,"softwareGLWorkers":int(gl_workers),"encoderThreads":int(encoder_threads)})
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)

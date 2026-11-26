@@ -40,6 +40,8 @@ def match_result(directory, native_rc, browser_rc):
         control = native['control']
         evidence = control['traceEvidence']
         start, finish = capture['kickoffObserved'], capture['finalObserved']
+        # Keep engine evidence even if browser completion failed.
+        result.update(kickoff=start,final=finish,nativeClockMs=native['nativeClock']['nativeElapsedMs'],observedWallSeconds=native['checks']['observedWallSeconds'],fixtureSha256=native['fixtureSha256'],motionAudit=native.get('motionAudit'),renderProbe=native.get('renderProbe'),encoderThreads=native.get('encoderThreads',2),browserPassed=browser.get('passed'))
         result.update(
             kickoff=start, final=finish, nativeClockMs=native['nativeClock']['nativeElapsedMs'],
             observedWallSeconds=native['checks']['observedWallSeconds'],
@@ -136,12 +138,13 @@ def main():
     p.add_argument('runtime', type=Path)
     p.add_argument('fixtures', type=Path)
     p.add_argument('out', type=Path)
-    p.add_argument('--count', type=int, choices=(2, 4, 8, 16), default=2)
+    p.add_argument('--count', type=int, choices=(1, 2, 4, 8, 16), default=2)
     p.add_argument('--filter-threads', type=int, choices=(0, 1), default=0)
     p.add_argument('--cpu-partition', action='store_true')
     p.add_argument('--render-probe', action='store_true')
     p.add_argument('--gl-workers', type=int, choices=(1,2), default=2)
     p.add_argument('--motion-audit', action='store_true')
+    p.add_argument('--encoder-threads', type=int, choices=(1,2), default=2)
     args = p.parse_args()
     groups = partition(os.sched_getaffinity(0), args.count) if args.cpu_partition else [[] for _ in range(args.count)]
     if os.environ.get('TRIBUN_AV_ENCODER','x264') != 'x264':
@@ -159,6 +162,7 @@ def main():
     env['TRIBUN_AV_FILTER_THREADS'] = str(args.filter_threads)
     env['TRIBUN_AV_SWAP_PROBE'] = '1' if args.render_probe else '0'
     env['TRIBUN_AV_GL_WORKERS'] = str(args.gl_workers)
+    env['TRIBUN_AV_X264_THREADS'] = str(args.encoder_threads)
     env['TRIBUN_AV_MOTION_AUDIT'] = '1' if args.motion_audit else '0'
     meter = ProcessProfile()
     jobs = []
@@ -197,7 +201,7 @@ def main():
         matches = [match_result(d, n.returncode, b.returncode) for d, n, b in jobs]
         report = {**summarize(matches), 'trialId': trial_id, 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
                   'samples': samples, 'processProfile': meter.report(), 'filterThreads': args.filter_threads, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
-                  'renderProbeRequested': args.render_probe, 'glWorkers': args.gl_workers, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
+                  'encoderThreads': args.encoder_threads, 'renderProbeRequested': args.render_probe, 'glWorkers': args.gl_workers, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
         if args.motion_audit:
             report['motionAuditRequested']=True
             report['passed']=report['passed'] and all(isinstance(m.get('motionAudit'),dict) for m in matches)
@@ -212,7 +216,7 @@ def main():
         matches = [match_result(d, n.returncode, b.returncode if b is not None else None) for d,n,b in jobs]
         (out / 'capacity-report.json').write_text(json.dumps({
             'passed': False, 'trialId': trial_id, 'productionQualified': False, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'requestedMatches': args.count,
-            'failureType': type(error).__name__, 'matches': matches, 'samples': samples,
+            'encoderThreads': args.encoder_threads, 'failureType': type(error).__name__, 'matches': matches, 'samples': samples,
             'resourceSummary': resource_summary(samples), 'processProfile': meter.report(), 'filterThreads': args.filter_threads
         }, indent=2) + '\n')
         return 1

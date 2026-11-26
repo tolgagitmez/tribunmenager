@@ -14,6 +14,7 @@ import tempfile
 import math
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0,str(Path(__file__).resolve().parent))
 import native_av_season
 import native_worker_lease as lease
 
