@@ -101,4 +101,9 @@ def inspect(directory):
         from native_transition_motion import inspect_transitions
         result['transitionMotion']=inspect_transitions(trace)
     except (OSError,ValueError,KeyError,TypeError) as exc:result['errors']['transitionMotion']=type(exc).__name__
+    result['dribbleControl']=None
+    try:
+        from native_dribble_diagnostics import inspect_dribble
+        result['dribbleControl']=inspect_dribble(directory/'native-match.game.log',trace)
+    except (OSError,ValueError,KeyError,TypeError) as exc:result['errors']['dribbleControl']=type(exc).__name__
     return result
