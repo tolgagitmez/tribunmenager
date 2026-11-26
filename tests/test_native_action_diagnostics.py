@@ -45,3 +45,13 @@ class ActionDiagnosticsTest(unittest.TestCase):
         with patch('native_action_diagnostics.LIMIT',1):
             with self.assertRaises(ValueError):
                 self.read('too big')
+
+
+    def test_alternative_promotion_is_not_contact(self):
+        p='[tribun-action-alternative] phase=1 match_ms=1800 team=0 player=7 from=shot to=short-pass\n'
+        r=self.read(p+line('rejected','short-pass')+p)
+        self.assertEqual(r['alternativePromotions'],2)
+        self.assertEqual(r['alternativeCounts'],{'shot->short-pass':2})
+        self.assertEqual(r['observedEvents'],1)
+        self.assertNotIn('contact',r['counts']['short-pass'])
+        self.assertEqual(r['alternativeEvents'][0]['playerId'],7)
