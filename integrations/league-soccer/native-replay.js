@@ -26,6 +26,16 @@
     seen.add(p.id);teams[p.team]++;
    }
    requireValue(teams.every(n=>n>=1&&n<=11),'Geçersiz takım sayısı.');
+   if(f.nativeContacts!==undefined){
+    requireValue(Array.isArray(f.nativeContacts),'Geçersiz temas listesi.');
+    let lastContact=prior?.elapsedMs??0;
+    for(const e of f.nativeContacts){
+     requireValue(e&&nonneg(e.timeMs)&&e.timeMs>=lastContact&&e.timeMs<=f.elapsedMs&&
+      nonneg(e.playerId)&&nonneg(e.databaseId)&&[0,1].includes(e.team)&&[-1,0,1].includes(e.foot)&&
+      ['trap','control','pass','shot'].includes(e.kind)&&vec(e.ball)&&vec(e.impulseVelocity),'Geçersiz motor teması.');
+     lastContact=e.timeMs;
+    }
+   }
    if(f.stats!==undefined)requireValue(f.stats&&keys.every(k=>pair(f.stats[k])),'Geçersiz maç istatistiği.');
    if(prior)requireValue(!prior.done&&f.elapsedMs>=prior.elapsedMs&&f.score.every((v,i)=>v>=prior.score[i]),'Maç kaydı sırası geçersiz.');
    prior=f;
@@ -60,11 +70,33 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
   const start=frames[0].elapsedMs,end=frames.at(-1).elapsedMs,duration=end-start;
+  const contacts=new Map();
+  if(contactSync)for(const frame of frames)for(const e of frame.nativeContacts||[]){
+   if(e.foot<0||e.ball[2]>.35)continue;
+   const key=e.team+':'+e.playerId+':'+e.databaseId;
+   if(!contacts.has(key))contacts.set(key,[]);
+   contacts.get(key).push(e);
+  }
+  function contactAt(source,time){
+   const events=contacts.get(source.team+':'+source.id+':'+source.databaseId)||[];
+   let lo=0,hi=events.length;
+   while(lo<hi){const mid=(lo+hi)>>1;if(events[mid].timeMs<time)lo=mid+1;else hi=mid;}
+   let best=null;
+   for(const e of [events[lo-1],events[lo]]){
+    if(!e)continue;
+    const d=time-e.timeMs;
+    if(d< -100||d>90)continue;
+    if(!best||Math.abs(d)<Math.abs(time-best.timeMs))best=e;
+   }
+   if(!best)return null;
+   const delta=time-best.timeMs,weight=clamp(1-Math.abs(delta)/(delta<0?100:90),0,1);
+   return {kind:best.kind,foot:best.foot,timeMs:best.timeMs,deltaMs:delta,weight:weight*weight*(3-2*weight),ball:coord(best.ball),impulse:velocity(best.impulseVelocity)};
+  }
   let previousTime=null;
   function reset(rig){for(const p of actors.values())rig?.reset(p);actors.clear();previousTime=null;}
   function sample(ms,rig,dt=0){
@@ -111,7 +143,11 @@
        speed>(['jog','run','sprint'].includes(prior)?1.1:1.4)?'jog':'walk';
      actor.nativeGait=gait;actor.action=gait;
     }
-    active.add(source.id);rig?.update(actor,bodyBalance||footPlant?step:clamp(dt,0,.1));return actor;
+    if(contactSync){
+     const cue=actor.role==='GK'||a.setPiece||a.inPlay===false||span>200?null:contactAt(source,time);
+     actor.nativeContact=cue&&Math.hypot(cue.ball.x-actor.x,cue.ball.z-actor.z)<=1.15?cue:null;
+    }
+    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}
    const p=coord(a.ball),q=coord(b.ball),v=velocity(a.ballVelocity),w=velocity(b.ballVelocity);

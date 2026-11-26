@@ -291,10 +291,24 @@ function pose(p,dt=1/60){
   }
   if(tackle>.01){foot=blend(foot,world(p,.50+side*.12,side*.33,.12),tackle);stance=false;}
   if(act==='receive'&&i===(p.kickFoot===0?0:1)){const cushion=Math.sin(Math.PI*clamp((p.actionElapsed||0)/Math.max(.01,p.actionDuration||.25),0,1));foot=blend(foot,world(p,.26,side*.18,.17),cushion*.65);stance=false;}
+  // Only the recorded, known foot approaches the recorded ball point.
+  // Never rotate the simulated actor, move the ball, or override special actions.
+  const cue=p.nativeContact;
+  const nativeContact=!special&&cue&&cue.foot===i&&cue.weight>0&&
+    [cue.ball?.x,cue.ball?.y,cue.ball?.z,cue.impulse?.vx,cue.impulse?.vz,cue.weight].every(Number.isFinite)&&
+    cue.ball.y>=0&&cue.ball.y<=.35&&Math.hypot(cue.ball.x-p.x,cue.ball.z-p.z)<=1.15;
+  if(nativeContact){
+   const v=Math.hypot(cue.impulse.vx,cue.impulse.vz);
+   const nx=v>.1?cue.impulse.vx/v:facing[0],nz=v>.1?cue.impulse.vz/v:facing[2];
+   footFace=p.face;
+   // Toe is .20m ahead and .075m below ankle in the canonical rig.
+   const target=[cue.ball.x-nx*BALL_RADIUS-facing[0]*.20,Math.max(GROUND,cue.ball.y+.075),cue.ball.z-nz*BALL_RADIUS-facing[2]*.20];
+   foot=blend(foot,target,clamp(cue.weight,0,1));stance=false;
+  }
   const requestedStance=stance,requestedFoot=foot.slice(),legIK=boundedLimb(hip,foot,ANATOMY.thigh,ANATOMY.shin,facing,LIMITS.knee,LIMITS.hip,bodyFrame,side);
   foot=legIK.end;if(legIK.error>1e-5)stance=false;
   const toe=add(foot,[Math.cos(footFace)*.20,-.075,Math.sin(footFace)*.20]);
-  legs.push({hip,knee:legIK.joint,ankle:foot,toe,stance,requestedStance,footLift:foot[1]-GROUND,bend:legIK.bend,flex:legIK.flex,abduct:legIK.abduct,target:requestedFoot,targetError:legIK.error});
+  legs.push({hip,knee:legIK.joint,ankle:foot,toe,stance,requestedStance,nativeContact:!!nativeContact,footLift:foot[1]-GROUND,bend:legIK.bend,flex:legIK.flex,abduct:legIK.abduct,target:requestedFoot,targetError:legIK.error});
   const shoulder=add(torsoUpper,mul(bodyRight,side*ANATOMY.shoulderWidth/2));
   const swing=-Math.sin(st.phase*2*Math.PI+i*Math.PI)*st.activity*(.22+.12*sprint);
   let wrist=world(p,swing+kick*(i===1?-.35:.24),side*(.255+kick*.10),.94+bounce+celebrating*.93+protest*.30-tackle*.17-gather);

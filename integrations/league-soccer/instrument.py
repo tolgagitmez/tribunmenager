@@ -299,6 +299,19 @@ void TribunTrace(Match& match, bool done) {
   vec(match.GetBall()->Predict(0));
   output << ",\"ballVelocity\":";
   vec(match.GetBall()->GetMovement());
+  output << ",\"nativeContacts\":[";
+  bool firstContact=true;
+  for(const auto& c:match.tribunContactEvents){
+    if(!firstContact)output<<',';
+    firstContact=false;
+    output << "{\"timeMs\":" << c.timeMs << ",\"playerId\":" << c.playerId
+           << ",\"databaseId\":" << c.databaseId << ",\"team\":" << c.team
+           << ",\"kind\":\"" << c.kind << "\",\"foot\":" << c.foot << ",\"ball\":";
+    vec(c.ball);
+    output << ",\"impulseVelocity\":";vec(c.velocity);output << '}';
+  }
+  output << ']';
+  match.tribunContactEvents.clear();
   const auto data = match.GetMatchData();
   output << ",\"stats\":{\"shots\":[" << data->GetShots(0) << ',' << data->GetShots(1)
          << "],\"onTarget\":[" << data->GetShotsOnTarget(0) << ',' << data->GetShotsOnTarget(1)
@@ -1654,11 +1667,52 @@ Vector3 Match::TribunLimbVelocity(Player* player,const std::string& name) {
 
 void Match::TribunFinishSplit() {""")
 
+def contact_event_header(source):
+    return replace_once(source, "  unsigned long tribunMotionPlanSteps=0,tribunMotionLimitedSteps=0;", r'''  unsigned long tribunMotionPlanSteps=0,tribunMotionLimitedSteps=0;
+  struct TribunContactEvent {
+    unsigned long timeMs;
+    int playerId,databaseId,team,foot;
+    const char* kind;
+    Vector3 ball,velocity;
+  };
+  std::vector<TribunContactEvent> tribunContactEvents;''')
+
+def contact_event_source(source):
+    # All four anchors occur inside the accepted native animation contact
+    # branches. Do not record speculative animation selection or collisions.
+    for kind, anchor in (
+      ("trap", "match->GetBall()->Touch(touchVec);\n        match->GetBall()->SetRotation(xRot, yRot, 0, 0.5f"),
+      ("control", "match->GetBall()->Touch(touchVec);\n        match->GetBall()->SetRotation(xRot, yRot, 0, 0.6f"),
+      ("pass", "match->GetBall()->Touch(touchVec);\n        match->GetBall()->TriggerBallTouchSound(\n            std::pow"),
+      ("shot", "match->GetBall()->Touch(touchVec);\n        match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f"),
+    ):
+        capture = r'''if(std::getenv("TRIBUN_LEAGUE_SOCCER_TRACE")){
+          const auto part=currentAnim->anim->GetVariable("touch_bodypart");
+          const bool left=part.find("left_foot")!=std::string::npos;
+          const bool right=part.find("right_foot")!=std::string::npos;
+          const int foot=left!=right?(left?0:1):-1;
+          match->tribunContactEvents.push_back({match->GetActualTime_ms(),CastPlayer()->GetID(),
+            CastPlayer()->GetPlayerData()->GetDatabaseID(),team->GetID(),foot,"KIND",
+            match->GetBall()->Predict(0),touchVec});
+        }
+        '''.replace("KIND",kind)
+        source=replace_once(source,anchor,capture+anchor)
+    return source
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
     apply(sys.argv[1])
     apply_short_match(sys.argv[1])
+    contact_root=pathlib.Path(sys.argv[1])/"src/onthepitch"
+    for relative,marker,transform in (
+      ("match.hpp","struct TribunContactEvent",contact_event_header),
+      ("player/humanoid/humanoid.cpp","tribunContactEvents.push_back",contact_event_source),
+    ):
+        target=contact_root/relative
+        source=target.read_text(encoding="utf-8")
+        if marker not in source:
+            target.write_text(transform(source),encoding="utf-8")
     main_path = pathlib.Path(sys.argv[1]) / "src/main.cpp"
     main_source = main_path.read_text(encoding="utf-8")
     if "[tribun-render] scheduled-draw=" not in main_source:
