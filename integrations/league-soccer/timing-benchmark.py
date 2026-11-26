@@ -89,12 +89,17 @@ def sample_native_pss(group,proc=Path("/proc")):
             for line in (path/"smaps_rollup").read_text().splitlines():
                 key,_,value=line.partition(":")
                 if key in ("Pss","Private_Dirty"):values[key]=int(value.split()[0])
-            if set(values)=={"Pss","Private_Dirty"}:return values
+            for line in (path/"status").read_text().splitlines():
+                key,_,value=line.partition(":")
+                if key=="Threads":values[key]=int(value.split()[0])
+            if set(values)=={"Pss","Private_Dirty","Threads"}:return values
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0):
     name,scale,quick=profile
+    if type(task_workers) is not int or task_workers not in (0,3,4) or (task_workers and not (null_renderer and sample_pss)):
+        raise ValueError("Task worker limit requires isolated null backend and native resource sampling")
     if type(visual_rng) is not bool or type(skip_pitch) is not bool or (visual_rng and not (null_renderer and lean_scene)) or (skip_pitch and not visual_rng):
         raise ValueError("Pitch diagnostic requires isolated visual RNG and lean null scene")
     if type(lean_scene) is not bool or (lean_scene and (not null_renderer or shared_assets)):
@@ -123,6 +128,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_LEAN_SCENE"]="1" if lean_scene else "0"
     env["TRIBUN_NATIVE_VISUAL_RNG"]="1" if visual_rng else "0"
     env["TRIBUN_NATIVE_SKIP_PITCH_TEXTURE"]="1" if skip_pitch else "0"
+    env["TRIBUN_NATIVE_TASK_WORKERS"]=str(task_workers)
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -194,6 +200,17 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         if marker not in Path(str(trace)+".log").read_text(errors="replace"):
             raise ValueError("Missing visual RNG evidence")
     report=stats.report()
+    report["requestedTaskWorkers"]=task_workers
+    if null_renderer:
+        import re
+        markers=re.findall(r"\[tribun-workers\] hardware=(\d+) pool=(\d+)",Path(str(trace)+".log").read_text(errors="replace"))
+        if len(markers)!=1:raise ValueError("Missing or ambiguous task worker marker")
+        hardware,pool=map(int,markers[0])
+        expected=max(3,hardware)
+        if task_workers:expected=min(expected,task_workers)
+        if pool!=expected:raise ValueError("Unexpected native worker pool size")
+        report["hardwareThreads"]=hardware
+        report["taskWorkerPool"]=pool
     report["visualRng"]=visual_rng
     report["skipPitchTexture"]=skip_pitch
     report["leanScene"]=lean_scene
@@ -206,6 +223,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         if not pss_samples:raise ValueError("No native PSS samples collected")
         report["nativeMemory"]={"sampleCount":len(pss_samples),
             "peakPssKiB":max(x["Pss"] for x in pss_samples),
+            "peakNativeThreads":max(x["Threads"] for x in pss_samples),
             "peakPrivateDirtyKiB":max(x["Private_Dirty"] for x in pss_samples),
             "samples":pss_samples}
     report.update(processWallMs=round((time.monotonic()-launch)*1000),

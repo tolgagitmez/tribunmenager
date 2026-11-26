@@ -619,6 +619,43 @@ def visual_match_rng(source):
   }""")
     return source
 
+WORKER_LIMIT_HEADER = r'''#pragma once
+#include <algorithm>
+#include <cstring>
+#include <stdexcept>
+namespace tribun_workers {
+inline unsigned count(unsigned hardware,const char* limit,bool isolated) {
+  const unsigned original=std::max(3u,hardware);
+  if (!limit || std::strcmp(limit,"0")==0) return original;
+  if (!isolated) throw std::invalid_argument("Worker limit requires isolated null backend");
+  // Retain upstream minimum: scheduler tasks can wait on nested pose jobs.
+  if (std::strcmp(limit,"3")==0) return std::min(original,3u);
+  if (std::strcmp(limit,"4")==0) return std::min(original,4u);
+  throw std::invalid_argument("Worker limit must be 0, 3 or 4");
+}
+}
+'''
+
+def limit_native_workers(source):
+    source = replace_once(source, '#include "taskmanager.hpp"',
+        '#include "taskmanager.hpp"\n#include "tribun_worker_limit.hpp"\n#include <cstdlib>\n#include <cstdio>\n#include <string>')
+    return replace_once(source, """  int numthreads = std::thread::hardware_concurrency();
+  if (numthreads < 3)
+    numthreads = 3;  // todo: make minimum configurable""", """  const unsigned hardware = std::thread::hardware_concurrency();
+  auto enabled = [](const char* key) {
+    const char* value = std::getenv(key);
+    return value && std::string(value) == "1";
+  };
+  const char* limit = std::getenv("TRIBUN_NATIVE_TASK_WORKERS");
+  const bool isolated = enabled("TRIBUN_NATIVE_NULL_RENDERER") &&
+                        enabled("TRIBUN_NATIVE_NO_DRAW") && enabled("TRIBUN_NATIVE_NO_UPLOAD") &&
+                        enabled("TRIBUN_NATIVE_FIXED_DURATION");
+  const int numthreads = static_cast<int>(tribun_workers::count(hardware,limit,isolated));
+  if (isolated) {
+    std::printf("[tribun-workers] hardware=%u pool=%d\\n", hardware, numthreads);
+    std::fflush(stdout);
+  }""")
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -643,6 +680,11 @@ def main():
     if "[tribun-lean] audio-backend=null" not in audio_source:
         audio_path.write_text(lightweight_audio(audio_source), encoding="utf-8")
     src = pathlib.Path(sys.argv[1]) / "src"
+    (src / "managers/tribun_worker_limit.hpp").write_text(WORKER_LIMIT_HEADER, encoding="utf-8")
+    worker_path = src / "managers/taskmanager.cpp"
+    worker_source = worker_path.read_text(encoding="utf-8")
+    if "[tribun-workers] hardware=" not in worker_source:
+        worker_path.write_text(limit_native_workers(worker_source), encoding="utf-8")
     (src / "onthepitch/tribun_visual_rng.hpp").write_text(VISUAL_RNG_HEADER, encoding="utf-8")
     for relative,marker,transform in (
         ("onthepitch/proceduralpitch.cpp","TribunPitchFast",visual_pitch_rng),
