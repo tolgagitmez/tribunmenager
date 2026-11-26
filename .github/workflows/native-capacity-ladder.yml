@@ -1,0 +1,71 @@
+name: Stage 125 native capacity ladder
+on:
+  push:
+    branches: [experiment/native-capacity-ladder-stage125]
+    paths:
+      - '.github/workflows/native-capacity-ladder.yml'
+      - 'integrations/league-soccer/native-av-capacity.py'
+      - 'tests/test_native_av_capacity.py'
+  workflow_dispatch:
+    inputs:
+      max_matches:
+        description: 'Maximum diagnostic concurrency (each lower tier must pass)'
+        type: choice
+        options: ['2', '4', '8', '16']
+        default: '4'
+permissions:
+  contents: read
+jobs:
+  ladder:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      MAX_MATCHES: ${{ inputs.max_matches || '4' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unit tests before building original engine
+        run: |
+          python3 -m py_compile integrations/league-soccer/native-av-capacity.py integrations/league-soccer/native-live-video.py
+          python3 -m unittest discover -s tests -p test_native_av_capacity.py
+          python3 -m unittest discover -s tests -p test_native_command_evidence.py
+          node --test integrations/league-soccer/native-live-video.test.cjs integrations/league-soccer/native-playback-evidence.test.cjs
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth pulseaudio pulseaudio-utils libopenal-dev
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - name: Build pinned original engine once
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/ladder-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Escalate only after the previous tier passes on the same runner
+        run: |
+          set -euo pipefail
+          case "$MAX_MATCHES" in 2|4|8|16) ;; *) exit 2;; esac
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/ladder-fixtures"
+          for count in 2 4 8 16; do
+            if (( count > MAX_MATCHES )); then break; fi
+            out="$RUNNER_TEMP/ladder-$count"
+            python3 integrations/league-soccer/native-av-capacity.py "$RUNNER_TEMP/ladder-runtime" "$RUNNER_TEMP/ladder-fixtures" "$out" --count "$count"
+            python3 - "$out/capacity-report.json" "$count" <<'PY'
+          import json, sys
+          r = json.load(open(sys.argv[1]))
+          n = int(sys.argv[2])
+          assert r['passed'] and r['requestedMatches'] == len(r['matches']) == n
+          assert r['overlapSeconds'] >= 285 and r['samples']
+          assert all(m['passed'] for m in r['matches'])
+          PY
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-capacity-ladder-reports
+          path: |
+            ${{ runner.temp }}/ladder-*/capacity-report.json
+            ${{ runner.temp }}/ladder-*/*/live-report.json
+            ${{ runner.temp }}/ladder-*/*/browser-playback-report.json
+          if-no-files-found: ignore
