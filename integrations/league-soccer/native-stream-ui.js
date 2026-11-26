@@ -2,7 +2,7 @@
 (function(){
  const $=id=>document.getElementById(id),scene=new Stadium3D($('pitch')),view=window.TribunNativeStreamView.create(window.TribunHumanoidRig);
  scene.setPerformanceMode('balanced');$('mode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
- const advisor=window.TribunNativeAdvisor.create();
+ const advisor=window.TribunNativeAdvisor.create(),tv=window.TribunBroadcastDesign.create(document);
  const fields=['press','counter','support','width','tempo'];
  const labels=['Baskı','Kontra','Pas desteği','Genişlik','Tempo'];
  for(let i=0;i<fields.length;i++){const label=document.createElement('label');label.textContent=labels[i]+' ';const input=document.createElement('input');input.type='number';input.min=0;input.max=100;input.required=true;input.value=50;input.id='tactic-'+fields[i];label.append(input);$('controlFields').append(label,document.createElement('br'));}
@@ -25,7 +25,7 @@
  function stop(){$('sendTactics').disabled=true;active=false;generation++;clearTimeout(timer);controller?.abort();controller=null;}
  function start(){
   stop();renderBudget.reset();$('controlPanel').hidden=true;$('commandState').textContent='';view.reset();advisor.reset();scene.resetAnimation();current=null;$('adviceText').textContent='Maç verisi bekleniyor.';
-  $('score').textContent='Bağlantı kuruluyor';$('clock').textContent='';$('stats').textContent='';
+  tv.update(null);$('score').textContent='Bağlantı kuruluyor';$('clock').textContent='';$('stats').textContent='';
   let token;try{token=localStorage.getItem('tribun-league-token');}catch{}
   if(!token){$('status').textContent='Lig oturumu gerekli.';return;}
   active=true;const g=generation,selected=$('round').value;requestRound=Number(selected);requestToken=token;
@@ -51,6 +51,7 @@
     if(data.frame){
      const changed=!current||current.sequence!==data.sequence;
      current=data;if(changed){advisor.ingest(data);renderAdvice();}
+     tv.update(data.frame,{home:data.homeName,away:data.awayName,phase:data.finalizing?'DOĞRULANIYOR':data.phase==='finished'?'MAÇ SONU':data.source==='interactive-native'?'PİLOT CANLI':'KAYIT YAYINI'});
      const seconds=Math.ceil(data.remainingMs/1000);
      $('clock').textContent=data.source==='interactive-native'?'Çalışan C++ motoru · '+Math.floor(data.frame.matchMs/60000)+'′'+(Number.isFinite(data.observedWallMs)?' · Gerçek süre '+Math.floor(data.observedWallMs/1000)+' sn':''):String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')+' kaldı';
      $('score').textContent=(data.homeName||'Ev sahibi')+' '+data.frame.score.join(' – ')+' '+(data.awayName||'Deplasman')+' · '+Math.floor(data.frame.matchMs/60000)+'′';
@@ -70,7 +71,7 @@
      delay=1000;
      $('status').textContent=({queued:'Motor kuyruğunda',running:'League-Soccer maçı hesaplanıyor',failed:'Motor testi başarısız', 'not-enabled':'Bu fikstür için pilot etkin değil',unindexed:'Eski kayıt henüz yayın indeksine sahip değil'})[data.state]||'Yayın bekleniyor';
     }
-   }catch(e){if(g===generation){$('sendTactics').disabled=true;$('status').textContent='Bağlantı kesildi; tekrar bağlanılıyor.';delay=1500;}}
+   }catch(e){if(g===generation){tv.phase('BAĞLANTI KESİLDİ');$('sendTactics').disabled=true;$('status').textContent='Bağlantı kesildi; tekrar bağlanılıyor.';delay=1500;}}
    finally{clearTimeout(timeout);if(controller===request)controller=null;if(active&&g===generation)timer=setTimeout(poll,delay);}
   }
   poll();
@@ -110,7 +111,7 @@
  function loop(now){
   requestAnimationFrame(loop);
   const stale=view.isStale(now);
-  if(stale)$('sendTactics').disabled=true;
+  if(stale){$('sendTactics').disabled=true;tv.phase('VERİ BEKLENİYOR');}
   const playing=!!current&&current.phase!=='finished'&&!current.finalizing&&!stale;
   const tick=renderBudget.next(now,{hidden:document.hidden,playing,mode:$('quality').value});
   if(!tick)return;

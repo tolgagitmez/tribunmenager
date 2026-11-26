@@ -66,7 +66,7 @@ class NativeHttpTest(unittest.TestCase):
         return dict(schema=1,engine="league-soccer",done=done,elapsedMs=seq*100,
                     matchMs=5400000 if done else seq*1800,score=list(score),inPlay=not done,
                     players=[{"team":t} for t in (0,1) for _ in range(11)],
-                    managerTactics=[{"team":t,"revision":revisions[t]} for t in (0,1)])
+                    managerTactics=[{"team":t,"revision":revisions[t],**({"press":75,"counter":65,"support":50,"width":70,"tempo":80,"formation":442,"appliedMatchMs":seq*1800,"appliedElapsedMs":seq*100} if revisions[t] else {})} for t in (0,1)])
     def call(self,token,path,body=None):
         headers={"Authorization":"Bearer "+token}
         data=None
@@ -101,7 +101,8 @@ class NativeHttpTest(unittest.TestCase):
         self.assertEqual(code,202)
         self.assertEqual(away["team"],1)
         self.assertEqual(away["revision"],1)
-        self.assertEqual(self.command("home-token","request-456")[0],429)
+        self.assertEqual(self.command("home-token","request-456")[0],409)
+        self.assertEqual(self.call("home-token","/broadcast?round=0")[1]["commandState"],"waiting-for-engine")
         self.assertEqual(self.call("home-token","/broadcast?round=0")[1]["appliedRevision"],0)
         self.session.ingest(self.frame(2,revisions=(1,0)))
         self.assertEqual(self.call("home-token","/broadcast?round=0")[1]["appliedRevision"],1)

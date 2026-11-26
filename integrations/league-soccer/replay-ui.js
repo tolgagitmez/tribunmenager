@@ -3,13 +3,14 @@
 const $=id=>document.getElementById(id);
 const rig=window.TribunHumanoidRig,api=window.TribunNativeReplay,scene=new Stadium3D($('pitch'));
 scene.setPerformanceMode('balanced');
+const tv=window.TribunBroadcastDesign.create(document);
 $('renderMode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
 let replay=null,frames=null,manifest=null,position=0,playing=false,last=null,generation=0,current=null,broadcast=null,broadcastStart=0;
 let clipLibrary=null,clipStatus='idle',clipPromise=null;
 const scheduler=window.TribunReplayPerformance.create();
 let optimized=false,modelSeen=null,layoutKey='',sampleCalls=0,renderCalls=0,lastHud=0;
 function invalidate(now=performance.now(),settle=0){scheduler.invalidate(now,settle);}
-function stop(){playing=false;last=null;$('play').textContent='Oynat';}
+function stop(){playing=false;last=null;if(current)tv.phase(current.done?'MAÇ SONU':'DURAKLATILDI');$('play').textContent='Oynat';}
 function endBroadcast(){broadcast=null;$('betaPresentation').disabled=$('basicPresentation').disabled=false;$('bodyBalance').disabled=$('footPlant').disabled=$('contactSync').disabled=$('strikeMotion').disabled=$('controlMotion').disabled=$('duelMotion').disabled=$('tackleMotion').disabled=$('keeperMotion').disabled=$('aerialMotion').disabled=$('animationBlend').disabled=$('motionMatching').disabled=$('playerMotionIdentity').disabled=$('playerAnatomy').disabled=$('nativeClips').disabled=$('contactPrecision').disabled=$('groundRecovery').disabled=$('keeperCompletion').disabled=false;$('play').disabled=$('seek').disabled=$('speed').disabled=!replay;$('broadcast').disabled=!replay?.complete;$('broadcast').textContent='5 dakikalık yayın';}
 function reset(){replay?.reset(rig);scene.resetAnimation();last=null;current=null;if(optimized)scene.replayCameraSnap=true;invalidate();}
 function draw(dt=0,renderDt=dt,reuse=false){
@@ -19,6 +20,7 @@ function draw(dt=0,renderDt=dt,reuse=false){
  const {players,ball,score,matchMs,done,stats}=current;
  scene.render(players,ball,[ball.x,ball.z],{},renderDt);renderCalls++;scheduler.record(performance.now()-started);
  if(optimized&&reuse)return;
+ tv.update(current,{phase:done?'MAÇ SONU':broadcast?'KAYIT YAYINI':playing?'OYNATILIYOR':'DURAKLATILDI'});
  $('seek').value=position;
  $('score').textContent=Math.floor(matchMs/60000)+"′  "+score.join(' – ')+(done?' · MS':'');
  const labels={shots:'Şut',onTarget:'İsabetli şut',passes:'Pas denemesi',completed:'Başarılı pas',fouls:'Faul'};
@@ -27,7 +29,7 @@ function draw(dt=0,renderDt=dt,reuse=false){
  $('stats').textContent=rows.join('\n')||'Bu kayıt istatistik içermiyor.';
 }
 function load(){
- stop();reset();replay=null;endBroadcast();$('broadcastClock').textContent='';position=0;$('play').disabled=$('seek').disabled=true;$('score').textContent='Kayıt seçin';$('stats').textContent='İstatistik kaydı yok.';
+ stop();reset();replay=null;endBroadcast();tv.update(null);$('broadcastClock').textContent='';position=0;$('play').disabled=$('seek').disabled=true;$('score').textContent='Kayıt seçin';$('stats').textContent='İstatistik kaydı yok.';
  if(!frames){draw();return;}
  try{
   replay=api.create(frames,manifest,{bodyBalance:$('bodyBalance').checked,footPlant:$('footPlant').checked,contactSync:$('contactSync').checked,strikeMotion:$('strikeMotion').checked,controlMotion:$('controlMotion').checked,duelMotion:$('duelMotion').checked,tackleMotion:$('tackleMotion').checked,keeperMotion:$('keeperMotion').checked,aerialMotion:$('aerialMotion').checked,animationBlend:$('animationBlend').checked,motionMatching:$('motionMatching').checked,playerMotionIdentity:$('playerMotionIdentity').checked,playerAnatomy:$('playerAnatomy').checked||$('nativeClips').checked,clipLibrary:$('nativeClips').checked?clipLibrary:null,contactPrecision:$('contactPrecision').checked,groundRecovery:$('groundRecovery').checked,keeperCompletion:$('keeperCompletion').checked});$('seek').max=replay.duration;$('seek').value=0;$('play').disabled=$('seek').disabled=$('speed').disabled=false;$('broadcast').disabled=!replay.complete;
@@ -86,7 +88,7 @@ $('broadcast').onclick=()=>{
   $('broadcast').textContent='Yayını kapat';
  }catch(e){$('status').textContent=e.message;}
 };
-$('play').onclick=()=>{if(!replay)return;if(playing){stop();return;}if(position>=replay.duration){position=0;reset();}playing=true;last=null;$('play').textContent='Duraklat';};
+$('play').onclick=()=>{if(!replay)return;if(playing){stop();return;}if(position>=replay.duration){position=0;reset();}playing=true;last=null;tv.phase('OYNATILIYOR');$('play').textContent='Duraklat';};
 $('seek').oninput=()=>{stop();position=Number($('seek').value);reset();draw();};
 $('camera').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':'tv';$('camera').textContent='Kamera: '+({tv:'TV',close:'Yakın',tactical:'Taktik'}[scene.camera]);invalidate(performance.now(),1400);};
 function configureGraphics(){

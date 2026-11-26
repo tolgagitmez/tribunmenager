@@ -66,7 +66,7 @@ FILES=(
  "match-animation-bridge.js","ball-visual.js","gltf-asset-loader.mjs",
  "assets/player/player-model-data.js","assets/player/SOURCE-LICENSE.md",
  "assets/interchange/footballer.blender.glb","assets/interchange/SOURCE-LICENSE.md","assets/interchange/manifest.json",
- "integrations/league-soccer/replay-ui.js","integrations/league-soccer/replay.html",
+ "integrations/league-soccer/replay-ui.js","integrations/league-soccer/replay.html","integrations/league-soccer/broadcast-design.css","integrations/league-soccer/broadcast-design.js","integrations/league-soccer/broadcast-design.test.cjs","tests/test_native_http.py",
  "integrations/league-soccer/replay-browser.cjs","integrations/league-soccer/replay-performance.js",
  "integrations/league-soccer/native-clip-loader.mjs","integrations/league-soccer/broadcast-clock.js",
  "integrations/league-soccer/contact-precision-audit.cjs","integrations/league-soccer/ground-recovery-audit.cjs",

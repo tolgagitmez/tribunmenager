@@ -22,6 +22,12 @@ function packet(seq,score=[0,0],done=false){
   await page.goto('http://127.0.0.1:'+server.address().port+'/native-match.html');
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_STREAM_TEST?.state()?.sequence===20);
   assert.equal(await page.evaluate(()=>window.TRIBUN_NATIVE_STREAM_TEST.webgl()),true);
+  assert.equal(await page.locator('#tvResult').textContent(),'1 : 0');
+  assert.equal(await page.locator('#tvHome').textContent(),'Ev');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await page.setViewportSize({width:320,height:720});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_STREAM_TEST.presentation().modelReady,{},{timeout:30000});
   await page.locator('#advancedPresentation').check();
   await page.locator('#quality').selectOption('performance');
