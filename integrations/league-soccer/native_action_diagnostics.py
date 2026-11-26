@@ -15,6 +15,8 @@ GEOMETRY=re.compile(r'\[tribun-touch-geometry\] phase=(-?\d+) match_ms=(\d+) tea
 
 PREPARATION=re.compile(r'\[tribun-body-preparation\] phase=(-?\d+) match_ms=(\d+) team=([01]) player=(-?\d+) action=(short-pass|long-pass|high-pass|shot) body_dot=(\S+) adjustment=(\S+) clearance=(\S+)')
 
+FOOT_TIMING=re.compile(r'\[tribun-foot-timing\] phase=(-?\d+) match_ms=(\d+) team=([01]) player=(-?\d+) action=(short-pass|long-pass|high-pass|shot) anim=(\d+) frame=(\d+) elapsed_ms=(\d+) state_foot=(-?\d+) anim_foot=(-?\d+) outgoing_foot=(-?\d+) contact_side=(left|right|other) geometry=(pass|miss)')
+
 def inspect_actions(path):
     path=Path(path)
     if not path.is_file():
@@ -31,9 +33,27 @@ def inspect_actions(path):
     retry_counts=Counter()
     preparation_counts=Counter()
     preparation_events=[]
+    foot_counts=Counter()
+    foot_events=[]
+    timing_totals=Counter()
     with path.open('r',encoding='utf-8',errors='replace') as log:
         for line in log:
             line=line.rstrip('\r\n')
+            if line.startswith('[tribun-foot-timing]'):
+                m=FOOT_TIMING.fullmatch(line)
+                if not m or int(m[8])>2000:
+                    invalid+=1
+                    continue
+                phase,match,team,player,action,anim,frame,elapsed,state,foot,outgoing,side,geometry=m.groups()
+                key=action+':'+geometry
+                foot_counts[key]+=1
+                timing_totals[key]+=int(elapsed)
+                if len(foot_events)<MAX_EVENTS:
+                    foot_events.append(dict(phase=int(phase),matchMs=int(match),team=int(team),
+                        playerId=int(player),action=action,animationId=int(anim),touchFrame=int(frame),
+                        elapsedMs=int(elapsed),stateFoot=int(state),animationFoot=int(foot),
+                        outgoingFoot=int(outgoing),contactSide=side,geometry=geometry))
+                continue
             if line.startswith('[tribun-body-preparation]'):
                 m=PREPARATION.fullmatch(line)
                 if not m:
@@ -120,5 +140,8 @@ def inspect_actions(path):
         touchRetryCounts=dict(retry_counts),touchRetryPromotions=sum(retry_counts.values()),
         bodyPreparationRequests=sum(preparation_counts.values()),bodyPreparationCounts=dict(preparation_counts),
         bodyPreparationEvents=preparation_events,bodyPreparationTruncated=sum(preparation_counts.values())>len(preparation_events),
-        evidenceAvailable=total>0 or bool(promotions) or bool(geometry_counts) or bool(retry_counts) or bool(preparation_counts),
-        scope='Candidates actually tried, animation selector results, and observed contact or geometry failure. Contacts can occur after possession changes. Counts are not paired requests or completion rates; movement acceptance does not prove displacement. Alternative promotions are queue-order changes, not proof of successful action. Touch retry promotions are a subset of alternative promotions, not additional actions. Geometry reasons use rounded measurements and are not a causal diagnosis. Body preparation requests are not evidence of accepted movement or achieved alignment. No events does not prove no problem.')
+        pairedFootTimingCount=sum(foot_counts.values()),pairedFootTimingCounts=dict(foot_counts),
+        meanPairedTimingMs={k:round(timing_totals[k]/n,2) for k,n in foot_counts.items()},
+        pairedFootTimingEvents=foot_events,pairedFootTimingTruncated=sum(foot_counts.values())>len(foot_events),
+        evidenceAvailable=total>0 or bool(promotions) or bool(geometry_counts) or bool(retry_counts) or bool(preparation_counts) or bool(foot_counts),
+        scope='Candidates actually tried, animation selector results, and observed contact or geometry failure. Contacts can occur after possession changes. Counts are not paired requests or completion rates; movement acceptance does not prove displacement. Alternative promotions are queue-order changes, not proof of successful action. Touch retry promotions are a subset of alternative promotions, not additional actions. Geometry reasons use rounded measurements and are not a causal diagnosis. Body preparation requests are not evidence of accepted movement or achieved alignment. Paired foot timing covers matched animation-to-geometry samples only, not canceled animations, planted foot coordinates or pass completion. No events does not prove no problem.')
