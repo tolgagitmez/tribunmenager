@@ -58,7 +58,7 @@ FILES=(
  "integrations/league-soccer/validate_trace.py",
  "integrations/league-soccer/validate_fixture_trace.py",
  "integrations/league-soccer/release_evidence.py",
- "native_shadow.py","native_live.py","native_season.py","live_match.py",
+ "native_shadow.py","native_live.py","native_season.py","live_match.py","native_season_rehearsal.py","tests/test_native_season.py","tests/test_native_season_rehearsal.py",
  "season_state.py","server.py","football-sim.js","player-model.js","tactics.js",
  "integrations/league-soccer/native-stream-ui.js","integrations/league-soccer/native-stream-view.js","native-match.html","integrations/league-soccer/native-stream-view.test.cjs","tests/test_native_shadow.py","integrations/league-soccer/native-stream-browser.cjs",
  "integrations/league-soccer/native-replay.js","scene3d.js",

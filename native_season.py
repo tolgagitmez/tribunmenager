@@ -31,12 +31,19 @@ def candidate(final, manifest):
     require(isinstance(score,list) and len(score)==2 and all(nonnegative(n) for n in score), "Invalid score")
     require(manifest.get("schema")==1 and len(manifest.get("teams",[]))==2, "Invalid fixture manifest")
     expected = {}
+    team_ids=set()
     for team in manifest["teams"]:
         t=team["team"]
-        require(type(t) is int and t in (0,1) and len(team["players"])==11, "Invalid team")
+        require(type(t) is int and t in (0,1) and t not in team_ids and len(team["players"])==11
+                and len(team.get("bench",[]))<=7, "Invalid team")
+        team_ids.add(t)
+        roster_ids=set()
+        for p in [*team["players"],*team.get("bench",[])]:
+            require(nonnegative(p.get("rosterId")) and p["rosterId"] not in roster_ids,"Duplicate or invalid roster ID")
+            roster_ids.add(p["rosterId"])
         for player in [*team["players"], *team.get("bench",[])]:
             ident=player["nativeId"]
-            require(type(ident) is int and ident not in expected, "Duplicate native identity")
+            require(type(ident) is int and ident>0 and ident not in expected, "Duplicate native identity")
             expected[ident]=(t,player)
     require(22<=len(expected)<=36, "Expected both starting elevens and valid bench")
     rows=final.get("participation")
@@ -48,10 +55,10 @@ def candidate(final, manifest):
     reds=[0,0]
     for row in rows:
         ident=row["databaseId"]
-        require(ident in expected and ident not in seen, "Unknown or duplicate native player")
+        require(type(ident) is int and ident in expected and ident not in seen, "Unknown or duplicate native player")
         seen.add(ident)
         t,p=expected[ident]
-        require(row["team"]==t and type(row["active"]) is bool, "Native team mismatch")
+        require(type(row["team"]) is int and row["team"]==t and type(row["active"]) is bool, "Native team mismatch")
         identity=season_state.player_key({"uid":p.get("rosterUid"),"id":p["rosterId"]})
         require((t,identity) not in identities, "Duplicate season identity")
         identities.add((t,identity))
@@ -74,17 +81,39 @@ def candidate(final, manifest):
     substitutions=[]
     by_native={row["databaseId"]:row for row in rows}
     for team in manifest["teams"]:
+        starters={p["nativeId"] for p in team["players"]}
+        bench={p["nativeId"] for p in team.get("bench",[])}
+        used_out=set();used_in=set()
         for change in team.get("substitutions",[]):
-            out, incoming=by_native[change["out"]],by_native[change["in"]]
+            a,b=change["out"],change["in"]
+            require(type(a) is int and type(b) is int and a in starters and b in bench and a not in used_out and b not in used_in,"Invalid substitution identities")
+            used_out.add(a);used_in.add(b)
+            out, incoming=by_native[a],by_native[b]
             performed=incoming["nominalMs"]>0
             if performed:
-                require(not out["active"] and out["nominalMs"]<=2700000 and incoming["nominalMs"]<=2700000, "Invalid halftime substitution timing")
+                require(not out["active"] and out["nominalMs"]>0 and out["nominalMs"]<=2700000 and incoming["nominalMs"]<=2700000
+                        and out["nominalMs"]+incoming["nominalMs"]<=5400000, "Invalid halftime substitution timing")
             substitutions.append({"team":team["team"],"out":expected[change["out"]][1]["rosterId"],"in":expected[change["in"]][1]["rosterId"],"performed":performed})
+        for ident in bench-used_in:
+            require(by_native[ident]["nominalMs"]==0 and not by_native[ident]["active"],"Unplanned bench participation")
+        for ident in starters:
+            require(by_native[ident]["nominalMs"]>0,"Missing starter participation")
+        require(sum(by_native[ident]["nominalMs"] for ident in starters|bench)<=11*5400000,"Excess team minutes")
     # Guard against a wrong native clock/timing hook silently reporting zero minutes.
     for team in (0,1):
         require(max(a["minutes"] for a in appearances if a["team"]==team)>=89.5, "Missing full-match minutes")
     return {"schema":1,"engine":"league-soccer","authoritative":False,"done":True,"score":score,
             "cards":cards,"reds":reds,"appearances":appearances,"substitutions":substitutions}
+
+def verify_report(final,manifest,report):
+    """Recompute every season field; do not trust a score-only sidecar."""
+    expected=candidate(final,manifest)
+    require(isinstance(report,dict),"Invalid season report")
+    supplied={k:v for k,v in report.items() if k!="seasonPreview"}
+    require(json.dumps(supplied,sort_keys=True,allow_nan=False)==json.dumps(expected,sort_keys=True,allow_nan=False),
+            "Native season report differs from recorded participation")
+    require(report.get("seasonPreview")==preview(expected),"Native season preview mismatch")
+    return expected
 
 def preview(state):
     """Exercise the real idempotent season writer in a disposable SQLite DB."""

@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import time
 import native_live
+import native_season
 
 ROOT = Path(__file__).resolve().parent
 INTEGRATION = ROOT / "integrations" / "league-soccer"
@@ -167,7 +168,11 @@ def execute_native(config, profile, stop=None, interactive_key=None):
         season = json.loads(Path(str(trace) + ".season.json").read_text())
         if season.get("authoritative") is not False or season.get("score") != report.get("score"):
             raise RuntimeError("Native season candidate invalid")
+        manifest=json.loads(Path(str(trace)+".fixture.json").read_text(encoding="utf-8"))
+        final=json.loads(raw.splitlines()[-1])
+        native_season.verify_report(final,manifest,season)
         report["seasonCandidate"] = season
+        report["seasonManifestSha256"]=digest(manifest)
         report["runtimeMetrics"]={"processWallMs":elapsed,"traceBytes":len(raw),"interactiveTiming":session.timing() if tail else None}
         if resource_file.is_file():
             try:

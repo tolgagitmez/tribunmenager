@@ -37,6 +37,24 @@ class NativeSeasonTest(unittest.TestCase):
             self.assertAlmostEqual(row["fitness"],89.67)
             self.assertEqual(db.execute("SELECT count(*) FROM season_fixture_appearances").fetchone()[0],22)
 
+    def test_stage104_recompute_sidecar_and_reject_corruption(self):
+        f,m=fixture()
+        s=n.candidate(f,m);s["seasonPreview"]=n.preview(s)
+        self.assertEqual(n.verify_report(f,m,s)["score"],[2,1])
+        s["appearances"][0]["rosterUid"]="other"
+        with self.assertRaises(ValueError):n.verify_report(f,m,s)
+
+    def test_stage104_identity_and_bench_guards(self):
+        f,m=fixture();m["teams"][1]["team"]=0
+        with self.assertRaises(ValueError):n.candidate(f,m)
+        f,m=fixture();m["teams"][0]["players"][1]["rosterId"]=0
+        with self.assertRaises(ValueError):n.candidate(f,m)
+        f,m=fixture();f["participation"][0]["databaseId"]=True
+        with self.assertRaises(ValueError):n.candidate(f,m)
+        f,m=fixture();m["teams"][0]["bench"]=[dict(nativeId=23,rosterId=11,rosterUid="bench",startFitness=95)]
+        f["participation"].append(dict(databaseId=23,team=0,active=True,cardCode=0,nominalMs=60000,activeMs=1000,sprintMs=0,fatigueFactor=.99))
+        with self.assertRaises(ValueError):n.candidate(f,m)
+
     def test_incomplete_or_corrupt_data_rejected(self):
         for mutate in (lambda f:f["participation"].pop(),
                        lambda f:f["participation"][1].update(databaseId=1),
