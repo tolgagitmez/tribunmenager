@@ -725,12 +725,19 @@ inline float BoxLaneScore(float endpointClearance,float corridorClearance,
       std::min(5.0f,corridorClearance)*1.2f-
       runDistance*.20f-lateralChange*.08f;
 }
+inline bool RenderedTimedAttackEnabled() {
+  static const bool enabled=[]{
+    const char* v=std::getenv("TRIBUN_AV_TIMED_ATTACK");
+    return v && std::strcmp(v,"1")==0;
+  }();
+  return ShortMatchAttackEnabled() && enabled;
+}
 inline bool TimedAttackEnabled() {
   static const bool enabled=[]{
     const char* v=std::getenv("TRIBUN_NATIVE_TIMED_ATTACK");
     return v && std::strcmp(v,"1")==0;
   }();
-  return ShortMatchAttackEnabled() && enabled;
+  return ShortMatchAttackEnabled() && (enabled || RenderedTimedAttackEnabled());
 }
 inline bool LeadRunGeometry(float depth,float progress,float distance,float speed,
                             float margin,float targetDepth,float clearance){
@@ -1661,10 +1668,22 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
         const float margin=passOffside-pos.coords[0]*attackForward;
         if(AITactics::LeadRunGeometry(depth,delta.coords[0]*attackForward,distance,
             speed,margin,targetDepth,100.0f) && std::abs(predicted.coords[1])<=14.0f){
-          float clearance=100.0f;
-          for(const auto& rival:opponentPlayerImages)
-            clearance=std::min(clearance,(predicted-(rival.position+rival.movement*.5f)).GetLength());
-          if(AITactics::LeadRunGeometry(depth,delta.coords[0]*attackForward,distance,
+          float clearance=100.0f,corridor=100.0f;
+          const auto start=player->GetPosition();
+          const auto path=predicted-start;
+          const float length2=path.GetSquaredLength();
+          for(const auto& rival:opponentPlayerImages){
+            const auto future=rival.position+rival.movement*.5f;
+            clearance=std::min(clearance,(predicted-future).GetLength());
+            if(AITactics::RenderedTimedAttackEnabled() && length2>.01f){
+              const auto offset=future-start;
+              const float u=(offset.coords[0]*path.coords[0]+offset.coords[1]*path.coords[1])/length2;
+              if(u>.05f && u<.95f)
+                corridor=std::min(corridor,(future-(start+path*u)).GetLength());
+            }
+          }
+          if((!AITactics::RenderedTimedAttackEnabled() || corridor>=1.4f) &&
+              AITactics::LeadRunGeometry(depth,delta.coords[0]*attackForward,distance,
               speed,margin,targetDepth,clearance)){
             timedOdds=_GetPassingOdds(mates.at(i),e_FunctionType_LongPass,opponentPlayerImages);
             timedCandidate=AITactics::LeadPassPreferred(timedOdds,0.0f);

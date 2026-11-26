@@ -50,7 +50,7 @@ def diagnostic_summary(native,browser,children,first_exit):
         'browserChecks':flags(b,('passed','ended','playlistComplete','coveragePassed')),
         'browserReportPresent':bool(b)}
 
-def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None,vao_cache=None,texture_cache=None,render_suite=False,box_lane=False):
+def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None,vao_cache=None,texture_cache=None,render_suite=False,box_lane=False,timed_pass=False):
     root.mkdir(mode=0o700)
     out=root/'run'
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_NATIVE_','TRIBUN_AV_','TRIBUN_GPU_','TRIBUN_LEAGUE_SOCCER_','TRIBUN_EXPECT_','TRIBUN_PLAYBACK_'))}
@@ -81,11 +81,13 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
         env['TRIBUN_AV_TEXTURE_CACHE']=str(texture_cache)
     if box_lane and (profile!='short-match' or any(x is not None for x in (render_size,shadow_size,skin_cache,vao_cache,texture_cache)) or render_suite):
         raise ValueError('Isolated box lane comparison required')
+    if timed_pass and (profile!='short-match' or box_lane or render_suite or any(x is not None for x in (render_size,shadow_size,skin_cache,vao_cache,texture_cache))):
+        raise ValueError('Isolated timed-pass trial required')
     children=[];error=None;firstExit=None
     fixture_sha=hashlib.sha256(fixture.read_bytes()).hexdigest()
     try:
         with (root/'native.log').open('wb') as n,(root/'browser.log').open('wb') as b:
-            children.append(subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(fixture),str(out),'--audio','--linger','60','--attack-profile',profile]+(['--box-lane'] if box_lane else []),env=env,stdout=n,stderr=subprocess.STDOUT))
+            children.append(subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(fixture),str(out),'--audio','--linger','60','--attack-profile',profile]+(['--box-lane'] if box_lane else [])+(['--timed-pass'] if timed_pass else []),env=env,stdout=n,stderr=subprocess.STDOUT))
             children.append(subprocess.Popen(['node',str(HERE/'native-live-video-browser.cjs'),str(out/'local-url.txt')],env=env,stdout=b,stderr=subprocess.STDOUT,start_new_session=True))
             deadline=time.monotonic()+1200
             while any(p.poll() is None for p in children):
@@ -120,6 +122,17 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
     except (OSError,ValueError,KeyError,TypeError):pass
     diagnostics=diagnostic_summary(n,b,children,firstExit)
     result={'profile':profile,'fixtureSha256':fixture_sha,'passed':passed,'failureType':error,'quality':quality,'renderSuite':render_suite,'diagnostics':diagnostics,'boxLane':box_lane,'boxLaneObserved':False,'evidenceErrors':{}}
+    result.update(timedPass=timed_pass,timedEvidence=None)
+    if profile=='short-match' and not box_lane:
+        try:
+            from native_timed_pass_av import trace_counts
+            result['timedEvidence']=trace_counts(out/'match.ndjson')
+            if timed_pass and (n.get('requestedTimedPass') is not True or sum(x['passes'] for x in result['timedEvidence'])==0):
+                result['passed']=False
+            if not timed_pass and any(x['passes'] for x in result['timedEvidence']):
+                result['passed']=False
+        except (OSError,ValueError,KeyError,TypeError) as exc:
+            result['passed']=False;result['evidenceErrors']['timedPass']=type(exc).__name__
     if box_lane:
         try:
             log=out/'native-match.game.log'
