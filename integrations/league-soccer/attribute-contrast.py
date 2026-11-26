@@ -30,14 +30,19 @@ def verify_attributes(frame,manifest,axis,high_team):
     counts=[0,0]
     for key,p in actual.items():
         native=p.get("nativeAttributes",{})
-        if set(native)!=ATTRS:raise ValueError("Missing runtime attributes")
+        raw=p.get("nativeRawAttributes",{})
+        multiplier=p.get("nativeStatMultiplier")
+        if set(native)!=ATTRS or set(raw)!=ATTRS or type(multiplier) not in (int,float) or not 0<multiplier<=1.001:
+            raise ValueError("Missing runtime attributes or multiplier")
         exp=expected[key]
         for name,value in native.items():
-            if type(value) not in (int,float) or not math.isfinite(value) or abs(value-exp["stats"][name])>0.0002:
-                raise ValueError("Native attribute mismatch "+str(key)+" "+name)
+            if type(raw[name]) not in (int,float) or not math.isfinite(raw[name]) or abs(raw[name]-exp["stats"][name])>0.0002:
+                raise ValueError("Imported attribute mismatch "+str(key)+" "+name)
+            if type(value) not in (int,float) or not math.isfinite(value) or abs(value-raw[name]*multiplier)>0.0002:
+                raise ValueError("Effective attribute mismatch "+str(key)+" "+name)
         if not p["goalkeeper"]:
             target=.9 if key[0]==high_team else .55
-            if any(abs(native[k]-target)>0.0002 for k in AXES[axis]):
+            if any(abs(raw[k]-target)>0.0002 for k in AXES[axis]):
                 raise ValueError("Intended attribute contrast did not reach engine")
             counts[key[0]]+=1
     if counts!=[10,10]:raise ValueError("Invalid outfield coverage")

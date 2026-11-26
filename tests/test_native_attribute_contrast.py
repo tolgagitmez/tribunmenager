@@ -17,7 +17,7 @@ class ContrastTest(unittest.TestCase):
                 if slot:
                     for key in c.AXES["dribbling"]:stats[key]=.9 if team==0 else .55
                 expected.append(dict(nativeId=id,stats=stats))
-                players.append(dict(team=team,databaseId=id,goalkeeper=not slot,nativeAttributes=stats.copy()))
+                players.append(dict(team=team,databaseId=id,goalkeeper=not slot,nativeAttributes={k:v*.8 for k,v in stats.items()},nativeRawAttributes=stats.copy(),nativeStatMultiplier=.8))
             teams.append(dict(team=team,players=expected))
         self.assertEqual(c.verify_attributes({"players":players},{"teams":teams},"dribbling",0),[10,10])
         players[2]["nativeAttributes"]["technical_dribble"]=.55

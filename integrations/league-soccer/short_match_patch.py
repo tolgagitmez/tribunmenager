@@ -363,6 +363,25 @@ struct RoleProbe {
 };
 '''
 
+CLOSE_TOUCH_RULES = r'''// Restrict excess planar launch speed, never change pass, shot, trap or knock-on.
+inline float CloseTouchCap(float outgoing,float skill,float pressure,float alignment){
+  const float allowance=1.6f+1.3f*std::clamp(skill,0.0f,1.0f)+
+      .8f*std::clamp((pressure-1.0f)/3.0f,0.0f,1.0f)+.6f*std::clamp(alignment,0.0f,1.0f);
+  return std::max(2.0f,outgoing+allowance);
+}
+inline float CloseTouchScale(float planar,float outgoing,float skill,float pressure,float alignment){
+  if(!std::isfinite(planar)||!std::isfinite(outgoing)||!std::isfinite(skill)||
+      !std::isfinite(pressure)||!std::isfinite(alignment)||planar<=.01f)return 1.0f;
+  return std::clamp(CloseTouchCap(outgoing,skill,pressure,alignment)/planar,.72f,1.0f);
+}
+struct CloseTouchProbe{
+  unsigned long contacts=0,adjusted=0; double before=0,after=0;
+  void Record(float original,float applied){
+    ++contacts;if(applied<original-.001f)++adjusted;before+=original;after+=applied;
+  }
+};
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -2659,3 +2678,45 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
             ("  direction = (desiredPosition - player->GetPosition()).GetNormalized(player->GetDirectionVec());", r'''  team->GetController()->TribunApplyRoleProfile(CastPlayer(),desiredPosition,desiredPosition_static);
   direction = (desiredPosition - player->GetPosition()).GetNormalized(player->GetDirectionVec());'''),
         ])
+
+    # Stage 77: adjust only the actual native low-ball dribble contact.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool CloseTouchEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_CLOSE_TOUCH");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + CLOSE_TOUCH_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  AITactics::RoleProbe tribunRoleProbes[2];", "  AITactics::RoleProbe tribunRoleProbes[2];\n  AITactics::CloseTouchProbe tribunCloseTouches[2];"),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ('          printf("bumpyridebias (ballcontrol): %f\\n", bumpyRideBias);\n\n        match->GetBall()->Touch(touchVec);', r'''          printf("bumpyridebias (ballcontrol): %f\n", bumpyRideBias);
+
+        if(AITactics::ShortMatchAttackEnabled()&&AITactics::FixedDurationEnabled()&&
+            match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer()&&
+            !team->GetHumanGamerCount()&&CastPlayer()->HasUniquePossession()&&
+            CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK&&
+            !(currentAnim->originatingCommand.modifier&e_PlayerCommandModifier_KnockOn)&&
+            match->GetBall()->Predict(0).coords[2]<=.35f&&bumpyRideBias<=.25f){
+          const float original=touchVec.Get2D().GetLength();
+          const auto movement=CalculateOutgoingMovement(currentAnim->positions).Get2D();
+          const auto facing=movement.GetNormalized(CastPlayer()->GetDirectionVec());
+          const float alignment=facing.GetDotProduct(touchVec.Get2D().GetNormalized(facing));
+          const float skill=AITactics::ControlSkill(CastPlayer()->GetStat("technical_dribble"),
+              CastPlayer()->GetStat("technical_ballcontrol"),CastPlayer()->GetStat("physical_agility"),
+              CastPlayer()->GetStat("physical_balance"));
+          if(AITactics::CloseTouchEnabled()){
+            const float scale=AITactics::CloseTouchScale(original,movement.GetLength(),skill,
+                CastPlayer()->GetClosestOpponentDistance(),alignment);
+            touchVec.coords[0]*=scale;touchVec.coords[1]*=scale;
+            xRot*=scale;yRot*=scale;
+          }
+          match->tribunCloseTouches[team->GetID()].Record(original,touchVec.Get2D().GetLength());
+        }
+        match->GetBall()->Touch(touchVec);'''),
+    ])

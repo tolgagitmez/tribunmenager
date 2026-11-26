@@ -242,6 +242,10 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-transition] mode=%s wins=%lu,%lu losses=%lu,%lu counters=%lu,%lu presses=%lu,%lu retreats=%lu,%lu forward=%lu,%lu regains=%lu,%lu\n",
       AITactics::TransitionEnabled()?"transition":"off",tra.wins,trb.wins,tra.losses,trb.losses,tra.counters,trb.counters,
       tra.presses,trb.presses,tra.retreats,trb.retreats,tra.forwardPasses,trb.forwardPasses,tra.regains,trb.regains);
+    const auto& cta=match.tribunCloseTouches[0];const auto& ctb=match.tribunCloseTouches[1];
+    std::printf("[tribun-close-touch] mode=%s contacts=%lu,%lu adjusted=%lu,%lu before=%.6f,%.6f after=%.6f,%.6f\n",
+        AITactics::CloseTouchEnabled()?"close":"off",cta.contacts,ctb.contacts,cta.adjusted,ctb.adjusted,
+        cta.before,ctb.before,cta.after,ctb.after);
     for(int teamID=0;teamID<2;++teamID){
       const auto& rp=match.tribunRoleProbes[teamID];
       for(int profile=1;profile<AITactics::ProfileCount;++profile)
@@ -356,21 +360,19 @@ void TribunTrace(Match& match, bool done) {
       output << ",\"goalkeeper\":" << (player->GetFormationEntry().role == e_PlayerRole_GK ? "true" : "false");
       output << ",\"uniquePossession\":" << (player->HasUniquePossession() ? "true" : "false");
       if(AITactics::FixedDurationEnabled()&&fixed.started&&fixed.Elapsed(now)==0){
-        output << ",\"nativeAttributes\":{"
-          << "\"physical_balance\":" << player->GetStat("physical_balance")
-          << ",\"physical_agility\":" << player->GetStat("physical_agility")
-          << ",\"physical_velocity\":" << player->GetStat("physical_velocity")
-          << ",\"physical_acceleration\":" << player->GetStat("physical_acceleration")
-          << ",\"physical_shotpower\":" << player->GetStat("physical_shotpower")
-          << ",\"technical_ballcontrol\":" << player->GetStat("technical_ballcontrol")
-          << ",\"technical_dribble\":" << player->GetStat("technical_dribble")
-          << ",\"technical_shortpass\":" << player->GetStat("technical_shortpass")
-          << ",\"technical_highpass\":" << player->GetStat("technical_highpass")
-          << ",\"technical_shot\":" << player->GetStat("technical_shot")
-          << ",\"technical_volley\":" << player->GetStat("technical_volley")
-          << ",\"mental_vision\":" << player->GetStat("mental_vision")
-          << ",\"mental_calmness\":" << player->GetStat("mental_calmness")
-          << ",\"mental_resilience\":" << player->GetStat("mental_resilience") << '}';
+        const char* keys[]={"physical_balance","physical_agility","physical_velocity","physical_acceleration","physical_shotpower","technical_ballcontrol","technical_dribble","technical_shortpass","technical_highpass","technical_shot","technical_volley","mental_vision","mental_calmness","mental_resilience"};
+        output << ",\"nativeRawAttributes\":{";
+        for(unsigned j=0;j<sizeof(keys)/sizeof(keys[0]);++j){
+          if(j)output<<',';
+          output << '"' << keys[j] << "\":" << player->GetPlayerData()->GetStat(keys[j]);
+        }
+        output << "},\"nativeAttributes\":{";
+        for(unsigned j=0;j<sizeof(keys)/sizeof(keys[0]);++j){
+          if(j)output<<',';
+          output << '"' << keys[j] << "\":" << player->GetStat(keys[j]);
+        }
+        output << "},\"nativeStatMultiplier\":"
+          << (.3f+.7f*match.GetMatchDifficulty())*(.7f+.3f*player->GetFatigueFactorInv());
       }
       output << '}';
     }
