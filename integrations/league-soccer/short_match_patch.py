@@ -259,7 +259,7 @@ def apply(root):
   }'''),
     ])
     edit(root, "src/onthepitch/aitactics.hpp", [
-        ("#include <algorithm>", "#include <algorithm>\n#include <cstdlib>\n#include <cstring>"),
+        ("#include <algorithm>", "#include <algorithm>\n#include <cstdlib>\n#include <cstring>\n#include <cmath>"),
         ("namespace AITactics {", r'''namespace AITactics {
 // Tribun Manager: experimental, opt-in 5-minute attack profile.
 // No default behavior changes; never bypass shot angle, pass safety or offside.
