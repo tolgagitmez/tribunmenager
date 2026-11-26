@@ -138,8 +138,11 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
+  // The combined profile enables all prior opt-in layers, but remains a
+  // presentation experiment; the recorded match is still authoritative.
+  if(animationBlend)bodyBalance=footPlant=contactSync=strikeMotion=controlMotion=duelMotion=tackleMotion=keeperMotion=aerialMotion=true;
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
   const start=frames[0].elapsedMs,end=frames.at(-1).elapsedMs,duration=end-start;
@@ -331,6 +334,25 @@
     if(aerialMotion){
      actor.nativeAerial=actor.role!=='GK'&&!a.done&&!a.setPiece&&!b.setPiece&&a.inPlay!==false&&b.inPlay!==false&&
       span>0&&span<=200&&Math.hypot(dest.x-pos.x,dest.z-pos.z)<=2?aerialAt(source,time,actor):null;
+    }
+    if(animationBlend){
+     const valid=!a.done&&!a.setPiece&&!b.setPiece&&a.inPlay!==false&&b.inPlay!==false&&span>0&&span<=200&&
+      target&&target.team===source.team&&target.databaseId===source.databaseId&&Math.hypot(dest.x-pos.x,dest.z-pos.z)<=2;
+     actor.nativeBlend=!!valid;
+     if(!valid){actor.nativeContact=actor.nativeAerial=actor.nativeKeeper=actor.nativeDuel=null;}
+     else{
+      // Head and foot contacts cannot own the same pose. Nearest actual
+      // event wins; exact contact never loses to another event's tail.
+      if(actor.nativeContact&&actor.nativeAerial){
+       if(Math.abs(actor.nativeAerial.deltaMs)<Math.abs(actor.nativeContact.deltaMs))actor.nativeContact=null;
+       else actor.nativeAerial=null;
+      }
+      const primary=actor.nativeContact||actor.nativeAerial||actor.nativeKeeper;
+      if(primary&&actor.nativeDuel){
+       const scale=1-.85*clamp(primary.weight,0,1);
+       actor.nativeDuel={...actor.nativeDuel,weight:actor.nativeDuel.weight*scale,fall:actor.nativeDuel.fall&&primary.weight<.35};
+      }
+     }
     }
     active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion||keeperMotion||aerialMotion?step:clamp(dt,0,.1));return actor;
    });

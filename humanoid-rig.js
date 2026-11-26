@@ -246,13 +246,35 @@ function pose(p,dt=1/60){
   st.nativeDrop=mix(st.nativeDrop||0,valid?clamp(-forward*.005,0,.045)*moving:0,gain);
   if(!special){nativePitch=st.nativePitch;nativeRoll=st.nativeRoll;nativeDrop=st.nativeDrop;}
  }
- const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-nativeDrop-(gesture?(.025+.055*gesturePower)*gestureWeight:0)-(control?(controlShape.drop+.025*controlPressure)*controlWeight:0)-duelDrop-.12*tackleW-.20*slideW-fallDrop-.46*keeperLow-aerialCrouch-aerialLanding;
+ let hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-nativeDrop-(gesture?(.025+.055*gesturePower)*gestureWeight:0)-(control?(controlShape.drop+.025*controlPressure)*controlWeight:0)-duelDrop-.12*tackleW-.20*slideW-fallDrop-.46*keeperLow-aerialCrouch-aerialLanding;
  const feint=feintWeight*feintSide*.12;
  const headerU=act==='header'&&p.actionClock>0?clamp((p.actionElapsed||0)/Math.max(.1,p.actionDuration||.5),0,1):0,headerWave=Math.sin(Math.PI*headerU);
  const headerBend=p.headerHeight?clamp((1.77-p.headerHeight)*headerWave,0,.8):0;
  const shieldSide=p.dribbleFoot===0?1:-1;
- const pitch=clamp((native?nativePitch:st.lean*2)+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045+(gesture?profile.lean*gestureWeight*(.5+.5*gesturePower):0)+(control?(.035+.035*controlPressure)*controlWeight:0)+duelForward*duelWeight*.16+.10*tackleW+.20*fallW+.32*keeperLow-.08*keeperHigh+(aerial?clamp(aerial.forward*.18+(1.77-aerial.ball.y)*.24,-.08,.28)*aerialW:0),LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp((native?nativeRoll:st.turn*.25)+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055 +cutWeight*cutSide*.045-(gesture?gestureSide*.07*gestureWeight:0)+(control?(.06*controlLateral-controlSide*.035*controlPressure)*controlWeight:0)+duelLateral*duelWeight*.19+duelLateral*fallW*.15+keeperSide*.16+(aerial?clamp(aerial.lateral*.15,-.12,.12)*aerialW:0),LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
+ let pitch=clamp((native?nativePitch:st.lean*2)+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045+(gesture?profile.lean*gestureWeight*(.5+.5*gesturePower):0)+(control?(.035+.035*controlPressure)*controlWeight:0)+duelForward*duelWeight*.16+.10*tackleW+.20*fallW+.32*keeperLow-.08*keeperHigh+(aerial?clamp(aerial.forward*.18+(1.77-aerial.ball.y)*.24,-.08,.28)*aerialW:0),LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp((native?nativeRoll:st.turn*.25)+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055 +cutWeight*cutSide*.045-(gesture?gestureSide*.07*gestureWeight:0)+(control?(.06*controlLateral-controlSide*.035*controlPressure)*controlWeight:0)+duelLateral*duelWeight*.19+duelLateral*fallW*.15+keeperSide*.16+(aerial?clamp(aerial.lateral*.15,-.12,.12)*aerialW:0),LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
  const facing=[Math.cos(p.face||0),0,Math.sin(p.face||0)],right=[-facing[2],0,facing[0]];
+ // Stage 88: filter pose targets in the player's local frame BEFORE IK.
+ // Never interpolate already-solved bones or a planted world-space foot.
+ const blended=p.nativeBlend===true&&!special;
+ if(!blended)st.nativeBlend=null;
+ const primary=recorded||aerial||keeper;
+ const protect=primary?clamp(primary.weight,0,1):0;
+ const gain=1-Math.exp(-dt*18);
+ if(blended){
+  const state=st.nativeBlend||(st.nativeBlend={torso:[hipHeight,pitch,roll],feet:[],arms:[]});
+  const follow=mix(gain,1,protect*protect);
+  state.torso=blend(state.torso,[hipHeight,pitch,roll],follow);
+  [hipHeight,pitch,roll]=state.torso;
+ }
+ const localTarget=v=>{const d=sub(v,[p.x,0,p.z]);return [dot(d,facing),v[1],dot(d,right)];};
+ const fromLocal=v=>world(p,v[0],v[2],v[1]);
+ const filterTarget=(kind,i,v,bypass)=>{
+  if(!blended)return v;
+  const s=st.nativeBlend[kind],local=localTarget(v);
+  const follow=bypass?1:gain;
+  s[i]=s[i]?blend(s[i],local,follow):local;
+  return bypass?v:fromLocal(s[i]);
+ };
  const up=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
  const bodyForward=unit(sub(facing,mul(up,dot(facing,up)))),bodyRight=unit(cross(bodyForward,up)),bodyFrame={forward:bodyForward,up,right:bodyRight};
  const pelvis=world(p,strike*.04,0,hipHeight),torsoBase=add(pelvis,mul(up,ANATOMY.pelvis));
@@ -388,6 +410,9 @@ function pose(p,dt=1/60){
    const recovery=world(p,.08+(i?1:-1)*duelForward*.14,side*(.15+.13*fallW),GROUND);
    foot=blend(foot,recovery,fallW*.7);stance=false;
   }
+  // The contact foot and planted foot remain authoritative. Only a free
+  // swing target is filtered, and the existing anatomical solver follows.
+  foot=filterTarget('feet',i,foot,stance||nativeContact||aerialW>0);
   const requestedStance=stance,requestedFoot=foot.slice(),legIK=boundedLimb(hip,foot,ANATOMY.thigh,ANATOMY.shin,facing,LIMITS.knee,LIMITS.hip,bodyFrame,side);
   foot=legIK.end;if(legIK.error>1e-5)stance=false;
   const toe=add(foot,[Math.cos(footFace)*.20,-.075,Math.sin(footFace)*.20]);
@@ -450,6 +475,7 @@ function pose(p,dt=1/60){
    wrist=blend(wrist,target,shieldWeight*.92);
   }
   if(act==='throw'&&p.actionClock>0){const u=smooth((p.actionElapsed||0)/Math.max(.1,p.contactTime||.55));wrist=blend(wrist,world(p,mix(-.06,.4,u),side*.12,1.95),action);}
+  wrist=filterTarget('arms',i,wrist,!!keeper&&keeperW>.75);
   arms.push({shoulder,target:wrist});
  }
  let result={pelvis,neck,head,headTop,torsoBase,torsoMid,torsoUpper,legs,arms,activity:st.activity,sprint,kick,tackle,diving,celebrating,protest,face:p.face,action:act,weight:action,turn:st.turn,feintWeight,shieldWeight,defenderMisread,wallPassWeight,cutWeight,burstWeight};
@@ -460,6 +486,7 @@ function pose(p,dt=1/60){
  if(duel?.fall)result.nativeRecovery={age:fallAge,weight:fallW,drop:fallDrop};
  if(keeper)result.nativeKeeper={kind:keeper.kind,profile:keeper.profile,hand:keeper.hand,weight:keeperW,held:keeper.held,targets:0,meanPalmError:null};
  if(aerial)result.nativeAerial={profile:aerial.profile,kind:aerial.kind,weight:aerialW,jump:aerialJump,landing:aerialLanding,contested:aerial.contested,headError:null};
+ if(blended)result.nativeBlend={gain,contactProtection:protect,primary:recorded?.kind||aerial?.kind||keeper?.kind||null,hipHeight,pitch,roll};
  if(native)result.nativeBalance={pitch:nativePitch,roll:nativeRoll,drop:nativeDrop};
  if(hasScan||st.scanYaw){result.headYaw=st.scanYaw;result.headFace=(p.face||0)+st.scanYaw;}
  let frame=bodyFrame,contactTargets=null;
