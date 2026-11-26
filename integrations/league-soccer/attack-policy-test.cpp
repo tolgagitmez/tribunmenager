@@ -217,6 +217,16 @@ int main(){
  missed.Observe(true,2,1700);missed.Miss(4,1700);missed.Miss(5,1800);
  assert(!missed.Ready(5,1800));
  missed.Reset();assert(!missed.Ready(5,1800));
+ assert(SafeBodyPreparation(0.1f,.3f,.5f,3.0f,.2f,.2f));
+ assert(SafeBodyPreparation(.9f,.5f,.5f,3.0f,.2f,.2f));
+ assert(!SafeBodyPreparation(.9f,.2f,.5f,3.0f,.2f,.2f));
+ assert(!SafeBodyPreparation(.1f,.81f,.5f,3.0f,.2f,.2f));
+ assert(!SafeBodyPreparation(.1f,.1f,.5f,3.0f,.2f,.2f));
+ assert(!SafeBodyPreparation(.1f,.3f,.96f,3.0f,.2f,.2f));
+ assert(!SafeBodyPreparation(.1f,.3f,.5f,2.19f,.2f,.2f));
+ assert(!SafeBodyPreparation(.1f,.3f,.5f,3.0f,.75f,.2f));
+ assert(!SafeBodyPreparation(.1f,.3f,.5f,3.0f,.2f,.65f));
+ assert(!SafeBodyPreparation(2.0f,.3f,.5f,3.0f,.2f,.2f));
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
