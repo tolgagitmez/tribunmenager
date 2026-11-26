@@ -1899,6 +1899,21 @@ struct RunReservation189 {
         now>=at && now-at<=250UL;
   }
 };
+inline bool RunPass206Eligible(const RunReservation189& reservation,int receiver,int carrier,int phase,
+    unsigned long now,float x,float y,float vx,float vy){
+  if(receiver<0||carrier<0||receiver==carrier||reservation.player!=receiver||
+      reservation.carrier!=carrier||reservation.phase!=phase||
+      now<reservation.at||now-reservation.at>250UL||
+      !std::isfinite(x)||!std::isfinite(y)||!std::isfinite(vx)||!std::isfinite(vy)||
+      !std::isfinite(reservation.tx)||!std::isfinite(reservation.ty))return false;
+  const float dx=reservation.tx-x,dy=reservation.ty-y;
+  const float gap=std::hypot(dx,dy);
+  return gap>=1.0f&&gap<=9.0f&&(dx*vx+dy*vy)/gap>=.75f;
+}
+inline bool RunPass206Target(const RunReservation189& reservation,float x,float y){
+  return std::isfinite(x)&&std::isfinite(y)&&
+      std::hypot(reservation.tx-x,reservation.ty-y)<=3.5f;
+}
 inline float CoordinatedRunScore189(float sx,float sy,float tx,float ty,const RunReservation189& other){
   const float endGap=std::hypot(tx-other.tx,ty-other.ty);
   if(!std::isfinite(endGap)||endGap<4.0f)return -1000.0f;
@@ -1974,7 +1989,7 @@ inline bool RunLanesEnabled() {
       auto& reservation=match->tribunRunReservations[team->GetID()][laneIndex];
       auto& other=match->tribunRunReservations[team->GetID()][1-laneIndex];
       const bool pair=coordinated && other.Valid(CastPlayer()->GetID(),carrierId,period,now);
-      if(coordinated)reservation.Clear();
+      if(AITactics::Offball188Enabled())reservation.Clear();
       for(float setback:{0.0f,3.0f,6.0f}){
         for(float width:{4.5f,10.0f,15.5f}){
           const float x=AITactics::Offball188Enabled()?std::min(leadX-setback,currentPos.coords[0]*forward+6.0f):leadX-setback;
@@ -2025,9 +2040,10 @@ inline bool RunLanesEnabled() {
         }
       }
       if(best>-9999.0f){
-        if(coordinated){
+        if(AITactics::Offball188Enabled())
           reservation.Save(CastPlayer()->GetID(),carrierId,period,now,
               currentPos.coords[0],currentPos.coords[1],target.coords[0],target.coords[1]);
+        if(coordinated){
           if(now%250UL==0)
             printf("[tribun-coordinated189] team=%d player=%d paired=%d match_ms=%lu\n",
                 team->GetID(),CastPlayer()->GetID(),pair?1:0,static_cast<unsigned long>(match->GetMatchTime_ms()));
@@ -4290,10 +4306,11 @@ inline float LeadTimingBonus(float corridor,float clearance,float odds){
 struct FixedDurationClock {'''),
     ])
     edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
-        ("    float proximityRating;\n    e_FunctionType passType;", "    float proximityRating;\n    bool timing186=false;\n    e_FunctionType passType;"),
-        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet || counterCandidate || paceCandidate) {", r'''      bool timing186=false;
+        ("    float proximityRating;\n    e_FunctionType passType;", "    float proximityRating;\n    bool timing186=false,runPass206=false;\n    e_FunctionType passType;"),
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet || counterCandidate || paceCandidate) {", r'''      bool timing186=false,runPass206=false;
+      const bool standaloneTiming=AITactics::PassTiming186Enabled();
       float timingOdds=0.0f,timingCorridor=0.0f,timingClearance=0.0f;
-      if(AITactics::PassTiming186Enabled() && CastPlayer()->HasUniquePossession() &&
+      if((standaloneTiming||AITactics::Offball188Enabled()) && CastPlayer()->HasUniquePossession() &&
           match->GetLastTouchPlayer()==player && !team->GetHumanGamerCount() &&
           CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK &&
           mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK &&
@@ -4307,13 +4324,25 @@ struct FixedDurationClock {'''),
             recipient.coords[0]*attackForward;
         const float progress=(recipient-origin).coords[0]*attackForward;
         const float runSpeed=movement.coords[0]*attackForward;
-        if(AITactics::LeadTimingSafe(progress,distance,runSpeed,margin,100,100,1,0)){
+        const AITactics::RunReservation189* runReservation=nullptr;
+        if(AITactics::Offball188Enabled() && match->GetDesignatedPossessionPlayer()==player){
+          for(const auto& lane:match->tribunRunReservations[team->GetID()]){
+            if(AITactics::RunPass206Eligible(lane,mates.at(i)->GetID(),player->GetID(),
+                static_cast<int>(match->GetMatchPhase()),match->GetActualTime_ms(),
+                recipient.coords[0],recipient.coords[1],movement.coords[0],movement.coords[1])){
+              runReservation=&lane;break;
+            }
+          }
+        }
+        if((standaloneTiming||runReservation) && AITactics::LeadTimingSafe(progress,distance,runSpeed,margin,100,100,1,0)){
           const auto future=recipient+movement*AITactics::NativeLeadDelay(distance);
           // Match the native forced-target long pass's forward offset.
           const auto target=future+Vector3(attackForward*(future-origin).GetLength()*.2f,0,0);
           const float travel=.7f+(target-origin).GetLength()*.03f;
           const float reachError=(target-(recipient+movement*travel)).GetLength();
-          if(std::abs(target.coords[0])<pitchHalfW-1.0f && std::abs(target.coords[1])<pitchHalfH-1.0f){
+          const bool nearRunTarget=runReservation &&
+              AITactics::RunPass206Target(*runReservation,target.coords[0],target.coords[1]);
+          if((standaloneTiming||nearRunTarget) && std::abs(target.coords[0])<pitchHalfW-1.0f && std::abs(target.coords[1])<pitchHalfH-1.0f){
             timingClearance=100;timingCorridor=100;
             for(const auto& opp:opponentPlayerImages){
               timingClearance=std::min(timingClearance,(target-opp.position-opp.movement*travel).Get2D().GetLength());
@@ -4326,6 +4355,7 @@ struct FixedDurationClock {'''),
                 _GetPassingOdds(target,e_FunctionType_LongPass,opponentPlayerImages));
             timing186=AITactics::LeadTimingSafe(progress,distance,runSpeed,margin,timingClearance,
                 timingCorridor,timingOdds,reachError);
+            runPass206=timing186 && nearRunTarget;
           }
         }
       }
@@ -4335,11 +4365,16 @@ struct FixedDurationClock {'''),
           mateRating.passRating=timingOdds;
           mateRating.supportRating+=AITactics::LeadTimingBonus(timingCorridor,timingClearance,timingOdds);
           mateRating.timing186=true;
+          mateRating.runPass206=runPass206;
         }else if(timing186 && !(progressiveCandidate||supportCandidate||runningCandidate||deliveryCandidate||
             pressureOutlet||returnCandidate||retentionOutlet||timedCandidate||lineBreak||triangleCandidate||
             holdOutlet||counterCandidate||paceCandidate))continue;
         float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
         ("    _AddPass(commandQueue, bestMateRating.player, bestMateRating.passType);", r'''    _AddPass(commandQueue, bestMateRating.player, bestMateRating.passType);
+    if(bestMateRating.runPass206)
+      printf("[tribun-run-pass206] team=%d passer=%d receiver=%d match_ms=%lu odds=%.5f\n",
+          team->GetID(),player->GetID(),bestMateRating.player->GetID(),
+          static_cast<unsigned long>(match->GetMatchTime_ms()),bestMateRating.passRating);
     if(bestMateRating.timing186)
       printf("[tribun-pass-timing] team=%d passer=%d receiver=%d match_ms=%lu odds=%.5f\n",
           team->GetID(),player->GetID(),bestMateRating.player->GetID(),
@@ -4351,7 +4386,7 @@ struct FixedDurationClock {'''),
     edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
         ("        team->GetController()->TribunTimedPassContact(CastPlayer(),targetPlayer,\n            currentAnim->functionType==e_FunctionType_LongPass);", r'''        team->GetController()->TribunTimedPassContact(CastPlayer(),targetPlayer,
             currentAnim->functionType==e_FunctionType_LongPass);
-        if(AITactics::PassTiming186Enabled() && tribunAudit && targetPlayer &&
+        if((AITactics::PassTiming186Enabled()||AITactics::Offball188Enabled()) && tribunAudit && targetPlayer &&
             currentAnim->functionType==e_FunctionType_LongPass)
           std::fprintf(stderr,"[tribun-pass-timing-contact] team=%d passer=%d receiver=%d match_ms=%lu\n",
               team->GetID(),player->GetID(),targetPlayer->GetID(),
