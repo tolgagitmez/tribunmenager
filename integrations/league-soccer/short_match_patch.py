@@ -2940,7 +2940,7 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
     edit(root, "src/onthepitch/player/humanoid/humanoidbase.cpp", [
-        ('#include "humanoidbase.hpp"', '#include "humanoidbase.hpp"\n#include <chrono>\n#include <mutex>\n#include <cstdlib>\n#include <cstring>\n#include <cstdio>'),
+        ('#include <cmath>', '#include <cmath>\n#include <chrono>\n#include <mutex>\n#include <cstdlib>\n#include <cstring>\n#include <cstdio>'),
         ("void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {", r'''void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {
   const char* skinCacheMode = std::getenv("TRIBUN_AV_SKIN_CACHE");
   const bool measureSkin = !updateSrc && skinCacheMode &&
@@ -3037,4 +3037,39 @@ void OpenGLRenderer3D::RenderAABB''', r'''  mapping.glBindVertexArray(0);
 }
 
 void OpenGLRenderer3D::RenderAABB'''),
+    ])
+
+    # Stage 161: the diffuse unit is already tracked inside each draw
+    # queue. Retain material/shader updates and the active unit reset.
+    edit(root, "src/systems/graphics/rendering/opengl_renderer3d.cpp", [
+        ('''  signed int currentDiffuseTextureID = -1;''', r'''  signed int currentDiffuseTextureID = -1;
+  const char* textureMode = std::getenv("TRIBUN_AV_TEXTURE_CACHE");
+  const bool measureTexture = textureMode &&
+      (std::strcmp(textureMode, "0") == 0 || std::strcmp(textureMode, "1") == 0);
+  const bool cacheTexture = measureTexture && std::strcmp(textureMode, "1") == 0;
+  unsigned long long materialChanges=0, diffuseBinds=0, sameDiffuse=0;'''),
+        ('''          SetTextureUnit(0);
+          mapping.glBindTexture(GL_TEXTURE_2D, diffuseTextureID);
+
+          if (renderMode == e_RenderMode_Full) {''', r'''          SetTextureUnit(0);
+          if (measureTexture) {
+            ++materialChanges;
+            if (diffuseTextureID == currentDiffuseTextureID) ++sameDiffuse;
+          }
+          if (!cacheTexture || diffuseTextureID != currentDiffuseTextureID) {
+            mapping.glBindTexture(GL_TEXTURE_2D, diffuseTextureID);
+            if (measureTexture) ++diffuseBinds;
+          }
+
+          if (renderMode == e_RenderMode_Full) {'''),
+        ('''  mapping.glBindVertexArray(0);
+  if (measureVao) {''', r'''  mapping.glBindVertexArray(0);
+  if (measureTexture) {
+    static unsigned long long calls=0, changes=0, binds=0, repeats=0;
+    ++calls; changes+=materialChanges; binds+=diffuseBinds; repeats+=sameDiffuse;
+    if (calls%256==0)
+      std::fprintf(stderr,"[tribun-texture-cache] mode=%d calls=%llu changes=%llu binds=%llu repeats=%llu\n",
+                   cacheTexture?1:0,calls,changes,binds,repeats);
+  }
+  if (measureVao) {'''),
     ])
