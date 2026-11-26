@@ -1,5 +1,6 @@
 'use strict';
 const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium}=require('playwright');
+const {coverage}=require('./native-playback-evidence.cjs');
 (async()=>{
  const file=process.argv[2],deadline=Date.now()+120000;
  while(!fs.existsSync(file)){if(Date.now()>deadline)throw Error('Local server did not start');await new Promise(r=>setTimeout(r,250));}
@@ -70,6 +71,36 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium}=requ
     await m.close();
    }
    console.log('Both manager commands acknowledged by the actual native engine while video plays.');
+  }
+  if(process.env.TRIBUN_EXPECT_FULL_PLAYBACK==='1'){
+   const minSeconds=Number(process.env.TRIBUN_PLAYBACK_MIN_SECONDS||'300');
+   assert.ok(Number.isFinite(minSeconds)&&minSeconds>0&&minSeconds<=900);
+   const path=require('node:path').join(require('node:path').dirname(file),'browser-playback-report.json');
+   const deadline=Date.now()+Math.round((minSeconds+90)*1000);
+   let last=null,stagnantSince=Date.now(),samples=0,longestStallMs=0;
+   try{
+    while(Date.now()<deadline){
+     const d=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());
+     assert.notEqual(d.phase,'error',JSON.stringify(d));assert.equal(d.mediaError,null);
+     samples++;
+     if(last===null||d.currentTime>last+.05){longestStallMs=Math.max(longestStallMs,Date.now()-stagnantSince);stagnantSince=Date.now();last=d.currentTime;}
+     else if(Date.now()-stagnantSince>15000&&!d.ended)throw Error('Playback stopped progressing for 15 seconds');
+     if(d.ended){
+      const result=coverage(d,minSeconds);
+      const report={...result,samples,longestObservedProgressIntervalMs:longestStallMs,syntheticOnly:minSeconds<300};
+      fs.writeFileSync(path,JSON.stringify(report,null,2)+'\n');
+      console.log(JSON.stringify(report));assert.ok(result.passed,JSON.stringify(result));break;
+     }
+     await new Promise(resolve=>setTimeout(resolve,500));
+    }
+    assert.ok(fs.existsSync(path),'Playback did not reach actual ended event');
+   }catch(error){
+    if(!fs.existsSync(path)){
+     const d=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());
+     fs.writeFileSync(path,JSON.stringify({passed:false,error:String(error.message).slice(0,500),diagnostic:d,samples},null,2)+'\n');
+    }
+    throw error;
+   }
   }
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({playedDuringMatch:true,mediaTime:state.time,videoWidth:state.width}));

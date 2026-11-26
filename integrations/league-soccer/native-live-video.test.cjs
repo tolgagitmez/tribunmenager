@@ -19,3 +19,10 @@ test('prebuffer before play and recover a disjoint or stale range',()=>{
  assert.equal(L.bufferDecision([[0,2],[5,9]],3,true,false).seek,6);
  assert.equal(L.bufferDecision([[0,9]],5,true,false).seek,null);
 });
+
+test('live edge does not jump backwards; completed stream is not fast-forwarded',()=>{
+ assert.equal(L.bufferDecision([[0,6]],6.2,true,false).seek,null);
+ assert.equal(L.bufferDecision([[0,20]],2,true,true).seek,null);
+ assert.equal(L.bufferDecision([[0,20]],2,true,false).seek,17);
+ assert.ok(L.bufferDecision([[0,2],[5,6]],3,true,true).seek>=5);
+});

@@ -23,8 +23,15 @@
   if(!ranges.length)return {start:false,seek:null};
   const [start,end]=ranges[ranges.length-1];
   if(!started)return {start:end-start>=3.5||(done&&end>start),seek:start+.03};
+  // At the live edge, wait for a new segment instead of jumping backwards.
+  if(time>=end-.15)return {start:false,seek:null};
   const inside=ranges.some(([a,b])=>time>=a-.15&&time<b+.15);
-  if(!inside||end-time>10)return {start:false,seek:Math.max(start+.03,end-3)};
+  if(!inside){
+   const next=ranges.find(([a,b])=>a>time&&b>a);
+   if(!next)return {start:false,seek:null};
+   return {start:false,seek:Math.max(next[0]+.03,Math.min(next[1]-.03,end-3))};
+  }
+  if(!done&&end-time>10)return {start:false,seek:Math.max(start+.03,end-3)};
   return {start:false,seek:null};
  }
  if(typeof module!=='undefined'&&module.exports){module.exports={playlist,codec,bufferDecision};return;}
@@ -32,9 +39,17 @@
  let audioRequested=false;
  sound.addEventListener('click',()=>{if(audioRequested){v.muted=!v.muted;sound.textContent=v.muted?'Sesi aç':'Sesi kapat';}});
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));let running=false,objectUrl=null,playGeneration=0;
- const diagnostic={phase:'idle',mime:null,appended:0,playError:null};
+ const diagnostic={phase:'idle',mime:null,appended:0,playError:null,firstSegment:null,initialSeekSeconds:null,automaticSeeks:0,automaticSkippedSeconds:0,waitingEvents:0,stallEvents:0,playlistComplete:false,finalMediaEnd:null};
  function phase(name){diagnostic.phase=name;}
- root.TRIBUN_VIDEO_DIAGNOSTIC=()=>({...diagnostic,readyState:v.readyState,networkState:v.networkState,currentTime:v.currentTime,paused:v.paused,videoWidth:v.videoWidth,mediaError:v.error?.code||null,buffered:Array.from({length:v.buffered.length},(_,i)=>[v.buffered.start(i),v.buffered.end(i)]),message:status.textContent});
+ const rangeArray=range=>Array.from({length:range.length},(_,i)=>[range.start(i),range.end(i)]);
+ root.TRIBUN_VIDEO_DIAGNOSTIC=()=>{
+  const quality=typeof v.getVideoPlaybackQuality==='function'?v.getVideoPlaybackQuality():null;
+  return {...diagnostic,readyState:v.readyState,networkState:v.networkState,currentTime:v.currentTime,paused:v.paused,ended:v.ended,videoWidth:v.videoWidth,videoHeight:v.videoHeight,mediaError:v.error?.code||null,buffered:rangeArray(v.buffered),played:rangeArray(v.played),decodedFrames:quality?.totalVideoFrames??null,droppedFrames:quality?.droppedVideoFrames??null,message:status.textContent};
+ };
+ v.addEventListener('waiting',()=>{if(running)diagnostic.waitingEvents++;});
+ v.addEventListener('stalled',()=>{if(running)diagnostic.stallEvents++;});
+ v.addEventListener('ended',()=>{if(running){phase('ended');status.textContent='Maç yayını tamamlandı.';}});
+ v.addEventListener('error',()=>{if(running&&v.error){phase('error');diagnostic.playError='Media decode error '+v.error.code;}});
  async function get(name,binary=false){
   const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),8000);
   try{const r=await fetch(name,{cache:'no-store',signal:ac.signal});if(!r.ok)throw Error('HTTP '+r.status);return await (binary?r.arrayBuffer():r.text());}finally{clearTimeout(timer);}
@@ -53,7 +68,7 @@
  });}
  async function play(){
   if(running)return;running=true;button.disabled=true;
-  const generation=++playGeneration;Object.assign(diagnostic,{phase:'waiting-playlist',mime:null,appended:0,playError:null});status.textContent='İlk video parçaları bekleniyor…';
+  const generation=++playGeneration;Object.assign(diagnostic,{phase:'waiting-playlist',mime:null,appended:0,playError:null,firstSegment:null,initialSeekSeconds:null,automaticSeeks:0,automaticSkippedSeconds:0,waitingEvents:0,stallEvents:0,playlistComplete:false,finalMediaEnd:null});status.textContent='İlk video parçaları bekleniyor…';
   try{
    let p=await waitPlaylist();
    const state=JSON.parse(await get('status.json'));audioRequested=state.audioRequested===true;sound.disabled=!audioRequested;
@@ -70,14 +85,17 @@
    const append=async bytes=>{const finished=event(sb,'updateend');sb.appendBuffer(bytes);await finished;};
    await append(init);phase('buffering');
    let next=Math.max(0,p.files.length-3),started=false,emptyPolls=0,playError=null;
+   diagnostic.firstSegment=next;
    const ranges=()=>Array.from({length:v.buffered.length},(_,i)=>[v.buffered.start(i),v.buffered.end(i)]);
    const begin=()=>{
     const decision=bufferDecision(ranges(),v.currentTime,started,p.done);
     if(!started&&decision.start){
-     started=true;v.currentTime=decision.seek;phase('starting-playback');
+     started=true;diagnostic.initialSeekSeconds=decision.seek;v.currentTime=decision.seek;phase('starting-playback');
      // Promise resolves asynchronously; continue feeding source buffer meanwhile.
-     v.play().then(()=>{if(generation===playGeneration){phase('playing');status.textContent='Orijinal motor görüntüsü oynatılıyor.';}}).catch(e=>{playError=e;diagnostic.playError=e.message;});
-    }else if(started&&decision.seek!==null&&!v.seeking)v.currentTime=decision.seek;
+     v.play().then(()=>{if(generation===playGeneration&&!diagnostic.playlistComplete){phase('playing');status.textContent='Orijinal motor görüntüsü oynatılıyor.';}}).catch(e=>{playError=e;diagnostic.playError=e.message;});
+    }else if(started&&decision.seek!==null&&!v.seeking&&decision.seek>v.currentTime+.05){
+     diagnostic.automaticSeeks++;diagnostic.automaticSkippedSeconds+=decision.seek-v.currentTime;v.currentTime=decision.seek;
+    }
    };
    while(generation===playGeneration){
     if(playError)throw playError;
@@ -88,7 +106,14 @@
      if(started&&v.buffered.length&&v.currentTime-v.buffered.start(0)>35){const finished=event(sb,'updateend');sb.remove(v.buffered.start(0),v.currentTime-15);await finished;}
     }
     begin();
-    if(p.done){if(!started)throw Error('Tamamlanan yayında oynatılabilir video yok.');if(ms.readyState==='open')ms.endOfStream();phase('ended');status.textContent='Motor kaydı tamamlandı.';break;}
+    if(p.done){
+     if(!started)throw Error('Tamamlanan yayında oynatılabilir video yok.');
+     diagnostic.playlistComplete=true;
+     diagnostic.finalMediaEnd=v.buffered.length?v.buffered.end(v.buffered.length-1):null;
+     if(ms.readyState==='open')ms.endOfStream();
+     if(!v.ended){phase('draining');status.textContent='Son video parçaları oynatılıyor.';}
+     break;
+    }
     emptyPolls=next===before?emptyPolls+1:0;
     if(emptyPolls>60)throw Error('Yeni video parçası alınamadı.');
     await sleep(500);p=playlist(await get('live.m3u8'));

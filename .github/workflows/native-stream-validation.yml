@@ -1,7 +1,7 @@
 name: Native stream full audiovisual and manager validation
 on:
   push:
-    branches: [experiment/native-stream-validation-stage120, experiment/native-timeline-repair-stage121, experiment/native-command-evidence-stage122]
+    branches: [experiment/native-stream-validation-stage120, experiment/native-timeline-repair-stage121, experiment/native-command-evidence-stage122, experiment/native-full-playback-stage123]
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,7 +18,7 @@ jobs:
       - run: python3 -m unittest discover -s tests -p test_native_command_evidence.py
       - run: python3 -m unittest discover -s tests -p test_native_video_control.py
       - run: python3 -m unittest discover -s tests -p test_native_roster.py
-      - run: node --test integrations/league-soccer/native-live-video.test.cjs
+      - run: node --test integrations/league-soccer/native-live-video.test.cjs integrations/league-soccer/native-playback-evidence.test.cjs
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
       - run: npx playwright install --with-deps chrome
@@ -33,7 +33,7 @@ jobs:
             pid=$!
             trap 'kill "$pid" 2>/dev/null || true' EXIT
             browser_status=0
-            node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt" || browser_status=$?
+            TRIBUN_EXPECT_FULL_PLAYBACK=1 TRIBUN_PLAYBACK_MIN_SECONDS=15 node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt" || browser_status=$?
             producer_status=0
             wait "$pid" || producer_status=$?
             trap - EXIT
@@ -45,7 +45,9 @@ jobs:
         if: always()
         with:
           name: synthetic-transport-timeline-reports
-          path: ${{ runner.temp }}/transport-*/transport-report.json
+          path: |
+            ${{ runner.temp }}/transport-*/transport-report.json
+            ${{ runner.temp }}/transport-*/browser-playback-report.json
           if-no-files-found: ignore
   native:
     needs: transport
@@ -71,6 +73,8 @@ jobs:
           TRIBUN_EXPECT_AUDIO: '1'
           TRIBUN_EXPECT_CONTROL: '1'
           TRIBUN_EXPECT_SUSTAINED: '1'
+          TRIBUN_EXPECT_FULL_PLAYBACK: '1'
+          TRIBUN_PLAYBACK_MIN_SECONDS: '300'
         run: |
           node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/validation-fixtures"
           out="$RUNNER_TEMP/validation-result"
@@ -84,7 +88,7 @@ jobs:
           trap - EXIT
           echo "browser=$browser_status native=$native_status"
           test "$browser_status" -eq 0 && test "$native_status" -eq 0
-          python3 - "$out/live-report.json" <<'PY'
+          python3 - "$out/live-report.json" "$out/browser-playback-report.json" <<'PY'
           import json,sys
           r=json.load(open(sys.argv[1]))
           assert r["status"]=="local-live-evidence"
@@ -95,6 +99,8 @@ jobs:
           evidence=r["control"]["traceEvidence"]
           assert evidence["consistent"] and evidence["allSubmittedObserved"] and len(evidence["acknowledgements"])==2
           assert all(a["formationTargetsVerified"] for a in evidence["acknowledgements"])
+          b=json.load(open(sys.argv[2]))
+          assert b["passed"] and b["playedSeconds"]>=285 and b["ended"] and b["playlistComplete"]
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -102,6 +108,7 @@ jobs:
           name: native-stream-validation-measurements
           path: |
             ${{ runner.temp }}/validation-result/live-report.json
+            ${{ runner.temp }}/validation-result/browser-playback-report.json
             ${{ runner.temp }}/validation-result/runner.log
             ${{ runner.temp }}/validation-result/native-match.capture.log
             ${{ runner.temp }}/validation-result/native-match.game.log
