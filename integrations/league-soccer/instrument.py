@@ -200,6 +200,8 @@ void TribunTrace(Match& match, bool done) {
         match.tribunRunLanePrimary[0],match.tribunRunLanePrimary[1],match.tribunRunLaneSecondary[0],match.tribunRunLaneSecondary[1]);
     const auto& ta=match.GetTeam(0)->GetController()->GetTribunTriangle();
     const auto& tb=match.GetTeam(1)->GetController()->GetTribunTriangle();
+    std::printf("[tribun-pace] mode=%s outlets=%lu,%lu\n",
+      AITactics::PaceEnabled()?"pace":"off",match.tribunPacePasses[0],match.tribunPacePasses[1]);
     std::printf("[tribun-triangle] mode=%s started=%lu,%lu received=%lu,%lu passed=%lu,%lu completed=%lu,%lu\n",
         AITactics::TriangleEnabled()?"triangle":"off",ta.startedCount,tb.startedCount,ta.firstReceipts,tb.firstReceipts,
         ta.secondPasses,tb.secondPasses,ta.completed,tb.completed);

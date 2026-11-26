@@ -9,7 +9,7 @@ render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
 active_policies=0
-for policy in TRIBUN_NATIVE_LINE_BREAK TRIBUN_NATIVE_RUN_LANES TRIBUN_NATIVE_TRIANGLE TRIBUN_NATIVE_CREATIVE_CARRY TRIBUN_NATIVE_DUEL TRIBUN_NATIVE_HOLD_UP TRIBUN_NATIVE_FINISH TRIBUN_NATIVE_KEEPER_AI TRIBUN_NATIVE_DEFENSE_SHAPE TRIBUN_NATIVE_TRANSITION TRIBUN_NATIVE_ROLE_PROFILE TRIBUN_NATIVE_CLOSE_TOUCH TRIBUN_NATIVE_MOTION_SMOOTH TRIBUN_NATIVE_COLLECTIVE_AI; do
+for policy in TRIBUN_NATIVE_LINE_BREAK TRIBUN_NATIVE_RUN_LANES TRIBUN_NATIVE_TRIANGLE TRIBUN_NATIVE_CREATIVE_CARRY TRIBUN_NATIVE_DUEL TRIBUN_NATIVE_HOLD_UP TRIBUN_NATIVE_FINISH TRIBUN_NATIVE_KEEPER_AI TRIBUN_NATIVE_DEFENSE_SHAPE TRIBUN_NATIVE_TRANSITION TRIBUN_NATIVE_ROLE_PROFILE TRIBUN_NATIVE_CLOSE_TOUCH TRIBUN_NATIVE_MOTION_SMOOTH TRIBUN_NATIVE_COLLECTIVE_AI TRIBUN_NATIVE_MATCH_PACE; do
   case "${!policy:-0}" in
     0) ;;
     1) active_policies=$((active_policies+1));;
@@ -17,6 +17,11 @@ for policy in TRIBUN_NATIVE_LINE_BREAK TRIBUN_NATIVE_RUN_LANES TRIBUN_NATIVE_TRI
   esac
 done
 [[ "$active_policies" -le 1 ]] || { echo "Independent attack policies cannot be combined before qualification" >&2; exit 2; }
+case "${TRIBUN_NATIVE_MATCH_PACE:-0}" in
+  0) ;;
+  1) [[ "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" == short-match && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_COLLISION_POSE:-0}" == 0 && "${TRIBUN_NATIVE_DETERMINISM:-0}" == 0 && "${TRIBUN_NATIVE_FINAL_THIRD_RETENTION:-0}" == 0 && "${TRIBUN_NATIVE_BOX_LANE_RUNS:-0}" == 0 && "${TRIBUN_NATIVE_TIMED_ATTACK:-0}" == 0 && "${TRIBUN_NATIVE_QUICK_RESTARTS:-0}" == 0 ]] || { echo "Match pace requires isolated fixed-clock short-match" >&2; exit 2; } ;;
+  *) exit 2;;
+esac
 case "${TRIBUN_NATIVE_COLLECTIVE_AI:-0}" in
   0) ;;
   1) [[ "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" == short-match && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_COLLISION_POSE:-0}" == 0 && "${TRIBUN_NATIVE_DETERMINISM:-0}" == 0 && "${TRIBUN_NATIVE_FINAL_THIRD_RETENTION:-0}" == 0 && "${TRIBUN_NATIVE_BOX_LANE_RUNS:-0}" == 0 && "${TRIBUN_NATIVE_TIMED_ATTACK:-0}" == 0 ]] || { echo "Collective AI requires isolated fixed-clock short-match" >&2; exit 2; } ;;

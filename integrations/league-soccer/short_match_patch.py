@@ -9,6 +9,20 @@ def edit(root, name, replacements):
         text = replace_once(text, old, new)
     p.write_text(text, encoding="utf-8")
 
+PACE_RULES = r'''// Prefer usable forward outlets, never prohibit a necessary backpass.
+inline bool PaceOutlet(float depth,float progress,float distance,float margin,float space,float odds){
+  return std::isfinite(odds)&&depth>=4.0f&&depth<=55.0f&&progress>=4.0f&&
+    distance>=5.0f&&distance<=27.0f&&margin>=1.3f&&space>=.52f&&odds>=.70f;
+}
+inline float PacePassBonus(float progress,float depth,float tempo){
+  return (.12f+.12f*std::clamp(tempo,0.0f,1.0f))*
+    std::clamp(progress/9.0f,.45f,1.0f)*(depth<=22.0f?1.25f:1.0f);
+}
+inline bool PaceShot(float distance,float angle,float odds,float skill,bool controlled){
+  return controlled&&distance>=3.0f&&distance<=17.0f&&angle>=.70f&&odds>=.68f&&skill>=.52f;
+}
+'''
+
 LINE_BREAK_RULES = r'''// Safe progressive pass into the final third; crossing a defender's depth is a proxy, not an xG model.
 inline bool LineBreakGeometry(float depth,float targetDepth,float progress,float distance,
     float margin,float receiverClearance,int defenders) {
@@ -2797,6 +2811,60 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
           match->tribunCloseTouches[team->GetID()].Record(original,touchVec.Get2D().GetLength());
         }
         match->GetBall()->Touch(touchVec);'''),
+    ])
+
+    # Stage 97: a quarantined five-minute chance-creation policy.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool PaceEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_MATCH_PACE");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + PACE_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  AITactics::CloseTouchProbe tribunCloseTouches[2];", "  AITactics::CloseTouchProbe tribunCloseTouches[2];\n  unsigned long tribunPacePasses[2]={0,0};"),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet || counterCandidate) {", r'''      bool paceCandidate=false;
+      float paceOdds=0.0f,paceProgress=0.0f,paceDepth=0.0f;
+      if(AITactics::PaceEnabled()&&runningPassEnabled&&match->IsInPlay()&&!match->IsInSetPiece()&&
+          !match->GetBallRetainer()&&mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
+        const auto delta=mates.at(i)->GetPosition()-player->GetPosition();
+        paceProgress=delta.coords[0]*attackForward;
+        paceDepth=pitchHalfW-player->GetPosition().coords[0]*attackForward;
+        const float margin=passOffside-mates.at(i)->GetPosition().coords[0]*attackForward;
+        if(AITactics::PaceOutlet(paceDepth,paceProgress,delta.GetLength(),margin,mateSit.spaceRating,1.0f)){
+          paceOdds=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
+          paceCandidate=AITactics::PaceOutlet(paceDepth,paceProgress,delta.GetLength(),margin,mateSit.spaceRating,paceOdds);
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet || counterCandidate || paceCandidate) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(paceCandidate&&paceOdds>=mateRating.passRating-.03f){
+          mateRating.passType=e_FunctionType_ShortPass;
+          mateRating.passRating=paceOdds;
+          mateRating.supportRating+=AITactics::PacePassBonus(paceProgress,paceDepth,tribunTempo);
+          ++match->tribunPacePasses[team->GetID()];
+        }else if(paceCandidate&&!(progressiveCandidate||supportCandidate||runningCandidate||deliveryCandidate||
+            pressureOutlet||returnCandidate||retentionOutlet||timedCandidate||lineBreak||triangleCandidate||holdOutlet||counterCandidate))continue;
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+        ("          finishPriority ||", r'''          (AITactics::PaceEnabled()&&match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer()&&
+            !team->GetHumanGamerCount()&&CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK&&
+            AITactics::PaceShot(distance,angle,odds,player->GetStat("technical_shot"),CastPlayer()->HasUniquePossession())) ||
+          finishPriority ||'''),
+    ])
+    # Use the already-tested ordinary ball-out restart path; exclude all
+    # fouls, goals, half-time and penalty situations as before.
+    edit(root, "src/onthepitch/referee.cpp", [
+        ('      if (quickRestarts && std::strcmp(quickRestarts, "1") == 0 &&', r'''      const char* pace=std::getenv("TRIBUN_NATIVE_MATCH_PACE");
+      const char* fixed=std::getenv("TRIBUN_NATIVE_FIXED_DURATION");
+      const char* attack=std::getenv("TRIBUN_LEAGUE_SOCCER_ATTACK");
+      const bool paceRestart=pace&&std::strcmp(pace,"1")==0&&fixed&&std::strcmp(fixed,"1")==0&&
+          attack&&std::strcmp(attack,"short-match")==0&&std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+      if (((quickRestarts && std::strcmp(quickRestarts, "1") == 0)||paceRestart) &&'''),
     ])
 
     # Stage 78: bounded native locomotion root-motion planning; no touch or special clips.

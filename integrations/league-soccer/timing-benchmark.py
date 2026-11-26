@@ -96,11 +96,13 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False,run_lanes=False,triangle=False,creative_carry=False,duel=False,hold_up=False,finish=False,keeper_ai=False,defense_shape=False,transition=False,role_profile=False,close_touch=False,motion_smooth=False,collective_ai=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False,run_lanes=False,triangle=False,creative_carry=False,duel=False,hold_up=False,finish=False,keeper_ai=False,defense_shape=False,transition=False,role_profile=False,close_touch=False,motion_smooth=False,collective_ai=False,match_pace=False):
     name,scale,quick=profile
-    attack_policies=(line_break,run_lanes,triangle,creative_carry,duel,hold_up,finish,keeper_ai,defense_shape,transition,role_profile,close_touch,motion_smooth,collective_ai)
+    attack_policies=(line_break,run_lanes,triangle,creative_carry,duel,hold_up,finish,keeper_ai,defense_shape,transition,role_profile,close_touch,motion_smooth,collective_ai,match_pace)
     if any(type(v) is not bool for v in attack_policies) or sum(attack_policies)>1:
         raise ValueError("Independent attack policies cannot be combined before qualification")
+    if match_pace and (not fixed_duration or not null_renderer or attack_profile!="short-match" or quick!="0" or any((retention,box_runs,timed_attack,collision_pose,determinism_probe))):
+        raise ValueError("Match pace requires isolated fixed-clock short-match")
     if collective_ai and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((retention,box_runs,timed_attack,collision_pose,determinism_probe))):
         raise ValueError("Collective AI requires isolated fixed-clock short-match")
     if motion_smooth and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((retention,box_runs,timed_attack,collision_pose,determinism_probe))):
@@ -207,6 +209,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_DEFENSE_SHAPE"]="1" if defense_shape else "0"
     env["TRIBUN_NATIVE_TRANSITION"]="1" if transition else "0"
     env["TRIBUN_NATIVE_COLLECTIVE_AI"]="1" if collective_ai else "0"
+    env["TRIBUN_NATIVE_MATCH_PACE"]="1" if match_pace else "0"
     env["TRIBUN_NATIVE_ROLE_PROFILE"]="1" if role_profile else "0"
     env["TRIBUN_NATIVE_CLOSE_TOUCH"]="1" if close_touch else "0"
     env["TRIBUN_NATIVE_MOTION_SMOOTH"]="1" if motion_smooth else "0"
@@ -316,8 +319,13 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     report["closeTouch"]=close_touch
     report["motionSmooth"]=motion_smooth
     report["collectiveAI"]=collective_ai
+    report["matchPace"]=match_pace
     if line_break or null_renderer:
         import re
+        pace=re.findall(r"\[tribun-pace\] mode=(pace|off) outlets=(\d+),(\d+)",log_text)
+        if len(pace)!=1 or pace[0][0]!=("pace" if match_pace else "off"):
+            raise ValueError("Missing match pace evidence")
+        report["paceProbe"]={"outlets":[int(pace[0][1]),int(pace[0][2])]}
         found=re.findall(r"\[tribun-linebreak\] mode=(linebreak|off) candidates=(\d+),(\d+) selected=(\d+),(\d+)",log_text)
         if len(found)!=1 or found[0][0]!=("linebreak" if line_break else "off"):
             raise ValueError("Missing line break policy evidence")

@@ -1,0 +1,34 @@
+name: Native five-minute match pace diagnostic
+on:
+  push:
+    branches: [experiment/native-match-pace-stage97]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pace:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_match_pace.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/pace-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare five-minute matches in three tactical fixtures
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/pace-fixtures"
+          python3 integrations/league-soccer/match-pace-benchmark.py "$RUNNER_TEMP/pace-runtime" "$RUNNER_TEMP/pace-fixtures" "$RUNNER_TEMP/pace-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-match-pace
+          path: ${{ runner.temp }}/pace-results/
+          if-no-files-found: ignore
