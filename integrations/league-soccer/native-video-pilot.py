@@ -37,6 +37,10 @@ def assess(capture,video):
 def capture_window(config,limit):
     video=Path(os.environ["TRIBUN_NATIVE_VIDEO_OUT"]);trace=Path(os.environ["TRIBUN_LEAGUE_SOCCER_TRACE"])
     require(video.is_absolute() and not video.exists() and video.suffix==".mp4","New absolute MP4 path required")
+    hls=os.environ.get("TRIBUN_NATIVE_HLS_DIR")
+    if hls:
+        hls=Path(hls)
+        require(hls.is_absolute() and hls.is_dir() and not any(hls.iterdir()),"New empty HLS directory required")
     progress=video.with_suffix(".progress");capture_log=video.with_suffix(".capture.log")
     game_log=video.with_suffix(".game.log");offset=0;first=kickoff=final=None;last=None;encoder=None
     with game_log.open("wb") as g,capture_log.open("wb") as e:
@@ -49,11 +53,16 @@ def capture_window(config,limit):
                     window=found.stdout.splitlines()[0].strip();break
                 time.sleep(.1)
             require(window is not None and window.isdigit(),"Native SDL window not found")
+            output_args=["-movflags","+faststart",str(video)]
+            if hls:
+                output_args=["-g","50","-keyint_min","50","-sc_threshold","0","-tune","zerolatency","-profile:v","baseline","-level:v","3.1",
+                  "-f","hls","-hls_time","2","-hls_list_size","0","-hls_playlist_type","event","-hls_segment_type","fmp4",
+                  "-hls_fmp4_init_filename","init.mp4","-hls_flags","independent_segments+temp_file",
+                  "-hls_segment_filename",str(hls/"segment-%05d.m4s"),str(hls/"live.m3u8")]
             encoder=subprocess.Popen(["ffmpeg","-nostdin","-hide_banner","-loglevel","warning","-y","-f","x11grab",
               "-draw_mouse","0","-framerate","25","-window_id",window,"-i",os.environ["DISPLAY"],
-              "-an","-vf","scale=trunc(iw/2)*2:trunc(ih/2)*2","-c:v","libx264","-threads","2",
-              "-preset","ultrafast","-crf","25","-pix_fmt","yuv420p","-movflags","+faststart",
-              "-progress",str(progress),str(video)],stdout=e,stderr=subprocess.STDOUT)
+              "-an","-vf",("scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2" if hls else "scale=trunc(iw/2)*2:trunc(ih/2)*2"),"-c:v","libx264","-threads","2",
+              "-preset","ultrafast","-crf","25","-pix_fmt","yuv420p","-progress",str(progress),*output_args],stdout=e,stderr=subprocess.STDOUT)
             def drain():
                 nonlocal offset,kickoff,final,last,first
                 if first is None and progress.exists():

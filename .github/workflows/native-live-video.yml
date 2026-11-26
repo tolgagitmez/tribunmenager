@@ -1,0 +1,46 @@
+name: Original native local HLS pilot
+on:
+  push:
+    branches: [experiment/native-live-video-stage115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-video:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_live_video.py
+      - run: node --test integrations/league-soccer/native-live-video.test.cjs
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build frozen native OpenGL runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/live-video-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Play native video in browser during actual fixed-clock match
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/live-video-fixtures"
+          out="$RUNNER_TEMP/live-video-result"
+          python3 integrations/league-soccer/native-live-video.py "$RUNNER_TEMP/live-video-runtime" "$RUNNER_TEMP/live-video-fixtures/balanced.json" "$out" &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt"
+          wait "$pid"
+          trap - EXIT
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-hls-measurement-only
+          path: |
+            ${{ runner.temp }}/live-video-result/live-report.json
+            ${{ runner.temp }}/live-video-result/runner.log
+          if-no-files-found: ignore

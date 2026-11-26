@@ -1,0 +1,105 @@
+"""Loopback-only original-renderer HLS diagnostic. Not league authorization."""
+import argparse,importlib.util,json,os,re,secrets,subprocess,threading,time
+from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlsplit
+from release_evidence import stamp,sha
+HERE=Path(__file__).resolve().parent
+spec=importlib.util.spec_from_file_location("video",HERE/"native-video-pilot.py")
+V=importlib.util.module_from_spec(spec);spec.loader.exec_module(V)
+def write_json(path,data):
+    tmp=path.with_suffix(".tmp");tmp.write_text(json.dumps(data,indent=2,allow_nan=False)+"\n");tmp.replace(path)
+def allowed(name):
+    return name in ("live.m3u8","init.mp4") or bool(re.fullmatch(r"segment-[0-9]{5}\.m4s",name))
+def make_server(media,token,state):
+    prefix="/"+token+"/"
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self,*args):pass
+        def do_GET(self):
+            if self.headers.get("Host")!=f"127.0.0.1:{self.server.server_port}":
+                self.send_error(403);return
+            path=urlsplit(self.path).path
+            if not path.startswith(prefix):self.send_error(404);return
+            name=path[len(prefix):]
+            if name in ("","index.html"):
+                data=(HERE/"native-live-video.html").read_bytes();mime="text/html; charset=utf-8"
+            elif name=="player.js":
+                data=(HERE/"native-live-video.js").read_bytes();mime="text/javascript; charset=utf-8"
+            elif name=="status.json":
+                data=json.dumps(state.copy()).encode();mime="application/json"
+            elif allowed(name):
+                p=media/name
+                if not p.is_file() or p.is_symlink():self.send_error(404);return
+                data=p.read_bytes();mime="application/vnd.apple.mpegurl" if name.endswith(".m3u8") else "video/mp4"
+            else:self.send_error(404);return
+            self.send_response(200);self.send_header("Content-Type",mime);self.send_header("Content-Length",str(len(data)))
+            self.send_header("Cache-Control","no-store");self.send_header("Referrer-Policy","no-referrer")
+            self.send_header("X-Content-Type-Options","nosniff")
+            self.send_header("Content-Security-Policy","default-src 'none'; script-src 'self'; connect-src 'self'; media-src 'self' blob:; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'")
+            self.end_headers()
+            try:self.wfile.write(data)
+            except (BrokenPipeError,ConnectionResetError):pass
+    return ThreadingHTTPServer(("127.0.0.1",0),Handler)
+def validate_playlist(media):
+    p=media/"live.m3u8";lines=p.read_text().splitlines()
+    V.require(lines[0]=="#EXTM3U" and "#EXT-X-ENDLIST" in lines and '#EXT-X-MAP:URI="init.mp4"' in lines,"Incomplete HLS playlist")
+    segments=[s for s in lines if s and not s.startswith("#")]
+    durations=[float(s.split(":",1)[1].split(",")[0]) for s in lines if s.startswith("#EXTINF:")]
+    V.require(len(segments)==len(durations)>0 and len(set(segments))==len(segments) and all(allowed(s) and s.endswith(".m4s") and (media/s).is_file() for s in segments),"Invalid segment set")
+    V.require(all(0<d<=3 for d in durations),"Unexpected segment duration")
+    return {"segmentCount":len(segments),"durationSeconds":sum(durations),"playlistSha256":sha(p),
+        "bytes":sum((media/s).stat().st_size for s in segments)+(media/"init.mp4").stat().st_size}
+def main():
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)
+    p.add_argument("--linger",type=int,default=15)
+    a=p.parse_args();V.require(0<=a.linger<=120,"Invalid linger")
+    runtime=a.runtime.resolve();fixture=a.fixture.resolve();out=a.out.resolve()
+    out.mkdir(parents=True,exist_ok=False);media=out/"hls";media.mkdir()
+    state={"phase":"starting","engine":"league-soccer","authoritative":False,"audio":False}
+    token=secrets.token_urlsafe(24);server=make_server(media,token,state)
+    url=f"http://127.0.0.1:{server.server_port}/{token}/"
+    # URL is private to local filesystem; never included in report or artifact.
+    (out/"local-url.txt").write_text(url+"\n")
+    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+    trace=out/"match.ndjson";video=out/"native-match.mp4"
+    report=stamp({"schema":1,"authoritative":False,"productionEnabled":False,"status":"incomplete",
+        "fixtureSha256":sha(fixture),"videoRedistributionApproved":False,"transport":"local-hls-fmp4"},runtime,"native-live-video")
+    report_path=out/"live-report.json";write_json(report_path,report)
+    env=V.env_for(os.environ,video);env["TRIBUN_NATIVE_HLS_DIR"]=str(media)
+    first=None;started=time.monotonic()
+    try:
+        with (out/"runner.log").open("wb") as log:
+            proc=subprocess.Popen(["bash",str(HERE/"run-frozen.sh"),str(runtime),str(fixture),str(trace),"0"],env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+            try:
+                while proc.poll() is None:
+                    if first is None and (media/"live.m3u8").is_file() and any(media.glob("segment-*.m4s")):
+                        first=time.monotonic();state["phase"]="streaming"
+                    if time.monotonic()-started>1000:raise TimeoutError("Native live capture exceeded limit")
+                    time.sleep(.1)
+                if proc.returncode:raise RuntimeError("Native live capture failed")
+            finally:
+                if proc.poll() is None:
+                    import signal
+                    os.killpg(proc.pid,signal.SIGTERM)
+                    try:proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:os.killpg(proc.pid,signal.SIGKILL);proc.wait()
+        fixed_spec=importlib.util.spec_from_file_location("fixed",HERE/"fixed-duration.py")
+        fixed=importlib.util.module_from_spec(fixed_spec);fixed_spec.loader.exec_module(fixed)
+        with trace.open() as f:clock=fixed.verify(json.loads(l) for l in f)
+        playlist=validate_playlist(media);capture=json.loads(video.with_suffix(".capture.json").read_text())
+        checks=V.assess(capture,{"durationSeconds":playlist["durationSeconds"],"averageEncodedPacketsPerSecond":0})
+        checks.pop("encodedCadenceAtLeast20")
+        checks["firstSegmentBeforeObservedFinal"]=first is not None and capture["finalObserved"] is not None and first<capture["finalObserved"]
+        complete=all(checks[k] for k in ("captureBeforeKickoff","videoLengthAtLeastObservedMatch","firstSegmentBeforeObservedFinal"))
+        report.update(status="local-live-evidence" if complete else "coverage-inconclusive",nativeClock=clock,
+          playlist=playlist,checks=checks,traceSha256=sha(trace),
+          note="Loopback only, silent 2-second HLS segments. Browser latency, actual renderer FPS, asset clearance, multiplayer authorization and capacity not qualified.")
+        state["phase"]="finished" if complete else "failed";write_json(report_path,report)
+        if not complete:raise RuntimeError("Live coverage inconclusive")
+        print(json.dumps(report,indent=2),flush=True);time.sleep(a.linger)
+    except BaseException:
+        state["phase"]="failed";raise
+    finally:
+        server.shutdown();server.server_close();thread.join(timeout=5)
+if __name__=="__main__":main()
