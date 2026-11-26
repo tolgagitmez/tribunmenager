@@ -96,8 +96,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100):
     name,scale,quick=profile
+    if type(contact_interval_ms) is not int or contact_interval_ms not in (100,50,20,10) or (contact_interval_ms!=100 and not collision_pose):
+        raise ValueError("Contact interval requires collision-only mode; allowed 100,50,20,10 ms")
     if type(collision_pose) is not bool or (collision_pose and not ordered_pose):
         raise ValueError("Collision-only pose requires ordered deterministic null diagnostic")
     if type(ordered_pose) is not bool or (ordered_pose and not determinism_probe):
@@ -141,6 +143,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_DETERMINISM"]="1" if determinism_probe else "0"
     env["TRIBUN_NATIVE_ORDERED_POSE"]="1" if ordered_pose else "0"
     env["TRIBUN_NATIVE_COLLISION_POSE"]="1" if collision_pose else "0"
+    env["TRIBUN_NATIVE_CONTACT_INTERVAL_MS"]=str(contact_interval_ms)
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -225,6 +228,16 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     collision_marker="[tribun-collision] pose=simulation visual-mesh=off local-hud=off"
     if (collision_marker in log_text)!=collision_pose:
         raise ValueError("Collision pose marker mismatch")
+    report["contactIntervalMs"]=contact_interval_ms
+    if collision_pose:
+        import re
+        matches=re.findall(r"\[tribun-contact\] interval-ms=(\d+) updates=(\d+) max-age-ticks=(\d+) missing=(\d+) ball-overlaps=(\d+) keeper-overlaps=(\d+) tackle-overlaps=(\d+) controlled-requests=(\d+)",log_text)
+        if len(matches)!=1:raise ValueError("Missing contact evidence")
+        keys=("intervalMs","poseUpdates","maxAgeTicks","missingPoseChecks","ballOverlaps","keeperOverlaps","tackleOverlaps","controlledRequests")
+        contact=dict(zip(keys,map(int,matches[0])))
+        if contact["intervalMs"]!=contact_interval_ms or contact["poseUpdates"]<=0:
+            raise ValueError("Invalid collision cadence evidence")
+        report["contactProbe"]=contact
     if collision_pose and "[tribun-skinning] runtime=" in log_text:
         raise ValueError("Unexpected runtime skinning in collision-only mode")
     if null_renderer and not collision_pose:
