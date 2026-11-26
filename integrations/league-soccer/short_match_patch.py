@@ -868,7 +868,12 @@ inline float ShotOddsThreshold() {
       const float angle=distance>0.01f ? toGoal.coords[0]*-team->GetSide()/distance : 0.0f;
       // Prioritize an already accepted, high-quality shot over ordinary passing.
       // Animation selection may still reject it and fall through to the existing queue.
-      if(AITactics::ShortMatchAttackEnabled() &&
+      if(boxFinish207){
+        commandQueue.insert(commandQueue.begin()+onBallStart,command);
+        if(match->GetActualTime_ms()%250UL==0)
+          std::fprintf(stderr,"[tribun-box-finish207] team=%d player=%d match_ms=%lu\n",
+              team->GetID(),player->GetID(),static_cast<unsigned long>(match->GetMatchTime_ms()));
+      }else if(AITactics::ShortMatchAttackEnabled() &&
          AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()))
         commandQueue.insert(commandQueue.begin()+onBallStart,command);
       else
@@ -1024,10 +1029,20 @@ inline float ShotOddsThreshold() {
   const bool distanceProbe=AITactics::ShortMatchAttackEnabled() &&
       CastPlayer()->HasUniquePossession() && CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK &&
       AITactics::EligibleDistanceShot(shotDistance,shotAngle,player->GetStat("technical_shot"),1.0f);
-  if (idealShotPosFactor > 0.1f || distanceProbe) {'''),
+  const auto shotBall207=match->GetBall()->Predict(0);
+  const bool boxProbe207=AITactics::Offball188Enabled() && match->IsInPlay() &&
+      !match->IsInSetPiece() && !match->GetBallRetainer() && !team->GetHumanGamerCount() &&
+      CastPlayer()->IsActive() && CastPlayer()->HasUniquePossession() &&
+      match->GetDesignatedPossessionPlayer()==player && match->GetLastTouchPlayer()==player &&
+      CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK &&
+      AITactics::BoxFinish207Geometry(shotVector.coords[0]*-team->GetSide(),
+          std::abs(player->GetPosition().coords[1]),shotDistance,shotAngle,
+          player->GetStat("technical_shot"),(shotBall207.Get2D()-player->GetPosition().Get2D()).GetLength(),
+          shotBall207.coords[2]);
+  if (idealShotPosFactor > 0.1f || distanceProbe || boxProbe207) {'''),
         ("    if (odds + random(0.0f, 0.28f) > AITactics::ShotOddsThreshold()) {", r'''    const bool distanceShot=distanceProbe &&
         AITactics::EligibleDistanceShot(shotDistance,shotAngle,player->GetStat("technical_shot"),odds);
-    if ((idealShotPosFactor > 0.1f || distanceShot) &&
+    if ((idealShotPosFactor > 0.1f || distanceShot || boxFinish207) &&
         odds + random(0.0f, 0.28f) > AITactics::ShotOddsThreshold()) {'''),
     ])
 
@@ -1899,6 +1914,18 @@ struct RunReservation189 {
         now>=at && now-at<=250UL;
   }
 };
+inline bool BoxFinish207Geometry(float depth,float lateral,float distance,float angle,float skill,float ballGap,float ballHeight){
+  return std::isfinite(depth)&&std::isfinite(lateral)&&std::isfinite(distance)&&
+      std::isfinite(angle)&&std::isfinite(skill)&&std::isfinite(ballGap)&&std::isfinite(ballHeight)&&
+      depth>=3.0f&&depth<=16.5f&&lateral>=0.0f&&lateral<=10.0f&&
+      distance>=3.0f&&distance<=19.0f&&angle>=.70f&&angle<=1.001f&&
+      skill>=.45f&&skill<=1.0f&&ballGap>=0.0f&&ballGap<=1.0f&&ballHeight>=-.05f&&ballHeight<=.45f;
+}
+inline bool BoxFinish207Prefer(float shotOdds,float passOdds){
+  return std::isfinite(shotOdds)&&std::isfinite(passOdds)&&
+      shotOdds>=.62f&&shotOdds<=1.0f&&passOdds>=0.0f&&passOdds<=1.0f&&
+      shotOdds+.10f>=passOdds;
+}
 inline bool RunPass206Eligible(const RunReservation189& reservation,int receiver,int carrier,int phase,
     unsigned long now,float x,float y,float vx,float vy){
   if(receiver<0||carrier<0||receiver==carrier||reservation.player!=receiver||
@@ -2789,6 +2816,8 @@ Vector3 AI_GetForceFieldMovement'''),
         finishPriority=AITactics::FinishPreferShot(shotDistance,shotAngle,skill,odds,bestField,passOdds);
       }
     }
+    const bool boxFinish207=boxProbe207 && AITactics::BoxFinish207Prefer(odds,
+        bestMateRating.player?bestMateRating.passRating:0.0f);
     odds = std::pow(odds, 0.5f);'''),
         ("          AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()) ||", r'''          finishPriority ||
           AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()) ||'''),
