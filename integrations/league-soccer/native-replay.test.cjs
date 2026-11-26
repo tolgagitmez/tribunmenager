@@ -33,3 +33,46 @@ test('manifest mismatch fails instead of mislabeling native actors',()=>{
  manifest.teams[0].players[0].nativeId=99;assert.throws(()=>R.create(parse(f),manifest));
 });
 module.exports={fixture};
+
+const Rig=require('../../humanoid-rig.js');
+test('stage79 is opt-in; trace-derived acceleration uses replay axes and preserves simulation',()=>{
+ const f=fixture();f[0].players[1].velocity=[2,0,0];f[1].players[1].velocity=[3,1,0];
+ const baseline=R.create(parse(f)),candidate=R.create(parse(f),null,{bodyBalance:true});
+ const a=baseline.sample(50),b=candidate.sample(50);
+ assert.equal(a.players[1].nativeBodyBalance,undefined);
+ assert.equal(b.players[1].nativeBodyBalance.valid,true);
+ assert.deepEqual(b.players[1].nativeBodyBalance,{ax:10,az:-10,valid:true});
+ for(const k of ['x','z','vx','vz','face','speed'])assert.equal(a.players[1][k],b.players[1][k]);
+ assert.deepEqual(a.ball,b.ball);assert.deepEqual(a.score,b.score);
+ assert.equal(b.players[0].nativeBodyBalance.valid,false);
+ assert.equal(f[0].players[1].velocity[0],2);
+});
+test('stage79 rejects stopped play, gaps and teleport cues and bounds outliers',()=>{
+ for(const mutate of [f=>f[1].inPlay=false,f=>f[0].setPiece=true,f=>f[1].elapsedMs=400,f=>f[1].players[1].position=[20,10,0]]){
+  const f=fixture();mutate(f);const r=R.create(parse(f),null,{bodyBalance:true});
+  assert.equal(r.sample(20).players[1].nativeBodyBalance.valid,false);
+ }
+ const f=fixture();f[1].players[1].velocity=[100,100,0];
+ const cue=R.create(parse(f),null,{bodyBalance:true}).sample(20).players[1].nativeBodyBalance;
+ assert.ok(Math.hypot(cue.ax,cue.az)<=15.000001);
+});
+test('stage79 body lean, brake crouch, and special action isolation',()=>{
+ const p={x:0,z:0,face:0,speed:4,action:'run',actionClock:0,nativeBodyBalance:{ax:5,az:6,valid:true}};
+ let pose;
+ for(let i=0;i<30;i++){p.x+=.04;pose=Rig.update(p,.01);}
+ assert.ok(pose.nativeBalance.pitch>.05);assert.ok(pose.nativeBalance.roll>.05);
+ p.nativeBodyBalance={ax:-8,az:0,valid:true};
+ for(let i=0;i<30;i++){p.x+=.04;pose=Rig.update(p,.01);}
+ assert.ok(pose.nativeBalance.pitch<0);assert.ok(pose.nativeBalance.drop>.02);
+ for(const leg of pose.legs)assert.ok(Math.abs(Math.hypot(...leg.knee.map((v,i)=>v-leg.hip[i]))-Rig.ANATOMY.thigh)<1e-5);
+ p.action='shoot';p.actionClock=.4;p.kickFoot=0;
+ pose=Rig.update(p,.01);assert.deepEqual(pose.nativeBalance,{pitch:0,roll:0,drop:0});
+ Rig.reset(p);p.action='run';p.actionClock=0;pose=Rig.update(p,0);
+ assert.deepEqual(pose.nativeBalance,{pitch:0,roll:0,drop:0});
+});
+test('stage79 replay animation time follows recording, not display playback rate',()=>{
+ const f=fixture(),calls=[],rig={update:(p,dt)=>{if(p.id===1)calls.push(dt)},reset:()=>{}};
+ const r=R.create(parse(f),null,{bodyBalance:true});
+ r.sample(0,rig,.1);r.sample(20,rig,.09);r.sample(20,rig,.09);r.sample(5,rig,.09);
+ assert.deepEqual(calls,[0,.02,0,0]);
+});

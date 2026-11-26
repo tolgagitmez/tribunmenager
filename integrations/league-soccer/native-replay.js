@@ -46,7 +46,21 @@
   }
   return map;
  }
- function create(frames,manifest=null){
+ // Trace-derived presentation cues. Never infer contacts or modify positions.
+ function balanceCue(a,b,source,target){
+  const span=b.elapsedMs-a.elapsedMs;
+  if(a.done||a.inPlay===false||b.inPlay===false||a.setPiece||b.setPiece||
+     !target||target.team!==source.team||target.databaseId!==source.databaseId||
+     span<50||span>200)return {ax:0,az:0,valid:false};
+  const dt=span/1000,p=coord(source.position),q=coord(target.position);
+  if(Math.hypot(q.x-p.x,q.z-p.z)>2||source.goalkeeper)return {ax:0,az:0,valid:false};
+  const v=velocity(source.velocity),w=velocity(target.velocity);
+  let ax=(w.vx-v.vx)/dt,az=(w.vz-v.vz)/dt;
+  // Clamp the visual input rather than smoothing or rewriting engine velocity.
+  const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
+  return {ax:ax*scale,az:az*scale,valid:true};
+ }
+ function create(frames,manifest=null,{bodyBalance=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
@@ -56,6 +70,7 @@
   function sample(ms,rig,dt=0){
    const time=start+clamp(ms,0,duration);
    if(previousTime!==null&&(time<previousTime||time-previousTime>500))reset(rig);
+   const step=previousTime===null?0:clamp((time-previousTime)/1000,0,.1);
    previousTime=time;
    let lo=0,hi=frames.length;
    while(lo<hi){const mid=(lo+hi)>>1;if(frames[mid].elapsedMs<=time)lo=mid+1;else hi=mid;}
@@ -79,7 +94,19 @@
     Object.assign(actor,{active:true,index:metadata?.slot??i%11,name:metadata?.name??('Oyuncu '+source.id),rosterId:metadata?.rosterId,
      role:metadata?.role==='GK'||source.goalkeeper===true?'GK':'FIELD',num:(metadata?.slot??i%11)+1,
      x:lerp(pos.x,dest.x,blend),z:lerp(pos.z,dest.z,blend),face:yaw(face,nextFace,blend),vx,vz,speed,action:speed>.25?'run':'idle',actionClock:0,selected:false});
-    active.add(source.id);rig?.update(actor,clamp(dt,0,.1));return actor;
+    if(bodyBalance){
+     const cue=balanceCue(a,b,source,target);
+     actor.nativeBodyBalance=cue;
+     // Hysteresis avoids flickering around gait boundaries. All moving
+     // categories remain compatible with the existing animation bridge.
+     const prior=actor.nativeGait||'idle';
+     const gait= speed<(prior==='idle'?.35:.20)?'idle':
+       speed>(prior==='sprint'?5.3:5.8)?'sprint':
+       speed>(['run','sprint'].includes(prior)?2.4:2.8)?'run':
+       speed>(['jog','run','sprint'].includes(prior)?1.1:1.4)?'jog':'walk';
+     actor.nativeGait=gait;actor.action=gait;
+    }
+    active.add(source.id);rig?.update(actor,bodyBalance?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}
    const p=coord(a.ball),q=coord(b.ball),v=velocity(a.ballVelocity),w=velocity(b.ballVelocity);

@@ -1,0 +1,5 @@
+# Stage 79 — native replay body balance (opt-in)
+
+Experimental presentation layer only. The underlying League-Soccer match, ball, tactical AI, score and native contact poses are unchanged. On the separate replay screen select the experimental body balance checkbox and load a recording. Toggle it off for baseline. This is not an IK or motion-capture replacement.
+
+The renderer receives bounded planar acceleration from adjacent native frames, rejects discontinuities, projects onto body-facing axes, and eases a pitch, roll and brake crouch in the existing anatomically constrained rig. Gait labels use hysteresis; existing planted foot targets are retained. Playback animation uses recorded time for the pilot. Tests are synthetic contract evidence, not visual or match-quality evidence. No new clips, mass model, individual physical attributes or verified reduction of foot sliding. Qualify visually and quantify foot contact/slip in a separate follow-up. Stage 78 motion refinement remains experimental.

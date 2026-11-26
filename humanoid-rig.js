@@ -153,12 +153,27 @@ function pose(p,dt=1/60){
  const tackle=act==='tackle'?action:0,diving=act==='dive'?action:0,celebrating=act==='celebrate'?action:0,protest=act==='protest'?action:0;
  const bounce=st.activity*(.008+.014*sprint)*Math.sin(st.phase*4*Math.PI);
  const gather=gatherDrop(p),strike=kicking?Math.max(kick,smooth(contact/.9)*(1-smooth(after))):0;
- const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015;
+ // Opt-in native replay only. Use acceleration in the player's local axes,
+ // not frame-to-frame facing alone (a stationary turn is not a running lean).
+ const native=p.nativeBodyBalance;
+ let nativePitch=0,nativeRoll=0,nativeDrop=0;
+ if(native){
+  const valid=native.valid===true&&!special&&Number.isFinite(native.ax)&&Number.isFinite(native.az);
+  const forward=valid?native.ax*fx+native.az*fz:0;
+  const lateral=valid?-native.ax*fz+native.az*fx:0;
+  const moving=smooth(speed/2);
+  const gain=1-Math.exp(-dt*10);
+  st.nativePitch=mix(st.nativePitch||0,valid?clamp(forward*.016+moving*.035,-.10,.17):0,gain);
+  st.nativeRoll=mix(st.nativeRoll||0,valid?clamp(lateral*.019,-.15,.15)*moving:0,gain);
+  st.nativeDrop=mix(st.nativeDrop||0,valid?clamp(-forward*.005,0,.045)*moving:0,gain);
+  if(!special){nativePitch=st.nativePitch;nativeRoll=st.nativeRoll;nativeDrop=st.nativeDrop;}
+ }
+ const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-nativeDrop;
  const feint=feintWeight*feintSide*.12;
  const headerU=act==='header'&&p.actionClock>0?clamp((p.actionElapsed||0)/Math.max(.1,p.actionDuration||.5),0,1):0,headerWave=Math.sin(Math.PI*headerU);
  const headerBend=p.headerHeight?clamp((1.77-p.headerHeight)*headerWave,0,.8):0;
  const shieldSide=p.dribbleFoot===0?1:-1;
- const pitch=clamp(st.lean*2+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp(st.turn*.25+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055+cutWeight*cutSide*.045,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
+ const pitch=clamp((native?nativePitch:st.lean*2)+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp((native?nativeRoll:st.turn*.25)+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055+cutWeight*cutSide*.045,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
  const facing=[Math.cos(p.face||0),0,Math.sin(p.face||0)],right=[-facing[2],0,facing[0]];
  const up=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
  const bodyForward=unit(sub(facing,mul(up,dot(facing,up)))),bodyRight=unit(cross(bodyForward,up)),bodyFrame={forward:bodyForward,up,right:bodyRight};
@@ -268,6 +283,7 @@ function pose(p,dt=1/60){
   arms.push({shoulder,target:wrist});
  }
  let result={pelvis,neck,head,headTop,torsoBase,torsoMid,torsoUpper,legs,arms,activity:st.activity,sprint,kick,tackle,diving,celebrating,protest,face:p.face,action:act,weight:action,turn:st.turn,feintWeight,shieldWeight,defenderMisread,wallPassWeight,cutWeight,burstWeight};
+ if(native)result.nativeBalance={pitch:nativePitch,roll:nativeRoll,drop:nativeDrop};
  if(hasScan||st.scanYaw){result.headYaw=st.scanYaw;result.headFace=(p.face||0)+st.scanYaw;}
  let frame=bodyFrame,contactTargets=null;
  const bodyKeys=['pelvis','neck','head','headTop','torsoBase','torsoMid','torsoUpper'];
