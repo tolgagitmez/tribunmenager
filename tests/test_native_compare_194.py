@@ -42,3 +42,44 @@ class CompareTest(unittest.TestCase):
         b = sample()
         b['quality']['football'].update(passes=[0, 0], completed=[0, 0])
         self.assertIsNone(compare(sample(), b)['experimental']['passCompletionPercent'])
+
+
+    def test_separate_stall_sources(self):
+        a, b = sample(), sample()
+        a['quality']['stallDiagnostics'] = {'carrier': {'complete': True, 'lastNativeMs': 300000,
+            'stationaryCarrierEpisodes': 3, 'longestStationaryCarrierMs': 4200, 'excludedGapMs': 50},
+            'nativeClock': {'fullTimeObserved': True, 'lastNativeMs': 300000, 'error': None,
+            'wallGapCount': 1, 'longestWallGapSeconds': 4.2}}
+        b['quality']['stallDiagnostics'] = {'carrier': {'complete': True, 'lastNativeMs': 300000,
+            'stationaryCarrierEpisodes': 1, 'longestStationaryCarrierMs': 1500, 'excludedGapMs': 100},
+            'nativeClock': {'fullTimeObserved': True, 'lastNativeMs': 300000, 'error': None,
+            'wallGapCount': 0, 'longestWallGapSeconds': 0}}
+        delta = compare(a, b)['deltaExperimentalMinusBaseline']
+        self.assertEqual(delta['stationaryCarrierEpisodes'], -2)
+        self.assertEqual(delta['longestStationaryCarrierMs'], -2700)
+        self.assertEqual(delta['nativeWallGapCount'], -1)
+        self.assertEqual(delta['longestNativeWallGapSeconds'], -4.2)
+        self.assertEqual(delta['carrierTraceExcludedGapMs'], 50)
+
+    def test_incomplete_stall_evidence_is_not_zero(self):
+        a = sample()
+        a['quality']['stallDiagnostics'] = {'carrier': {'complete': False, 'lastNativeMs': 290000,
+            'stationaryCarrierEpisodes': 0}, 'nativeClock': {'fullTimeObserved': True, 'lastNativeMs': 300000,
+            'error': 'ValueError', 'wallGapCount': 0}}
+        result = compare(a, a)['baseline']
+        self.assertIsNone(result['stationaryCarrierEpisodes'])
+        self.assertIsNone(result['nativeWallGapCount'])
+
+    def test_inconsistent_stall_count(self):
+        a = sample()
+        a['quality']['stallDiagnostics'] = {'carrier': {'complete': True, 'lastNativeMs': 300000,
+            'stationaryCarrierEpisodes': 0, 'longestStationaryCarrierMs': 1600}}
+        with self.assertRaises(ValueError):
+            compare(a, a)
+
+    def test_fractional_count_rejected(self):
+        a = sample()
+        a['quality']['stallDiagnostics'] = {'nativeClock': {'fullTimeObserved': True, 'lastNativeMs': 300000,
+            'error': None, 'wallGapCount': 0.5, 'longestWallGapSeconds': 3.5}}
+        with self.assertRaises(ValueError):
+            compare(a, a)
