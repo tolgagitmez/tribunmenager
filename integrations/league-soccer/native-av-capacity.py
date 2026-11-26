@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+from native_process_profile import ProcessProfile, snapshot
 
 HERE = Path(__file__).resolve().parent
 
@@ -116,6 +117,7 @@ def main():
     p.add_argument('fixtures', type=Path)
     p.add_argument('out', type=Path)
     p.add_argument('--count', type=int, choices=(2, 4, 8, 16), default=2)
+    p.add_argument('--filter-threads', type=int, choices=(0, 1), default=0)
     args = p.parse_args()
     runtime, fixtures, out = (x.resolve() for x in (args.runtime, args.fixtures, args.out))
     out.mkdir(parents=True, exist_ok=False)
@@ -123,6 +125,8 @@ def main():
     env = dict(os.environ, TRIBUN_EXPECT_AUDIO='1', TRIBUN_EXPECT_CONTROL='1',
                TRIBUN_EXPECT_FULL_PLAYBACK='1', TRIBUN_PLAYBACK_MIN_SECONDS='300',
                TRIBUN_EXPECT_SUSTAINED='0')
+    env['TRIBUN_AV_FILTER_THREADS'] = str(args.filter_threads)
+    meter = ProcessProfile()
     jobs = []
     logs = []
     samples = []
@@ -135,7 +139,7 @@ def main():
             logs.append(native_log)
             native = subprocess.Popen(['python3', str(HERE / 'native-live-video.py'),
                  str(runtime), str(out / 'fixtures' / (name + '.json')), str(directory), '--audio', '--interactive', '--linger', '60'],
-                 stdout=native_log, stderr=subprocess.STDOUT)
+                 stdout=native_log, stderr=subprocess.STDOUT, env=env)
             jobs.append([directory, native, None])
         for job in jobs:
             directory = job[0]
@@ -149,10 +153,11 @@ def main():
             time.sleep(2)
             previous, sample = host_sample(previous, out)
             sample['elapsedSeconds'] = round(time.monotonic() - started, 2)
+            sample['processRoles'] = meter.observe(snapshot(), [proc.pid for _, n, b in jobs for proc in (n,b) if proc.poll() is None])
             samples.append(sample)
         matches = [match_result(d, n.returncode, b.returncode) for d, n, b in jobs]
         report = {**summarize(matches), 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
-                  'samples': samples, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
+                  'samples': samples, 'processProfile': meter.report(), 'filterThreads': args.filter_threads, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
                   'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
         (out / 'capacity-report.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps({k: v for k, v in report.items() if k != 'samples'}, indent=2))
@@ -163,7 +168,7 @@ def main():
         (out / 'capacity-report.json').write_text(json.dumps({
             'passed': False, 'productionQualified': False, 'requestedMatches': args.count,
             'failureType': type(error).__name__, 'matches': matches, 'samples': samples,
-            'resourceSummary': resource_summary(samples)
+            'resourceSummary': resource_summary(samples), 'processProfile': meter.report(), 'filterThreads': args.filter_threads
         }, indent=2) + '\n')
         return 1
     finally:

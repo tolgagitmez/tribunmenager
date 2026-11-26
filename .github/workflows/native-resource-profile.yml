@@ -1,0 +1,59 @@
+name: Stage 126 native process profile A-B
+on:
+  push:
+    branches: [experiment/native-resource-profile-stage126]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_process_profile.py
+          python3 -m unittest discover -s tests -p test_native_av_capacity.py
+          python3 -m py_compile integrations/league-soccer/native-video-pilot.py integrations/league-soccer/native-av-capacity.py
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth pulseaudio pulseaudio-utils libopenal-dev
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - name: Build frozen engine
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/profile-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare identical fixtures, default vs single scaling filter worker
+        run: |
+          set -euo pipefail
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/profile-fixtures"
+          for threads in 0 1; do
+            python3 integrations/league-soccer/native-av-capacity.py "$RUNNER_TEMP/profile-runtime" "$RUNNER_TEMP/profile-fixtures" "$RUNNER_TEMP/profile-$threads" --count 2 --filter-threads "$threads"
+          done
+          python3 - "$RUNNER_TEMP" <<'PY'
+          import json, pathlib, sys
+          root=pathlib.Path(sys.argv[1])
+          a,b=[json.loads((root / f'profile-{n}' / 'capacity-report.json').read_text()) for n in (0,1)]
+          assert a['passed'] and b['passed']
+          assert [m['fixtureSha256'] for m in a['matches']]==[m['fixtureSha256'] for m in b['matches']]
+          def role(r,k):
+              return r['processProfile']['roles'][k]['observedCpuSecondsLowerBound']
+          result={'baselineEncoderCpuSeconds':role(a,'video_encoder'),'candidateEncoderCpuSeconds':role(b,'video_encoder'),
+                  'baseline':a['resourceSummary'],'candidate':b['resourceSummary'],'productionQualified':False,
+                  'note':'Single paired trial; sample CPU lower bounds, no subjective quality or production optimization claim.'}
+          (root/'profile-comparison.json').write_text(json.dumps(result,indent=2))
+          print(json.dumps(result,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-resource-profile-reports
+          path: |
+            ${{ runner.temp }}/profile-*/capacity-report.json
+            ${{ runner.temp }}/profile-comparison.json
+          if-no-files-found: ignore

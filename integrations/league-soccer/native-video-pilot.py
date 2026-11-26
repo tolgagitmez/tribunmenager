@@ -71,9 +71,13 @@ def _capture_window(config,limit,audio_env):
                   "-hls_fmp4_init_filename","init.mp4","-hls_flags","independent_segments+temp_file",
                   "-hls_segment_filename",str(hls/"segment-%05d.m4s"),str(hls/"live.m3u8")]
             audio_args=["-an"] if audio_env is None else ["-thread_queue_size","512","-f","pulse","-i","tribun_match.monitor","-map","0:v:0","-map","1:a:0","-c:a","aac","-profile:a","aac_low","-b:a","96k","-ar","48000","-ac","2"]
+            filter_threads=os.environ.get("TRIBUN_AV_FILTER_THREADS","0")
+            require(filter_threads in ("0","1"),"Invalid diagnostic filter threads")
+            require(filter_threads=="0" or hls,"Filter experiment requires local HLS")
+            filter_args=[] if filter_threads=="0" else ["-filter_threads","1"]
             encoder=subprocess.Popen(["ffmpeg","-nostdin","-hide_banner","-loglevel","warning","-y","-thread_queue_size","512","-f","x11grab",
               "-draw_mouse","0","-framerate","25","-window_id",window,"-i",os.environ["DISPLAY"],
-              *audio_args,"-vf",("scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2" if hls else "scale=trunc(iw/2)*2:trunc(ih/2)*2"),"-c:v","libx264","-threads","2",
+              *audio_args,*filter_args,"-vf",("scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2" if hls else "scale=trunc(iw/2)*2:trunc(ih/2)*2"),"-c:v","libx264","-threads","2",
               "-preset","ultrafast","-crf","25","-pix_fmt","yuv420p","-progress",str(progress),*output_args],stdout=e,stderr=subprocess.STDOUT,env=child_env)
             def drain():
                 nonlocal offset,kickoff,final,last,first
