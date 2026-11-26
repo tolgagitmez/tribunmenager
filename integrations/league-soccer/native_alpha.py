@@ -20,6 +20,16 @@ def clean_env(source):
     # Do not inherit any experimental AI, rendering, league or GPU switches.
     return {k:v for k,v in source.items() if not k.startswith(PREFIXES)}
 
+def match_env(source, profile):
+    """Explicit private test profiles only; inherited switches stay stripped."""
+    env = clean_env(source)
+    if profile not in ('default', 'lanes', 'coordinated'):
+        raise ValueError('Invalid private attack profile')
+    if profile != 'default':
+        env['TRIBUN_AV_OFFBALL_LANES'] = '1'
+        env['TRIBUN_AV_COORDINATED_RUNS'] = '1' if profile == 'coordinated' else '0'
+    return env
+
 def expected_manifest():
     return {'upstream':json.loads((HERE/'upstream.json').read_text()),
         'patches':{name:hashlib.sha256((HERE/name).read_bytes()).hexdigest() for name in PATCHES}}
@@ -66,12 +76,14 @@ def main():
     p.add_argument('--delay',type=int,default=120)
     p.add_argument('--install-deps',action='store_true',help='Explicitly allow Ubuntu apt/npm/Chrome dependency installation')
     p.add_argument('--prepare-only',action='store_true',help='Prepare runtime, then exit without starting match')
+    p.add_argument('--attack-profile', choices=('default','lanes','coordinated'), default='default', help='Explicit isolated private attack diagnostic')
     p.add_argument('--private-diagnostic',action='store_true')
     p.add_argument('--wsl-gpu',action='store_true',help='Local WSLg GPU trial; keep game window visible')
     a=p.parse_args()
     if not a.private_diagnostic:p.error('Yerel özel test için --private-diagnostic gerekli.')
     if not sys.platform.startswith('linux'):p.error('Şimdilik yalnızca Linux destekleniyor.')
     if not 1024<=a.port<=65535 or not 30<=a.delay<=300:p.error('Geçersiz port veya gecikme.')
+    if a.attack_profile!='default' and (a.prepare_only or a.wsl_gpu):p.error('Attack profile requires a rendered private software match.')
     env=clean_env(os.environ)
     try:
         base=private_base(a.session_root)
@@ -105,11 +117,11 @@ def main():
         print('Özel oturum klasörü: '+str(session),flush=True)
         print('Motor: '+str(runtime),flush=True)
         if a.prepare_only:return 0
-        print('Tek maç; deneysel özellikler kapalı. Giriş bağlantısı ve anahtar yolu aşağıda görünecek.',flush=True)
+        print('Tek maç; özel hücum profili: '+a.attack_profile+'. Giriş bağlantısı ve anahtar yolu aşağıda görünecek.',flush=True)
         cmd=[sys.executable,str(HERE/'native_private_beta.py'),str(runtime),str(session/'match'),
             '--port',str(a.port),'--delay',str(a.delay),'--private-diagnostic','--result-seconds','120']
         if a.wsl_gpu:cmd.append('--wsl-gpu')
-        return subprocess.call(cmd,cwd=ROOT,env=env)
+        return subprocess.call(cmd,cwd=ROOT,env=match_env(env,a.attack_profile))
     except (OSError,ValueError,subprocess.CalledProcessError) as exc:
         print('Alfa başlatılamadı: '+str(exc),file=sys.stderr)
         return 1
