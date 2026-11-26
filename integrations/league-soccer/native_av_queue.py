@@ -243,6 +243,11 @@ def _run_match(runtime, root, job, *, check, league_browser_descriptor=None, wsl
             raise ValueError('Invalid or combined private offball experiment')
         if offball_lanes=='1':
             env['TRIBUN_AV_OFFBALL_LANES']='1'
+        coordinated_runs=os.environ.get('TRIBUN_AV_COORDINATED_RUNS','0')
+        if coordinated_runs not in ('0','1') or (coordinated_runs=='1' and offball_lanes!='1'):
+            raise ValueError('Coordinated runs require the isolated offball lane experiment')
+        if coordinated_runs=='1':
+            env['TRIBUN_AV_COORDINATED_RUNS']='1'
     env.update(TRIBUN_EXPECT_AUDIO='1',TRIBUN_EXPECT_CONTROL='0' if league_mode_run else '1',TRIBUN_EXPECT_FULL_PLAYBACK='1',TRIBUN_PLAYBACK_MIN_SECONDS='300')
     with (out/'native.log').open('wb') as n,(out/'browser.log').open('wb') as b:
         native=subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(out/'fixture.json'),str(out/'run'),'--audio','--interactive','--linger','60',*(['--league-control'] if league_mode_run else [])],env=env,stdout=n,stderr=subprocess.STDOUT)
