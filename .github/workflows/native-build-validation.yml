@@ -1,7 +1,7 @@
-name: Stage 217 native highlight detection validation
+name: Stage 218 adaptive native playback schedule validation
 on:
   pull_request:
-    branches: [experiment/native-extended-clock-stage216]
+    branches: [experiment/native-highlight-detection-stage217]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
@@ -180,6 +180,8 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y xvfb xauth
       - name: Verify highlight detection on synthetic test fixtures
         run: python3 -m unittest discover -s tests -p test_native_highlight_detection.py
+      - name: Verify adaptive playback schedule
+        run: python3 -m unittest discover -s tests -p test_native_playback_schedule.py
       - name: Build and record independent 30-minute CPU fixture
         env:
           TRIBUN_INSTALL_NATIVE_DEPS: '1'
@@ -199,6 +201,13 @@ jobs:
           set -o pipefail
           python3 integrations/league-soccer/native_highlight_detection.py "$RUNNER_TEMP/extended.ndjson" "$RUNNER_TEMP/extended-highlights.json" | tee "$RUNNER_TEMP/highlight-summary.json"
           cat "$RUNNER_TEMP/highlight-summary.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Allocate adaptive playback budget without skipping critical moments
+        run: |
+          set -o pipefail
+          rc=0
+          python3 integrations/league-soccer/native_playback_schedule.py "$RUNNER_TEMP/extended-highlights.json" "$RUNNER_TEMP/extended-playback.json" | tee "$RUNNER_TEMP/playback-summary.json" || rc=$?
+          cat "$RUNNER_TEMP/playback-summary.json" >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -211,4 +220,6 @@ jobs:
             ${{ runner.temp }}/extended-report.json
             ${{ runner.temp }}/extended-highlights.json
             ${{ runner.temp }}/highlight-summary.json
+            ${{ runner.temp }}/extended-playback.json
+            ${{ runner.temp }}/playback-summary.json
             ${{ runner.temp }}/extended-run.log
