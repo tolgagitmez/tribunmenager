@@ -59,7 +59,7 @@
  }
  async function waitPlaylist(){
   for(let i=0;i<240;i++){
-   try{const p=playlist(await get('live.m3u8'));if(p.files.length)return p;}catch(e){if(e.message!=='HTTP 404')throw e;}
+   try{const p=playlist(await get('live.m3u8'));if(p.files.length)return p;}catch(e){if(leagueTransport?!retryStartup(e):e.message!=='HTTP 404')throw e;}
    await sleep(500);
   }throw Error('Yayın zaman aşımına uğradı.');
  }

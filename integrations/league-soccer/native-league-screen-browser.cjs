@@ -19,7 +19,9 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   await watch.click();await page.waitForURL('**/native-league-live.html?round=0');
   stage='media-authorization';
   const denied=await page.request.get(cfg.base+'/api/league/native-av/media?round=0&file=status.json',{headers:{Authorization:'Bearer '+cfg.foreignToken}});
-  assert.equal(denied.status(),403);
+  // Foreign native account resolves its own not-yet-due fixture, never ours.
+  assert.equal(denied.status(),409);
+  const deniedBody=await denied.json();assert.ok(deniedBody.error);assert.equal(deniedBody.managerSide,undefined);
   const noAuth=await page.request.get(cfg.base+'/api/league/native-av/media?round=0&file=status.json');assert.equal(noAuth.status(),403);
   await page.locator('#start').click();
   stage='native-playback';
@@ -60,7 +62,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
    if(last===null||state.currentTime>last+.05){longest=Math.max(longest,Date.now()-stagnantSince);stagnantSince=Date.now();last=state.currentTime;}
    else if(Date.now()-stagnantSince>15000&&!state.ended)throw Error('Playback stalled');
    if(state.ended){
-    const result={...coverage(state,300),samples,longestObservedProgressIntervalMs:longest,leagueScreenVerified:true,homeUICommandVerified:true,awayCommandVerified:true,foreignMediaRejected:true,unauthenticatedMediaRejected:true,audioDecodedBytes:audioBytes};
+    const result={...coverage(state,300),samples,longestObservedProgressIntervalMs:longest,leagueScreenVerified:true,homeUICommandVerified:true,awayCommandVerified:true,foreignMediaRejected:true,foreignMediaStatus:409,unauthenticatedMediaRejected:true,audioDecodedBytes:audioBytes};
     assert.deepEqual(errors,[]);assert.equal(result.passed,true);
     fs.writeFileSync(reportPath,JSON.stringify(result,null,2)+'\n');return;
    }
