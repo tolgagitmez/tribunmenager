@@ -40,13 +40,18 @@ function timer(){
  if(!data)return;
  const now=Date.now()/1000+serverOffset,next=data.next_kickoff,match=data.my_match;
  const active=data.active?.some(f=>f.round===match?.round&&f.home===match.home&&f.away===match.away);
- const canWatch=match?.home_score===null&&now>=match.kickoff&&(now<match.kickoff+300||active);
- const watch=$('watchLive');
  const nativeOnly=data.matchBackend==='native-only';
+ const canWatch=nativeOnly?match?.nativeState==='running':match?.home_score===null&&now>=match.kickoff&&(now<match.kickoff+300||active);
+ const watch=$('watchLive');
  watch.hidden=!canWatch;
  if(canWatch){watch.href=(nativeOnly?'native-league-live.html?round=':'match.html?live=')+encodeURIComponent(match.round);watch.textContent=nativeOnly?'Orijinal motor yayını':'Canlı maçı izle';}
  const native=$('watchNative');if(native){native.hidden=nativeOnly||!match||now<match.kickoff;if(match)native.href='native-match.html?round='+encodeURIComponent(match.round);}
- if(canWatch){$('countdown').textContent='CANLI';$('matchInfo').textContent=nativeOnly?'Native deneme ligi · yerel yayın ve motor taktikleri.':'Maç başladı. İzlerken kendi takımının vuruşlarını kullanabilirsin.';}
+ if(nativeOnly&&match&&match.nativeState!=='scheduled'){
+  const labels={running:['MOTOR ÇALIŞIYOR','Orijinal motor çalışıyor; yayın parçaları hazırlanıyor olabilir.'],queued:['SIRADA','Karşılaşma sunucu kapasitesi bekliyor.'],preparing:['HAZIRLANIYOR','Maç kaydı hazırlanıyor.'],blocked:['BEKLETİLDİ','Önceki maç günü tamamlanmadı.'],failed:['MAÇ DURDU','Motor doğrulaması başarısız; sonuç üretilmedi.'],interrupted:['BAĞLANTI KESİLDİ','Motor işçisi bağlantısını kaybetti; otomatik tekrar yok.'],inconsistent:['KONTROL GEREKLİ','Doğrulanmış sezon sonucu bulunamadı.'],completed:['MAÇ BİTTİ','Doğrulanmış sonuç deneme ligi tablosunda.']};
+  const label=labels[match.nativeState]||['BEKLENİYOR','Motor durumu doğrulanmadı.'];$('countdown').textContent=label[0];$('matchInfo').textContent=label[1];
+  if(data.nativeRoundStates){const counts=data.nativeRoundStates;$('matchInfo').textContent+=' · Bu tur: '+counts.completed+' tamamlandı, '+counts.running+' çalışıyor, '+counts.queued+' sırada.';}
+ }
+ else if(canWatch){$('countdown').textContent='CANLI';$('matchInfo').textContent=nativeOnly?'Native deneme ligi · yerel yayın ve motor taktikleri.':'Maç başladı. İzlerken kendi takımının vuruşlarını kullanabilirsin.';}
  else if(data.active?.length){$('countdown').textContent='MAÇ GÜNÜ';$('matchInfo').textContent='Günlük maçların sonuçları tamamlandıkça lig tablosuna işlenir.';}
  else if(next){const seconds=Math.max(0,Math.ceil(next-now)),days=Math.floor(seconds/86400);$('countdown').textContent=`${days?days+'g ':''}${String(Math.floor(seconds%86400/3600)).padStart(2,'0')}:${String(Math.floor(seconds%3600/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;$('matchInfo').textContent=`Sıradaki maç günü: ${data.day}/10 · ${new Date(next*1000).toLocaleString('tr-TR')}`;}
  else{$('countdown').textContent='SEZON TAMAMLANDI';$('matchInfo').textContent='10. maç gününün sonuçlarını tabloda inceleyebilirsin.';}
@@ -89,5 +94,5 @@ async function sendTactics(){
 }
 document.querySelectorAll('[data-league-action]').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();lobby(form.dataset.leagueAction);}));
 $('refreshBtn').onclick=refresh;$('copyCode').onclick=copyCode;$('sendTactics').onclick=sendTactics;
-setInterval(timer,1000);setInterval(()=>{if(token&&!document.hidden)refresh();},30000);
+setInterval(timer,1000);setInterval(()=>{if(token&&!document.hidden&&data?.matchBackend==='native-only')refresh();},3000);setInterval(()=>{if(token&&!document.hidden&&data?.matchBackend!=='native-only')refresh();},30000);
 if(token){linkRoster().then(refresh).catch(e=>{message(e.message);refresh();});}else req('/api/health').catch(()=>message('Günlük lig için yerel oyun sunucusunu başlat. Kurulum bilgisi aşağıdaki bağlantıda.','info'));

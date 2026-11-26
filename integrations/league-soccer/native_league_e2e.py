@@ -60,6 +60,7 @@ def run(runtime,root):
         h=status(home['token']);a=status(away_accounts[4]['token'])
         require(h['matchBackend']==a['matchBackend']=='native-only','Wrong league backend')
         require(h['my_match']['home_score']==report['score'][0] and h['my_match']['away_score']==report['score'][1],'Projected score mismatch')
+        require(h['my_match']['nativeState']=='completed' and h['nativeRoundStates']['completed']==1 and h['nativeRoundStates']['queued']==2,'Native lifecycle projection mismatch')
         points=lambda gf,ga:3 if gf>ga else 1 if gf==ga else 0
         require(next(x for x in h['standings'] if x['slot']==0)['points']==points(*report['score']),'Home points mismatch')
         require(next(x for x in a['standings'] if x['slot']==5)['points']==points(*reversed(report['score'])),'Away points mismatch')

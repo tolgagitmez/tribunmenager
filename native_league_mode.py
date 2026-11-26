@@ -51,3 +51,31 @@ def season_db(db,league):
     if not is_native(db,league):return db
     from native_av_season import PrivateSeason
     return PrivateSeason(db)
+
+def match_lifecycle(db,league,rows,now):
+    """Safe display states; never publish attempt IDs, error strings or paths."""
+    import hashlib
+    from pathlib import Path
+    try:boot=hashlib.sha256(Path('/proc/sys/kernel/random/boot_id').read_bytes()).hexdigest()
+    except OSError:boot=None
+    jobs={(r['round'],r['home'],r['away']):r for r in db.execute("""
+        SELECT j.round,j.home,j.away,j.state,l.boot,l.expires,l.quarantined
+        FROM native_av_jobs j LEFT JOIN native_av_leases l ON l.attempt=j.attempt
+        WHERE j.league=?""",(league,))}
+    unfinished=[f['round'] for f in rows if f['home_score'] is None]
+    first_pending=min(unfinished,default=None)
+    for f in rows:
+        job=jobs.get((f['round'],f['home'],f['away']))
+        if f['home_score'] is not None:state='completed'
+        elif job and job['state']=='failed':state='failed'
+        elif job and job['state']=='ready':state='inconsistent'
+        elif job and job['state']=='running':
+            if not boot or job['boot']!=boot or job['expires'] is None or job['expires']<=now or job['quarantined']:
+                state='interrupted'
+            else:state='running'
+        elif f['kickoff']>now:state='scheduled'
+        elif f['round']!=first_pending:state='blocked'
+        elif job and job['state']=='queued':state='queued'
+        else:state='preparing'
+        f['nativeState']=state
+    return rows

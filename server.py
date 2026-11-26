@@ -195,9 +195,13 @@ def status(token, now=None):
         person=identified(c,token)
         code=person['league'];teams=[dict(t) for t in c.execute('SELECT * FROM teams WHERE league=? ORDER BY slot',(code,))]
         fix=mode.fixtures(c,code)
+        native_only=mode.is_native(c,code)
+        if native_only:mode.match_lifecycle(c,code,fix,now)
         current_round=max(0,min(9,int((now-fix[0]['kickoff'])//86400))) if now>=fix[0]['kickoff'] else 0
+        if native_only:
+            current_round=min((f['round'] for f in fix if f['home_score'] is None),default=9)
         next_time=min((f['kickoff'] for f in fix if f['kickoff']>now),default=None)
-        active=[f for f in fix if f['kickoff']<=now and f['home_score'] is None]
+        active=[f for f in fix if f['kickoff']<=now and f['home_score'] is None and (not native_only or f['nativeState']=='running')]
         standings=league_standings.project(teams,fix)
         # The league screen displays *its own* roster, including currently
         # benched players, not stale or other-manager wallet data.
@@ -210,7 +214,7 @@ def status(token, now=None):
                    **p.get('season',{})} for p in own_players]
         match=next((f for f in fix if f['round']==current_round and person['slot'] in (f['home'],f['away'])),None)
         if not match:match=next((f for f in fix if f['round']==9 and person['slot'] in (f['home'],f['away'])),None)
-        return {'server_time':now,'code':code,**({'matchBackend':'native-only','authoritative':False} if mode.is_native(c,code) else {}),'manager':person['manager'],'my_slot':person['slot'],'my_club':person['name'],'my_formation':person['formation'],'my_tactics':json.loads(person['tactics']),
+        return {'server_time':now,'code':code,**({'matchBackend':'native-only','authoritative':False,'nativeRoundStates':{state:sum(f['nativeState']==state for f in fix if f['round']==current_round) for state in ('scheduled','preparing','queued','running','completed','failed','interrupted','blocked','inconsistent')}} if native_only else {}),'manager':person['manager'],'my_slot':person['slot'],'my_club':person['name'],'my_formation':person['formation'],'my_tactics':json.loads(person['tactics']),
             'next_kickoff':next_time,'first_kickoff':fix[0]['kickoff'],'day':min(10,current_round+1),'active':active,'my_match':match,'standings':standings,
             'my_rotation':rotation,'my_rotation_source':roster['source'],
             'teams':[{'slot':t['slot'],'name':t['name'],'manager':t['manager'],'claimed':bool(t['token'])} for t in teams],
