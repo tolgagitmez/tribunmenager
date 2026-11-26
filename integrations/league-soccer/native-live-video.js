@@ -18,54 +18,83 @@
   }
   throw Error('AVC configuration missing');
  }
- if(typeof module!=='undefined'&&module.exports){module.exports={playlist,codec};return;}
+ // Never block segment ingestion on play() resolving. Initial buffering is explicit.
+ function bufferDecision(ranges,time,started,done){
+  if(!ranges.length)return {start:false,seek:null};
+  const [start,end]=ranges[ranges.length-1];
+  if(!started)return {start:end-start>=3.5||(done&&end>start),seek:start+.03};
+  const inside=ranges.some(([a,b])=>time>=a-.15&&time<b+.15);
+  if(!inside||end-time>10)return {start:false,seek:Math.max(start+.03,end-3)};
+  return {start:false,seek:null};
+ }
+ if(typeof module!=='undefined'&&module.exports){module.exports={playlist,codec,bufferDecision};return;}
  const v=document.querySelector('#video'),button=document.querySelector('#start'),status=document.querySelector('#status'),sound=document.querySelector('#sound');
  let audioRequested=false;
  sound.addEventListener('click',()=>{if(audioRequested){v.muted=!v.muted;sound.textContent=v.muted?'Sesi aç':'Sesi kapat';}});
- const sleep=ms=>new Promise(r=>setTimeout(r,ms));let running=false,objectUrl=null;
- async function get(name,binary=false){const r=await fetch(name,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);return binary?r.arrayBuffer():r.text();}
+ const sleep=ms=>new Promise(r=>setTimeout(r,ms));let running=false,objectUrl=null,playGeneration=0;
+ const diagnostic={phase:'idle',mime:null,appended:0,playError:null};
+ function phase(name){diagnostic.phase=name;}
+ root.TRIBUN_VIDEO_DIAGNOSTIC=()=>({...diagnostic,readyState:v.readyState,networkState:v.networkState,currentTime:v.currentTime,paused:v.paused,videoWidth:v.videoWidth,mediaError:v.error?.code||null,buffered:Array.from({length:v.buffered.length},(_,i)=>[v.buffered.start(i),v.buffered.end(i)]),message:status.textContent});
+ async function get(name,binary=false){
+  const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),8000);
+  try{const r=await fetch(name,{cache:'no-store',signal:ac.signal});if(!r.ok)throw Error('HTTP '+r.status);return await (binary?r.arrayBuffer():r.text());}finally{clearTimeout(timer);}
+ }
  async function waitPlaylist(){
   for(let i=0;i<240;i++){
    try{const p=playlist(await get('live.m3u8'));if(p.files.length)return p;}catch(e){if(e.message!=='HTTP 404')throw e;}
    await sleep(500);
   }throw Error('Yayın zaman aşımına uğradı.');
  }
- function event(el,name){return new Promise((resolve,reject)=>{const ok=()=>{el.removeEventListener('error',bad);resolve();},bad=()=>{el.removeEventListener(name,ok);reject(Error('Video buffer error'));};el.addEventListener(name,ok,{once:true});el.addEventListener('error',bad,{once:true});});}
+ function event(el,name){return new Promise((resolve,reject)=>{
+  const cleanup=()=>{clearTimeout(timer);el.removeEventListener(name,ok);el.removeEventListener('error',bad);el.removeEventListener('abort',bad);};
+  const ok=()=>{cleanup();resolve();},bad=()=>{cleanup();reject(Error('Media event failed: '+name));};
+  const timer=setTimeout(()=>{cleanup();reject(Error('Media event timeout: '+name));},10000);
+  el.addEventListener(name,ok,{once:true});el.addEventListener('error',bad,{once:true});el.addEventListener('abort',bad,{once:true});
+ });}
  async function play(){
-  if(running)return;running=true;button.disabled=true;status.textContent='İlk video parçası bekleniyor…';
+  if(running)return;running=true;button.disabled=true;
+  const generation=++playGeneration;Object.assign(diagnostic,{phase:'waiting-playlist',mime:null,appended:0,playError:null});status.textContent='İlk video parçaları bekleniyor…';
   try{
    let p=await waitPlaylist();
    const state=JSON.parse(await get('status.json'));audioRequested=state.audioRequested===true;sound.disabled=!audioRequested;
    v.muted=true;sound.textContent=audioRequested?'Sesi aç':'Ses bu pilotta kapalı';
-   if(v.canPlayType('application/vnd.apple.mpegurl')){
-    v.src='live.m3u8';await v.play();status.textContent='Native HLS oynatılıyor.';return;
+   const init=await get('init.mp4',true),mime=codec(init,audioRequested);diagnostic.mime=mime;
+   const mse=!!root.MediaSource&&MediaSource.isTypeSupported(mime);
+   if(!mse&&v.canPlayType('application/vnd.apple.mpegurl')){
+    phase('native-hls');v.src='live.m3u8';await v.play();status.textContent='Native HLS oynatılıyor.';return;
    }
-   if(!root.MediaSource)throw Error('Bu tarayıcı HLS veya MediaSource desteklemiyor.');
-   const init=await get('init.mp4',true),mime=codec(init,audioRequested);
-   if(!MediaSource.isTypeSupported(mime))throw Error('H.264 desteği bulunamadı.');
-   const ms=new MediaSource();objectUrl=URL.createObjectURL(ms);
+   if(!mse)throw Error('Tarayıcı kodlayıcıyı desteklemiyor: '+mime);
+   phase('opening-mse');const ms=new MediaSource();objectUrl=URL.createObjectURL(ms);
    const opened=event(ms,'sourceopen');v.src=objectUrl;await opened;
    const sb=ms.addSourceBuffer(mime);
    const append=async bytes=>{const finished=event(sb,'updateend');sb.appendBuffer(bytes);await finished;};
-   await append(init);
-   let next=Math.max(0,p.files.length-3),started=false,emptyPolls=0;
-   while(true){
+   await append(init);phase('buffering');
+   let next=Math.max(0,p.files.length-3),started=false,emptyPolls=0,playError=null;
+   const ranges=()=>Array.from({length:v.buffered.length},(_,i)=>[v.buffered.start(i),v.buffered.end(i)]);
+   const begin=()=>{
+    const decision=bufferDecision(ranges(),v.currentTime,started,p.done);
+    if(!started&&decision.start){
+     started=true;v.currentTime=decision.seek;phase('starting-playback');
+     // Promise resolves asynchronously; continue feeding source buffer meanwhile.
+     v.play().then(()=>{if(generation===playGeneration){phase('playing');status.textContent='Orijinal motor görüntüsü oynatılıyor.';}}).catch(e=>{playError=e;diagnostic.playError=e.message;});
+    }else if(started&&decision.seek!==null&&!v.seeking)v.currentTime=decision.seek;
+   };
+   while(generation===playGeneration){
+    if(playError)throw playError;
+    if(v.error)throw Error('Media decode error '+v.error.code);
     const before=next;
     for(;next<p.files.length;next++){
-     await append(await get(p.files[next],true));
-     if(v.buffered.length){
-      const start=v.buffered.start(0),end=v.buffered.end(v.buffered.length-1);
-      if(!started){v.currentTime=start;await v.play();started=true;status.textContent='Orijinal motor görüntüsü oynatılıyor.';}
-      else if(end-v.currentTime>8)v.currentTime=Math.max(start,end-2);
-      if(v.currentTime-start>35){const finished=event(sb,'updateend');sb.remove(start,v.currentTime-15);await finished;}
-     }
+     await append(await get(p.files[next],true));diagnostic.appended++;begin();
+     if(started&&v.buffered.length&&v.currentTime-v.buffered.start(0)>35){const finished=event(sb,'updateend');sb.remove(v.buffered.start(0),v.currentTime-15);await finished;}
     }
-    if(p.done){ms.endOfStream();status.textContent='Motor kaydı tamamlandı.';break;}
+    begin();
+    if(p.done){if(!started)throw Error('Tamamlanan yayında oynatılabilir video yok.');if(ms.readyState==='open')ms.endOfStream();phase('ended');status.textContent='Motor kaydı tamamlandı.';break;}
     emptyPolls=next===before?emptyPolls+1:0;
     if(emptyPolls>60)throw Error('Yeni video parçası alınamadı.');
     await sleep(500);p=playlist(await get('live.m3u8'));
+    if(p.files.length<next)throw Error('Playlist regressed');
    }
-  }catch(e){status.textContent='Yayın açılamadı: '+e.message;running=false;button.disabled=false;sound.disabled=true;v.pause();v.removeAttribute('src');v.load();if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=null;}
+  }catch(e){phase('error');diagnostic.playError=e.message;status.textContent='Yayın açılamadı: '+e.message;running=false;button.disabled=false;sound.disabled=true;v.pause();v.removeAttribute('src');v.load();if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=null;}
  }
  // Current engine state is separate from buffered video time.
  const panel=document.querySelector('#manager'),send=document.querySelector('#sendTactics'),form=document.querySelector('#tacticsForm'),commandStatus=document.querySelector('#commandStatus');
@@ -130,5 +159,5 @@
  });
  startControl();
  button.addEventListener('click',play);
- root.addEventListener('pagehide',()=>{polling=false;pollGeneration++;if(objectUrl)URL.revokeObjectURL(objectUrl);});
+ root.addEventListener('pagehide',()=>{polling=false;pollGeneration++;playGeneration++;if(objectUrl)URL.revokeObjectURL(objectUrl);});
 })(typeof window!=='undefined'?window:globalThis);

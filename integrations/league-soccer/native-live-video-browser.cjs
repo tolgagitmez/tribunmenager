@@ -5,12 +5,18 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium}=requ
  while(!fs.existsSync(file)){if(Date.now()>deadline)throw Error('Local server did not start');await new Promise(r=>setTimeout(r,250));}
  const url=fs.readFileSync(file,'utf8').trim();
  assert.match(url,/^http:\/\/127\.0\.0\.1:\d+\/[\w-]+\/$/);
- const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required']});
+ const browser=await chromium.launch({headless:true,channel:process.env.TRIBUN_BROWSER_CHANNEL||'chrome',args:['--autoplay-policy=no-user-gesture-required']});
  try{
   const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url);await page.locator('#start').click();
-  await page.waitForFunction(()=>document.querySelector('video').currentTime>2&&!document.querySelector('video').paused,{},{timeout:120000});
+  try{
+   await page.waitForFunction(()=>{const d=window.TRIBUN_VIDEO_DIAGNOSTIC?.();return d?.phase==='error'||(d?.currentTime>2&&!d?.paused&&d.videoWidth>0);},{},{timeout:90000});
+   const d=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());assert.notEqual(d.phase,'error',JSON.stringify(d));
+  }catch(e){
+   const d=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC?.()||{message:document.querySelector('#status')?.textContent});
+   console.error('Playback diagnostic:',JSON.stringify(d));throw e;
+  }
   const state=await page.evaluate(async()=>({status:await(await fetch('status.json')).json(),time:document.querySelector('video').currentTime,width:document.querySelector('video').videoWidth}));
   assert.equal(state.status.phase,'streaming');assert.ok(state.width>0);
   if(process.env.TRIBUN_EXPECT_AUDIO==='1'){

@@ -1,0 +1,86 @@
+name: Native stream recovery and isolated transport preflight
+on:
+  push:
+    branches: [experiment/native-stream-repair-stage119]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  transport:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test integrations/league-soccer/native-live-video.test.cjs
+      - run: python3 -m unittest discover -s tests -p test_native_live_video.py
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - name: Real FFmpeg to browser preflight, silent and AAC (synthetic input only)
+        run: |
+          for audio in silent audio; do
+            out="$RUNNER_TEMP/transport-$audio"
+            flags=()
+            if [[ "$audio" == audio ]]; then flags+=(--audio); export TRIBUN_EXPECT_AUDIO=1; else export TRIBUN_EXPECT_AUDIO=0; fi
+            python3 integrations/league-soccer/stream-transport-smoke.py "$out" "${flags[@]}" &
+            pid=$!
+            trap 'kill "$pid" 2>/dev/null || true' EXIT
+            node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt"
+            wait "$pid"
+            trap - EXIT
+          done
+  native:
+    needs: transport
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [silent, audio]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth pulseaudio pulseaudio-utils libopenal-dev
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - name: Build pinned engine
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/repair-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Verify full native stream independently of browser result
+        env:
+          MODE: ${{ matrix.mode }}
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/repair-fixtures"
+          out="$RUNNER_TEMP/repair-result"
+          flags=()
+          if [[ "$MODE" == audio ]]; then flags+=(--audio); export TRIBUN_EXPECT_AUDIO=1; else export TRIBUN_EXPECT_AUDIO=0; fi
+          python3 integrations/league-soccer/native-live-video.py "$RUNNER_TEMP/repair-runtime" "$RUNNER_TEMP/repair-fixtures/balanced.json" "$out" "${flags[@]}" &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          browser_status=0
+          node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt" || browser_status=$?
+          native_status=0
+          wait "$pid" || native_status=$?
+          trap - EXIT
+          echo "browser=$browser_status native=$native_status"
+          test "$browser_status" -eq 0 && test "$native_status" -eq 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-repair-${{ matrix.mode }}-measurements
+          path: |
+            ${{ runner.temp }}/repair-result/live-report.json
+            ${{ runner.temp }}/repair-result/runner.log
+            ${{ runner.temp }}/repair-result/native-match.capture.log
+            ${{ runner.temp }}/repair-result/native-match.game.log
+            ${{ runner.temp }}/repair-result/native-audio.log
+          if-no-files-found: ignore

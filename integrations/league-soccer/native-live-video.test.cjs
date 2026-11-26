@@ -11,3 +11,11 @@ test('derive exact H.264 codec from AVC configuration',()=>{
  assert.equal(L.codec(box,true),'video/mp4; codecs="avc1.42c01f,mp4a.40.2"');
  assert.throws(()=>L.codec(new Uint8Array(20)));
 });
+
+test('prebuffer before play and recover a disjoint or stale range',()=>{
+ assert.deepEqual(L.bufferDecision([[0,2]],0,false,false),{start:false,seek:.03});
+ assert.equal(L.bufferDecision([[0,4]],0,false,false).start,true);
+ assert.equal(L.bufferDecision([[0,1]],0,false,true).start,true);
+ assert.equal(L.bufferDecision([[0,2],[5,9]],3,true,false).seek,6);
+ assert.equal(L.bufferDecision([[0,9]],5,true,false).seek,null);
+});

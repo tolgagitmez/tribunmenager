@@ -119,7 +119,7 @@ def main():
                 while proc.poll() is None:
                     if control:control.drain()
                     if first is None and (media/"live.m3u8").is_file() and any(media.glob("segment-*.m4s")):
-                        first=time.monotonic();state["phase"]="streaming"
+                        first=time.monotonic();state["phase"]="streaming";state["firstSegmentObserved"]=True
                     if time.monotonic()-started>1000:raise TimeoutError("Native live capture exceeded limit")
                     time.sleep(.1)
                 if control:control.drain();control.close()
@@ -153,9 +153,11 @@ def main():
         state["audio"]=bool(audio and audio["nonSilentCoveragePassed"]);state["phase"]="finished" if complete else "failed";write_json(report_path,report)
         if not complete:raise RuntimeError("Live coverage inconclusive")
         print(json.dumps(report,indent=2),flush=True);time.sleep(a.linger)
-    except BaseException:
+    except BaseException as error:
         state["phase"]="failed"
         if control:control.close()
+        report.update(status="failed",failureType=type(error).__name__,failureMessage=str(error)[:500])
+        write_json(report_path,report)
         raise
     finally:
         server.shutdown();server.server_close();thread.join(timeout=5)
