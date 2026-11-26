@@ -96,8 +96,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False):
     name,scale,quick=profile
+    if type(split_impact) is not bool or (split_impact and not swept_impact):
+        raise ValueError("Split impact requires swept impact diagnostic")
     if type(swept_impact) is not bool or (swept_impact and not angular_impact):
         raise ValueError("Swept impact requires angular impact diagnostic")
     if type(angular_impact) is not bool or (angular_impact and not surface_impact):
@@ -156,6 +158,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_SURFACE_IMPACT"]="1" if surface_impact else "0"
     env["TRIBUN_NATIVE_ANGULAR_IMPACT"]="1" if angular_impact else "0"
     env["TRIBUN_NATIVE_SWEPT_IMPACT"]="1" if swept_impact else "0"
+    env["TRIBUN_NATIVE_SPLIT_IMPACT"]="1" if split_impact else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -245,6 +248,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     report["surfaceImpact"]=surface_impact
     report["angularImpact"]=angular_impact
     report["sweptImpact"]=swept_impact
+    report["splitImpact"]=split_impact
     if collision_pose:
         import re
         matches=re.findall(r"\[tribun-contact\] interval-ms=(\d+) updates=(\d+) max-age-ticks=(\d+) missing=(\d+) ball-overlaps=(\d+) keeper-overlaps=(\d+) tackle-overlaps=(\d+) controlled-requests=(\d+)",log_text)
@@ -279,6 +283,12 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         _,tests,hits,applied,through,lead=swept[0]
         report["sweptProbe"]={"tests":int(tests),"hits":int(hits),"applied":int(applied),
                              "through":int(through),"maxLeadMs":float(lead)}
+        split=re.findall(r"\[tribun-split\] mode=(split|off) queued=(\d+) applied=(\d+) cancelled=(\d+) before-ms=(\d+\.\d+) after-ms=(\d+\.\d+)",log_text)
+        if len(split)!=1 or split[0][0]!=("split" if split_impact else "off"):
+            raise ValueError("Missing split impact evidence")
+        _,queued,applied,cancelled,before,after=split[0]
+        report["splitProbe"]={"queued":int(queued),"applied":int(applied),"cancelled":int(cancelled),
+                              "beforeMs":float(before),"afterMs":float(after)}
     if collision_pose and "[tribun-skinning] runtime=" in log_text:
         raise ValueError("Unexpected runtime skinning in collision-only mode")
     if null_renderer and not collision_pose:

@@ -8,6 +8,11 @@ out="$(realpath -m "$3")"
 render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+case "${TRIBUN_NATIVE_SPLIT_IMPACT:-0}" in
+  0) ;;
+  1) [[ "${TRIBUN_NATIVE_SWEPT_IMPACT:-0}" == 1 ]] || { echo "Split impact requires swept mode" >&2; exit 2; } ;;
+  *) echo "Invalid split impact flag" >&2; exit 2;;
+esac
 case "${TRIBUN_NATIVE_SWEPT_IMPACT:-0}" in
   0) ;;
   1) [[ "${TRIBUN_NATIVE_ANGULAR_IMPACT:-0}" == 1 ]] || { echo "Swept impact requires angular mode" >&2; exit 2; } ;;

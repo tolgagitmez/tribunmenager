@@ -209,6 +209,9 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-sweep] mode=%s tests=%lu hits=%lu applied=%lu through=%lu max-lead-ms=%.6f\n",
       tribun_visual::sweptImpact()?"swept":"off",match.tribunSweepTests,match.tribunSweepHits,
       match.tribunSweepApplied,match.tribunSweepThrough,match.tribunSweepMaxLeadMs);
+    std::printf("[tribun-split] mode=%s queued=%lu applied=%lu cancelled=%lu before-ms=%.6f after-ms=%.6f\n",
+      tribun_visual::splitImpact()?"split":"off",match.tribunSplitQueued,match.tribunSplitApplied,match.tribunSplitCancelled,
+      match.tribunSplitBeforeMs,match.tribunSplitAfterMs);
     std::fflush(stdout);
   }
   output.imbue(std::locale::classic());
@@ -560,6 +563,7 @@ inline bool adaptiveContact() { return collisionOnly() && flag("TRIBUN_NATIVE_AD
 inline bool surfaceImpact() { return collisionOnly() && flag("TRIBUN_NATIVE_SURFACE_IMPACT"); }
 inline bool angularImpact() { return surfaceImpact() && flag("TRIBUN_NATIVE_ANGULAR_IMPACT"); }
 inline bool sweptImpact() { return angularImpact() && flag("TRIBUN_NATIVE_SWEPT_IMPACT"); }
+inline bool splitImpact() { return sweptImpact() && flag("TRIBUN_NATIVE_SPLIT_IMPACT"); }
 inline unsigned adaptiveTicks(float predictedDistance,bool dangerousAction,bool closeOpponent) {
   if (dangerousAction || closeOpponent || predictedDistance <= 5.0f) return 1;
   if (predictedDistance <= 12.0f) return 2;
@@ -1102,6 +1106,12 @@ inline Result resolve(Vec p,Vec lo,Vec hi,Vec incoming,Vec body,Region r){
   if(!finite(out))return {};
   return {true,out,-vn,length(rel),length(after)};
 }
+// Split a nominal 10 ms tick without changing the match or AI clock.
+struct SplitDurations {float before,after;};
+inline SplitDurations splitDurations(float fraction,float dt=0.01f){
+  const float first=std::clamp(fraction,0.0f,1.0f)*dt;
+  return {first,dt-first};
+}
 // Thin-shell sphere (I/m=2R^2/3). Impulse expressed per unit mass.
 // Relative contact-point slip includes the ball's existing angular velocity.
 inline Result resolveAngular(Vec p,Vec lo,Vec hi,Vec incoming,Vec body,Region r,Vec spin){
@@ -1133,7 +1143,7 @@ def surface_impact_header(source):
   unsigned long tribunLegacyImpacts=0, tribunSurfaceImpacts=0, tribunSeparatingRejected=0;
   unsigned long tribunImpactRegions[6]={0,0,0,0,0,0};
   double tribunRelativeBefore=0, tribunRelativeAfter=0;
-  unsigned long tribunEnergyViolations=0;\n  unsigned long tribunAngularImpacts=0, tribunSpinChanges=0, tribunAngularEnergyViolations=0;\n  double tribunAngularEnergyBefore=0, tribunAngularEnergyAfter=0, tribunMaxSpinDelta=0;\n  unsigned long tribunSweepTests=0, tribunSweepHits=0, tribunSweepApplied=0, tribunSweepThrough=0;\n  double tribunSweepMaxLeadMs=0;""")
+  unsigned long tribunEnergyViolations=0;\n  unsigned long tribunAngularImpacts=0, tribunSpinChanges=0, tribunAngularEnergyViolations=0;\n  double tribunAngularEnergyBefore=0, tribunAngularEnergyAfter=0, tribunMaxSpinDelta=0;\n  unsigned long tribunSweepTests=0, tribunSweepHits=0, tribunSweepApplied=0, tribunSweepThrough=0;\n  double tribunSweepMaxLeadMs=0;\n  Player* tribunSplitPlayer=nullptr;\n  bool tribunSplitThrough=false;\n  unsigned tribunSplitRegionIndex=0;\n  float tribunSplitTime=0;\n  unsigned long tribunSplitQueued=0,tribunSplitApplied=0,tribunSplitCancelled=0;\n  double tribunSplitBeforeMs=0,tribunSplitAfterMs=0;\n  void TribunFinishSplit();""")
 
 def surface_impact_match(source):
     source=replace_once(source,'#include "tribun_visual_rng.hpp"',
@@ -1152,6 +1162,7 @@ def surface_impact_match(source):
       std::abs(ballEnd.coords[1])<pitchHalfH-0.3f;
   float bestTime=2.0f;
   bool bestThrough=false;
+  tribun_impact::Vec bestPoint{},bestLo{},bestHi{},bestBody{};
   tribun_impact::Result bestImpact;
   tribun_impact::Region bestRegion=tribun_impact::Other;
   Player* impactPlayer=nullptr;
@@ -1200,6 +1211,7 @@ def surface_impact_match(source):
                       (std::abs(time-bestTime)<=1e-6f && result.approach>bestImpact.approach))) {
                     bestTime=time;
                     bestThrough=through;
+                    bestPoint=point;bestLo=asVec(objAABB.minxyz);bestHi=asVec(objAABB.maxxyz);bestBody=asVec(players[i]->GetMovement());
                     bestImpact=result;
                     bestRegion=region;
                     impactPlayer=players[i];
@@ -1210,7 +1222,17 @@ def surface_impact_match(source):
                   continue;
                 }
                 // todonow: average bouncevec and bias together per hit""")
-    section=replace_once(section,"  if (bias > 0.0f) {", """  if (surfaceMode && bestImpact.valid && impactPlayer) {
+    section=replace_once(section,"  if (bias > 0.0f) {", """  if (surfaceMode && bestImpact.valid && impactPlayer && tribun_visual::splitImpact() && bestTime>0.0f) {
+    // Schedule after referee processing, then finalize only after Ball::Process commits.
+    ball->TribunQueueSplit(bestTime, bestPoint,bestLo,bestHi,bestBody,bestRegion);
+    tribunSplitPlayer=impactPlayer;
+    tribunSplitThrough=bestThrough;
+    tribunSplitRegionIndex=static_cast<unsigned>(bestRegion);
+    tribunSplitTime=bestTime;
+    ++tribunSplitQueued;
+    return;
+  }
+  if (surfaceMode && bestImpact.valid && impactPlayer) {
     ++tribunSurfaceImpacts;
     if(sweptMode && bestTime>0.0f) {
       ++tribunSweepApplied;
@@ -1270,6 +1292,140 @@ void Ball::TribunSetAngularVelocity(const Vector3& spin) {
   CalculatePrediction();
 }
 void Ball::Touch(const Vector3& target) {""")
+
+def split_ball_header(source):
+    source=replace_once(source,'#include "base/math/vector3.hpp"', '#include "base/math/vector3.hpp"\n#include "tribun_surface_impact.hpp"') if '#include "base/math/vector3.hpp"' in source else replace_once(source,"class Ball {",'#include "tribun_surface_impact.hpp"\n\nclass Ball {')
+    source=replace_once(source,"  void TribunSetAngularVelocity(const Vector3& spin);",
+        """  void TribunSetAngularVelocity(const Vector3& spin);
+  void TribunQueueSplit(float fraction,tribun_impact::Vec point,tribun_impact::Vec lo,
+      tribun_impact::Vec hi,tribun_impact::Vec body,tribun_impact::Region region);
+  tribun_impact::Result TribunTakeSplitResult();""")
+    return replace_once(source,"  Quaternion rotation_ms;\n\n  Vector3 predictions",
+        """  Quaternion rotation_ms;
+  bool tribunSplitPending=false,tribunSplitProcessing=false;
+  float tribunSplitFraction=0;
+  tribun_impact::Vec tribunSplitPoint{},tribunSplitLo{},tribunSplitHi{},tribunSplitBody{};
+  tribun_impact::Region tribunSplitRegion=tribun_impact::Other;
+  tribun_impact::Result tribunSplitResult{};
+
+  Vector3 predictions""")
+
+def split_ball_source(source):
+    source=replace_once(source,"Vector3 Ball::TribunAngularVelocity() const {",
+        """static Vector3 TribunReadSpin(const Quaternion& rotation_ms) {
+  const auto q=rotation_ms.GetNormalized();
+  const float sign=q.elements[3]<0 ? -1.0f : 1.0f;
+  const Vector3 axis(q.elements[0]*sign,q.elements[1]*sign,q.elements[2]*sign);
+  const float magnitude=axis.GetLength();
+  if (magnitude<1e-8f) return Vector3(0);
+  return axis*(1000.0f*2.0f*std::atan2(magnitude,std::abs(q.elements[3]))/magnitude);
+}
+void Ball::TribunQueueSplit(float fraction,tribun_impact::Vec point,tribun_impact::Vec lo,
+    tribun_impact::Vec hi,tribun_impact::Vec body,tribun_impact::Region region) {
+  tribunSplitPending=std::isfinite(fraction) && fraction>0 && fraction<=1;
+  tribunSplitFraction=fraction;
+  tribunSplitPoint=point;tribunSplitLo=lo;tribunSplitHi=hi;tribunSplitBody=body;tribunSplitRegion=region;
+  tribunSplitResult={};
+}
+tribun_impact::Result Ball::TribunTakeSplitResult() {
+  auto result=tribunSplitResult;
+  tribunSplitResult={};
+  return result;
+}
+Vector3 Ball::TribunAngularVelocity() const {""")
+    # Wrap only the first prediction interval; subsequent intervals keep the upstream 10 ms cadence.
+    source=replace_once(source,"    BallPhysicsState physicsState{nextPos, momentumPredict};",
+        """    const bool split=tribunSplitProcessing && predictTime_ms==10;
+    const float fullStep=timeStep;
+    const auto durations=tribun_impact::splitDurations(tribunSplitFraction,fullStep);
+    for(int segment=0;segment<(split?2:1);++segment) {
+      if(split) {
+        timeStep=segment==0?durations.before:durations.after;
+        if(segment==1) {
+          const auto asVec=[](const Vector3& v){return tribun_impact::Vec{v.coords[0],v.coords[1],v.coords[2]};};
+          tribunSplitResult=tribun_impact::resolveAngular(tribunSplitPoint,tribunSplitLo,
+              tribunSplitHi,asVec(momentumPredict),tribunSplitBody,tribunSplitRegion,
+              asVec(TribunReadSpin(rotationPredict_ms)));
+          if(tribunSplitResult.valid) {
+            const auto& v=tribunSplitResult.velocity;
+            momentumPredict=Vector3(v.x,v.y,v.z);
+            const auto& spin=tribunSplitResult.spin;
+            Vector3 omega(spin.x,spin.y,spin.z);
+            const float speed=omega.GetLength();
+            if(speed<1e-5f) rotationPredict_ms=QUATERNION_IDENTITY;
+            else rotationPredict_ms.SetAngleAxis(speed*0.001f,omega/speed);
+          }
+        }
+        if(timeStep<=0) continue;
+      }
+    BallPhysicsState physicsState{nextPos, momentumPredict};""")
+    source=replace_once(source,"    nextOrientation = rotationPredictTimeStepped * nextOrientation;\n\n    if (predictTime_ms % 10 == 0) {",
+        """    nextOrientation = rotationPredictTimeStepped * nextOrientation;
+    firstTime=false;
+    }
+    timeStep=fullStep;
+
+    if (predictTime_ms % 10 == 0) {""")
+    source=replace_once(source,"  BallSpatialInfo spatialInfo = CalculatePrediction();\n  momentum = spatialInfo.momentum;",
+        """  tribunSplitProcessing=tribunSplitPending;
+  tribunSplitResult={};
+  BallSpatialInfo spatialInfo = CalculatePrediction();
+  tribunSplitProcessing=false;
+  tribunSplitPending=false;
+  momentum = spatialInfo.momentum;""")
+    for anchor in ("void Ball::SetPosition(const Vector3& target) {",
+                   "void Ball::SetMomentum(const Vector3& target) {",
+                   "void Ball::ResetSituation(const Vector3& focusPos) {",
+                   "void Ball::SetRotation(radian x, radian y, radian z,\n                       float bias) {  // radians per second for each axis"):
+        source=replace_once(source,anchor,anchor+"\n  tribunSplitPending=false;tribunSplitResult={};")
+    return source
+
+def split_match_source(source):
+    source=replace_once(source,"    if (IsInPlay()) {\n      CheckBallCollisions();  // todo: should not read geoms during process\n    }",
+        """    if (IsInPlay() && !tribun_visual::splitImpact()) {
+      CheckBallCollisions();  // todo: should not read geoms during process
+    }""")
+    source=replace_once(source,"    referee->Process();\n\n    // ball",
+        """    referee->Process();
+    if (IsInPlay() && tribun_visual::splitImpact()) CheckBallCollisions();
+
+    // ball""")
+    source=replace_once(source,"    ball->Process();\n\n    // create mental images",
+        """    ball->Process();
+    if (tribunSplitPlayer) TribunFinishSplit();
+
+    // create mental images""")
+    return replace_once(source,"void Match::FollowCamera(",
+        """void Match::TribunFinishSplit() {
+  auto* player=tribunSplitPlayer;
+  tribunSplitPlayer=nullptr;
+  const auto result=ball->TribunTakeSplitResult();
+  if(!result.valid) {++tribunSplitCancelled;return;}
+  ++tribunSplitApplied;
+  ++tribunSweepApplied;
+  if(tribunSplitThrough) ++tribunSweepThrough;
+  tribunSweepMaxLeadMs=std::max(tribunSweepMaxLeadMs,static_cast<double>(tribunSplitTime)*10.0);
+  tribunSplitBeforeMs+=tribunSplitTime*10.0;
+  tribunSplitAfterMs+=(1.0-tribunSplitTime)*10.0;
+  ++tribunSurfaceImpacts;
+  ++tribunAngularImpacts;
+  // Region is retained by the match below; no inferred body part.
+  ++tribunImpactRegions[tribunSplitRegionIndex];
+  tribunRelativeBefore+=result.relativeBefore;
+  tribunRelativeAfter+=result.relativeAfter;
+  if(result.spinDelta>0.0001f) ++tribunSpinChanges;
+  tribunAngularEnergyBefore+=result.energyBefore;
+  tribunAngularEnergyAfter+=result.energyAfter;
+  tribunMaxSpinDelta=std::max(tribunMaxSpinDelta,static_cast<double>(result.spinDelta));
+  if(result.energyAfter>result.energyBefore+0.0001f*std::max(1.0f,result.energyBefore)) ++tribunAngularEnergyViolations;
+  player->GetTeam()->SetLastTouchPlayer(player,e_TouchType_Accidental);
+  ball->TriggerBallTouchSound(pow(NormalizedClamp(ball->GetMovement().GetLength(),4.0f,40.0f),0.7f));
+  if(player->GetCurrentFunctionType()==e_FunctionType_Sliding) AddExcitementBoost(0.35f,1400);
+  else if(player->GetCurrentFunctionType()==e_FunctionType_Interfere) AddExcitementBoost(0.22f,1400);
+  lastBodyBallCollisionTime_ms=actualTime_ms;
+}
+
+void Match::FollowCamera(""")
 
 def main():
     from fixture_patch import apply
@@ -1334,6 +1490,9 @@ def main():
         ("onthepitch/match.cpp","bestImpact.relativeAfter",surface_impact_match),
         ("onthepitch/ball.hpp","TribunAngularVelocity() const",angular_ball_header),
         ("onthepitch/ball.cpp","Vector3 Ball::TribunAngularVelocity()",angular_ball_source),
+        ("onthepitch/ball.hpp","void TribunQueueSplit",split_ball_header),
+        ("onthepitch/ball.cpp","void Ball::TribunQueueSplit",split_ball_source),
+        ("onthepitch/match.cpp","void Match::TribunFinishSplit",split_match_source),
     ):
         target=src/relative
         original=target.read_text(encoding="utf-8")
