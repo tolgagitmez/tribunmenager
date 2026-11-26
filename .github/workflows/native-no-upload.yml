@@ -1,0 +1,39 @@
+name: Native no-upload diagnostic
+on:
+  push:
+    branches: [experiment/native-no-upload-stage42]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_no_upload.py'
+      - '.github/workflows/native-no-upload.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-upload:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_no_upload.py
+      - run: python3 -m unittest discover -s tests -p test_native_no_draw.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/upload-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare visual upload on and off
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/upload-fixtures"
+          python3 integrations/league-soccer/no-upload-benchmark.py "$RUNNER_TEMP/upload-runtime" "$RUNNER_TEMP/upload-fixtures/counter-possession.json" "$RUNNER_TEMP/upload-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-no-upload
+          path: ${{ runner.temp }}/upload-results/
+          if-no-files-found: ignore

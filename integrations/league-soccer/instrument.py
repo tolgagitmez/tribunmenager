@@ -311,7 +311,23 @@ def suppress_draw_tasks(source):
     graphicsSequence->AddSystemTaskEntry(graphicsSystem, e_TaskPhase_Put);
   }
   printf("[tribun-render] scheduled-draw=%s\\n", tribunNoDraw ? "off" : "on");
+  const char* tribunUpload = std::getenv("TRIBUN_NATIVE_NO_UPLOAD");
+  printf("[tribun-render] geometry-upload=%s\\n", tribunNoDraw && tribunUpload && std::string(tribunUpload) == "1" ? "off" : "on");
   fflush(stdout);""")
+
+def suppress_geometry_uploads(source):
+    source = replace_once(source, '#include "gametask.hpp"',
+                          '#include "gametask.hpp"\n#include <cstdlib>\n#include <string>')
+    source = replace_once(source, "void GameTask::PutPhase() {", """void GameTask::PutPhase() {
+  const char* draw = std::getenv("TRIBUN_NATIVE_NO_DRAW");
+  const char* upload = std::getenv("TRIBUN_NATIVE_NO_UPLOAD");
+  const bool tribunNoUpload = draw && std::string(draw) == "1" &&
+                              upload && std::string(upload) == "1";""")
+    source = replace_once(source, "    match->UploadGoalNetting();",
+                          "    if (!tribunNoUpload) match->UploadGoalNetting();")
+    return replace_once(source, """  if (match) {
+    unsigned int playersPerThread = 7;""", """  if (match && !tribunNoUpload) {
+    unsigned int playersPerThread = 7;""")
 
 def main():
     from fixture_patch import apply
@@ -322,6 +338,10 @@ def main():
     main_source = main_path.read_text(encoding="utf-8")
     if "[tribun-render] scheduled-draw=" not in main_source:
         main_path.write_text(suppress_draw_tasks(main_source), encoding="utf-8")
+    task_path = pathlib.Path(sys.argv[1]) / "src/gametask.cpp"
+    task_source = task_path.read_text(encoding="utf-8")
+    if "const bool tribunNoUpload" not in task_source:
+        task_path.write_text(suppress_geometry_uploads(task_source), encoding="utf-8")
     path = pathlib.Path(sys.argv[1]) / "src/onthepitch/match.cpp"
     text = path.read_text(encoding="utf-8")
     if "void TribunTrace(" in text:
