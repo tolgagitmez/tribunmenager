@@ -145,18 +145,22 @@ def heartbeat(path,attempt):
         db.execute('BEGIN IMMEDIATE')
         return lease.renew(db,attempt,time.time())
 
-def run_match(runtime, root, job, *, database=None):
+def run_match(runtime, root, job, *, database=None, league_browser_descriptor=None):
     key,sha,config,attempt=job
     out=root/attempt;out.mkdir(mode=0o700)
     (out/'fixture.json').write_text(canonical(config))
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_GPU_','TRIBUN_AV_','TRIBUN_EXPECT_'))}
     league_mode_run=config.get('matchBackend')=='native-only'
+    if league_browser_descriptor is not None and not league_mode_run:raise ValueError('League screen diagnostic requires native-only fixture')
     env.update(TRIBUN_EXPECT_AUDIO='1',TRIBUN_EXPECT_CONTROL='0' if league_mode_run else '1',TRIBUN_EXPECT_FULL_PLAYBACK='1',TRIBUN_PLAYBACK_MIN_SECONDS='300')
     with (out/'native.log').open('wb') as n,(out/'browser.log').open('wb') as b:
         native=subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(out/'fixture.json'),str(out/'run'),'--audio','--interactive','--linger','60',*(['--league-control'] if league_mode_run else [])],env=env,stdout=n,stderr=subprocess.STDOUT)
         browser=None
         try:
-            browser=subprocess.Popen(['node',str(HERE/'native-live-video-browser.cjs'),str(out/'run/local-url.txt')],env=env,stdout=b,stderr=subprocess.STDOUT,start_new_session=True)
+            browser_command=['node',str(HERE/'native-live-video-browser.cjs'),str(out/'run/local-url.txt')]
+            if league_browser_descriptor is not None:
+                browser_command=['node',str(HERE/'native-league-screen-browser.cjs'),str(league_browser_descriptor),str(out/'run/browser-playback-report.json')]
+            browser=subprocess.Popen(browser_command,env=env,stdout=b,stderr=subprocess.STDOUT,start_new_session=True)
             deadline=time.monotonic()+1200
             next_heartbeat=0.0
             while native.poll() is None or browser.poll() is None:
