@@ -220,6 +220,13 @@ if [[ "${TRIBUN_NATIVE_REALTIME:-0}" == 1 ]]; then
   grep -F "\"menu_smoke_match_time_scale\" \"$scale\"" "$config" >/dev/null
   limit=850
 fi
+case "${TRIBUN_NATIVE_EXTENDED_MATCH:-0}" in
+  0) ;;
+  1)
+    [[ "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_REALTIME:-0}" == 1 && "${TRIBUN_NATIVE_EXTENDED_CAPTURE:-0}" == 1 && -n "${TRIBUN_NATIVE_VIDEO_OUT:-}" && "${TRIBUN_NATIVE_AUDIO_CAPTURE:-0}" == 1 && -z "${TRIBUN_NATIVE_HLS_DIR:-}" && "${TRIBUN_NATIVE_VIDEO_CONTROL:-0}" == 0 && "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 0 && -z "${TRIBUN_GPU_DISPLAY:-}" && -z "${TRIBUN_LEAGUE_SOCCER_COMMAND_DIR:-}" && "$render_interval" == 0 ]] || { echo "Extended frozen runner requires isolated offline MP4/audio capture" >&2; exit 2; }
+    limit=3600 ;;
+  *) exit 2 ;;
+esac
 case "${TRIBUN_AV_DUEL:-0}" in
   0) ;;
   1)
