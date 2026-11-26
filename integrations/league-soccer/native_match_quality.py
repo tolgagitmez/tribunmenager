@@ -126,4 +126,9 @@ def inspect(directory):
         from native_combination_diagnostics import inspect_combinations
         result['combinations']=inspect_combinations(directory/'native-match.game.log')
     except (OSError,ValueError,TypeError) as exc:result['errors']['combinations']=type(exc).__name__
+    result['offballLanes']=None
+    try:
+        from native_offball_diagnostics import inspect_offball
+        result['offballLanes']=inspect_offball(directory/'native-match.game.log')
+    except (OSError,ValueError,TypeError) as exc:result['errors']['offballLanes']=type(exc).__name__
     return result
