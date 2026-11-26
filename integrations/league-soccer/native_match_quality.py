@@ -116,4 +116,9 @@ def inspect(directory):
         from native_pressure_hold_diagnostics import inspect_pressure_hold
         result['pressureHold']=inspect_pressure_hold(directory/'native-match.game.log')
     except (OSError,ValueError,TypeError) as exc:result['errors']['pressureHold']=type(exc).__name__
+    result['passTiming']=None
+    try:
+        from native_pass_timing_diagnostics import inspect_pass_timing
+        result['passTiming']=inspect_pass_timing(directory/'native-match.game.log')
+    except (OSError,ValueError,TypeError) as exc:result['errors']['passTiming']=type(exc).__name__
     return result
