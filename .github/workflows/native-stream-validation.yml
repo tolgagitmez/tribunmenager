@@ -1,0 +1,99 @@
+name: Native stream full audiovisual and manager validation
+on:
+  push:
+    branches: [experiment/native-stream-validation-stage120]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  transport:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_media_audit.py
+      - run: python3 -m unittest discover -s tests -p test_native_video_control.py
+      - run: python3 -m unittest discover -s tests -p test_native_roster.py
+      - run: node --test integrations/league-soccer/native-live-video.test.cjs
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - name: Verify real FFmpeg packet timing and Chrome playback on diagnostic input
+        run: |
+          for audio in silent audio; do
+            out="$RUNNER_TEMP/transport-$audio"
+            flags=()
+            if [[ "$audio" == audio ]]; then flags+=(--audio); export TRIBUN_EXPECT_AUDIO=1; else export TRIBUN_EXPECT_AUDIO=0; fi
+            python3 integrations/league-soccer/stream-transport-smoke.py "$out" "${flags[@]}" &
+            pid=$!
+            trap 'kill "$pid" 2>/dev/null || true' EXIT
+            node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt"
+            wait "$pid"
+            trap - EXIT
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-transport-timeline-reports
+          path: ${{ runner.temp }}/transport-*/transport-report.json
+          if-no-files-found: ignore
+  native:
+    needs: transport
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth pulseaudio pulseaudio-utils libopenal-dev
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - name: Build pinned engine
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/validation-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Full native audio-video match with late viewer and real two-team manager commands
+        env:
+          TRIBUN_EXPECT_AUDIO: '1'
+          TRIBUN_EXPECT_CONTROL: '1'
+          TRIBUN_EXPECT_SUSTAINED: '1'
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/validation-fixtures"
+          out="$RUNNER_TEMP/validation-result"
+          python3 integrations/league-soccer/native-live-video.py "$RUNNER_TEMP/validation-runtime" "$RUNNER_TEMP/validation-fixtures/balanced.json" "$out" --audio --interactive &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          browser_status=0
+          node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt" || browser_status=$?
+          native_status=0
+          wait "$pid" || native_status=$?
+          trap - EXIT
+          echo "browser=$browser_status native=$native_status"
+          test "$browser_status" -eq 0 && test "$native_status" -eq 0
+          python3 - "$out/live-report.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1]))
+          assert r["status"]=="local-live-evidence"
+          assert r["nativeClock"]["nativeElapsedMs"]==300000
+          assert r["mediaTimeline"]["timelinePassed"] and r["audio"]["nonSilentCoveragePassed"]
+          assert r["control"]["submitted"]==[1,1] and r["control"]["applied"]==[1,1]
+          assert r["control"]["formations"]==[442,4231] and r["control"]["pending"]==[False,False]
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-stream-validation-measurements
+          path: |
+            ${{ runner.temp }}/validation-result/live-report.json
+            ${{ runner.temp }}/validation-result/runner.log
+            ${{ runner.temp }}/validation-result/native-match.capture.log
+            ${{ runner.temp }}/validation-result/native-match.game.log
+            ${{ runner.temp }}/validation-result/native-audio.log
+          if-no-files-found: ignore

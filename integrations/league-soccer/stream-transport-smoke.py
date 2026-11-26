@@ -19,7 +19,10 @@ def main():
         subprocess.run(command,check=True,timeout=40)
         state["phase"]="finished"
         result=L.validate_playlist(media)
-        (out/"transport-report.json").write_text(json.dumps({"syntheticOnly":True,"audio":a.audio,**result},indent=2))
+        from native_media_audit import audit_media
+        audit=audit_media(media/"live.m3u8",a.audio,15)
+        (out/"transport-report.json").write_text(json.dumps({"syntheticOnly":True,"audio":a.audio,**result,"mediaTimeline":audit},indent=2))
+        if not audit["timelinePassed"]:raise RuntimeError("Synthetic transport timestamp audit failed")
         time.sleep(10)
     finally:server.shutdown();server.server_close();thread.join(timeout=5)
 if __name__=="__main__":main()

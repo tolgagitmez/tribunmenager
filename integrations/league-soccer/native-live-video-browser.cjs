@@ -27,6 +27,24 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium}=requ
    if(bytes!==null)assert.ok(bytes>0,'No decoded audio bytes');
    console.log(JSON.stringify({audioRequested:true,unmuted:true,decodedAudioBytes:bytes}));
   }
+  if(process.env.TRIBUN_EXPECT_SUSTAINED==='1'){
+   const start=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());
+   await page.waitForFunction(t=>{const d=window.TRIBUN_VIDEO_DIAGNOSTIC();return d.phase==='error'||d.currentTime>=t+8;},start.currentTime,{timeout:25000});
+   const end=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());
+   assert.notEqual(end.phase,'error',JSON.stringify(end));assert.ok(end.currentTime>=start.currentTime+8);
+   const late=await browser.newPage({viewport:{width:390,height:844}});
+   try{
+    await late.goto(url);await late.locator('#start').click();
+    await late.waitForFunction(()=>{const d=window.TRIBUN_VIDEO_DIAGNOSTIC?.();return d?.phase==='error'||(d?.videoWidth>0&&!d.paused&&d.currentTime>4);},{},{timeout:30000});
+    const a=await late.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());
+    assert.notEqual(a.phase,'error',JSON.stringify(a));
+    await late.waitForFunction(t=>{const d=window.TRIBUN_VIDEO_DIAGNOSTIC();return d.phase==='error'||d.currentTime>=t+3;},a.currentTime,{timeout:15000});
+    const b=await late.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());assert.notEqual(b.phase,'error',JSON.stringify(b));assert.ok(b.currentTime>=a.currentTime+3);
+    const original=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());
+    assert.notEqual(original.phase,'error',JSON.stringify(original));assert.ok(original.currentTime>end.currentTime);
+    console.log(JSON.stringify({sustainedPlayback:true,lateViewer:true,originalMediaTime:original.currentTime,lateMediaTime:b.currentTime,mediaTimeDifference:Math.abs(original.currentTime-b.currentTime)}));
+   }finally{await late.close();}
+  }
   if(process.env.TRIBUN_EXPECT_CONTROL==='1'){
    const dir=require('node:path').dirname(file);
    const urls=[0,1].map(side=>fs.readFileSync(require('node:path').join(dir,'local-manager-'+side+'.txt'),'utf8').trim());
@@ -42,6 +60,9 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium}=requ
     await m.waitForFunction(()=>document.querySelector('#commandStatus').textContent.includes('Motor onayladı'),{},{timeout:60000});
     const ack=await m.evaluate(async()=>await(await fetch('tactics.json')).json());
     assert.equal(ack.side,side);assert.equal(ack.appliedRevision,1);
+    const spectator=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());
+    assert.notEqual(spectator.phase,'error',JSON.stringify(spectator));
+    assert.ok(spectator.videoWidth>0);
     await m.close();
    }
    console.log('Both manager commands acknowledged by the actual native engine while video plays.');

@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from release_evidence import stamp,sha
 from native_audio_capture import audit_audio
+from native_media_audit import audit_media
 from native_video_control import ControlBridge
 from native_roster import plan_from_config,verify_halftime
 HERE=Path(__file__).resolve().parent
@@ -142,14 +143,16 @@ def main():
         if a.halftime_plan:
             roster=verify_halftime(trace,Path(str(trace)+".fixture.json"),Path(str(trace)+".season.json"))
             complete=complete and roster["allPlannedChangesObserved"]
+        media_audit=audit_media(media/"live.m3u8",a.audio,checks["observedWallSeconds"])
+        complete=complete and media_audit["timelinePassed"]
         audio=None
         if a.audio:
             V.require(capture.get("audio") is True and capture.get("nativeSinkInputObserved") is True,"No native sound producer observed")
             audio=audit_audio(media/"live.m3u8",checks["observedWallSeconds"])
             complete=complete and audio["nonSilentCoveragePassed"]
         report.update(status="local-live-evidence" if complete else "coverage-inconclusive",nativeClock=clock,audio=audio,
-          playlist=playlist,checks=checks,traceSha256=sha(trace),control=control.report() if control else None,roster=roster,
-          note="Loopback only, 2-second HLS segments. Audio when requested is native OpenAL mix, not synthetic effects. Event-by-event sound and exact A/V alignment not verified. Browser latency, actual renderer FPS, asset clearance, league authorization and capacity not qualified. Manager status is current engine time, not synchronized video time.")
+          playlist=playlist,mediaTimeline=media_audit,checks=checks,traceSha256=sha(trace),control=control.report() if control else None,roster=roster,
+          note="Loopback only, 2-second HLS segments. Audio when requested is native OpenAL mix, not synthetic effects. Encoded A/V timestamp continuity checked; event-by-event sound and perceptual A/V alignment not verified. Browser latency, actual renderer FPS, asset clearance, league authorization and capacity not qualified. Manager status is current engine time, not synchronized video time.")
         state["audio"]=bool(audio and audio["nonSilentCoveragePassed"]);state["phase"]="finished" if complete else "failed";write_json(report_path,report)
         if not complete:raise RuntimeError("Live coverage inconclusive")
         print(json.dumps(report,indent=2),flush=True);time.sleep(a.linger)
