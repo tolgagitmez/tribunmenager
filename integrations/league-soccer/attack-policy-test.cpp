@@ -1,3 +1,4 @@
+#include <limits>
 #include "aitactics.hpp"
 #include <cassert>
 int main(){
@@ -248,6 +249,21 @@ int main(){
  timing.Begin(1,4,7,12,1000);timing.Reset();assert(!timing.active);
  timing.Begin(1,4,7,12,1000);timing.Begin(1,5,7,12,1100);
  assert(timing.Finish(1,5,7,12,1200,elapsed)&&elapsed==100);
+ LegBlendWatch legBlend;
+ assert(legBlend.Observe(true,1,100,.8f)==.8f);
+ float legA=legBlend.Observe(true,1,110,.6f);
+ assert(legA>.6f && legA<=.720001f);
+ float legB=legBlend.Observe(true,1,120,.6f);
+ assert(legB<legA && legB>.6f);
+ assert(legBlend.Observe(true,1,120,.6f)==legB);
+ assert(legBlend.Observe(true,1,221,.4f)==.4f);
+ assert(legBlend.Observe(true,2,230,.9f)==.9f);
+ assert(legBlend.Observe(true,2,229,.7f)==.7f);
+ assert(legBlend.Observe(false,2,240,.5f)==.5f && !legBlend.active);
+ assert(legBlend.Observe(true,2,250,.3f)==.3f);
+ assert(legBlend.Observe(true,2,260,1.1f)>=.979999f);
+ assert(std::isnan(legBlend.Observe(true,2,270,std::numeric_limits<float>::quiet_NaN())) && !legBlend.active);
+ assert(legBlend.Observe(true,2,280,.05f)==.05f && !legBlend.active);
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
