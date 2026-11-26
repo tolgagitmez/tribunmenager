@@ -1,7 +1,7 @@
-name: Stage 220 native media retiming validation
+name: Stage 221 extended native AV capture validation
 on:
   pull_request:
-    branches: [experiment/native-playback-optimization-stage219]
+    branches: [experiment/native-media-retime-stage220]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
@@ -184,16 +184,27 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p test_native_playback_schedule.py
           python3 -m unittest discover -s tests -p test_native_playback_optimize.py
-      - name: Build and record independent 30-minute CPU fixture
+      - name: Verify extended capture contract
+        run: python3 -m unittest discover -s tests -p test_native_extended_capture.py -v
+      - name: Install extended audiovisual capture dependencies
+        run: sudo apt-get install -y ffmpeg xdotool pulseaudio pulseaudio-utils libopenal-dev
+      - name: Build pinned native runtime for extended capture
         env:
           TRIBUN_INSTALL_NATIVE_DEPS: '1'
           TRIBUN_BUILD_JOBS: '3'
-          TRIBUN_NATIVE_FIXED_DURATION: '1'
-          TRIBUN_NATIVE_EXTENDED_MATCH: '1'
-          TRIBUN_LEAGUE_SOCCER_SEED: '2026'
+          TRIBUN_PREPARE_ONLY: '1'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/extended-runtime
         run: |
           set -o pipefail
-          bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/extended.ndjson" --demo 2>&1 | tee "$RUNNER_TEMP/extended-run.log"
+          bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/extended-build.ndjson" 2>&1 | tee "$RUNNER_TEMP/extended-run.log"
+      - name: Record independent 30-minute CPU fixture with native audio
+        run: |
+          node -e 'process.stdout.write(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/extended-fixture.json"
+          python3 integrations/league-soccer/native_extended_capture.py "$RUNNER_TEMP/extended-runtime" "$RUNNER_TEMP/extended-fixture.json" "$RUNNER_TEMP/extended-capture" --private-diagnostic
+          cp "$RUNNER_TEMP/extended-capture/match.ndjson" "$RUNNER_TEMP/extended.ndjson"
+          cp "$RUNNER_TEMP/extended-capture/match.ndjson.fixture.json" "$RUNNER_TEMP/extended.ndjson.fixture.json"
+          cp "$RUNNER_TEMP/extended-capture/match.ndjson.attack.json" "$RUNNER_TEMP/extended.ndjson.attack.json"
+          cat "$RUNNER_TEMP/extended-capture/extended-capture-report.json" >> "$GITHUB_STEP_SUMMARY"
       - name: Verify exact extended clock and full-time result
         run: |
           python3 integrations/league-soccer/native_extended_clock_verify.py "$RUNNER_TEMP/extended.ndjson" "$RUNNER_TEMP/extended-report.json"
@@ -237,6 +248,11 @@ jobs:
             ${{ runner.temp }}/optimized-playback.json
             ${{ runner.temp }}/optimized-summary.json
             ${{ runner.temp }}/extended-run.log
+            ${{ runner.temp }}/extended-capture/extended-capture-report.json
+            ${{ runner.temp }}/extended-capture/native-match.capture.json
+            ${{ runner.temp }}/extended-capture/native-match.clock-observations.json
+            ${{ runner.temp }}/extended-capture/native-match.capture.log
+            ${{ runner.temp }}/extended-capture/runner.log
   media_retime:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
