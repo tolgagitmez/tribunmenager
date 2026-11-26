@@ -13,6 +13,7 @@ from urllib.parse import urlsplit, parse_qs
 from economy import TransferService, EconomyError, SET_PIECE_ATTRIBUTES
 from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_control
 import season_state
+import league_standings
 import native_shadow
 import native_live
 import native_av_gateway
@@ -189,14 +190,7 @@ def status(token, now=None):
         current_round=max(0,min(9,int((now-fix[0]['kickoff'])//86400))) if now>=fix[0]['kickoff'] else 0
         next_time=min((f['kickoff'] for f in fix if f['kickoff']>now),default=None)
         active=[f for f in fix if f['kickoff']<=now and f['home_score'] is None]
-        standings=[]
-        for t in teams:
-            item={'slot':t['slot'],'club':t['name'],'manager':t['manager'],'played':0,'w':0,'d':0,'l':0,'gf':0,'ga':0,'points':0}
-            for f in fix:
-                if f['home_score'] is None or t['slot'] not in (f['home'],f['away']):continue
-                home=t['slot']==f['home'];gf=f['home_score'] if home else f['away_score'];ga=f['away_score'] if home else f['home_score'];item['played']+=1;item['gf']+=gf;item['ga']+=ga;item['w']+=gf>ga;item['d']+=gf==ga;item['l']+=gf<ga;item['points']+=3 if gf>ga else 1 if gf==ga else 0
-            standings.append(item)
-        standings.sort(key=lambda a:(-a['points'],-(a['gf']-a['ga']),-a['gf'],a['slot']))
+        standings=league_standings.project(teams,fix)
         # The league screen displays *its own* roster, including currently
         # benched players, not stale or other-manager wallet data.
         roster=football_team_snapshot(c,person,current_round)

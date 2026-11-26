@@ -1,0 +1,17 @@
+name: Stage 146 native season cutover rehearsal
+on:
+  push:
+    branches: [experiment/native-season-cutover-stage146]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_season_cutover.py
+          python3 -m unittest discover -s tests -p test_native_av_season.py
+          python3 -m unittest discover -s tests -p test_native_season.py
+          python3 -m unittest discover -s tests -p test_native_integrated_replay.py
+          python3 -m py_compile server.py native_season_cutover.py league_standings.py
