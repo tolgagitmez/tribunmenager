@@ -1,0 +1,18 @@
+name: Stage 144 hardware context contracts
+on:
+  push:
+    branches: [experiment/native-hardware-pilot-stage144]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_gl_context.py
+          python3 -m unittest discover -s tests -p test_native_gpu_display.py
+          python3 -m unittest discover -s tests -p test_native_hw_encoder.py
+          python3 -m unittest discover -s tests -p test_native_worker_recovery.py
+          python3 -m py_compile integrations/league-soccer/native_hardware_match.py integrations/league-soccer/native-live-video.py integrations/league-soccer/native-video-pilot.py
+      - run: echo 'Mock context contract tests only. Physical GPU requires an explicitly prepared dedicated host.'

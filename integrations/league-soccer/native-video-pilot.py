@@ -72,6 +72,14 @@ def _capture_window(config,limit,audio_env):
     require(gl_workers in ("1","2") and swap_enabled in ("0","1"),"Invalid render diagnostic")
     require((gl_workers=="2" and swap_enabled=="0") or (hls and not os.environ.get("TRIBUN_GPU_DISPLAY")),"Private software HLS required")
     game_env=dict(child_env,LP_NUM_THREADS=gl_workers)
+    gpu_context=bool(os.environ.get("TRIBUN_GPU_DISPLAY"))
+    if gpu_context:
+        from native_gl_context import compile_hook
+        require(not game_env.get("LD_PRELOAD"),"Existing preload not permitted")
+        game_env.pop("LP_NUM_THREADS",None)
+        gpu_hook=video.parent/"native-gl-context.so"
+        compile_hook(HERE/"native_gl_context_hook.c",gpu_hook)
+        game_env.update(LD_PRELOAD=str(gpu_hook),TRIBUN_NATIVE_GL_CONTEXT_LOG=str(video.parent/"native-gl-context.log"))
     swap_base=video.parent/"native-swaps"
     if swap_enabled=="1":
         from native_swap_probe import compile_probe
@@ -139,12 +147,17 @@ def _capture_window(config,limit,audio_env):
     if audio_env is not None:
         require("falling back to silent audio" not in logs and "using silent audio" not in logs,"Native OpenAL fallback to silent audio")
         require(sink_input,"Native OpenAL owned sink input never observed")
+    context_report=None
+    if gpu_context:
+        from native_gl_context import verify
+        context_report=verify(video.parent/"native-gl-context.log",json.loads((video.parent/"gpu-preflight.json").read_text()))
+        save(video.parent/"native-gl-context.json",context_report)
     swap_report=None
     if swap_enabled=="1":
         from native_swap_probe import summarize
         swap_report=summarize(swap_base,kickoff,final)
         save(video.parent/"native-render-report.json",swap_report)
-    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"nativeSinkOwnershipVerified":sink_input,"audioProbeCounts":audio_probes,"videoEncoder":backend,"renderProbe":swap_report,"softwareGLWorkers":int(gl_workers),"encoderThreads":int(encoder_threads)})
+    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"nativeSinkOwnershipVerified":sink_input,"audioProbeCounts":audio_probes,"videoEncoder":backend,"renderProbe":swap_report,"softwareGLWorkers":int(gl_workers),"encoderThreads":int(encoder_threads),"hardwareContext":context_report})
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)

@@ -162,6 +162,8 @@ def main():
             complete=complete and roster["allPlannedChangesObserved"]
         media_audit=audit_media(media/"live.m3u8",a.audio,checks["observedWallSeconds"])
         complete=complete and media_audit["timelinePassed"]
+        if os.environ.get("TRIBUN_GPU_DISPLAY"):
+            complete=complete and isinstance(capture.get("hardwareContext"),dict) and capture["hardwareContext"].get("hardwareContextVerified") is True
         audio=None
         if a.audio:
             V.require(capture.get("audio") is True and capture.get("nativeSinkInputObserved") is True and capture.get("nativeSinkOwnershipVerified") is True,"No native sound producer observed")
@@ -175,7 +177,7 @@ def main():
             motion=audit_motion(media/"live.m3u8")
             write_json(out/"native-motion-report.json",motion)
         report.update(status="local-live-evidence" if complete else "coverage-inconclusive",nativeClock=clock,audio=audio,
-          gpuPreflight=json.loads((out/"gpu-preflight.json").read_text()) if (out/"gpu-preflight.json").is_file() else None,
+          hardwareContext=capture.get("hardwareContext"),gpuPreflight=json.loads((out/"gpu-preflight.json").read_text()) if (out/"gpu-preflight.json").is_file() else None,
           audioOwnership={"verified":capture.get("nativeSinkOwnershipVerified"),"probeCounts":capture.get("audioProbeCounts",{})},motionAudit=motion,renderProbe=capture.get("renderProbe"),softwareGLWorkers=capture.get("softwareGLWorkers",2),encoderThreads=capture.get("encoderThreads",2),
           videoEncoder=capture.get("videoEncoder","x264"),encoderPreflight=json.loads((out/"encoder-preflight.json").read_text()) if (out/"encoder-preflight.json").is_file() else None,
           playlist=playlist,mediaTimeline=media_audit,checks=checks,traceSha256=sha(trace),control=control_report,roster=roster,
