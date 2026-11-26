@@ -257,6 +257,29 @@ struct KeeperProbe {
 };
 '''
 
+DEFENSE_SHAPE_RULES = r'''// Coordinates are metres from the defending goal; preserve formation-relative ordering.
+inline bool CoverEligible(float depth,bool primary,bool secondary,bool marked,bool ownControl){
+  return depth>=9.0f&&depth<=40.0f&&!primary&&!secondary&&!marked&&!ownControl;
+}
+inline float CoverDepth(float formationDepth,float threatDepth,float press,float nearSide){
+  const float margin=5.0f+2.0f*(1.0f-std::clamp(press,0.0f,1.0f))+1.5f*nearSide;
+  return std::clamp(std::min(formationDepth,threatDepth-margin),2.0f,40.0f);
+}
+inline float CoverWidth(float formationY,float threatY,float press){
+  const float compact=.82f+.08f*std::clamp(press,0.0f,1.0f);
+  return std::clamp(formationY*compact+std::clamp(threatY*.22f,-5.0f,5.0f),-24.0f,24.0f);
+}
+inline bool ShapeExposed(float depthSpread,float largestGap,int goalSide){
+  return depthSpread>8.0f||largestGap>13.0f||goalSide<2;
+}
+struct DefenseProbe {
+  unsigned long coverTargets=0,huntsSuppressed=0,samples=0,exposed=0;
+  void Sample(float depthSpread,float largestGap,int goalSide){
+    ++samples;if(ShapeExposed(depthSpread,largestGap,goalSide))++exposed;
+  }
+};
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -2263,4 +2286,99 @@ Vector3 AI_GetForceFieldMovement'''),
     }
   }
   direction = targetPos - player->GetPosition();'''),
+    ])
+
+    # Stage 71: keep non-pressing defenders in staggered, formation-relative cover.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool DefenseShapeEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_DEFENSE_SHAPE");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + DEFENSE_SHAPE_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  AITactics::KeeperProbe tribunKeeperProbes[2];", "  AITactics::KeeperProbe tribunKeeperProbes[2];\n  AITactics::DefenseProbe tribunDefenseProbes[2];"),
+    ])
+    edit(root, "src/onthepitch/player/controller/strategies/offtheball/default_def.cpp", [
+        ("    // offside trap (used to be applied before AddDefensiveComponent)", r'''    if(AITactics::DefenseShapeEnabled()&&match->IsInPlay()&&!match->IsInSetPiece()&&
+        !match->GetBallRetainer()&&!team->GetHumanGamerCount()){
+      auto* rival=controller->GetOppTeam()->GetDesignatedTeamPossessionPlayer();
+      const auto role=CastPlayer()->GetFormationEntry().role;
+      if(rival&&rival->IsActive()&&rival->HasUniquePossession()&&
+          (role==e_PlayerRole_CB||role==e_PlayerRole_LB||role==e_PlayerRole_RB)){
+        const float side=team->GetSide();
+        const auto threat=(rival->GetPosition()+rival->GetMovement()*.25f).Get2D();
+        const float depth=pitchHalfW-threat.coords[0]*side;
+        const bool secondary=team->GetController()->GetEndApplyTeamPressure_ms()>match->GetActualTime_ms()&&
+            team->GetController()->GetTeamPressurePlayer()==CastPlayer();
+        if(AITactics::CoverEligible(depth,CastPlayer()==team->GetDesignatedTeamPossessionPlayer(),
+            secondary,CastPlayer()->GetManMarkingID()!=-1,team->HasUniquePossession())){
+          const float press=clamp(team->GetTeamData()->GetTactics().userProperties.GetReal("team_pressure",.5f),0.0f,1.0f);
+          const float staticDepth=pitchHalfW-desiredPosition_static.coords[0]*side;
+          const float nearSide=desiredPosition_static.coords[1]*threat.coords[1]>0?1.0f:0.0f;
+          const float targetDepth=AITactics::CoverDepth(staticDepth,depth,press,nearSide);
+          const float targetY=AITactics::CoverWidth(desiredPosition_static.coords[1],threat.coords[1],press);
+          const Vector3 cover((pitchHalfW-targetDepth)*side,targetY,0);
+          const auto correction=cover-desiredPosition;
+          // Limit correction to a 4 m target adjustment, no position teleportation.
+          if(correction.GetLength()>.3f){
+            desiredPosition+=correction.GetNormalized(0)*std::min(4.0f,correction.GetLength())*.75f;
+            ++match->tribunDefenseProbes[team->GetID()].coverTargets;
+          }
+        }
+      }
+    }
+    // offside trap (used to be applied before AddDefensiveComponent)'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("        std::vector<Player*> closestPlayers;\n        if(huntingPlayersNum>0)", r'''        if(AITactics::DefenseShapeEnabled()&&huntingPlayersNum>0&&match->IsInPlay()&&
+            !match->IsInSetPiece()&&!match->GetBallRetainer()&&!team->GetHumanGamerCount()&&opp&&opp->HasUniquePossession()){
+          const auto role=CastPlayer()->GetFormationEntry().role;
+          const bool secondary=team->GetController()->GetEndApplyTeamPressure_ms()>match->GetActualTime_ms()&&
+              team->GetController()->GetTeamPressurePlayer()==CastPlayer();
+          const float depth=pitchHalfW-opp->GetPosition().coords[0]*team->GetSide();
+          if((role==e_PlayerRole_CB||role==e_PlayerRole_LB||role==e_PlayerRole_RB)&&
+              AITactics::CoverEligible(depth,CastPlayer()==team->GetDesignatedTeamPossessionPlayer(),
+                  secondary,CastPlayer()->GetManMarkingID()!=-1,team->HasUniquePossession())){
+            huntingPlayersNum=0;
+            ++match->tribunDefenseProbes[team->GetID()].huntsSuppressed;
+          }
+        }
+        std::vector<Player*> closestPlayers;
+        if(huntingPlayersNum>0)'''),
+    ])
+    edit(root, "src/onthepitch/match.cpp", [
+        ("    if(AITactics::KeeperAIEnabled()){", r'''    // Measure actual line positions in both reference and candidate. No inference from targets.
+    if(AITactics::ShortMatchAttackEnabled()&&AITactics::FixedDurationEnabled()&&
+        IsInPlay()&&!IsInSetPiece()&&!GetBallRetainer()&&actualTime_ms%100==0){
+      for(int t=0;t<2;++t){
+        auto* own=teams[t];
+        auto* rival=teams[1-t]->GetDesignatedTeamPossessionPlayer();
+        if(!rival||!rival->HasUniquePossession()||own->HasUniquePossession())continue;
+        const float side=own->GetSide();
+        const float depth=pitchHalfW-rival->GetPosition().coords[0]*side;
+        if(depth<9.0f||depth>40.0f)continue;
+        std::vector<Player*> active;own->GetActivePlayers(active);
+        std::vector<float> ys;
+        float minDepth=100.0f,maxDepth=-100.0f;
+        int goalSide=0;
+        for(auto* defender:active){
+          const auto role=defender->GetFormationEntry().role;
+          if(role!=e_PlayerRole_CB&&role!=e_PlayerRole_LB&&role!=e_PlayerRole_RB)continue;
+          const auto pos=defender->GetPosition();
+          const float d=pitchHalfW-pos.coords[0]*side;
+          minDepth=std::min(minDepth,d);maxDepth=std::max(maxDepth,d);
+          ys.push_back(pos.coords[1]);if(d<=depth-1.0f)++goalSide;
+        }
+        if(ys.size()<3)continue;
+        std::sort(ys.begin(),ys.end());
+        float gap=0;for(size_t j=1;j<ys.size();++j)gap=std::max(gap,ys[j]-ys[j-1]);
+        tribunDefenseProbes[t].Sample(maxDepth-minDepth,gap,goalSide);
+      }
+    }
+    if(AITactics::KeeperAIEnabled()){'''),
     ])

@@ -222,6 +222,10 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-keeper] mode=%s narrows=%lu,%lu intercepts=%lu,%lu touches=%lu,%lu controls=%lu,%lu closed=%lu,%lu\n",
       AITactics::KeeperAIEnabled()?"keeper":"off",ka.narrows,kb.narrows,ka.intercepts,kb.intercepts,
       ka.touches,kb.touches,ka.controls,kb.controls,ka.closed,kb.closed);
+    const auto& dsa=match.tribunDefenseProbes[0];const auto& dsb=match.tribunDefenseProbes[1];
+    std::printf("[tribun-defense] mode=%s targets=%lu,%lu suppressed=%lu,%lu samples=%lu,%lu exposed=%lu,%lu\n",
+      AITactics::DefenseShapeEnabled()?"shape":"off",dsa.coverTargets,dsb.coverTargets,dsa.huntsSuppressed,dsb.huntsSuppressed,
+      dsa.samples,dsb.samples,dsa.exposed,dsb.exposed);
     std::fflush(stdout);
   }
   if (done && tribun_visual::collisionOnly()) {
