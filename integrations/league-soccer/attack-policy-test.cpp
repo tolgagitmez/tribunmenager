@@ -443,6 +443,19 @@ int main(){
  assert(!BoxFinish207Prefer(NAN,.4f));
  assert(!BoxFinish207Prefer(.9f,NAN));
  assert(!BoxFinish207Prefer(1.01f,.5f));
+ // Stage 215: conservative new target; reject weaker/blocked shots or better passes.
+ assert(BoxAim215Eligible(.60f,.68f,.75f,.70f));
+ assert(BoxAim215Eligible(.80f,.80f,.62f,.89f));
+ assert(!BoxAim215Eligible(.80f,.79f,.90f,.70f));
+ assert(!BoxAim215Eligible(.60f,.61f,.90f,.40f));
+ assert(!BoxAim215Eligible(.60f,.68f,.619f,.40f));
+ assert(!BoxAim215Eligible(.60f,.68f,.90f,.80f));
+ assert(!BoxAim215Eligible(.60f,.68f,1.01f,.40f));
+ assert(!BoxAim215Eligible(NAN,.68f,.90f,.40f));
+ assert(!BoxAim215Eligible(.60f,NAN,.90f,.40f));
+ assert(!BoxAim215Eligible(.60f,.68f,NAN,.40f));
+ assert(!BoxAim215Eligible(.60f,.68f,.90f,NAN));
+ assert(!BoxAim215Eligible(-.1f,.68f,.90f,.40f));
  assert(CoordinatedStart208Eligible(25,8,.7f,15,10,14,3,4,3,5,2));
  assert(CoordinatedStart208Eligible(17,0,.45f,6,24,7,1.5f,2.2f,1.5f,3.5f,1));
  assert(!CoordinatedStart208Eligible(16.9f,8,.7f,15,10,14,3,4,3,5,2));

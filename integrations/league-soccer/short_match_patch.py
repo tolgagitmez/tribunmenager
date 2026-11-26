@@ -1927,6 +1927,12 @@ inline bool BoxFinish207Prefer(float shotOdds,float passOdds){
       shotOdds>=.62f&&shotOdds<=1.0f&&passOdds>=0.0f&&passOdds<=1.0f&&
       shotOdds+.10f>=passOdds;
 }
+// Stage 215: a new aim must preserve native shot odds and the passing alternative.
+inline bool BoxAim215Eligible(float originalOdds,float candidateOdds,float fieldOdds,float passOdds){
+  return std::isfinite(originalOdds)&&originalOdds>=0.0f&&originalOdds<=1.0f&&
+      std::isfinite(fieldOdds)&&fieldOdds>=.62f&&fieldOdds<=1.0f&&
+      candidateOdds>=originalOdds&&BoxFinish207Prefer(candidateOdds,passOdds);
+}
 inline bool RunPass206Eligible(const RunReservation189& reservation,int receiver,int carrier,int phase,
     unsigned long now,float x,float y,float vx,float vy){
   if(receiver<0||carrier<0||receiver==carrier||reservation.player!=receiver||
@@ -2798,7 +2804,8 @@ Vector3 AI_GetForceFieldMovement'''),
     ])
     edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
         ("    odds = std::pow(odds, 0.5f);", r'''    bool finishEvaluated=false,finishChanged=false,finishPriority=false;
-    if(AITactics::FinishEnabled()&&CastPlayer()->HasUniquePossession()&&match->IsInPlay()&&
+    const bool boxAim215=boxProbe207 && AITactics::CoordinatedRuns189Enabled() && !AITactics::FinishEnabled();
+    if((AITactics::FinishEnabled()||boxAim215)&&CastPlayer()->HasUniquePossession()&&match->IsInPlay()&&
         !match->IsInSetPiece()&&!match->GetBallRetainer()&&!team->GetHumanGamerCount()&&
         CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK){
       const float skill=player->GetStat("technical_shot");
@@ -2820,6 +2827,7 @@ Vector3 AI_GetForceFieldMovement'''),
           return _GetPassingOdds(Vector3(goalX,targetY,0),e_FunctionType_Shot,outfield,3.0f);
         };
         const float originalY=y,originalOdds=odds;
+        const float passOdds=bestMateRating.player?bestMateRating.passRating:0.0f;
         // Compare the baseline aim at its actual position (which may be near the post).
         const float baselineField=fieldOdds(y);
         float best=.48f*odds+.32f*baselineField+.20f*clamp(keeperGap(y)/3.0f,0.0f,1.0f)-
@@ -2830,14 +2838,18 @@ Vector3 AI_GetForceFieldMovement'''),
           const float nativeOdds=_GetPassingOdds(Vector3(goalX,targetY,0),e_FunctionType_Shot,opponentPlayerImages,3.0f);
           if(nativeOdds<originalOdds-.08f||!AITactics::FinishEligible(shotDistance,shotAngle,skill,nativeOdds))continue;
           const float clear=fieldOdds(targetY);
+          if(boxAim215 && !AITactics::BoxAim215Eligible(originalOdds,nativeOdds,clear,passOdds))continue;
           const float score=AITactics::FinishTargetScore(nativeOdds,clear,keeperGap(targetY),targetY,skill);
           if(score>best){best=score;bestY=targetY;bestOdds=nativeOdds;bestField=clear;}
         }
         if(best>baseline+.025f){y=bestY;odds=bestOdds;finishChanged=std::abs(y-originalY)>.10f;}
         else bestField=baselineField;
-        finishEvaluated=true;
-        const float passOdds=bestMateRating.player?bestMateRating.passRating:0.0f;
-        finishPriority=AITactics::FinishPreferShot(shotDistance,shotAngle,skill,odds,bestField,passOdds);
+        // Keep legacy finish counters and its priority policy isolated.
+        finishEvaluated=!boxAim215;
+        finishPriority=!boxAim215 && AITactics::FinishPreferShot(shotDistance,shotAngle,skill,odds,bestField,passOdds);
+        if(boxAim215 && finishChanged && match->GetActualTime_ms()%250UL==0)
+          std::fprintf(stderr,"[tribun-box-aim215] team=%d player=%d match_ms=%lu before=%.5f after=%.5f y=%.4f\n",
+              team->GetID(),player->GetID(),static_cast<unsigned long>(match->GetMatchTime_ms()),originalOdds,odds,y);
       }
     }
     const bool boxFinish207=boxProbe207 && AITactics::BoxFinish207Prefer(odds,
