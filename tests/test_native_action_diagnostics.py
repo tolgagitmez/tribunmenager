@@ -55,3 +55,15 @@ class ActionDiagnosticsTest(unittest.TestCase):
         self.assertEqual(r['observedEvents'],1)
         self.assertNotIn('contact',r['counts']['short-pass'])
         self.assertEqual(r['alternativeEvents'][0]['playerId'],7)
+
+
+    def test_touch_geometry_and_retry(self):
+        g='[tribun-touch-geometry] phase=1 match_ms=1800 team=0 player=7 action=shot distance=0.5000 limit=0.4000 height_error=0.1000 body_angle=-0.2 player_speed=0.5 ball_speed=0.2 frame=10 touch_frame=10\n'
+        p='[tribun-touch-retry] phase=1 match_ms=1800 team=0 player=7 from=shot to=short-pass\n'
+        r=self.read(g+g.replace('0.5000','0.3000').replace('0.1000','1.1000')+p)
+        self.assertEqual(r['touchGeometryCounts'],{'distance':1,'height':1})
+        self.assertEqual(r['touchRetryPromotions'],1)
+        self.assertEqual(r['observedEvents'],0)
+        self.assertTrue(r['evidenceAvailable'])
+        self.assertEqual(r['touchGeometryEvents'][0]['frame'],10)
+        self.assertEqual(self.read(g.replace('0.5000','nan'))['invalidLines'],1)
