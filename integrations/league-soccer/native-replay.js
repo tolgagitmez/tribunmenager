@@ -60,7 +60,7 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
@@ -94,9 +94,14 @@
     Object.assign(actor,{active:true,index:metadata?.slot??i%11,name:metadata?.name??('Oyuncu '+source.id),rosterId:metadata?.rosterId,
      role:metadata?.role==='GK'||source.goalkeeper===true?'GK':'FIELD',num:(metadata?.slot??i%11)+1,
      x:lerp(pos.x,dest.x,blend),z:lerp(pos.z,dest.z,blend),face:yaw(face,nextFace,blend),vx,vz,speed,action:speed>.25?'run':'idle',actionClock:0,selected:false});
-    if(bodyBalance){
+    if(bodyBalance||footPlant){
      const cue=balanceCue(a,b,source,target);
-     actor.nativeBodyBalance=cue;
+     if(bodyBalance)actor.nativeBodyBalance=cue;
+     if(footPlant){
+      const active=cue.valid&&actor.role!=='GK';
+      if(actor.nativeFootPlant!==undefined&&actor.nativeFootPlant!==active)rig?.reset(actor);
+      actor.nativeFootPlant=active;
+     }
      // Hysteresis avoids flickering around gait boundaries. All moving
      // categories remain compatible with the existing animation bridge.
      const prior=actor.nativeGait||'idle';
@@ -106,7 +111,7 @@
        speed>(['jog','run','sprint'].includes(prior)?1.1:1.4)?'jog':'walk';
      actor.nativeGait=gait;actor.action=gait;
     }
-    active.add(source.id);rig?.update(actor,bodyBalance?step:clamp(dt,0,.1));return actor;
+    active.add(source.id);rig?.update(actor,bodyBalance||footPlant?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}
    const p=coord(a.ball),q=coord(b.ball),v=velocity(a.ballVelocity),w=velocity(b.ballVelocity);

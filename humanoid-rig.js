@@ -102,6 +102,42 @@ function catchHands(p){
  return [-1,1].map(side=>{const shoulder=world(p,.015,side*.32,1.47-gatherDrop(p)),target=[point.x-side*Math.sin(p.face)*.07,point.y,point.z+side*Math.cos(p.face)*.07],delta=sub(target,shoulder),d=len(delta);return d>.66?add(shoulder,mul(delta,.66/d)):target;});
 }
 function saveHands(p){return ['catch','catch-ready'].includes(p.action)?catchHands(p):getDive(p).wrists;}
+// Stage 80: presentation-only foot swing with explicit landing. The
+// support anchor is never translated to follow the root during stance.
+function nativeStep(p,st,i,hip,neutral,arc,duty,speed,locomoting,dt){
+ const f=st.feet[i],other=st.feet[1-i],wanted=locomoting?arc<duty:true;
+ const reach=ANATOMY.thigh+ANATOMY.shin;
+ const vertical=hip[1]-GROUND,range=Math.sqrt(Math.max(0,reach*reach-vertical*vertical));
+ const distance=Math.hypot(f.pos[0]-hip[0],f.pos[2]-hip[2]);
+ const vx=Number.isFinite(p.vx)?p.vx:0,vz=Number.isFinite(p.vz)?p.vz:0;
+ const cue=p.nativeBodyBalance,brake=cue?.valid?Math.max(0,-(cue.ax*vx+cue.az*vz)/Math.max(.5,speed)):0;
+ const turn=cue?.valid?Math.abs(cue.az*vx-cue.ax*vz)/Math.max(.5,speed):0;
+ const recovery=clamp(brake/8+turn/10,0,1);
+ const needsPlant=distance>Math.max(.045,range*.78)||Math.abs(angle(p.face||0,f.face))>.50;
+ const scheduled=!wanted&&f.nativeWanted!==false;
+ f.nativeWanted=wanted;
+ if(!f.nativeSwing&&(scheduled||needsPlant)&&
+    (speed>3.2||!other.nativeSwing)){
+  const duration=clamp(mix(.26,.115,smooth(speed/6))*(1-.28*recovery),.085,.26);
+  const prior=st.pose?.legs[i]?.ankle;
+  f.nativeSwing={elapsed:0,duration,start:(prior||f.pos).slice()};
+  f.adjust=0;f.start=null;f.stance=false;
+ }
+ if(f.nativeSwing){
+  const s=f.nativeSwing;s.elapsed=Math.min(s.duration,s.elapsed+dt);
+  const u=s.elapsed/s.duration,e=smooth(u),remaining=s.duration-s.elapsed;
+  // Predict root at landing, but cap local lead by available anatomical reach.
+  const lead=Math.min(.18,range*.40)*(1-.65*recovery);
+  const dx=vx/Math.max(.5,speed),dz=vz/Math.max(.5,speed);
+  const target=[neutral[0]+vx*remaining+dx*lead,GROUND,neutral[2]+vz*remaining+dz*lead];
+  f.pos=blend(s.start,target,e);f.pos[1]+=Math.sin(Math.PI*u)*mix(.09,.21,smooth(speed/6));
+  f.face+=angle(p.face||0,f.face)*smooth(u);f.stance=false;
+  if(u>=1){f.nativeSwing=null;f.pos[1]=GROUND;f.stance=true;f.face=p.face;}
+ }else{
+  f.pos[1]=GROUND;f.stance=true;f.start=null;
+ }
+ return f.stance;
+}
 function pose(p,dt=1/60){
  const st=getState(p);dt=clamp(Number(dt)||0,0,.1);
  if(dt===0&&st.pose)return st.pose;
@@ -117,9 +153,11 @@ function pose(p,dt=1/60){
  // sending every footfall forwards in the direction of the chest.
  const fx=Math.cos(p.face||0),fz=Math.sin(p.face||0),moveX=travel>.0001?dx/travel:fx,moveZ=travel>.0001?dz/travel:fz;
  const forwardTravel=moveX*fx+moveZ*fz,lateralTravel=Math.abs(-moveX*fz+moveZ*fx),defensive=Math.max(lateralTravel,Math.max(0,-forwardTravel));
- const stride=mix(1.0,2.2,smooth(speed/6))*(1-defensive*.22),duty=clamp(mix(.55,.20,smooth(speed/6))+defensive*.04,.20,.60);
- st.phase+=(travel/stride)+(speed<.3?Math.abs(yaw)*.12:0);
  const act=p.action||'idle',special=['pass','shoot','tackle','dive','catch','catch-ready','celebrate','protest','receive','throw','header'].includes(act)&&p.actionClock>0;
+ const nativePlant=p.nativeFootPlant===true&&!special&&!(p.footTouch>0)&&!(p.feintClock>0)&&!(p.feintResponseClock>0);
+ const stride=(nativePlant?mix(.72,2.05,smooth(speed/7)):mix(1.0,2.2,smooth(speed/6)))*(1-defensive*.22),
+ duty=nativePlant?clamp(mix(.62,.34,smooth(speed/7))+defensive*.05,.34,.67):clamp(mix(.55,.20,smooth(speed/6))+defensive*.04,.20,.60);
+ st.phase+=(travel/stride)+(speed<.3?Math.abs(yaw)*.12:0);
  // These cues read actual Match decisions/touches. They only affect this rig
  // and never move a simulated player, defender or the ball.
  const activeContact=special;
@@ -188,6 +226,11 @@ function pose(p,dt=1/60){
   const neutral=world(p,.03,side*.15,GROUND),touch=[neutral[0]+moveX*stride*duty*.5,GROUND,neutral[2]+moveZ*stride*duty*.5];
   let stance=locomoting?arc<duty:true;
   const tooFar=Math.hypot(f.pos[0]-neutral[0],f.pos[2]-neutral[2])>.36||Math.abs(angle(p.face||0,f.face))>.65;
+  if(nativePlant){
+   stance=nativeStep(p,st,i,hip,neutral,arc,duty,speed,locomoting,dt);
+  }else{
+   if(f.nativeSwing){f.nativeSwing=null;f.start=null;f.stance=false;}
+   f.nativeWanted=undefined;
   // Brake and pivot by taking a short replanting step, never by dragging a planted foot.
   if(!kicking&&!f.adjust&&(!locomoting&&tooFar||locomoting&&f.stance&&len(sub(f.pos,hip))>.88)){
    if(!st.feet[1-i].adjust){f.adjust=.0001;f.adjustDuration=locomoting?.08:.22;f.start=f.pos.slice();f.adjustTarget=(locomoting?touch:neutral).slice();f.stance=false;}
@@ -204,6 +247,7 @@ function pose(p,dt=1/60){
    if(f.stance||!f.start){f.start=f.pos.slice();f.swingStart=cycleU;f.swingTime=0;}
    f.swingTime=(f.swingTime||0)+dt;
    const u=smooth(Math.min(clamp((cycleU-(f.swingStart||0))/Math.max(.01,1-(f.swingStart||0)),0,1),f.swingTime/.16));f.pos=blend(f.start,touch,u);f.pos[1]=GROUND+Math.sin(u*Math.PI)*(.13+.12*sprint);f.face+=angle(p.face||0,f.face)*alpha;f.stance=false;
+  }
   }
   let foot=f.pos.slice(),footFace=f.face;
   if(kicking){
@@ -247,10 +291,10 @@ function pose(p,dt=1/60){
   }
   if(tackle>.01){foot=blend(foot,world(p,.50+side*.12,side*.33,.12),tackle);stance=false;}
   if(act==='receive'&&i===(p.kickFoot===0?0:1)){const cushion=Math.sin(Math.PI*clamp((p.actionElapsed||0)/Math.max(.01,p.actionDuration||.25),0,1));foot=blend(foot,world(p,.26,side*.18,.17),cushion*.65);stance=false;}
-  const requestedFoot=foot.slice(),legIK=boundedLimb(hip,foot,ANATOMY.thigh,ANATOMY.shin,facing,LIMITS.knee,LIMITS.hip,bodyFrame,side);
+  const requestedStance=stance,requestedFoot=foot.slice(),legIK=boundedLimb(hip,foot,ANATOMY.thigh,ANATOMY.shin,facing,LIMITS.knee,LIMITS.hip,bodyFrame,side);
   foot=legIK.end;if(legIK.error>1e-5)stance=false;
   const toe=add(foot,[Math.cos(footFace)*.20,-.075,Math.sin(footFace)*.20]);
-  legs.push({hip,knee:legIK.joint,ankle:foot,toe,stance,footLift:foot[1]-GROUND,bend:legIK.bend,flex:legIK.flex,abduct:legIK.abduct,target:requestedFoot,targetError:legIK.error});
+  legs.push({hip,knee:legIK.joint,ankle:foot,toe,stance,requestedStance,footLift:foot[1]-GROUND,bend:legIK.bend,flex:legIK.flex,abduct:legIK.abduct,target:requestedFoot,targetError:legIK.error});
   const shoulder=add(torsoUpper,mul(bodyRight,side*ANATOMY.shoulderWidth/2));
   const swing=-Math.sin(st.phase*2*Math.PI+i*Math.PI)*st.activity*(.22+.12*sprint);
   let wrist=world(p,swing+kick*(i===1?-.35:.24),side*(.255+kick*.10),.94+bounce+celebrating*.93+protest*.30-tackle*.17-gather);
