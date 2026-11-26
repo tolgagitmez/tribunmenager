@@ -16,6 +16,9 @@ class RenderCadenceTest(unittest.TestCase):
         self.assertEqual(profile.configure(existing,100),existing.replace('"graphics3d_frametime_ms" "0"','"graphics3d_frametime_ms" "100"'))
         with self.assertRaises(ValueError):profile.configure(existing+'"graphics3d_frametime_ms" "0"\n',100)
         with self.assertRaises(ValueError):profile.configure(source,0)
+        last=source+'\n"graphics3d_frametime_ms" "0"\n\n'
+        self.assertEqual(profile.configure(last,100),last.replace('"graphics3d_frametime_ms" "0"','"graphics3d_frametime_ms" "100"'))
+
     def test_reports_never_activate_production(self):
         def row(interval,cpu):
             return dict(configuredRenderIntervalMs=interval,softwareRenderThreads=2,
