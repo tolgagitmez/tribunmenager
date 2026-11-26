@@ -91,4 +91,9 @@ def inspect(directory):
         from native_action_diagnostics import inspect_actions
         result['actionExecution']=inspect_actions(directory/'native-match.game.log')
     except (OSError,ValueError,TypeError) as exc:result['errors']['actionExecution']=type(exc).__name__
+    result['skeletonMotion']=None
+    try:
+        from native_skeleton_diagnostics import inspect_skeleton
+        result['skeletonMotion']=inspect_skeleton(directory/'native-match.game.log')
+    except (OSError,ValueError,TypeError) as exc:result['errors']['skeletonMotion']=type(exc).__name__
     return result
