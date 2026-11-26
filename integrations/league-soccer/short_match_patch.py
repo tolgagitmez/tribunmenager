@@ -1959,6 +1959,18 @@ inline float CoordinatedRunScore189(float sx,float sy,float tx,float ty,const Ru
 inline float OffballArrival188(float distance,float speed){
   return std::clamp(distance/std::clamp(speed+1.5f,3.0f,6.5f),.35f,1.5f);
 }
+inline bool CoordinatedStart208Eligible(float carrierDepth,float carrierWidth,float runnerMindset,
+    float targetDepth,float targetWidth,float passDistance,float margin,float endpoint,float corridor,
+    float teammateGap,float runClearance){
+  return std::isfinite(carrierDepth)&&std::isfinite(carrierWidth)&&std::isfinite(runnerMindset)&&
+      std::isfinite(targetDepth)&&std::isfinite(targetWidth)&&std::isfinite(passDistance)&&
+      std::isfinite(margin)&&std::isfinite(endpoint)&&std::isfinite(corridor)&&
+      std::isfinite(teammateGap)&&std::isfinite(runClearance)&&
+      carrierDepth>=17.0f&&carrierDepth<=46.0f&&carrierWidth>=0.0f&&carrierWidth<22.0f&&
+      runnerMindset>=.45f&&runnerMindset<=1.0f&&targetDepth>=6.0f&&targetDepth<=30.0f&&
+      targetWidth>=0.0f&&targetWidth<=24.0f&&passDistance>=7.0f&&passDistance<=32.0f&&
+      margin>=1.5f&&endpoint>=2.2f&&corridor>=1.5f&&teammateGap>=3.5f&&runClearance>=1.0f;
+}
 inline bool OffballLane188(float progress,float distance,float margin,float endpoint,float corridor,float teammateGap,float runClearance){
   return std::isfinite(progress)&&std::isfinite(distance)&&std::isfinite(margin)&&
       std::isfinite(endpoint)&&std::isfinite(corridor)&&std::isfinite(teammateGap)&&
@@ -4422,6 +4434,65 @@ struct FixedDurationClock {'''),
               static_cast<unsigned long>(match->GetMatchTime_ms()));'''),
     ])
 
+
+
+    # Stage 208: let a geometrically safe native primary run start even when
+    # the aggregate density heuristic declines it. Private coordinated profile only.
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("          if (runConditionsRating >= neededRating) {", r'''          bool safePrimary208=false;
+          if(runConditionsRating<neededRating && AITactics::CoordinatedRuns189Enabled() &&
+              !team->GetHumanGamerCount() && match->IsInPlay() && !match->IsInSetPiece() &&
+              !match->GetBallRetainer() && match->GetDesignatedPossessionPlayer()==possPlayer &&
+              match->GetLastTouchPlayer()==possPlayer && possPlayer->HasUniquePossession() &&
+              runner!=possPlayer && runner->IsActive() &&
+              runner->GetFormationEntry().role!=e_PlayerRole_GK &&
+              GetTribunTriangle().stage==0){
+            const float forward=-team->GetSide();
+            const auto from=possPlayer->GetPosition().Get2D();
+            const auto start=runner->GetPosition().Get2D();
+            const float depth=pitchHalfW-from.coords[0]*forward;
+            const float width=std::abs(from.coords[1]);
+            const float mindset=AI_GetMindSet(runner->GetDynamicFormationEntry().role);
+            const auto* mental=match->GetMentalImage(0);
+            const float limit=AI_GetOffsideLine(match,mental,abs(team->GetID()-1))*forward;
+            std::vector<PlayerImage> opponents208,mates208;
+            mental->GetTeamPlayerImages(abs(team->GetID()-1),-1,opponents208);
+            mental->GetTeamPlayerImages(team->GetID(),runner->GetID(),mates208);
+            if(!opponents208.empty() && !mates208.empty()){
+              for(float lateral:{0.0f,-3.0f,3.0f}){
+                const auto target=start+Vector3(4.0f*forward,lateral,0);
+                const float distance=(target-from).GetLength();
+                const float targetDepth=pitchHalfW-target.coords[0]*forward;
+                const float targetWidth=std::abs(target.coords[1]);
+                const float margin=limit-target.coords[0]*forward;
+                if(!AITactics::CoordinatedStart208Eligible(depth,width,mindset,targetDepth,targetWidth,
+                    distance,margin,100,100,100,100))continue;
+                const float arrival=AITactics::OffballArrival188((target-start).GetLength(),
+                    runner->GetMovement().Get2D().GetLength());
+                float endpoint=100,corridor=100,mateGap=100,runGap=100;
+                for(const auto& opp:opponents208){
+                  endpoint=std::min(endpoint,(target-opp.position-opp.movement*arrival).Get2D().GetLength());
+                  for(float fraction:{.25f,.5f,.75f}){
+                    const auto predicted=opp.position+opp.movement*(arrival*fraction);
+                    corridor=std::min(corridor,(from+(target-from)*fraction-predicted).Get2D().GetLength());
+                    runGap=std::min(runGap,(start+(target-start)*fraction-predicted).Get2D().GetLength());
+                  }
+                }
+                for(const auto& mate:mates208)
+                  mateGap=std::min(mateGap,(target-mate.position-mate.movement*arrival).Get2D().GetLength());
+                if(AITactics::CoordinatedStart208Eligible(depth,width,mindset,targetDepth,targetWidth,
+                    distance,margin,endpoint,corridor,mateGap,runGap)){
+                  safePrimary208=true;break;
+                }
+              }
+            }
+          }
+          if (runConditionsRating >= neededRating || safePrimary208) {
+            if(safePrimary208)
+              std::fprintf(stderr,"[tribun-primary208] team=%d carrier=%d runner=%d match_ms=%lu\n",
+                  team->GetID(),possPlayer->GetID(),runner->GetID(),
+                  static_cast<unsigned long>(match->GetMatchTime_ms()));'''),
+    ])
 
 
 def optimize_joint_cache(source):
