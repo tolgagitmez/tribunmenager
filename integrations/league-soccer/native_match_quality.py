@@ -111,4 +111,9 @@ def inspect(directory):
         from native_duel_escape_diagnostics import inspect_duels
         result['duelEscape']=inspect_duels(directory/'native-match.game.log')
     except (OSError,ValueError,TypeError) as exc:result['errors']['duelEscape']=type(exc).__name__
+    result['pressureHold']=None
+    try:
+        from native_pressure_hold_diagnostics import inspect_pressure_hold
+        result['pressureHold']=inspect_pressure_hold(directory/'native-match.game.log')
+    except (OSError,ValueError,TypeError) as exc:result['errors']['pressureHold']=type(exc).__name__
     return result
