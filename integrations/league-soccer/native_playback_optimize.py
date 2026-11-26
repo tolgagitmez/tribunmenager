@@ -39,12 +39,13 @@ def coalesce(highlights, bins, shoulder):
         totals[level] += BIN
         # Keep exact reasons in sourceHighlightSegments. Here reasons are
         # a union across the rate-control block, not per-frame event evidence.
-        if rows and rows[-1]['level'] == level:
+        promoted = level != original
+        if rows and rows[-1]['level'] == level and rows[-1]['transitionShoulder'] == promoted:
             rows[-1]['endMs'] = (i+1)*BIN
             rows[-1]['reasons'] = sorted(set(rows[-1]['reasons']) | reasons)
         else:
             rows.append(dict(startMs=i*BIN,endMs=(i+1)*BIN,level=level,
-                             reasons=sorted(reasons)))
+                             reasons=sorted(reasons),transitionShoulder=promoted))
     return dict(highlights, segments=rows, levelDurationsMs=totals)
 
 
@@ -83,7 +84,9 @@ def optimize(highlights, target_ms=TARGET_MS):
         return (abs(plan['deviationMs']),m['abruptChanges'],
                 round(m['maximumJumpRatio'],6),m['speedChanges'],-shoulder)
     for shoulder in (1,2,3):
-        candidate = schedule(coalesce(highlights,bins,shoulder),target_ms)
+        manifest = coalesce(highlights,bins,shoulder)
+        limits = {row['startMs']:(3,4) for row in manifest['segments'] if row['transitionShoulder']}
+        candidate = schedule(manifest,target_ms,rate_limits=limits)
         danger = original_danger_ms(candidate,bins)
         eligible = (abs(candidate['deviationMs']) <= abs(base['deviationMs'])
                     and danger >= baseline_danger-1.0)
