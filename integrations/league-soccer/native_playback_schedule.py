@@ -20,7 +20,7 @@ def ceil_div(a, b):
     return (a + b - 1) // b
 
 
-def schedule(highlights, target_ms=TARGET_MS):
+def schedule(highlights, target_ms=TARGET_MS, *, rate_limits=None):
     require(isinstance(highlights, dict) and highlights.get('schema') == 1 and
             highlights.get('simulationMs') == SOURCE_MS, 'Invalid native highlight manifest')
     require(type(target_ms) is int and target_ms > 0, 'Invalid playback budget')
@@ -40,6 +40,11 @@ def schedule(highlights, target_ms=TARGET_MS):
                 'Invalid importance reasons')
         duration = end - start
         min_rate, max_rate = RATES[level]
+        if rate_limits is not None and start in rate_limits:
+            low, high = rate_limits[start]
+            require(type(low) is int and type(high) is int and min_rate <= low <= high <= max_rate,
+                    'Invalid narrowed rate limits')
+            min_rate, max_rate = low, high
         minimum = ceil_div(duration, max_rate)
         maximum = duration // min_rate
         require(minimum <= maximum, 'Segment too short for integer-ms playback bounds')

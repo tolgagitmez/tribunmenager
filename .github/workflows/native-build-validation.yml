@@ -1,7 +1,7 @@
-name: Stage 218 adaptive native playback schedule validation
+name: Stage 219 adaptive playback optimization validation
 on:
   pull_request:
-    branches: [experiment/native-highlight-detection-stage217]
+    branches: [experiment/native-playback-schedule-stage218]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
@@ -181,7 +181,9 @@ jobs:
       - name: Verify highlight detection on synthetic test fixtures
         run: python3 -m unittest discover -s tests -p test_native_highlight_detection.py
       - name: Verify adaptive playback schedule
-        run: python3 -m unittest discover -s tests -p test_native_playback_schedule.py
+        run: |
+          python3 -m unittest discover -s tests -p test_native_playback_schedule.py
+          python3 -m unittest discover -s tests -p test_native_playback_optimize.py
       - name: Build and record independent 30-minute CPU fixture
         env:
           TRIBUN_INSTALL_NATIVE_DEPS: '1'
@@ -202,11 +204,21 @@ jobs:
           python3 integrations/league-soccer/native_highlight_detection.py "$RUNNER_TEMP/extended.ndjson" "$RUNNER_TEMP/extended-highlights.json" | tee "$RUNNER_TEMP/highlight-summary.json"
           cat "$RUNNER_TEMP/highlight-summary.json" >> "$GITHUB_STEP_SUMMARY"
       - name: Allocate adaptive playback budget without skipping critical moments
+        id: base_schedule
         run: |
           set -o pipefail
           rc=0
           python3 integrations/league-soccer/native_playback_schedule.py "$RUNNER_TEMP/extended-highlights.json" "$RUNNER_TEMP/extended-playback.json" | tee "$RUNNER_TEMP/playback-summary.json" || rc=$?
           cat "$RUNNER_TEMP/playback-summary.json" >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+      - name: Optimize transition speeds and validate actual match plan
+        if: always() && (steps.base_schedule.outcome == 'success' || steps.base_schedule.outcome == 'failure')
+        run: |
+          set -o pipefail
+          test -s "$RUNNER_TEMP/extended-highlights.json"
+          rc=0
+          python3 integrations/league-soccer/native_playback_optimize.py "$RUNNER_TEMP/extended-highlights.json" "$RUNNER_TEMP/optimized-playback.json" | tee "$RUNNER_TEMP/optimized-summary.json" || rc=$?
+          cat "$RUNNER_TEMP/optimized-summary.json" >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -222,4 +234,6 @@ jobs:
             ${{ runner.temp }}/highlight-summary.json
             ${{ runner.temp }}/extended-playback.json
             ${{ runner.temp }}/playback-summary.json
+            ${{ runner.temp }}/optimized-playback.json
+            ${{ runner.temp }}/optimized-summary.json
             ${{ runner.temp }}/extended-run.log
