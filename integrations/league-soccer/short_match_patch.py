@@ -148,6 +148,54 @@ struct DuelTrial {
 };
 '''
 
+HOLD_UP_RULES = r'''inline float HoldSkill(float balance,float control,float calm){
+  return .45f*std::clamp(balance,0.0f,1.0f)+.35f*std::clamp(control,0.0f,1.0f)+.20f*std::clamp(calm,0.0f,1.0f);
+}
+inline bool HoldEligible(float depth,float facingForward,float nearest,float gap,float skill){
+  return depth>=9&&depth<=38&&facingForward<=.30f&&nearest>=.8f&&nearest<=3.2f&&gap<=1.15f&&skill>=.58f;
+}
+inline float ShieldScore(float clearance,float alignment,float screen,float progress){
+  if(clearance<.95f||alignment<.0f||progress<-1.3f)return -1000.0f;
+  return std::min(clearance,4.0f)*1.2f+alignment*.55f+std::clamp(screen,-1.0f,1.0f)*.8f+progress*.15f;
+}
+inline bool HoldOutlet(float distance,float progress,float margin,float space,float odds,float nativeOdds){
+  return distance>=3&&distance<=13&&progress>=-9&&progress<=6&&margin>=1&&space>=.55f&&odds>=.78f&&odds>=nativeOdds-.04f;
+}
+struct HoldTrial {
+  int carrier=-1,receiver=-1,stage=0;
+  unsigned long start=0,expires=0,lastControl=0,passAt=0,cooldown=0;
+  unsigned long attempts=0,held=0,released=0,received=0,lost=0,cancelled=0;
+  void End(unsigned long now){carrier=receiver=-1;stage=0;cooldown=now+700;}
+  void Cancel(unsigned long now){if(stage){++cancelled;End(now);}}
+  bool Begin(int id,unsigned long now){
+    if(stage||now<cooldown||id<0)return false;
+    carrier=id;stage=1;start=lastControl=now;expires=now+1200;++attempts;return true;
+  }
+  bool Ready(int id,unsigned long now)const{return stage==2&&id==carrier&&now<expires;}
+  bool Pass(int from,int to,bool shortPass,unsigned long now){
+    if(!Ready(from,now)||!shortPass||to<0||to==from)return false;
+    receiver=to;stage=3;passAt=now;expires=now+1700;++released;return true;
+  }
+  void Observe(int owner,unsigned long touch,bool opponent,bool invalid,unsigned long now){
+    if(!stage)return;
+    if(invalid||now<start){Cancel(now);return;}
+    if(opponent){++lost;End(now);return;}
+    if(stage==3){
+      if(owner==receiver&&touch>passAt&&touch<=now){++received;End(now);return;}
+      if(owner>=0&&owner!=carrier&&owner!=receiver){Cancel(now);return;}
+    }else{
+      if(owner>=0&&owner!=carrier){Cancel(now);return;}
+      if(owner==carrier){
+        lastControl=now;
+        if(stage==1&&now>=start+400){stage=2;++held;}
+      }
+      if(now>lastControl+100){Cancel(now);return;}
+    }
+    if(now>=expires)Cancel(now);
+  }
+};
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -1860,4 +1908,116 @@ Vector3 AI_GetForceFieldMovement'''),
 }
 
 Vector3 AI_GetForceFieldMovement'''),
+    ])
+
+    # Stage 68: bounded hold-up behavior, followed by a native safe support pass.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool HoldUpEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_HOLD_UP");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + HOLD_UP_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  AITactics::DuelTrial tribunDuelTrials[2];", "  AITactics::DuelTrial tribunDuelTrials[2];\n  AITactics::HoldTrial tribunHoldTrials[2];"),
+    ])
+    edit(root, "src/onthepitch/match.cpp", [
+        ("    if(AITactics::DuelEnabled()){", r'''    if(AITactics::HoldUpEnabled()){
+      for(int t=0;t<2;++t){
+        auto& trial=tribunHoldTrials[t];
+        if(!trial.stage)continue;
+        auto* carrier=teams[t]->GetPlayer(trial.carrier);
+        auto* receiver=trial.stage==3?teams[t]->GetPlayer(trial.receiver):nullptr;
+        auto* own=teams[t]->GetDesignatedTeamPossessionPlayer();
+        const bool invalid=!IsInPlay()||IsInSetPiece()||GetBallRetainer()||
+          !carrier||!carrier->IsActive()||(trial.stage==3&&(!receiver||!receiver->IsActive()));
+        const bool confirmed=own&&own->HasUniquePossession()&&GetLastTouchPlayer()==own;
+        trial.Observe(confirmed?own->GetID():-1,confirmed?own->GetLastTouchTime_ms():0,
+          teams[1-t]->HasUniquePossession(),invalid,actualTime_ms);
+      }
+    }
+    if(AITactics::DuelEnabled()){'''),
+        ("  for(auto& trial:tribunDuelTrials)trial.Cancel(GetActualTime_ms());",
+         "  for(auto& trial:tribunDuelTrials)trial.Cancel(GetActualTime_ms());\n  for(auto& trial:tribunHoldTrials)trial.Cancel(GetActualTime_ms());"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  if(TribunTriangleContact(passer,receiver,shortPass))return;", r'''  if(AITactics::HoldUpEnabled()){
+    auto& trial=match->tribunHoldTrials[team->GetID()];
+    if(trial.stage&& !trial.Pass(passer?passer->GetID():-1,receiver?receiver->GetID():-1,shortPass,match->GetActualTime_ms()))
+      trial.Cancel(match->GetActualTime_ms());
+  }
+  if(TribunTriangleContact(passer,receiver,shortPass))return;'''),
+        ("  tribunTriangle.Clear(match->GetActualTime_ms());\n  if(!shooter", "  tribunTriangle.Clear(match->GetActualTime_ms());\n  match->tribunHoldTrials[team->GetID()].Cancel(match->GetActualTime_ms());\n  if(!shooter"),
+    ])
+    edit(root, "src/onthepitch/AIsupport/AIfunctions.cpp", [
+        ("  desiredVelocity = RangeVelocity(desiredVelocity);\n}\n\nVector3 AI_GetForceFieldMovement", r'''  if(AITactics::HoldUpEnabled()&&player->HasUniquePossession()&&match->IsInPlay()&&
+      !match->IsInSetPiece()&&!match->GetBallRetainer()&&!team->GetHumanGamerCount()&&
+      AI_GetMindSet(player->GetDynamicFormationEntry().role)>=.55f&&player->GetFormationEntry().role!=e_PlayerRole_GK){
+    const auto facing=player->GetDirectionVec().Get2D().GetNormalized(Vector3(-side,0,0));
+    const float depth=pitchHalfW+side*myPos.coords[0];
+    const float gap=(mentalImage->GetBallPrediction(0).Get2D()-myPos).GetLength();
+    const float skill=AITactics::HoldSkill(player->GetStat("physical_balance"),
+        player->GetStat("technical_ballcontrol"),player->GetStat("mental_calmness"));
+    float nearest=100.0f;Vector3 threat(0);
+    for(const auto& opp:opponentPlayerImages){
+      const auto offset=(opp.position-myPos).Get2D();
+      if(offset.GetLength()<nearest){nearest=offset.GetLength();threat=offset;}
+    }
+    auto& trial=match->tribunHoldTrials[team->GetID()];
+    const auto now=match->GetActualTime_ms();
+    if((!trial.stage||((trial.stage==1||trial.stage==2)&&trial.carrier==player->GetID()))&&
+        AITactics::HoldEligible(depth,facing.coords[0]*-side,nearest,gap,skill)){
+      auto rate=[&](const Vector3& dir){
+        const auto end=myPos+dir*1.1f;
+        if(std::abs(end.coords[0])>pitchHalfW-1.5f||std::abs(end.coords[1])>pitchHalfH-1.5f)return -1000.0f;
+        float clearance=100.0f;
+        for(const auto& opp:opponentPlayerImages)
+          clearance=std::min(clearance,(end-opp.position-opp.movement*.25f).Get2D().GetLength());
+        const auto unit=threat.GetNormalized(0);
+        const float alignment=dir.coords[0]*facing.coords[0]+dir.coords[1]*facing.coords[1];
+        const float screen=-(dir.coords[0]*unit.coords[0]+dir.coords[1]*unit.coords[1]);
+        return AITactics::ShieldScore(clearance,alignment,screen,dir.coords[0]*-side*1.1f);
+      };
+      Vector3 chosen=facing;float best=rate(facing);
+      for(float angle:{-.85f,-.4f,.4f,.85f}){
+        const auto dir=facing.GetRotated2D(angle);
+        const auto score=rate(dir);
+        if(score>best){best=score;chosen=dir;}
+      }
+      if(best>-999.0f&&(trial.stage||trial.Begin(player->GetID(),now))){
+        desiredDirection=chosen;
+        desiredVelocity=std::min(desiredVelocity,sprintVelocity*(.30f+.10f*skill));
+      }
+    }
+  }
+  desiredVelocity = RangeVelocity(desiredVelocity);
+}
+
+Vector3 AI_GetForceFieldMovement'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate) {", r'''      bool holdOutlet=false;
+      float holdOdds=0.0f;
+      if(AITactics::HoldUpEnabled()&&runningPassEnabled&&
+          match->tribunHoldTrials[team->GetID()].Ready(player->GetID(),match->GetActualTime_ms())&&
+          mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
+        const auto delta=mates.at(i)->GetPosition()-player->GetPosition();
+        const float margin=passOffside-mates.at(i)->GetPosition().coords[0]*attackForward;
+        if(AITactics::HoldOutlet(delta.GetLength(),delta.coords[0]*attackForward,margin,mateSit.spaceRating,1.0f,0.0f)){
+          holdOdds=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
+          holdOutlet=AITactics::HoldOutlet(delta.GetLength(),delta.coords[0]*attackForward,margin,mateSit.spaceRating,holdOdds,0.0f);
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(holdOutlet && holdOdds>=mateRating.passRating-.04f){
+          mateRating.passType=e_FunctionType_ShortPass;
+          mateRating.passRating=holdOdds;
+          mateRating.supportRating+=.42f;
+        }else if(holdOutlet&&!(progressiveCandidate||supportCandidate||runningCandidate||
+          deliveryCandidate||pressureOutlet||returnCandidate||retentionOutlet||timedCandidate||lineBreak||triangleCandidate))continue;
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
     ])
