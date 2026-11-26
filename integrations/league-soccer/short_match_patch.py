@@ -581,6 +581,26 @@ inline float FirstTouchCost(float mismatch,float shortPass,float ballControl,flo
 inline bool SafePressureOutlet(float nearest,float distance,float receiverSpace,float odds,float margin) {
   return nearest<=3.0f && distance>=3.0f && distance<=15.0f && receiverSpace>=.55f && odds>=.72f && margin>=.8f;
 }
+inline bool Combination187Enabled(){
+  static const bool enabled=[]{
+    const char* flag=std::getenv("TRIBUN_AV_COMBINATION");
+    const char* idle=std::getenv("TRIBUN_AV_IDLE_RECOVERY");
+    const char* fixed=std::getenv("TRIBUN_NATIVE_FIXED_DURATION");
+    return flag && std::strcmp(flag,"1")==0 && idle && std::strcmp(idle,"1")==0 &&
+        fixed && std::strcmp(fixed,"1")==0 && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+inline bool CombinationLane187(float progress,float distance,float margin,float endpoint,float corridor){
+  return std::isfinite(progress)&&std::isfinite(distance)&&std::isfinite(margin)&&
+      std::isfinite(endpoint)&&std::isfinite(corridor)&&progress>=2.0f&&progress<=12.0f&&
+      distance>=3.0f&&distance<=20.0f&&margin>=1.5f&&endpoint>=2.0f&&corridor>=1.3f;
+}
+inline bool CombinationReturn187(float odds,float nativeOdds,float margin,float corridor){
+  return std::isfinite(odds)&&std::isfinite(nativeOdds)&&std::isfinite(margin)&&std::isfinite(corridor)&&
+      odds>=.76f&&odds<=1.0f&&nativeOdds>=0.0f&&nativeOdds<=1.0f&&
+      odds>=nativeOdds-.04f&&margin>=1.5f&&corridor>=1.3f;
+}
 // A bounded give-and-go state driven by actual pass contacts and controlled receipts.
 // IDs are native runtime identities, never roster positions.
 struct CombinationState {
@@ -1228,7 +1248,7 @@ Vector3 AI_GetForceFieldMovement'''),
         ("      prevTeamHasPossession && !teamHasPossession){", "      prevTeamHasPossession && !teamHasPossession && !tribunCombination.stage){"),
         ("void TeamAIController::ApplyAttackingRun(Player* manualPlayer) {", r'''void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {
   if(tribunRebound.stage>=2){tribunRebound.Clear();tribunReboundSupportID=-1;}
-  if(!AITactics::ShortMatchAttackEnabled() || team->GetHumanGamerCount())return;
+  if((!AITactics::ShortMatchAttackEnabled() && !AITactics::Combination187Enabled()) || team->GetHumanGamerCount())return;
   const auto now=match->GetActualTime_ms();
   if(!shortPass || !receiver || !passer || receiver==passer ||
       receiver->GetTeam()!=team || !receiver->IsActive() || !passer->IsActive() ||
@@ -1249,7 +1269,25 @@ Vector3 AI_GetForceFieldMovement'''),
      !AITactics::StartCombination(AI_GetMindSet(passer->GetDynamicFormationEntry().role),
           skill,delta.GetLength(),delta.coords[0]*forward,pitchHalfW-pos.coords[0]*forward,
           line-receiver->GetPosition().coords[0]*forward))return;
+  if(AITactics::Combination187Enabled()){
+    const auto target=pos+Vector3(4.0f*forward,0,0);
+    const auto path=target-receiver->GetPosition();
+    float clearance=100.0f,corridor=100.0f;
+    std::vector<PlayerImage> rivals;
+    match->GetMentalImage(0)->GetTeamPlayerImages(abs(team->GetID()-1),-1,rivals);
+    for(const auto& opp:rivals){
+      clearance=std::min(clearance,(target-opp.position-opp.movement*.6f).Get2D().GetLength());
+      for(float f:{.25f,.5f,.75f})
+        corridor=std::min(corridor,(receiver->GetPosition()+path*f-opp.position-opp.movement*(.6f*f)).Get2D().GetLength());
+    }
+    if(!AITactics::CombinationLane187(4.0f,path.Get2D().GetLength(),
+        line-target.coords[0]*forward,clearance,corridor) ||
+        std::abs(target.coords[0])>=pitchHalfW-2.0f || std::abs(target.coords[1])>=pitchHalfH-1.5f)return;
+  }
   if(tribunCombination.Begin(passer->GetID(),receiver->GetID(),now)){
+    if(AITactics::Combination187Enabled())
+      printf("[tribun-combination187] team=%d kind=wall event=start a=%d b=%d c=%d\n",
+          team->GetID(),passer->GetID(),receiver->GetID(),passer->GetID());
     ApplyAttackingRun(passer);
     endApplyAttackingRun_ms=now+2800;
   }
@@ -1281,16 +1319,26 @@ void TeamAIController::ApplyAttackingRun(Player* manualPlayer) {'''),
         ("  float adaptedMakeRun = makeRun;", "  const bool combinationRun=team->GetController()->TribunCombinationRunner(CastPlayer());\n  float adaptedMakeRun = makeRun || combinationRun;"),
         ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet) {", r'''      bool returnCandidate=false;
       float returnOdds=0.0f;
-      if(runningPassEnabled && team->GetController()->TribunReturnTarget(CastPlayer())==mates.at(i)){
+      if((runningPassEnabled || (AITactics::Combination187Enabled() && CastPlayer()->HasUniquePossession() &&
+          !team->GetHumanGamerCount() && match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer())) &&
+          team->GetController()->TribunReturnTarget(CastPlayer())==mates.at(i)){
         const auto delta=mates.at(i)->GetPosition()-player->GetPosition();
-        const float margin=passOffside-mates.at(i)->GetPosition().coords[0]*attackForward;
+        const float line=runningPassEnabled?passOffside:
+            AI_GetOffsideLine(match,_mentalImage,abs(team->GetID()-1))*attackForward;
+        const float margin=line-mates.at(i)->GetPosition().coords[0]*attackForward;
         if(AITactics::SafeReturnPass(delta.coords[0]*attackForward,delta.GetLength(),margin,1.0f)){
           returnOdds=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
           returnCandidate=AITactics::SafeReturnPass(delta.coords[0]*attackForward,delta.GetLength(),margin,returnOdds);
+          if(AITactics::Combination187Enabled()){
+            float corridor=100.0f;
+            for(const auto& opp:opponentPlayerImages)for(float f:{.25f,.5f,.75f})
+              corridor=std::min(corridor,(player->GetPosition()+delta*f-opp.position-opp.movement*(.6f*f)).Get2D().GetLength());
+            returnCandidate=returnCandidate && AITactics::CombinationReturn187(returnOdds,0.0f,margin,corridor);
+          }
         }
       }
       if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate) {'''),
-        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(returnCandidate && returnOdds>=mateRating.passRating-.08f){
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(returnCandidate && returnOdds>=mateRating.passRating-(AITactics::Combination187Enabled()?.04f:.08f)){
           mateRating.passRating=returnOdds;
           mateRating.passType=e_FunctionType_ShortPass;
           mateRating.supportRating+=.45f;
@@ -1901,8 +1949,8 @@ inline bool RunLanesEnabled() {
         ("struct FixedDurationClock {", r'''inline bool TriangleEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_TRIANGLE");
-    return (CollectiveEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
-        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+    return Combination187Enabled() || ((CollectiveEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE"));
   }();
   return enabled;
 }
@@ -1972,11 +2020,22 @@ inline bool RunLanesEnabled() {
     float clearance=100.0f;
     for(const auto& rival:rivals)clearance=std::min(clearance,(rival.position+rival.movement*.25f-pos).Get2D().GetLength());
     if(clearance<2.0f)continue;
+    if(AITactics::Combination187Enabled()){
+      float corridor=100.0f;
+      for(const auto& rival:rivals)for(float f:{.25f,.5f,.75f})
+        corridor=std::min(corridor,(middle+delta*f-rival.position-rival.movement*(.6f*f)).Get2D().GetLength());
+      if(!AITactics::CombinationLane187(delta.coords[0]*forward,delta.Get2D().GetLength(),
+          line-pos.coords[0]*forward,clearance,corridor))continue;
+    }
     const float score=std::min(clearance,8.0f)+delta.coords[0]*forward*.15f-delta.GetLength()*.08f;
     if(score>best){best=score;third=mate.get();}
   }
   if(third)++tribunTriangle.available;
-  return third&&tribunTriangle.Begin(passer->GetID(),receiver->GetID(),third->GetID(),now);
+  const bool began=third&&tribunTriangle.Begin(passer->GetID(),receiver->GetID(),third->GetID(),now);
+  if(began && AITactics::Combination187Enabled())
+    printf("[tribun-combination187] team=%d kind=triangle event=start a=%d b=%d c=%d\n",
+        team->GetID(),passer->GetID(),receiver->GetID(),third->GetID());
+  return began;
 }
 Player* TeamAIController::TribunTriangleTarget(Player* receiver){
   if(!receiver||!receiver->HasUniquePossession()||tribunTriangle.stage!=2||
@@ -2016,16 +2075,27 @@ void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool sh
   if (adaptedMakeRun && !chosenLane) {'''),
         ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak) {", r'''      bool triangleCandidate=false;
       float triangleOdds=0.0f;
-      if(runningPassEnabled && team->GetController()->TribunTriangleTarget(CastPlayer())==mates.at(i)){
+      if((runningPassEnabled || (AITactics::Combination187Enabled() && CastPlayer()->HasUniquePossession() &&
+          !team->GetHumanGamerCount() && match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer())) &&
+          team->GetController()->TribunTriangleTarget(CastPlayer())==mates.at(i)){
         const auto pos=mates.at(i)->GetPosition(),delta=pos-player->GetPosition();
+        const float line=runningPassEnabled?passOffside:
+            AI_GetOffsideLine(match,_mentalImage,abs(team->GetID()-1))*attackForward;
+        const float margin=line-pos.coords[0]*attackForward;
         if(AITactics::TriangleGeometry(delta.coords[0]*attackForward,delta.GetLength(),std::abs(delta.coords[1]),
-              passOffside-pos.coords[0]*attackForward,pitchHalfW-pos.coords[0]*attackForward)){
+              margin,pitchHalfW-pos.coords[0]*attackForward)){
           triangleOdds=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
           triangleCandidate=AITactics::TrianglePassSafe(triangleOdds,0.0f);
+          if(AITactics::Combination187Enabled()){
+            float corridor=100.0f;
+            for(const auto& opp:opponentPlayerImages)for(float f:{.25f,.5f,.75f})
+              corridor=std::min(corridor,(player->GetPosition()+delta*f-opp.position-opp.movement*(.6f*f)).Get2D().GetLength());
+            triangleCandidate=triangleCandidate && AITactics::CombinationReturn187(triangleOdds,0.0f,margin,corridor);
+          }
         }
       }
       if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate) {'''),
-        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(triangleCandidate && AITactics::TrianglePassSafe(triangleOdds,mateRating.passRating)){
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        if(triangleCandidate && AITactics::TrianglePassSafe(triangleOdds,mateRating.passRating) && (!AITactics::Combination187Enabled() || triangleOdds>=mateRating.passRating-.04f)){
           mateRating.passType=e_FunctionType_ShortPass;
           mateRating.passRating=triangleOdds;
           mateRating.supportRating+=.48f;
