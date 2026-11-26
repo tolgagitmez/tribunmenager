@@ -8,6 +8,18 @@
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
  const lerp=(a,b,t)=>a+(b-a)*t;
  const yaw=(a,b,t)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
+ const strikeProfiles=Object.freeze({
+  'short-pass':Object.freeze({pre:180,post:180,back:.18,follow:.25,lift:.10,turn:.40,lean:.05,arm:.13}),
+  'long-pass':Object.freeze({pre:230,post:260,back:.32,follow:.40,lift:.18,turn:.15,lean:.09,arm:.23}),
+  'high-pass':Object.freeze({pre:240,post:280,back:.34,follow:.42,lift:.23,turn:.12,lean:-.04,arm:.25}),
+  'shot':Object.freeze({pre:260,post:300,back:.43,follow:.51,lift:.27,turn:.03,lean:.13,arm:.29}),
+  'pass':Object.freeze({pre:190,post:190,back:.22,follow:.27,lift:.12,turn:.15,lean:.06,arm:.15})
+ });
+ function strikeProfile(e){
+  if(e.kind==='shot')return 'shot';
+  if(e.kind!=='pass')return null;
+  return ['short-pass','long-pass','high-pass'].includes(e.technique)?e.technique:'pass';
+ }
  const keys=['shots','onTarget','passes','completed','fouls','possessionMs'];
  const coord=v=>({x:v[0],y:v[2],z:-v[1]});
  const velocity=v=>({vx:v[0],vy:v[2],vz:-v[1]});
@@ -32,7 +44,8 @@
     for(const e of f.nativeContacts){
      requireValue(e&&nonneg(e.timeMs)&&e.timeMs>=lastContact&&e.timeMs<=f.elapsedMs&&
       nonneg(e.playerId)&&nonneg(e.databaseId)&&[0,1].includes(e.team)&&[-1,0,1].includes(e.foot)&&
-      ['trap','control','pass','shot'].includes(e.kind)&&vec(e.ball)&&vec(e.impulseVelocity),'Geçersiz motor teması.');
+      ['trap','control','pass','shot'].includes(e.kind)&&
+      (e.technique===undefined||['none','short-pass','long-pass','high-pass','shot'].includes(e.technique))&&vec(e.ball)&&vec(e.impulseVelocity),'Geçersiz motor teması.');
      lastContact=e.timeMs;
     }
    }
@@ -70,13 +83,13 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
   const start=frames[0].elapsedMs,end=frames.at(-1).elapsedMs,duration=end-start;
   const contacts=new Map();
-  if(contactSync)for(const frame of frames)for(const e of frame.nativeContacts||[]){
+  if(contactSync||strikeMotion)for(const frame of frames)for(const e of frame.nativeContacts||[]){
    if(e.foot<0||e.ball[2]>.35)continue;
    const key=e.team+':'+e.playerId+':'+e.databaseId;
    if(!contacts.has(key))contacts.set(key,[]);
@@ -90,12 +103,17 @@
    for(const e of [events[lo-1],events[lo]]){
     if(!e)continue;
     const d=time-e.timeMs;
-    if(d< -100||d>90)continue;
+    const profile=strikeMotion&&strikeProfile(e),shape=profile?strikeProfiles[profile]:null;
+    if(!shape&&!contactSync)continue;
+    if(d< -(shape?.pre??100)||d>(shape?.post??90))continue;
     if(!best||Math.abs(d)<Math.abs(time-best.timeMs))best=e;
    }
    if(!best)return null;
-   const delta=time-best.timeMs,weight=clamp(1-Math.abs(delta)/(delta<0?100:90),0,1);
-   return {kind:best.kind,foot:best.foot,timeMs:best.timeMs,deltaMs:delta,weight:weight*weight*(3-2*weight),ball:coord(best.ball),impulse:velocity(best.impulseVelocity)};
+   const delta=time-best.timeMs,profile=strikeMotion&&strikeProfile(best),shape=profile?strikeProfiles[profile]:null;
+   const weight=clamp(1-Math.abs(delta)/(delta<0?(shape?.pre??100):(shape?.post??90)),0,1);
+   const cue={kind:best.kind,foot:best.foot,timeMs:best.timeMs,deltaMs:delta,weight:weight*weight*(3-2*weight),ball:coord(best.ball),impulse:velocity(best.impulseVelocity)};
+   if(shape)cue.strike={profile,shape,power:clamp(Math.hypot(...best.impulseVelocity)/30,0,1)};
+   return cue;
   }
   let previousTime=null;
   function reset(rig){for(const p of actors.values())rig?.reset(p);actors.clear();previousTime=null;}
@@ -143,11 +161,11 @@
        speed>(['jog','run','sprint'].includes(prior)?1.1:1.4)?'jog':'walk';
      actor.nativeGait=gait;actor.action=gait;
     }
-    if(contactSync){
+    if(contactSync||strikeMotion){
      const cue=actor.role==='GK'||a.setPiece||a.inPlay===false||span>200?null:contactAt(source,time);
      actor.nativeContact=cue&&Math.hypot(cue.ball.x-actor.x,cue.ball.z-actor.z)<=1.15?cue:null;
     }
-    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync?step:clamp(dt,0,.1));return actor;
+    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}
    const p=coord(a.ball),q=coord(b.ball),v=velocity(a.ballVelocity),w=velocity(b.ballVelocity);

@@ -306,7 +306,7 @@ void TribunTrace(Match& match, bool done) {
     firstContact=false;
     output << "{\"timeMs\":" << c.timeMs << ",\"playerId\":" << c.playerId
            << ",\"databaseId\":" << c.databaseId << ",\"team\":" << c.team
-           << ",\"kind\":\"" << c.kind << "\",\"foot\":" << c.foot << ",\"ball\":";
+           << ",\"kind\":\"" << c.kind << "\",\"technique\":\"" << c.technique << "\",\"foot\":" << c.foot << ",\"ball\":";
     vec(c.ball);
     output << ",\"impulseVelocity\":";vec(c.velocity);output << '}';
   }
@@ -1673,6 +1673,7 @@ def contact_event_header(source):
     unsigned long timeMs;
     int playerId,databaseId,team,foot;
     const char* kind;
+    const char* technique;
     Vector3 ball,velocity;
   };
   std::vector<TribunContactEvent> tribunContactEvents;''')
@@ -1691,8 +1692,12 @@ def contact_event_source(source):
           const bool left=part.find("left_foot")!=std::string::npos;
           const bool right=part.find("right_foot")!=std::string::npos;
           const int foot=left!=right?(left?0:1):-1;
+          const char* technique=currentAnim->functionType==e_FunctionType_ShortPass?"short-pass":
+            currentAnim->functionType==e_FunctionType_LongPass?"long-pass":
+            currentAnim->functionType==e_FunctionType_HighPass?"high-pass":
+            currentAnim->functionType==e_FunctionType_Shot?"shot":"none";
           match->tribunContactEvents.push_back({match->GetActualTime_ms(),CastPlayer()->GetID(),
-            CastPlayer()->GetPlayerData()->GetDatabaseID(),team->GetID(),foot,"KIND",
+            CastPlayer()->GetPlayerData()->GetDatabaseID(),team->GetID(),foot,"KIND",technique,
             match->GetBall()->Predict(0),touchVec});
         }
         '''.replace("KIND",kind)

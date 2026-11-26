@@ -154,6 +154,13 @@ function pose(p,dt=1/60){
  const fx=Math.cos(p.face||0),fz=Math.sin(p.face||0),moveX=travel>.0001?dx/travel:fx,moveZ=travel>.0001?dz/travel:fz;
  const forwardTravel=moveX*fx+moveZ*fz,lateralTravel=Math.abs(-moveX*fz+moveZ*fx),defensive=Math.max(lateralTravel,Math.max(0,-forwardTravel));
  const act=p.action||'idle',special=['pass','shoot','tackle','dive','catch','catch-ready','celebrate','protest','receive','throw','header'].includes(act)&&p.actionClock>0;
+ // Stage 82: procedural strike gesture driven by an accepted contact.
+ const recorded=p.nativeContact;
+ const gesture=!special&&recorded?.strike&&recorded.weight>0&&[0,1].includes(recorded.foot)?recorded:null;
+ const profile=gesture?.strike.shape;
+ const gestureSide=gesture?(gesture.foot===0?-1:1):0;
+ const gesturePower=gesture?clamp(gesture.strike.power,0,1):0;
+ const gestureWeight=gesture?clamp(gesture.weight,0,1):0;
  const nativePlant=p.nativeFootPlant===true&&!special&&!(p.footTouch>0)&&!(p.feintClock>0)&&!(p.feintResponseClock>0);
  const stride=(nativePlant?mix(.72,2.05,smooth(speed/7)):mix(1.0,2.2,smooth(speed/6)))*(1-defensive*.22),
  duty=nativePlant?clamp(mix(.62,.34,smooth(speed/7))+defensive*.05,.34,.67):clamp(mix(.55,.20,smooth(speed/6))+defensive*.04,.20,.60);
@@ -206,12 +213,12 @@ function pose(p,dt=1/60){
   st.nativeDrop=mix(st.nativeDrop||0,valid?clamp(-forward*.005,0,.045)*moving:0,gain);
   if(!special){nativePitch=st.nativePitch;nativeRoll=st.nativeRoll;nativeDrop=st.nativeDrop;}
  }
- const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-nativeDrop;
+ const hipHeight=ANATOMY.pelvisHeight+bounce-st.activity*.06-tackle*.16-gather-strike*.14-shieldWeight*.035-feintWeight*.012-defenderMisread*.015-nativeDrop-(gesture?(.025+.055*gesturePower)*gestureWeight:0);
  const feint=feintWeight*feintSide*.12;
  const headerU=act==='header'&&p.actionClock>0?clamp((p.actionElapsed||0)/Math.max(.1,p.actionDuration||.5),0,1):0,headerWave=Math.sin(Math.PI*headerU);
  const headerBend=p.headerHeight?clamp((1.77-p.headerHeight)*headerWave,0,.8):0;
  const shieldSide=p.dribbleFoot===0?1:-1;
- const pitch=clamp((native?nativePitch:st.lean*2)+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045,LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp((native?nativeRoll:st.turn*.25)+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055+cutWeight*cutSide*.045,LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
+ const pitch=clamp((native?nativePitch:st.lean*2)+strike*.16+tackle*.48+headerBend+shieldWeight*.075+wallPassWeight*.045+burstWeight*.045+(gesture?profile.lean*gestureWeight*(.5+.5*gesturePower):0),LIMITS.torso.flexMin,LIMITS.torso.flexMax),roll=clamp((native?nativeRoll:st.turn*.25)+feint+shieldWeight*shieldSide*.065+defenderMisread*defenderSide*.055 +cutWeight*cutSide*.045-(gesture?gestureSide*.07*gestureWeight:0),LIMITS.torso.rollMax*-1,LIMITS.torso.rollMax);
  const facing=[Math.cos(p.face||0),0,Math.sin(p.face||0)],right=[-facing[2],0,facing[0]];
  const up=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
  const bodyForward=unit(sub(facing,mul(up,dot(facing,up)))),bodyRight=unit(cross(bodyForward,up)),bodyFrame={forward:bodyForward,up,right:bodyRight};
@@ -297,13 +304,31 @@ function pose(p,dt=1/60){
   const nativeContact=!special&&cue&&cue.foot===i&&cue.weight>0&&
     [cue.ball?.x,cue.ball?.y,cue.ball?.z,cue.impulse?.vx,cue.impulse?.vz,cue.weight].every(Number.isFinite)&&
     cue.ball.y>=0&&cue.ball.y<=.35&&Math.hypot(cue.ball.x-p.x,cue.ball.z-p.z)<=1.15;
+  if(gesture&&i!==gesture.foot){
+   // Keep existing planted support. Do not teleport an airborne foot.
+   if(stance&&Math.abs(foot[1]-GROUND)<.001){
+    f.nativeSwing=null;f.adjust=0;
+   }
+  }
   if(nativeContact){
    const v=Math.hypot(cue.impulse.vx,cue.impulse.vz);
    const nx=v>.1?cue.impulse.vx/v:facing[0],nz=v>.1?cue.impulse.vz/v:facing[2];
    footFace=p.face;
    // Toe is .20m ahead and .075m below ankle in the canonical rig.
    const target=[cue.ball.x-nx*BALL_RADIUS-facing[0]*.20,Math.max(GROUND,cue.ball.y+.075),cue.ball.z-nz*BALL_RADIUS-facing[2]*.20];
-   foot=blend(foot,target,clamp(cue.weight,0,1));stance=false;
+   if(gesture){
+    const delta=cue.deltaMs,pre=delta<0;
+    const progress=pre?clamp(-delta/profile.pre,0,1):clamp(delta/profile.post,0,1);
+    // A continuous bell-shaped excursion is zero at contact and endpoints.
+    const swingAmount=Math.sin(Math.PI*progress)*(.55+.45*gesturePower);
+    const offset=(pre?-profile.back:profile.follow)*swingAmount;
+    footFace=p.face-gestureSide*profile.turn*gestureWeight;
+    const anchor=[cue.ball.x-nx*BALL_RADIUS-Math.cos(footFace)*.20,Math.max(GROUND,cue.ball.y+.075),cue.ball.z-nz*BALL_RADIUS-Math.sin(footFace)*.20];
+    // After the exact contact, follow the kick direction rather than chase
+    // the moving ball; the anchor is the recorded pre-impact position.
+    const swingTarget=[anchor[0]+nx*offset,anchor[1]+profile.lift*swingAmount,anchor[2]+nz*offset];
+    foot=blend(foot,swingTarget,gestureWeight);stance=false;
+   }else{foot=blend(foot,target,clamp(cue.weight,0,1));stance=false;}
   }
   const requestedStance=stance,requestedFoot=foot.slice(),legIK=boundedLimb(hip,foot,ANATOMY.thigh,ANATOMY.shin,facing,LIMITS.knee,LIMITS.hip,bodyFrame,side);
   foot=legIK.end;if(legIK.error>1e-5)stance=false;
@@ -312,6 +337,11 @@ function pose(p,dt=1/60){
   const shoulder=add(torsoUpper,mul(bodyRight,side*ANATOMY.shoulderWidth/2));
   const swing=-Math.sin(st.phase*2*Math.PI+i*Math.PI)*st.activity*(.22+.12*sprint);
   let wrist=world(p,swing+kick*(i===1?-.35:.24),side*(.255+kick*.10),.94+bounce+celebrating*.93+protest*.30-tackle*.17-gather);
+  if(gesture){
+   const counter=side===gestureSide?-.55:1;
+   const target=world(p,counter*profile.arm*(.6+.4*gesturePower),side*(.27+profile.arm*.35),1.06+profile.arm*.22);
+   wrist=blend(wrist,target,gestureWeight*.8);
+  }
   if(cutWeight>.001||burstWeight>.001){
    const target=world(p,cutWeight>0?(side===cutSide?-.14:.18):-.18,side*.29,1.02);
    wrist=blend(wrist,target,Math.max(cutWeight*.5,burstWeight*.4));
@@ -341,6 +371,7 @@ function pose(p,dt=1/60){
   arms.push({shoulder,target:wrist});
  }
  let result={pelvis,neck,head,headTop,torsoBase,torsoMid,torsoUpper,legs,arms,activity:st.activity,sprint,kick,tackle,diving,celebrating,protest,face:p.face,action:act,weight:action,turn:st.turn,feintWeight,shieldWeight,defenderMisread,wallPassWeight,cutWeight,burstWeight};
+ if(gesture)result.nativeStrike={profile:gesture.strike.profile,foot:gesture.foot,deltaMs:gesture.deltaMs,power:gesturePower,weight:gestureWeight};
  if(native)result.nativeBalance={pitch:nativePitch,roll:nativeRoll,drop:nativeDrop};
  if(hasScan||st.scanYaw){result.headYaw=st.scanYaw;result.headFace=(p.face||0)+st.scanYaw;}
  let frame=bodyFrame,contactTargets=null;

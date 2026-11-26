@@ -22,6 +22,8 @@ const {createServer}=require('../../tools/serve-character-viewer.cjs');
   if(!path)assert.deepEqual(await page.evaluate(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state().score),[2,1]);
   await page.locator('#footPlant').check();
   await page.locator('#bodyBalance').check();
+  await page.locator('#contactSync').check();
+  await page.locator('#strikeMotion').check();
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state()?.players===22);
   await page.locator('#seek').evaluate(el=>{el.value=el.max;el.dispatchEvent(new Event('input'));});
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state()?.done===true);
