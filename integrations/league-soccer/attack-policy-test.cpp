@@ -308,6 +308,18 @@ int main(){
  assert(DuelReachScore(2,3,9,3,.7f,.5f)==DuelReachScore(2,3,5,3,.7f,.5f));
  assert(DuelReachScore(2,3,4,3,.7f,std::numeric_limits<float>::quiet_NaN())==-1000);
  assert(DuelReachScore(2,3,4,3,.7f,.5f)>-999);
+ assert(PressureShieldScore(.94f,.8f,.5f,1,1)==-1000);
+ assert(PressureShieldScore(2,.04f,.5f,1,1)==-1000);
+ assert(PressureShieldScore(2,.8f,.5f,-.66f,1)==-1000);
+ assert(PressureShieldScore(2,.8f,.5f,1,1)>-999);
+ assert(PressureShieldScore(3,.8f,.5f,1,1)>PressureShieldScore(2,.8f,.5f,1,1));
+ assert(PressureShieldScore(2,.8f,.8f,1,1)>PressureShieldScore(2,.8f,-.8f,1,1));
+ assert(PressureShieldScore(2,.8f,.5f,1,1)>PressureShieldScore(2,.8f,.5f,0,1));
+ assert(PressureShieldScore(2,.8f,.5f,1,1)>PressureShieldScore(2,.8f,.5f,1,-1));
+ assert(PressureShieldScore(4,.8f,.5f,1,1)==PressureShieldScore(8,.8f,.5f,1,1));
+ assert(PressureShieldScore(2,.8f,.5f,1,1.5f)==PressureShieldScore(2,.8f,.5f,1,8));
+ assert(PressureShieldScore(std::numeric_limits<float>::quiet_NaN(),.8f,.5f,1,1)==-1000);
+ assert(PressureShieldScore(2,.8f,.5f,1,std::numeric_limits<float>::infinity())==-1000);
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
