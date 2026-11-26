@@ -128,7 +128,9 @@ def render(source, plan, output, *, source_ms=SOURCE_MS, target_ms=TARGET_MS):
             require(abs(float(meta['duration'])-expected)<=.035,
                     f'Unexpected segment media duration: {i}')
         listing=tmp/'parts.txt'
-        listing.write_text(''.join(f"file '{i:05d}.mkv'\n" for i in range(len(rows))),encoding='utf-8')
+        # Explicit per-part duration avoids accumulating Matroska's millisecond rounding.
+        listing.write_text(''.join(f"file '{i:05d}.mkv'\nduration {row[3]/FPS:.9f}\n"
+                                   for i,row in enumerate(rows)),encoding='utf-8')
         staged=tmp/'final.mp4'
         ffmpeg('-f','concat','-safe','1','-i',listing,'-map','0:v:0','-map','0:a:0',
                '-c:v','copy','-c:a','aac','-b:a','128k','-movflags','+faststart',staged)
