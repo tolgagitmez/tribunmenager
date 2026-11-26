@@ -106,4 +106,9 @@ def inspect(directory):
         from native_dribble_diagnostics import inspect_dribble
         result['dribbleControl']=inspect_dribble(directory/'native-match.game.log',trace)
     except (OSError,ValueError,KeyError,TypeError) as exc:result['errors']['dribbleControl']=type(exc).__name__
+    result['duelEscape']=None
+    try:
+        from native_duel_escape_diagnostics import inspect_duels
+        result['duelEscape']=inspect_duels(directory/'native-match.game.log')
+    except (OSError,ValueError,TypeError) as exc:result['errors']['duelEscape']=type(exc).__name__
     return result
