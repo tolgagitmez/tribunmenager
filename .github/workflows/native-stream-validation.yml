@@ -1,7 +1,7 @@
 name: Native stream full audiovisual and manager validation
 on:
   push:
-    branches: [experiment/native-stream-validation-stage120, experiment/native-timeline-repair-stage121]
+    branches: [experiment/native-stream-validation-stage120, experiment/native-timeline-repair-stage121, experiment/native-command-evidence-stage122]
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,6 +15,7 @@ jobs:
         with:
           node-version: '22'
       - run: python3 -m unittest discover -s tests -p test_native_media_audit.py
+      - run: python3 -m unittest discover -s tests -p test_native_command_evidence.py
       - run: python3 -m unittest discover -s tests -p test_native_video_control.py
       - run: python3 -m unittest discover -s tests -p test_native_roster.py
       - run: node --test integrations/league-soccer/native-live-video.test.cjs
@@ -91,6 +92,9 @@ jobs:
           assert r["mediaTimeline"]["timelinePassed"] and r["audio"]["nonSilentCoveragePassed"]
           assert r["control"]["submitted"]==[1,1] and r["control"]["applied"]==[1,1]
           assert r["control"]["formations"]==[442,4231] and r["control"]["pending"]==[False,False]
+          evidence=r["control"]["traceEvidence"]
+          assert evidence["consistent"] and evidence["allSubmittedObserved"] and len(evidence["acknowledgements"])==2
+          assert all(a["formationTargetsVerified"] for a in evidence["acknowledgements"])
           PY
       - uses: actions/upload-artifact@v4
         if: always()

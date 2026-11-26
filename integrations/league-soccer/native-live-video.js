@@ -124,7 +124,7 @@
    controlState=state;renderRoster(state.roster);
    if(!submitting){
     if(state.commandState==='waiting-for-engine')commandStatus.textContent='Komut '+state.submittedRevision+' · motor onayı bekleniyor.';
-    else if(state.commandState==='applied')commandStatus.textContent='Motor onayladı · komut '+state.appliedRevision;
+    else if(state.commandState==='applied')commandStatus.textContent='Motor onayladı · komut '+state.appliedRevision+(state.lastAcknowledgement?' · '+Math.floor(state.lastAcknowledgement.appliedMatchMs/60000)+'′':'');
     else if(state.commandState==='not-applied-at-end')commandStatus.textContent='Maç bitti; son komut uygulanmadı.';
     else commandStatus.textContent=state.canControl?'Motor hazır.':'Motor komut beklemiyor.';
    }

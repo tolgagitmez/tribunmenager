@@ -1,0 +1,5 @@
+# Stage 122 — native command trace evidence
+
+Stage121 short transport passed both modes (18s synthetic H.264/AAC; measured encoded start envelope 42.422ms, end 15.756ms). Not native audio or perceptual sync proof. Stage119 full native jobs and stage121 combined job still in progress at inspection. Stage118 both scheduled half-time changes passed.
+
+Reuse native commands without new simulation logic. Independently reread finished trace against submitted revisions and exact values; require stable acknowledgement and correct 2D native formation targets (ten field slots plus keeper) on first observation of each formation change. Expose actual acknowledgement minute to local manager UI, add combined browser checks and unit tests. Pending commands at final are explicitly unobserved; combined CI requires both observed. This proves target assignment, not real movement or tactical efficacy. No production deployment, no arbitrary live substitutions, public broadcasting or asset license clearance.

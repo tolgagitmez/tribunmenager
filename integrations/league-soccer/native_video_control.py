@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 import native_live as n
 from native_roster import plan_from_config,roster_snapshot
+from native_command_evidence import audit_commands
 class ControlBridge:
     error_type=n.ControlError
     def __init__(self,config,directory,trace,clock=None):
@@ -15,6 +16,7 @@ class ControlBridge:
         self.tokens=[secrets.token_urlsafe(24),secrets.token_urlsafe(24)]
         self.session=n.Session(config,self.directory,**({"clock":clock} if clock else {}))
         self.tail=n.Tail(trace,self.session)
+        self.trace=Path(trace)
         self.plans=plan_from_config(config)
     def drain(self):self.tail.drain()
     def close(self):self.session.close()
@@ -24,8 +26,10 @@ class ControlBridge:
         # Only open play, fresh native frame, no human controller, no final.
         eligible=bool(frame and frame.get("inPlay") is True and not frame.get("setPiece")
             and frame.get("humanGamers")==[0,0] and state["canControl"])
+        ack=next((a for a in frame.get("managerTactics",[]) if a.get("team")==side and a.get("revision")==state["appliedRevision"] and state["appliedRevision"]>0),None) if frame else None
         return {k:state[k] for k in ("side","submittedRevision","appliedRevision","commandState","finalizing")} | {
             "canControl":eligible,"engineMatchMs":frame.get("matchMs") if frame else None,
+            "lastAcknowledgement":{k:ack[k] for k in ("revision","appliedMatchMs","appliedElapsedMs",*n.FIELDS)} if ack else None,
             "roster":roster_snapshot(frame,self.session.meta["players"],self.plans,side)}
     def submit(self,side,body):
         if not isinstance(body,dict) or body.get("round")!=0 or type(body.get("round")) is not int:
@@ -38,6 +42,10 @@ class ControlBridge:
             return self.session.command(side,ident,values)
     def report(self):
         with self.session.lock:
-            return {"submitted":self.session.revisions[:],"applied":self.session.applied[:],
+            requests=[{"team":side,"revision":reply["revision"],"earliestMatchMs":reply["earliestMatchMs"],
+                "values":dict(zip(n.FIELDS,values))} for side in (0,1) for values,reply in self.session.requests[side].values()]
+            result={"submitted":self.session.revisions[:],"applied":self.session.applied[:],
                 "formations":self.session.applied_formation[:],"pending":[p is not None for p in self.session.pending],
                 "leagueAuthorization":False,"localCapabilityOnly":True}
+        result["traceEvidence"]=audit_commands(self.trace,requests)
+        return result

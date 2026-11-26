@@ -60,6 +60,10 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium}=requ
     await m.waitForFunction(()=>document.querySelector('#commandStatus').textContent.includes('Motor onayladı'),{},{timeout:60000});
     const ack=await m.evaluate(async()=>await(await fetch('tactics.json')).json());
     assert.equal(ack.side,side);assert.equal(ack.appliedRevision,1);
+    assert.equal(ack.lastAcknowledgement.revision,1);
+    assert.equal(ack.lastAcknowledgement.formation,side===0?442:4231);
+    assert.equal(ack.lastAcknowledgement.press,side===0?75:35);
+    assert.ok(ack.lastAcknowledgement.appliedMatchMs<=ack.engineMatchMs);
     const spectator=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC());
     assert.notEqual(spectator.phase,'error',JSON.stringify(spectator));
     assert.ok(spectator.videoWidth>0);
