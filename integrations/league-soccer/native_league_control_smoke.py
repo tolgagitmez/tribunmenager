@@ -105,6 +105,28 @@ def run(runtime,root,fixture):
                 ack=until(applied,90)['lastAcknowledgement']
                 if any(ack.get(k)!=v for k,v in body['tactics'].items()):raise ValueError('Engine acknowledgement mismatch')
                 acknowledgements.append({'side':side,'revision':ack['revision'],'formation':ack['formation']})
+            # A fresh HTTP connection reconstructs the last applied state; no local browser state.
+            for side,token in enumerate(accounts[:2]):
+                state=request(base,token)
+                if state['latestRequestId']!='league-control-'+str(side) or state['appliedRevision']!=1:
+                    raise ValueError('Reconnect lost revision')
+            time.sleep(2.2)
+            for side,token in enumerate(accounts[:2]):
+                state=until(lambda:eligible(token),80)
+                if state['side']!=side or state['submittedRevision']!=1:raise ValueError('Reconnect state mismatch')
+                body={'round':3,'requestId':'league-second-'+str(side),'tactics':dict(press=45 if side==0 else 65,counter=70,support=40,width=60,tempo=55,formation=0)}
+                reply=request(base,token,body,202)
+                if reply.get('revision')!=2:raise ValueError('Second command revision mismatch')
+                # Idempotent replay even before or after engine acknowledgement.
+                if request(base,token,body,202)!=reply:raise ValueError('Second duplicate mismatch')
+                def applied_second():
+                    r=request(base,token)
+                    return r if r.get('appliedRevision')==2 else None
+                state=until(applied_second,80);ack=state['lastAcknowledgement']
+                expected={**body['tactics'],'formation':442 if side==0 else 4231}
+                if any(ack.get(k)!=v for k,v in expected.items()) or state['pendingCommand'] is not None or state['latestRequestId']!=body['requestId']:
+                    raise ValueError('Second command or retained formation mismatch')
+                acknowledgements.append({'side':side,'revision':2,'formation':ack['formation']})
             until(lambda:all(p.poll() is not None for p in children),1000)
             if any(p.returncode for p in children):raise RuntimeError('Native or browser failed')
         report=q.verify_recording(f,out/'run',sha,control_source='league-gateway')
@@ -112,7 +134,7 @@ def run(runtime,root,fixture):
         if not q.finish(server.DATA,key,sha,attempt,report=report):raise ValueError('Private completion failed')
         with closing(sqlite3.connect(server.DATA)) as db:
             if db.execute('SELECT home_score FROM fixtures').fetchone()[0] is not None:raise ValueError('Official score changed')
-        return {'passed':True,'authoritative':False,'acknowledgements':acknowledgements,'invalidTokenRejected':True,'foreignLeagueRejected':True,'directCapabilityRejected':True,'idempotent':True,'score':report['score'],'productionQualified':False}
+        return {'passed':True,'authoritative':False,'acknowledgements':acknowledgements,'invalidTokenRejected':True,'foreignLeagueRejected':True,'directCapabilityRejected':True,'idempotent':True,'reconnectVerified':True,'commandHistory':report['commandHistory'],'score':report['score'],'productionQualified':False}
     finally:
         http.shutdown();http.server_close();thread.join(timeout=5)
         for i,p in enumerate(children):

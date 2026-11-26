@@ -83,7 +83,7 @@ def forward(root,attempt,side,round_number,body=None):
             if body is None:
                 if result.get('side')!=side:raise ValueError('Native side mismatch')
                 # Never forward arbitrary response fields/capability secrets.
-                allowed=('side','submittedRevision','appliedRevision','commandState','finalizing','canControl','engineMatchMs','lastAcknowledgement','roster')
+                allowed=('side','submittedRevision','appliedRevision','commandState','finalizing','canControl','engineMatchMs','lastAcknowledgement','latestRequestId','pendingCommand','roster')
             else:allowed=('revision','earliestMatchMs','state','commandState','appliedRevision','submittedRevision','requestId')
             return {k:result[k] for k in allowed if k in result}
     except urllib.error.HTTPError as e:

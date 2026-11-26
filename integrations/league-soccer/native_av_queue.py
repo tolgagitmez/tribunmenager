@@ -109,7 +109,12 @@ def verify_recording(fixture_path,directory,sha,*,control_source='local-diagnost
             and isinstance(score,list) and len(score)==2 and all(type(x) is int and x>=0 for x in score)):
         raise ValueError('Incomplete AV evidence')
     control=native['control']; evidence=control['traceEvidence']
-    if not (control['submitted']==control['applied']==[1,1] and control['pending']==[False,False] and control['formations']==[442,4231]
+    if control_source=='league-gateway':
+        from native_league_command_verify import verify as verify_commands
+        command_history=verify_commands(control,trace)
+    else:
+        command_history=None
+    if control_source!='league-gateway' and not (control['submitted']==control['applied']==[1,1] and control['pending']==[False,False] and control['formations']==[442,4231]
             and evidence['consistent'] is True and evidence['allSubmittedObserved'] is True
             and len(evidence['acknowledgements'])==2 and all(a['formationTargetsVerified'] is True for a in evidence['acknowledgements'])):
         raise ValueError('Incomplete command evidence')
@@ -123,7 +128,7 @@ def verify_recording(fixture_path,directory,sha,*,control_source='local-diagnost
     sidecar=json.loads(Path(str(trace)+'.season.json').read_text())
     season=native_av_season.verify_candidate(final,manifest,sidecar)
     return {'authoritative':False,'verified':True,'configSha256':sha,'score':score,'season':season,
-            'traceSha256':native['traceSha256'],'coverage':browser['coverageFraction'],'audioOwnershipVerified':True,'controlSource':control_source,'engine':'league-soccer'}
+            'traceSha256':native['traceSha256'],'coverage':browser['coverageFraction'],'audioOwnershipVerified':True,'controlSource':control_source,'commandHistory':command_history,'engine':'league-soccer'}
 
 def run_match(runtime, root, job):
     key,sha,config,attempt=job
