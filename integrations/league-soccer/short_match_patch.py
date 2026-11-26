@@ -4442,6 +4442,41 @@ struct FixedDurationClock {'''),
     ])
 
 
+    # Stage 210: log each actual exit of the pinned native animation selector.
+    # Diagnostics only; no selector condition or animation state is changed.
+    selector_path=Path(root)/"src/onthepitch/player/humanoid/humanoid.cpp"
+    selector_source=selector_path.read_text(encoding="utf-8")
+    selector_start=selector_source.index("bool Humanoid::SelectAnim(")
+    selector_end=selector_source.index("bool Humanoid::NeedTouch(",selector_start)
+    selector_body=selector_source[selector_start:selector_end]
+    reasons=["ball-distance","ball-moving-away","prediction-divergence","requeue-nonmovement","requeue-possession-focus","requeue-remaining-frames","requeue-movement-delay","requeue-control-delay","requeue-control-trap","requeue-trap-delay","requeue-trap-control-delay","requeue-similar-command","requeue-momentum","requeue-small-change","empty-crude-set","incompatible-movement","no-applicable-animation"]
+    if selector_body.count("return false;")!=len(reasons) or selector_body.count("return true;")!=1:
+        raise ValueError("Stage 210 selector exit layout changed")
+    selector_body=replace_once(selector_body, "  assert(command.desiredDirection.coords[2] == 0.0f);", r'''  assert(command.desiredDirection.coords[2] == 0.0f);
+  const bool audit210=AITactics::IdleRecoveryEnabled() &&
+      (command.desiredFunctionType==e_FunctionType_BallControl || command.desiredFunctionType==e_FunctionType_Movement) &&
+      match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer() &&
+      !team->GetHumanGamerCount() && !CastPlayer()->GetExternalController() &&
+      CastPlayer()->IsActive() && CastPlayer()->HasUniquePossession() &&
+      match->GetDesignatedPossessionPlayer()==player && match->GetLastTouchPlayer()==player &&
+      CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK && player->GetMovement().GetLength()<.75f;
+  const auto report210=[&](bool accepted,const char* reason){
+    if(audit210)
+      std::fprintf(stderr,"[tribun-anim210] team=%d player=%d phase=%d actual_ms=%lu match_ms=%lu action=%s result=%s reason=%s interrupt=%d requested=%.4f current=%.4f outgoing=%.4f frame=%d\n",
+          team->GetID(),player->GetID(),static_cast<int>(match->GetMatchPhase()),
+          static_cast<unsigned long>(match->GetActualTime_ms()),static_cast<unsigned long>(match->GetMatchTime_ms()),
+          command.desiredFunctionType==e_FunctionType_Movement?"movement":"ball-control",
+          accepted?"accepted":"rejected",reason,static_cast<int>(localInterruptAnim),
+          command.desiredVelocityFloat,player->GetMovement().GetLength(),currentAnim->outgoingMovement.GetLength(),
+          static_cast<int>(currentAnim->frameNum));
+    return accepted;
+  };''')
+    parts=selector_body.split("return false;")
+    selector_body="".join(part+'return report210(false,"'+reason+'");' for part,reason in zip(parts[:-1],reasons))+parts[-1]
+    selector_body=replace_once(selector_body,"return true;",'return report210(true,"selected");')
+    selector_path.write_text(selector_source[:selector_start]+selector_body+selector_source[selector_end:],encoding="utf-8")
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
