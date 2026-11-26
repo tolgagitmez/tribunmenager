@@ -3295,7 +3295,11 @@ struct FixedDurationClock {'''),
     # Diagnostic only; no changes to queue priority, selection, or physics.
     edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
         ('#include "humanoid.hpp"', '#include "humanoid.hpp"\n#include <cstdio>'),
-        ("  if (interruptAnim != e_InterruptAnim_None) {", r'''  const bool tribunAudit=AITactics::IdleRecoveryEnabled() &&
+        ("  if (mayReQueue) {\n    interruptAnim = e_InterruptAnim_ReQueue;\n  }\n\n  if (interruptAnim != e_InterruptAnim_None) {", r'''  if (mayReQueue) {
+    interruptAnim = e_InterruptAnim_ReQueue;
+  }
+
+  const bool tribunAudit=AITactics::IdleRecoveryEnabled() &&
       match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer() &&
       !team->GetHumanGamerCount() && !CastPlayer()->GetExternalController() &&
       CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK;
