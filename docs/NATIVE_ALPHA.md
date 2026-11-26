@@ -1,4 +1,4 @@
-# Yeni motorla tek maçlık özel alfa — aşama 169
+# Yeni motorla tek maçlık özel alfa — aşama 170
 
 Bu deneysel dalın **normal başlatıcısı artık League-Soccer** çalıştırır.
 Eski WebGL simülasyonu otomatik açılmaz. Yeni motor başlatılamazsa hata
@@ -27,9 +27,16 @@ Windows üzerinde doğrulanmadı. Yönlendirme başarısızsa internete açma;
 Ubuntu içinden yerel tarayıcı dene. WSL desteği yerel Windows OpenGL
 derlemesi değildir.
 
+## Windows Git aktarım hatası (169. aşama)
+170. aşamada Bash kaynak indirme komutu stdin ile ayrı işleme taşındı.
+Windows terminalinde `fatal: repository '' does not exist` görülürse
+eski 169 başlatıcısını değil bu dalı kullan. Alternatif olarak Ubuntu
+terminalinde doğrudan git clone ve Linux başlatma komutlarını çalıştır.
+Kurulumun Windows/WSL gerçek maç testi henüz yapılmadı.
+
 ## Linux
 ```sh
-git clone --branch experiment/native-entrypoint-stage169 https://github.com/tolgagitmez/tribunmenager.git tribun-native-alpha
+git clone --branch experiment/native-wsl-fix-stage170 https://github.com/tolgagitmez/tribunmenager.git tribun-native-alpha
 cd tribun-native-alpha
 bash BASLAT.sh --native-install-deps
 ```

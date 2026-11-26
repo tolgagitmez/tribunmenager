@@ -38,13 +38,13 @@ class LocalHandler(SimpleHTTPRequestHandler):
         self.reply(503, {'error': 'Yerel maç modu açık. Lig hesabı için --mode league, transfer hesabı için --mode full kullan.'})
 
 
-NATIVE_BRANCH = 'experiment/native-entrypoint-stage169'
+NATIVE_BRANCH = 'experiment/native-wsl-fix-stage170'
 WSL_BOOTSTRAP = r'''
 set -eu
 cd ~
-repo=tribun-manager-native-alpha-stage169
+repo=tribun-manager-native-alpha-stage170
 url=https://github.com/tolgagitmez/tribunmenager.git
-branch=experiment/native-entrypoint-stage169
+branch=experiment/native-wsl-fix-stage170
 command -v git >/dev/null || { echo 'Ubuntu icinde sudo apt-get install git komutunu calistir.' >&2; exit 2; }
 if [ ! -e "$repo" ]; then
     git clone --single-branch --branch "$branch" "$url" "$repo"
@@ -55,8 +55,7 @@ cd "$repo"
 [ -z "$(git status --porcelain --untracked-files=no)" ] ||
     { echo 'Alfa kaynak klasoru degismis; elle kontrol et.' >&2; exit 2; }
 if [ "$1" = update ]; then git pull --ff-only origin "$branch"; fi
-shift
-exec python3 integrations/league-soccer/native_alpha.py --private-diagnostic "$@"
+test -f integrations/league-soccer/native_alpha.py
 '''
 
 def native_command(args, platform=None):
@@ -73,9 +72,17 @@ def native_command(args, platform=None):
         return [sys.executable,str(ROOT/'integrations/league-soccer/native_alpha.py'),'--private-diagnostic',*options]
     if platform=='win32':
         if not shutil.which('wsl.exe'):raise ValueError('Windows icin WSL2 Ubuntu gerekli. wsl --install -d Ubuntu')
-        return ['wsl.exe','--distribution','Ubuntu','--','bash','-lc',WSL_BOOTSTRAP,'tribun-alpha',
-                'update' if args.native_update else 'keep',*options]
+        return ['wsl.exe','--distribution','Ubuntu','--cd','~','--exec','python3',
+                'tribun-manager-native-alpha-stage170/integrations/league-soccer/native_alpha.py',
+                '--private-diagnostic',*options]
     raise ValueError('Native alfa su anda Linux veya WSL2 Ubuntu yolu ile calisir.')
+
+def wsl_prepare(args):
+    # Send Bash program as bytes on stdin, not a Windows command-line argument.
+    # Separate setup from interactive dependency installation and match launch.
+    command=['wsl.exe','--distribution','Ubuntu','--cd','~','--exec','bash','-s','--',
+             'update' if args.native_update else 'keep']
+    return subprocess.run(command,input=WSL_BOOTSTRAP.encode('utf-8'),cwd=ROOT).returncode
 
 def main(argv=None):
     if sys.version_info < (3, 10):
@@ -98,6 +105,9 @@ def main(argv=None):
         try:
             command=native_command(args)
             print('TRIBUN MANAGER | LEAGUE-SOCCER yerel alfa. Eski motor otomatik acilmaz.',flush=True)
+            if sys.platform=='win32':
+                status=wsl_prepare(args)
+                if status:return status
             return subprocess.call(command,cwd=ROOT)
         except (OSError,ValueError) as exc:
             print('Yeni motor baslatilamadi: '+str(exc),file=sys.stderr)

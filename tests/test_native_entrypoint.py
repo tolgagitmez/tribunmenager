@@ -29,8 +29,15 @@ class EntrypointTest(unittest.TestCase):
         self.assertIn('native_alpha.py',c[1]);self.assertIn('--private-diagnostic',c)
         with patch('start.shutil.which',return_value='wsl.exe'):
             c=start.native_command(a,'win32')
-            self.assertEqual(c[:4],['wsl.exe','--distribution','Ubuntu','--'])
-            self.assertIn(start.NATIVE_BRANCH,c[6]);self.assertIn('keep',c)
+            self.assertEqual(c[:7],['wsl.exe','--distribution','Ubuntu','--cd','~','--exec','python3'])
+            self.assertIn('stage170',c[7])
+            self.assertNotIn(start.WSL_BOOTSTRAP,c)
+        with patch('start.subprocess.run') as run:
+            run.return_value.returncode=0
+            self.assertEqual(start.wsl_prepare(a),0)
+            self.assertEqual(run.call_args.args[0][-4:],['bash','-s','--','keep'])
+            self.assertIn(start.NATIVE_BRANCH.encode(),run.call_args.kwargs['input'])
+            self.assertIn(b'git clone',run.call_args.kwargs['input'])
         with patch('start.shutil.which',return_value=None):
             with self.assertRaises(ValueError):start.native_command(a,'win32')
         a.host='0.0.0.0'
