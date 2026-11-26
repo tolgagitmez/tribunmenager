@@ -1,6 +1,8 @@
 """Local concurrent native audiovisual benchmark; not production capacity certification."""
 import argparse
 import json
+import math
+import signal
 import os
 from pathlib import Path
 import shutil
@@ -61,20 +63,63 @@ def match_result(directory, native_rc, browser_rc):
     return result
 
 def summarize(matches):
-    complete = all(m['passed'] for m in matches)
+    complete = bool(matches) and all(m['passed'] for m in matches)
     overlap = max(0, min(m['final'] for m in matches) - max(m['kickoff'] for m in matches)) if complete else 0
     distinct = complete and len({m['fixtureSha256'] for m in matches}) == len(matches)
     return {'passed': bool(complete and distinct and overlap >= 285),
             'allMatchesPassed': complete, 'distinctFixtures': distinct, 'overlapSeconds': overlap}
+
+def resource_summary(samples):
+    busy = sorted(s['cpuBusyPercent'] for s in samples if s['cpuBusyPercent'] is not None)
+    return {
+        'cpuP95Percent': busy[math.ceil(.95 * len(busy)) - 1] if busy else None,
+        'minimumAvailableMemoryMiB': min((s['availableMemoryMiB'] for s in samples), default=None),
+        'minimumFreeDiskMiB': min((s['freeDiskMiB'] for s in samples), default=None)
+    }
+
+def prepare_fixtures(fixtures, destination, count):
+    destination.mkdir()
+    templates = ('balanced', 'counter-possession', 'possession-counter')
+    names = []
+    for i in range(count):
+        config = read(fixtures / (templates[i % len(templates)] + '.json'))
+        config['seed'] = 12400 + i
+        name = 'match-%02d' % (i + 1)
+        (destination / (name + '.json')).write_text(json.dumps(config) + '\n')
+        names.append(name)
+    return names
+
+def stop_jobs(jobs):
+    # Browser and native supervisors have different process groups; the native
+    # supervisor handles TERM and cleans its separate engine process group.
+    for _, native, browser in jobs:
+        if browser is not None and browser.poll() is None:
+            os.killpg(browser.pid, signal.SIGTERM)
+        if native.poll() is None:
+            native.terminate()
+    for _, native, browser in jobs:
+        for proc in (native, browser):
+            if proc is None:
+                continue
+            try:
+                proc.wait(timeout=25)
+            except subprocess.TimeoutExpired:
+                if proc is browser:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                else:
+                    proc.kill()
+                proc.wait()
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('runtime', type=Path)
     p.add_argument('fixtures', type=Path)
     p.add_argument('out', type=Path)
+    p.add_argument('--count', type=int, choices=(2, 4, 8, 16), default=2)
     args = p.parse_args()
     runtime, fixtures, out = (x.resolve() for x in (args.runtime, args.fixtures, args.out))
     out.mkdir(parents=True, exist_ok=False)
+    names = prepare_fixtures(fixtures, out / 'fixtures', args.count)
     env = dict(os.environ, TRIBUN_EXPECT_AUDIO='1', TRIBUN_EXPECT_CONTROL='1',
                TRIBUN_EXPECT_FULL_PLAYBACK='1', TRIBUN_PLAYBACK_MIN_SECONDS='300',
                TRIBUN_EXPECT_SUSTAINED='0')
@@ -84,12 +129,12 @@ def main():
     started = time.monotonic()
     previous = cpu()
     try:
-        for name in ('balanced', 'counter-possession'):
+        for name in names:
             directory = out / name
             native_log = (out / (name + '-native.log')).open('wb')
             logs.append(native_log)
             native = subprocess.Popen(['python3', str(HERE / 'native-live-video.py'),
-                 str(runtime), str(fixtures / (name + '.json')), str(directory), '--audio', '--interactive'],
+                 str(runtime), str(out / 'fixtures' / (name + '.json')), str(directory), '--audio', '--interactive', '--linger', '60'],
                  stdout=native_log, stderr=subprocess.STDOUT)
             jobs.append([directory, native, None])
         for job in jobs:
@@ -97,21 +142,32 @@ def main():
             browser_log = (out / (directory.name + '-browser.log')).open('wb')
             logs.append(browser_log)
             job[2] = subprocess.Popen(['node', str(HERE / 'native-live-video-browser.cjs'),
-                str(directory / 'local-url.txt')], env=env, stdout=browser_log, stderr=subprocess.STDOUT)
+                str(directory / 'local-url.txt')], env=env, stdout=browser_log, stderr=subprocess.STDOUT, start_new_session=True)
         while any(proc.poll() is None for _, native, browser in jobs for proc in (native, browser)):
+            if time.monotonic() - started > 1200:
+                raise TimeoutError('Capacity tier exceeded 1200 seconds')
             time.sleep(2)
             previous, sample = host_sample(previous, out)
             sample['elapsedSeconds'] = round(time.monotonic() - started, 2)
             samples.append(sample)
         matches = [match_result(d, n.returncode, b.returncode) for d, n, b in jobs]
         report = {**summarize(matches), 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
-                  'samples': samples, 'wallSeconds': round(time.monotonic() - started, 2),
-                  'productionQualified': False, 'scope': 'two concurrent audio+video matches on this host only'}
+                  'samples': samples, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
+                  'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
         (out / 'capacity-report.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps({k: v for k, v in report.items() if k != 'samples'}, indent=2))
         return 0 if report['passed'] else 1
+    except (OSError, ValueError, TimeoutError, KeyboardInterrupt) as error:
+        stop_jobs(jobs)
+        matches = [match_result(d, n.returncode, b.returncode if b is not None else None) for d,n,b in jobs]
+        (out / 'capacity-report.json').write_text(json.dumps({
+            'passed': False, 'productionQualified': False, 'requestedMatches': args.count,
+            'failureType': type(error).__name__, 'matches': matches, 'samples': samples,
+            'resourceSummary': resource_summary(samples)
+        }, indent=2) + '\n')
+        return 1
     finally:
-        # Normal execution waits for each child; native runner enforces its own time limit.
+        stop_jobs(jobs)
         for log in logs:
             log.close()
 
