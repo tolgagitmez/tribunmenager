@@ -114,6 +114,9 @@ def execute_native(config, profile, stop=None, interactive_key=None):
         env.pop("TRIBUN_NATIVE_BOX_LANE_RUNS",None)
         env.pop("TRIBUN_NATIVE_TIMED_ATTACK",None)
         env.pop("TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS",None)
+        # Diagnostic renderer flags must never leak into ordinary/interactive matches.
+        for flag in ("TRIBUN_NATIVE_NO_DRAW","TRIBUN_NATIVE_NO_UPLOAD","TRIBUN_NATIVE_NULL_RENDERER"):
+            env.pop(flag,None)
         env.setdefault("LP_NUM_THREADS","2")
         env.setdefault("OMP_NUM_THREADS","1")
         tail=None
