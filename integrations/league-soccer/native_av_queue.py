@@ -1,6 +1,6 @@
 """Private, durable AV pilot queue tied to frozen league fixtures; never settles official scores."""
 import argparse
-from contextlib import closing
+from contextlib import closing, contextmanager
 import hashlib
 import json
 import os
@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import sqlite3
 import subprocess
+import threading
 import time
 import uuid
 import tempfile
@@ -145,7 +146,44 @@ def heartbeat(path,attempt):
         db.execute('BEGIN IMMEDIATE')
         return lease.renew(db,attempt,time.time())
 
+@contextmanager
+def worker_lease_guard(database, attempt, *, interval=5):
+    """Renew the existing managed reservation through launch, capture, cleanup
+    and verification. Never re-reserve an expired attempt or publish after loss.
+    """
+    if database is None:
+        yield lambda: None
+        return
+    if not 0<interval<lease.TTL:raise ValueError('Invalid heartbeat interval')
+    if not heartbeat(database,attempt):raise RuntimeError('Worker lease lost before launch')
+    stop=threading.Event()
+    lost=threading.Event()
+    def renew():
+        while not stop.wait(interval):
+            try:
+                if heartbeat(database,attempt):continue
+            except (sqlite3.Error,OSError,ValueError):
+                pass
+            lost.set()
+            return
+    def check():
+        if lost.is_set():raise RuntimeError('Worker lease lost')
+    worker=threading.Thread(target=renew,name='native-av-lease',daemon=True)
+    worker.start()
+    try:
+        yield check
+    finally:
+        stop.set()
+        worker.join()
+    check()
+    if not heartbeat(database,attempt):raise RuntimeError('Worker lease lost after verification')
+
 def run_match(runtime, root, job, *, database=None, league_browser_descriptor=None):
+    with worker_lease_guard(database,job[3]) as check:
+        return _run_match(runtime,root,job,check=check,league_browser_descriptor=league_browser_descriptor)
+
+def _run_match(runtime, root, job, *, check, league_browser_descriptor=None):
+    check()
     key,sha,config,attempt=job
     out=root/attempt;out.mkdir(mode=0o700)
     (out/'fixture.json').write_text(canonical(config))
@@ -162,11 +200,8 @@ def run_match(runtime, root, job, *, database=None, league_browser_descriptor=No
                 browser_command=['node',str(HERE/'native-league-screen-browser.cjs'),str(league_browser_descriptor),str(out/'run/browser-playback-report.json')]
             browser=subprocess.Popen(browser_command,env=env,stdout=b,stderr=subprocess.STDOUT,start_new_session=True)
             deadline=time.monotonic()+1200
-            next_heartbeat=0.0
             while native.poll() is None or browser.poll() is None:
-                if database is not None and time.monotonic()>=next_heartbeat:
-                    if not heartbeat(database,attempt):raise RuntimeError('Worker lease lost')
-                    next_heartbeat=time.monotonic()+5
+                check()
                 if time.monotonic()>deadline:raise TimeoutError('AV job timed out')
                 if (native.poll() not in (None,0)) or (browser.poll() not in (None,0)):raise RuntimeError('AV child failed')
                 time.sleep(.5)
@@ -182,8 +217,10 @@ def run_match(runtime, root, job, *, database=None, league_browser_descriptor=No
                     if p is browser:os.killpg(p.pid,signal.SIGKILL)
                     else:p.kill()
                     p.wait()
-    if database is not None and not heartbeat(database,attempt):raise RuntimeError('Worker lease lost before verification')
-    return verify_recording(out/'fixture.json',out/'run',sha,control_source='league-gateway' if league_mode_run else 'local-diagnostic')
+    check()
+    report=verify_recording(out/'fixture.json',out/'run',sha,control_source='league-gateway' if league_mode_run else 'local-diagnostic')
+    check()
+    return report
 
 def main():
     from native_scheduler_policy import fingerprint,admitted_slots,pressure_ok,sample
