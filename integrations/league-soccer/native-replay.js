@@ -57,6 +57,8 @@
    for(const p of f.players){
     requireValue(p&&[0,1].includes(p.team)&&nonneg(p.id)&&!seen.has(p.id)&&vec(p.position)&&vec(p.velocity)&&vec(p.direction),'Geçersiz oyuncu verisi.');
     requireValue(p.databaseId===undefined||nonneg(p.databaseId),'Geçersiz kadro kimliği.');
+    if(p.motionIdentity!==undefined)requireValue(p.motionIdentity&&
+     ['agility','velocity','acceleration','balance','dribble','control','fatigueFactor'].every(k=>finite(p.motionIdentity[k])),'Geçersiz hareket karakteri.');
     requireValue(p.goalkeeper===undefined||typeof p.goalkeeper==='boolean','Geçersiz kaleci bilgisi.');
     seen.add(p.id);teams[p.team]++;
    }
@@ -138,10 +140,11 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false,motionMatching=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false,motionMatching=false,playerMotionIdentity=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   // The combined profile enables all prior opt-in layers, but remains a
   // presentation experiment; the recorded match is still authoritative.
+  if(playerMotionIdentity)motionMatching=true;
   if(motionMatching)animationBlend=true;
   if(animationBlend)bodyBalance=footPlant=contactSync=strikeMotion=controlMotion=duelMotion=tackleMotion=keeperMotion=aerialMotion=true;
   const roster=rosterMap(manifest),actors=new Map();
@@ -356,6 +359,15 @@
      }
     }
     if(motionMatching)actor.nativeMotionMatch=actor.nativeBlend&&actor.nativeFootPlant===true&&actor.role!=='GK';
+    if(playerMotionIdentity){
+     // Never infer missing traits from name, identity or overall rating.
+     const c=source.motionIdentity,d=p2.motionIdentity;
+     actor.nativeMotionIdentity=actor.nativeMotionMatch&&c?{
+      agility:clamp(c.agility,0,1),velocity:clamp(c.velocity,0,1),acceleration:clamp(c.acceleration,0,1),
+      balance:clamp(c.balance,0,1),dribble:clamp(c.dribble,0,1),control:clamp(c.control,0,1),
+      freshness:clamp(d?lerp(c.fatigueFactor,d.fatigueFactor,blend):c.fatigueFactor,0,1)
+     }:null;
+    }
     active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion||keeperMotion||aerialMotion?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}

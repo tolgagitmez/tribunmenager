@@ -421,6 +421,15 @@ void TribunTrace(Match& match, bool done) {
       vec(base.position);
       output << ",\"goalkeeper\":" << (player->GetFormationEntry().role == e_PlayerRole_GK ? "true" : "false");
       output << ",\"uniquePossession\":" << (player->HasUniquePossession() ? "true" : "false");
+      // Raw traits and current fatigue are separate; effective attributes
+      // already include fatigue and must not be multiplied by it twice.
+      output << ",\"motionIdentity\":{\"agility\":" << player->GetPlayerData()->GetStat("physical_agility")
+             << ",\"velocity\":" << player->GetPlayerData()->GetStat("physical_velocity")
+             << ",\"acceleration\":" << player->GetPlayerData()->GetStat("physical_acceleration")
+             << ",\"balance\":" << player->GetPlayerData()->GetStat("physical_balance")
+             << ",\"dribble\":" << player->GetPlayerData()->GetStat("technical_dribble")
+             << ",\"control\":" << player->GetPlayerData()->GetStat("technical_ballcontrol")
+             << ",\"fatigueFactor\":" << player->GetFatigueFactorInv() << '}';
       if(AITactics::FixedDurationEnabled()&&fixed.started&&fixed.Elapsed(now)==0){
         const char* keys[]={"physical_balance","physical_agility","physical_velocity","physical_acceleration","physical_shotpower","technical_ballcontrol","technical_dribble","technical_shortpass","technical_highpass","technical_shot","technical_volley","mental_vision","mental_calmness","mental_resilience"};
         output << ",\"nativeRawAttributes\":{";

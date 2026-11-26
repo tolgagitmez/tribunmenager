@@ -31,6 +31,7 @@ const {createServer}=require('../../tools/serve-character-viewer.cjs');
   await page.locator('#aerialMotion').check();
   await page.locator('#animationBlend').check();
   await page.locator('#motionMatching').check();
+  await page.locator('#playerMotionIdentity').check();
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state()?.players===22);
   await page.locator('#seek').evaluate(el=>{el.value=el.max;el.dispatchEvent(new Event('input'));});
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state()?.done===true);
