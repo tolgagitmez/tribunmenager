@@ -198,6 +198,25 @@ int main(){
  alternative.Rejected(5,1280);alternative.Rejected(5,1360);
  assert(!alternative.Ready(5,1360)); // different first candidate starts a new streak
  alternative.Reset();assert(!alternative.Ready(5,1360));
+ MissedTouchWatch missed;
+ missed.Observe(true,1,100);
+ missed.Miss(4,100);missed.Miss(4,100);
+ assert(!missed.Ready(4,100));
+ missed.Miss(4,400);assert(missed.Ready(4,400));
+ assert(!missed.Ready(5,400));
+ missed.Promoted(400);assert(!missed.Ready(4,400));
+ missed.Miss(4,500);missed.Miss(4,600);
+ assert(!missed.Ready(4,899));assert(missed.Ready(4,900));
+ missed.Contact();assert(!missed.Ready(4,900));
+ missed.Miss(4,1000);missed.Miss(4,1200);
+ assert(!missed.Ready(4,2501));
+ missed.Observe(true,2,1300);assert(!missed.Ready(4,1300));
+ missed.Miss(4,1400);missed.Miss(4,1600);
+ assert(missed.Ready(4,1600));
+ missed.Observe(false,2,1610);assert(!missed.Ready(4,1610));
+ missed.Observe(true,2,1700);missed.Miss(4,1700);missed.Miss(5,1800);
+ assert(!missed.Ready(5,1800));
+ missed.Reset();assert(!missed.Ready(5,1800));
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
