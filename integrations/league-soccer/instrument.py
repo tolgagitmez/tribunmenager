@@ -215,6 +215,9 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-chain] mode=%s ticks=%lu extra=%lu rejected=%lu cap=%lu max=%lu last-ms=%.6f\n",
       tribun_visual::chainImpact()?"chain":"off",match.tribunChainTicks,match.tribunChainExtra,
       match.tribunChainRejected,match.tribunChainCap,match.tribunChainMax,match.tribunChainMaxTimeMs);
+    std::printf("[tribun-limb] mode=%s samples=%lu queries=%lu used=%lu fallback=%lu max-relative=%.6f\n",
+      tribun_visual::limbImpact()?"limb":"off",match.tribunLimbSamplesMeasured,match.tribunLimbQueries,
+      match.tribunLimbUsed,match.tribunLimbFallback,match.tribunLimbMaxRelativeSpeed);
     std::fflush(stdout);
   }
   output.imbue(std::locale::classic());
@@ -568,6 +571,7 @@ inline bool angularImpact() { return surfaceImpact() && flag("TRIBUN_NATIVE_ANGU
 inline bool sweptImpact() { return angularImpact() && flag("TRIBUN_NATIVE_SWEPT_IMPACT"); }
 inline bool splitImpact() { return sweptImpact() && flag("TRIBUN_NATIVE_SPLIT_IMPACT"); }
 inline bool chainImpact() { return splitImpact() && flag("TRIBUN_NATIVE_CHAIN_IMPACT"); }
+inline bool limbImpact() { return chainImpact() && flag("TRIBUN_NATIVE_LIMB_IMPACT"); }
 inline unsigned adaptiveTicks(float predictedDistance,bool dangerousAction,bool closeOpponent) {
   if (dangerousAction || closeOpponent || predictedDistance <= 5.0f) return 1;
   if (predictedDistance <= 12.0f) return 2;
@@ -865,6 +869,7 @@ void Match::TribunUpdateCollisionPose() {
   teams[1]->Put();
   officials->Put();
   GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
+  if(tribun_visual::limbImpact()) TribunCaptureLimbPose();
 }
 
 void Match::Put() {""")
@@ -1006,6 +1011,14 @@ inline float dot(Vec a,Vec b){return a.x*b.x+a.y*b.y+a.z*b.z;}
 inline Vec cross(Vec a,Vec b){return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
 inline float length(Vec a){return std::sqrt(dot(a,a));}
 inline bool finite(Vec a){return std::isfinite(a.x)&&std::isfinite(a.y)&&std::isfinite(a.z);}
+// Estimate translation of one collision body part from consecutive 10 ms samples.
+struct LimbEstimate { Vec velocity; bool measured; };
+inline LimbEstimate estimateLimb(Vec previous,Vec current,Vec root,unsigned long gap){
+  if(gap!=1 || !finite(previous)||!finite(current)||!finite(root))return {root,false};
+  const Vec v=mul(sub(current,previous),100.0f);
+  if(!finite(v) || length(sub(v,root))>25.0f)return {root,false};
+  return {v,true};
+}
 enum Region { Foot, Leg, Torso, Head, Arm, Other, RegionCount };
 inline Region region(const std::string& name) {
   if(name.find("foot")!=std::string::npos || name.find("toe")!=std::string::npos)return Foot;
@@ -1173,7 +1186,7 @@ def surface_impact_header(source):
   unsigned long tribunLegacyImpacts=0, tribunSurfaceImpacts=0, tribunSeparatingRejected=0;
   unsigned long tribunImpactRegions[6]={0,0,0,0,0,0};
   double tribunRelativeBefore=0, tribunRelativeAfter=0;
-  unsigned long tribunEnergyViolations=0;\n  unsigned long tribunAngularImpacts=0, tribunSpinChanges=0, tribunAngularEnergyViolations=0;\n  double tribunAngularEnergyBefore=0, tribunAngularEnergyAfter=0, tribunMaxSpinDelta=0;\n  unsigned long tribunSweepTests=0, tribunSweepHits=0, tribunSweepApplied=0, tribunSweepThrough=0;\n  double tribunSweepMaxLeadMs=0;\n  Player* tribunSplitPlayer=nullptr;\n  bool tribunSplitThrough=false;\n  unsigned tribunSplitRegionIndex=0;\n  float tribunSplitTime=0;\n  unsigned long tribunSplitQueued=0,tribunSplitApplied=0,tribunSplitCancelled=0;\n  double tribunSplitBeforeMs=0,tribunSplitAfterMs=0;\n  void TribunFinishSplit();\n  unsigned long tribunChainTicks=0,tribunChainExtra=0,tribunChainRejected=0,tribunChainCap=0,tribunChainMax=0;\n  double tribunChainMaxTimeMs=0;""")
+  unsigned long tribunEnergyViolations=0;\n  unsigned long tribunAngularImpacts=0, tribunSpinChanges=0, tribunAngularEnergyViolations=0;\n  double tribunAngularEnergyBefore=0, tribunAngularEnergyAfter=0, tribunMaxSpinDelta=0;\n  unsigned long tribunSweepTests=0, tribunSweepHits=0, tribunSweepApplied=0, tribunSweepThrough=0;\n  double tribunSweepMaxLeadMs=0;\n  Player* tribunSplitPlayer=nullptr;\n  bool tribunSplitThrough=false;\n  unsigned tribunSplitRegionIndex=0;\n  float tribunSplitTime=0;\n  unsigned long tribunSplitQueued=0,tribunSplitApplied=0,tribunSplitCancelled=0;\n  double tribunSplitBeforeMs=0,tribunSplitAfterMs=0;\n  void TribunFinishSplit();\n  unsigned long tribunChainTicks=0,tribunChainExtra=0,tribunChainRejected=0,tribunChainCap=0,tribunChainMax=0;\n  double tribunChainMaxTimeMs=0;\n  struct TribunLimbSample { Vector3 center; unsigned long tick; Vector3 velocity; bool measured; bool unique; };\n  std::map<std::pair<int,std::string>,TribunLimbSample> tribunLimbSamples;\n  void TribunCaptureLimbPose();\n  Vector3 TribunLimbVelocity(Player* player,const std::string& name);\n  unsigned long tribunLimbSamplesMeasured=0,tribunLimbQueries=0,tribunLimbUsed=0,tribunLimbFallback=0;\n  double tribunLimbMaxRelativeSpeed=0;""")
 
 def surface_impact_match(source):
     source=replace_once(source,'#include "tribun_visual_rng.hpp"',
@@ -1205,14 +1218,14 @@ def surface_impact_match(source):
             2.5f) {""","""        const float sweepMargin=sweepInside ? (ballEnd-ballStart).GetLength()+
               players[i]->GetMovement().GetLength()*0.01f : 0.0f;
         if (((players[i]->GetPosition() + Vector3(0, 0, 0.8f)) - ball->Predict(0)).GetLength() <
-            2.5f+sweepMargin+(tribun_visual::chainImpact()?1.0f:0.0f)) {""")
+            2.5f+sweepMargin+(tribun_visual::chainImpact()?1.0f:0.0f)+(tribun_visual::limbImpact()?0.25f:0.0f)) {""")
     section=replace_once(section,"            if (objAABB.Intersects(ball->Predict(0), ballRadius)) {",
-        """            if(tribun_visual::chainImpact() && sweepInside &&\n               !(players[i]==players[i]->GetTeam()->GetDesignatedTeamPossessionPlayer() && GetLastTouchBias(200)<0.01f)) {\n              chainCandidates.push_back({players[i]->GetID(),asVec(objAABB.minxyz),asVec(objAABB.maxxyz),\n                  asVec(players[i]->GetMovement()),tribun_impact::region((*objIter)->GetName()),std::abs(ballRadius)});\n            }\n            const bool instant=objAABB.Intersects(ball->Predict(0),ballRadius);
+        """            const Vector3 partVelocity=tribun_visual::limbImpact()?TribunLimbVelocity(players[i],(*objIter)->GetName()):players[i]->GetMovement();\n            if(tribun_visual::chainImpact() && sweepInside &&\n               !(players[i]==players[i]->GetTeam()->GetDesignatedTeamPossessionPlayer() && GetLastTouchBias(200)<0.01f)) {\n              chainCandidates.push_back({players[i]->GetID(),asVec(objAABB.minxyz),asVec(objAABB.maxxyz),\n                  asVec(partVelocity),tribun_impact::region((*objIter)->GetName()),std::abs(ballRadius)});\n            }\n            const bool instant=objAABB.Intersects(ball->Predict(0),ballRadius);
             tribun_impact::Sweep swept;
             bool through=false;
             if(sweepInside && !instant) {
               ++tribunSweepTests;
-              const auto relativeEnd=ballEnd-players[i]->GetMovement()*0.01f;
+              const auto relativeEnd=ballEnd-partVelocity*0.01f;
               swept=tribun_impact::sweepSphere(asVec(ballStart),asVec(relativeEnd),
                   asVec(objAABB.minxyz),asVec(objAABB.maxxyz),std::abs(ballRadius));
               if(swept.hit) {
@@ -1234,15 +1247,15 @@ def surface_impact_match(source):
                   const auto result=tribun_visual::angularImpact()
                       ? tribun_impact::resolveAngular(point,
                           asVec(objAABB.minxyz),asVec(objAABB.maxxyz),asVec(ball->GetMovement()),
-                          asVec(players[i]->GetMovement()),region,asVec(ball->TribunAngularVelocity()))
+                          asVec(partVelocity),region,asVec(ball->TribunAngularVelocity()))
                       : tribun_impact::resolve(point,
                           asVec(objAABB.minxyz),asVec(objAABB.maxxyz),asVec(ball->GetMovement()),
-                          asVec(players[i]->GetMovement()),region);
+                          asVec(partVelocity),region);
                   if (result.valid && (!bestImpact.valid || time<bestTime-1e-6f ||
                       (std::abs(time-bestTime)<=1e-6f && result.approach>bestImpact.approach))) {
                     bestTime=time;
                     bestThrough=through;
-                    bestPoint=point;bestLo=asVec(objAABB.minxyz);bestHi=asVec(objAABB.maxxyz);bestBody=asVec(players[i]->GetMovement());
+                    bestPoint=point;bestLo=asVec(objAABB.minxyz);bestHi=asVec(objAABB.maxxyz);bestBody=asVec(partVelocity);
                     bestImpact=result;
                     bestRegion=region;
                     impactPlayer=players[i];
@@ -1505,6 +1518,61 @@ def split_match_source(source):
 
 void Match::FollowCamera(""")
 
+def limb_match_source(source):
+    source=replace_once(source,"void Match::ResetSituation(const Vector3& focusPos) {",
+        """void Match::ResetSituation(const Vector3& focusPos) {
+  tribunLimbSamples.clear();""")
+    return replace_once(source,"void Match::TribunFinishSplit() {",
+        """void Match::TribunCaptureLimbPose() {
+  const auto tick=GetIterations();
+  std::vector<Player*> active;
+  GetActiveTeamPlayers(0,active);
+  GetActiveTeamPlayers(1,active);
+  decltype(tribunLimbSamples) next;
+  const auto asVec=[](const Vector3& v){return tribun_impact::Vec{v.coords[0],v.coords[1],v.coords[2]};};
+  for(auto* player:active) {
+    std::list<boost::intrusive_ptr<Geometry>> parts;
+    player->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry,parts);
+    for(const auto& part:parts) {
+      const auto key=std::make_pair(player->GetID(),part->GetName());
+      Vector3 center;
+      part->GetAABB().GetCenter(center);
+      auto existing=next.find(key);
+      if(existing!=next.end()) {
+        existing->second.unique=false;
+        existing->second.measured=false;
+        continue;
+      }
+      const auto root=player->GetMovement();
+      auto old=tribunLimbSamples.find(key);
+      auto estimate=tribun_impact::LimbEstimate{asVec(root),false};
+      if(old!=tribunLimbSamples.end() && old->second.unique && tick>old->second.tick)
+        estimate=tribun_impact::estimateLimb(asVec(old->second.center),asVec(center),asVec(root),tick-old->second.tick);
+      const auto& v=estimate.velocity;
+      next.emplace(key,TribunLimbSample{center,tick,Vector3(v.x,v.y,v.z),estimate.measured,true});
+    }
+  }
+  for(const auto& item:next) if(item.second.measured)++tribunLimbSamplesMeasured;
+  tribunLimbSamples.swap(next);
+}
+
+Vector3 Match::TribunLimbVelocity(Player* player,const std::string& name) {
+  ++tribunLimbQueries;
+  const auto root=player->GetMovement();
+  const auto found=tribunLimbSamples.find(std::make_pair(player->GetID(),name));
+  if(found!=tribunLimbSamples.end() && found->second.unique && found->second.measured &&
+      GetIterations()>=found->second.tick && GetIterations()-found->second.tick<=1) {
+    ++tribunLimbUsed;
+    tribunLimbMaxRelativeSpeed=std::max(tribunLimbMaxRelativeSpeed,
+        static_cast<double>((found->second.velocity-root).GetLength()));
+    return found->second.velocity;
+  }
+  ++tribunLimbFallback;
+  return root;
+}
+
+void Match::TribunFinishSplit() {""")
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -1571,6 +1639,7 @@ def main():
         ("onthepitch/ball.hpp","void TribunQueueSplit",split_ball_header),
         ("onthepitch/ball.cpp","void Ball::TribunQueueSplit",split_ball_source),
         ("onthepitch/match.cpp","void Match::TribunFinishSplit",split_match_source),
+        ("onthepitch/match.cpp","void Match::TribunCaptureLimbPose()",limb_match_source),
     ):
         target=src/relative
         original=target.read_text(encoding="utf-8")

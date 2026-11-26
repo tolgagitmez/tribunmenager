@@ -33,6 +33,7 @@ FILES=(
  "integrations/league-soccer/swept-impact-benchmark.py",
  "integrations/league-soccer/split-impact-benchmark.py",
  "integrations/league-soccer/chain-impact-benchmark.py",
+ "integrations/league-soccer/limb-impact-benchmark.py",
  "integrations/league-soccer/position-skinning-benchmark.py",
  "integrations/league-soccer/runtime-layout.py",
  "integrations/league-soccer/verify-substitutions.py",
