@@ -313,6 +313,53 @@ inline bool TransitionPass(float progress,float distance,float margin,float spac
 }
 '''
 
+ROLE_PROFILE_RULES = r'''// Relative profile, not a new player rating. Equal strengths retain native movement.
+enum RoleFamily { CF, Wide, Mid, DM, FB, CB, Other };
+enum RoleProfile { Neutral, Poacher, FalseNine, Inside, Touchline, Runner, Creator, Anchor, DeepCreator, Overlap, StayBack, Distributor, Stopper, ProfileCount };
+inline int Profile(RoleFamily family,float pace,float pass,float finish,float defense,float work,float control){
+  const float attack=.5f*pace+.5f*finish, creative=.65f*pass+.35f*control;
+  const float runner=.5f*pace+.5f*work;
+  auto choose=[](float a,float b,int positive,int negative){return a-b>.035f?positive:b-a>.035f?negative:Neutral;};
+  switch(family){
+    case CF:return choose(attack,creative,Poacher,FalseNine);
+    case Wide:return choose(.55f*finish+.45f*control,pace,Inside,Touchline);
+    case Mid:return choose(runner,creative,Runner,Creator);
+    case DM:return choose(defense,creative,Anchor,DeepCreator);
+    case FB:return choose(runner,defense,Overlap,StayBack);
+    case CB:return choose(creative,defense,Distributor,Stopper);
+    default:return Neutral;
+  }
+}
+struct RoleOffset {float advance,lateral;};
+inline RoleOffset ProfileOffset(int profile,float y,float ballY,float cover){
+  const float side=y>=0?1.0f:-1.0f;
+  switch(profile){
+    case Poacher:return {2.5f,-side*.5f};
+    case FalseNine:return {-2.8f,std::clamp(ballY-y,-1.3f,1.3f)};
+    case Inside:return {1.3f,-side*2.5f};
+    case Touchline:return {.8f,side*2.2f};
+    case Runner:return {2.0f,0};
+    case Creator:return {-1.2f,std::clamp(ballY-y,-1.8f,1.8f)};
+    case Anchor:return {-2.0f,0};
+    case DeepCreator:return {-.6f,std::clamp(ballY-y,-1.8f,1.8f)};
+    case Overlap:return {cover>=3?2.5f:0.0f,cover>=3?side*1.0f:0.0f};
+    case StayBack:return {-1.8f,0};
+    case Distributor:return {0,std::clamp(ballY-y,-1.5f,1.5f)};
+    case Stopper:return {-1.0f,0};
+    default:return {0,0};
+  }
+}
+struct RoleProbe {
+  unsigned long targets[ProfileCount]={},samples[ProfileCount]={};
+  long long forwardMm[ProfileCount]={},wideMm[ProfileCount]={};
+  void Sample(int profile,float advance,float width){
+    if(profile<=Neutral||profile>=ProfileCount)return;
+    ++samples[profile];forwardMm[profile]+=static_cast<long long>(advance*1000);
+    wideMm[profile]+=static_cast<long long>(width*1000);
+  }
+};
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -2389,7 +2436,7 @@ Vector3 AI_GetForceFieldMovement'''),
     if(AITactics::ShortMatchAttackEnabled()&&AITactics::FixedDurationEnabled()&&
         IsInPlay()&&!IsInSetPiece()&&!GetBallRetainer()&&actualTime_ms%100==0){
       for(int t=0;t<2;++t){
-        auto* own=teams[t];
+        auto* own=GetTeam(t);
         auto* rival=teams[1-t]->GetDesignatedTeamPossessionPlayer();
         if(!rival||!rival->HasUniquePossession()||own->HasUniquePossession())continue;
         const float side=own->GetSide();
@@ -2513,3 +2560,83 @@ Vector3 AI_GetForceFieldMovement'''),
             pressureOutlet||returnCandidate||retentionOutlet||timedCandidate||lineBreak||triangleCandidate||holdOutlet))continue;
         float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
     ])
+
+    # Stage 73: player-stat-driven formation-relative off-ball role profiles.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool RoleProfileEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_ROLE_PROFILE");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + ROLE_PROFILE_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.hpp", [
+        ("  Vector3 GetAdaptedFormationPosition(Player* player, bool useDynamicFormationPosition = true);", r'''  Vector3 GetAdaptedFormationPosition(Player* player, bool useDynamicFormationPosition = true);
+  int TribunRoleProfile(Player* player);
+  void TribunApplyRoleProfile(Player* player,Vector3& desired,const Vector3& formation);'''),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  AITactics::DefenseProbe tribunDefenseProbes[2];", "  AITactics::DefenseProbe tribunDefenseProbes[2];\n  AITactics::RoleProbe tribunRoleProbes[2];"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,", r'''int TeamAIController::TribunRoleProfile(Player* player){
+  if(!player||!player->IsActive())return AITactics::Neutral;
+  AITactics::RoleFamily family=AITactics::Other;
+  switch(player->GetFormationEntry().role){
+    case e_PlayerRole_CF:family=AITactics::CF;break;
+    case e_PlayerRole_LM:case e_PlayerRole_RM:family=AITactics::Wide;break;
+    case e_PlayerRole_CM:case e_PlayerRole_AM:family=AITactics::Mid;break;
+    case e_PlayerRole_DM:family=AITactics::DM;break;
+    case e_PlayerRole_LB:case e_PlayerRole_RB:family=AITactics::FB;break;
+    case e_PlayerRole_CB:family=AITactics::CB;break;
+    default:break;
+  }
+  return AITactics::Profile(family,player->GetStat("physical_velocity"),
+      .6f*player->GetStat("technical_shortpass")+.4f*player->GetStat("mental_vision"),
+      player->GetStat("technical_shot"),
+      .6f*player->GetStat("mental_defensivepositioning")+.4f*player->GetStat("technical_standingtackle"),
+      .5f*player->GetStat("mental_workrate")+.5f*player->GetStat("physical_stamina"),
+      player->GetStat("technical_ballcontrol"));
+}
+void TeamAIController::TribunApplyRoleProfile(Player* player,Vector3& desired,const Vector3& formation){
+  if(!AITactics::ShortMatchAttackEnabled()||!AITactics::FixedDurationEnabled()||
+      !match->IsInPlay()||match->IsInSetPiece()||match->GetBallRetainer()||
+      team->GetHumanGamerCount()||!team->HasUniquePossession()||!player||player->HasUniquePossession()||
+      player->GetManMarkingID()!=-1||player==team->GetDesignatedTeamPossessionPlayer()||
+      (player==attackingRunPlayer&&endApplyAttackingRun_ms>match->GetActualTime_ms()))return;
+  const int profile=TribunRoleProfile(player);
+  if(profile==AITactics::Neutral)return;
+  const auto ball=match->GetBall()->Predict(0).Get2D();
+  const float side=team->GetSide(),depth=pitchHalfW+ball.coords[0]*side;
+  if(depth<9.0f||depth>75.0f||(ball-player->GetPosition()).GetLength()>35.0f)return;
+  auto& probe=match->tribunRoleProbes[team->GetID()];
+  if(match->GetActualTime_ms()%100==0)
+    probe.Sample(profile,(player->GetPosition().coords[0]-formation.coords[0])*-side,
+        std::abs(player->GetPosition().coords[1])-std::abs(formation.coords[1]));
+  if(!AITactics::RoleProfileEnabled())return;
+  int cover=0;
+  if(profile==AITactics::Overlap){
+    std::vector<Player*> mates;team->GetActivePlayers(mates);
+    for(auto* mate:mates)if(mate!=player&&mate!=team->GetGoalie()&&
+        mate->GetPosition().coords[0]*side>=ball.coords[0]*side+2.0f)++cover;
+  }
+  const auto offset=AITactics::ProfileOffset(profile,formation.coords[1],ball.coords[1],cover);
+  auto candidate=desired+Vector3(-side*offset.advance,offset.lateral,0);
+  const float forward=-side;
+  const float line=AI_GetOffsideLine(match,match->GetMentalImage(0),abs(team->GetID()-1))*forward;
+  if(offset.advance>0&&candidate.coords[0]*forward>std::max(ball.coords[0]*forward,line)-1.2f)
+    candidate.coords[0]=desired.coords[0];
+  candidate.coords[0]=clamp(candidate.coords[0],-pitchHalfW+1.5f,pitchHalfW-1.5f);
+  candidate.coords[1]=clamp(candidate.coords[1],-pitchHalfH+1.5f,pitchHalfH-1.5f);
+  if((candidate-desired).GetLength()>.1f){desired=candidate;++probe.targets[profile];}
+}
+Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
+    ])
+    for strategy in ("default_off.cpp","default_mid.cpp","default_def.cpp"):
+        edit(root, "src/onthepitch/player/controller/strategies/offtheball/"+strategy, [
+            ("  direction = (desiredPosition - player->GetPosition()).GetNormalized(player->GetDirectionVec());", r'''  team->GetController()->TribunApplyRoleProfile(CastPlayer(),desiredPosition,desiredPosition_static);
+  direction = (desiredPosition - player->GetPosition()).GetNormalized(player->GetDirectionVec());'''),
+        ])

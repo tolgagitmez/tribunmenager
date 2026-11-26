@@ -231,6 +231,12 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-transition] mode=%s wins=%lu,%lu losses=%lu,%lu counters=%lu,%lu presses=%lu,%lu retreats=%lu,%lu forward=%lu,%lu regains=%lu,%lu\n",
       AITactics::TransitionEnabled()?"transition":"off",tra.wins,trb.wins,tra.losses,trb.losses,tra.counters,trb.counters,
       tra.presses,trb.presses,tra.retreats,trb.retreats,tra.forwardPasses,trb.forwardPasses,tra.regains,trb.regains);
+    for(int teamID=0;teamID<2;++teamID){
+      const auto& rp=match.tribunRoleProbes[teamID];
+      for(int profile=1;profile<AITactics::ProfileCount;++profile)
+        std::printf("[tribun-role] mode=%s team=%d profile=%d targets=%lu samples=%lu forward=%lld wide=%lld\n",
+          AITactics::RoleProfileEnabled()?"roles":"off",teamID,profile,rp.targets[profile],rp.samples[profile],rp.forwardMm[profile],rp.wideMm[profile]);
+    }
     std::fflush(stdout);
   }
   if (done && tribun_visual::collisionOnly()) {
