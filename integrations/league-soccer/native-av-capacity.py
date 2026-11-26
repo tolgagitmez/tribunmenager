@@ -60,6 +60,12 @@ def match_result(directory, native_rc, browser_rc):
             and all(a['formationTargetsVerified'] for a in evidence['acknowledgements']))
     except (OSError, ValueError, KeyError, TypeError) as error:
         result['evidenceErrorType'] = type(error).__name__
+        for filename, field in [('live-report.json','nativeFailureType'),('browser-playback-report.json','browserReportStatus')]:
+            try:
+                item=read(directory / filename)
+                result[field]=item.get('failureType',item.get('status','present'))
+            except (OSError,ValueError,TypeError,AttributeError):
+                result[field]='missing-or-invalid'
     return result
 
 def summarize(matches):

@@ -10,6 +10,9 @@ import sqlite3
 import subprocess
 import time
 import uuid
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+import native_av_season
 
 HERE=Path(__file__).resolve().parent
 SCHEMA="""
@@ -21,7 +24,7 @@ CREATE TABLE IF NOT EXISTS native_av_jobs(
  PRIMARY KEY(league,round,home,away)
 );
 CREATE INDEX IF NOT EXISTS native_av_due ON native_av_jobs(state,kickoff);
-"""
+""" + native_av_season.SCHEMA
 KEY="league=? AND round=? AND home=? AND away=?"
 
 def canonical(raw):
@@ -66,13 +69,17 @@ def finish(path,key,sha,attempt,report=None,error=None):
         if report.get('authoritative') is not False or report.get('configSha256')!=sha or report.get('verified') is not True:
             raise ValueError('Unverified or authoritative AV result')
     with closing(sqlite3.connect(path,timeout=20)) as db,db:
+        db.row_factory=sqlite3.Row
         db.execute('BEGIN IMMEDIATE')
         row=db.execute("SELECT config FROM live_matches WHERE "+KEY,key).fetchone()
         if not row or digest(row[0])!=sha:return False
-        return db.execute("""UPDATE native_av_jobs SET state=?,finished=?,report=?,error=? WHERE """+KEY+
+        updated=db.execute("""UPDATE native_av_jobs SET state=?,finished=?,report=?,error=? WHERE """+KEY+
             " AND state='running' AND config_sha=? AND attempt=?",
             ('ready' if report is not None else 'failed',time.time(),canonical(report) if report is not None else None,
              error,*key,sha,attempt)).rowcount==1
+        if updated and report is not None and "season" in report:
+            native_av_season.apply(db,key,report)
+        return updated
 
 def verify_output(out,sha):
     fixture=json.loads((out/'fixture.json').read_text())
@@ -98,7 +105,10 @@ def verify_output(out,sha):
             and evidence['consistent'] is True and evidence['allSubmittedObserved'] is True
             and len(evidence['acknowledgements'])==2 and all(a['formationTargetsVerified'] is True for a in evidence['acknowledgements'])):
         raise ValueError('Incomplete command evidence')
-    return {'authoritative':False,'verified':True,'configSha256':sha,'score':score,
+    manifest=json.loads(Path(str(trace)+'.fixture.json').read_text())
+    sidecar=json.loads(Path(str(trace)+'.season.json').read_text())
+    season=native_av_season.verify_candidate(final,manifest,sidecar)
+    return {'authoritative':False,'verified':True,'configSha256':sha,'score':score,'season':season,
             'traceSha256':native['traceSha256'],'coverage':browser['coverageFraction'],'engine':'league-soccer'}
 
 def run_match(runtime, root, job):

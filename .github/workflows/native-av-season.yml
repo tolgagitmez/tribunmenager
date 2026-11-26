@@ -1,0 +1,16 @@
+name: Stage 131 private native season ledger
+on:
+  push:
+    branches: [experiment/native-season-ledger-stage131]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_av_season.py
+          python3 -m unittest discover -s tests -p test_native_av_queue.py
+          python3 -m unittest discover -s tests -p test_native_season.py
+          python3 -m py_compile native_av_season.py integrations/league-soccer/native_av_queue.py integrations/league-soccer/native-av-capacity.py
