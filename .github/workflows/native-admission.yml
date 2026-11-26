@@ -1,0 +1,16 @@
+name: Stage 129 native admission unit tests
+on:
+  push:
+    branches: [experiment/native-admission-stage129]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_admission.py
+          python3 -m unittest discover -s tests -p test_native_av_capacity.py
+          python3 -m unittest discover -s tests -p test_native_hw_encoder.py
+          python3 -m py_compile integrations/league-soccer/native_admission.py integrations/league-soccer/native-av-capacity.py

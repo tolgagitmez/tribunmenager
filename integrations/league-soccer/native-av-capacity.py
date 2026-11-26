@@ -112,6 +112,7 @@ def stop_jobs(jobs):
 
 def main():
     from native_process_profile import ProcessProfile, snapshot
+    from native_admission import identity, PROFILE
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('runtime', type=Path)
     p.add_argument('fixtures', type=Path)
@@ -124,6 +125,7 @@ def main():
     if os.environ.get('TRIBUN_GPU_DISPLAY'):
         p.error('Concurrent GPU diagnostics require separate dedicated displays; use single-match GPU pilot')
     runtime, fixtures, out = (x.resolve() for x in (args.runtime, args.fixtures, args.out))
+    host_identity = identity(runtime)
     out.mkdir(parents=True, exist_ok=False)
     names = prepare_fixtures(fixtures, out / 'fixtures', args.count)
     env = dict(os.environ, TRIBUN_EXPECT_AUDIO='1', TRIBUN_EXPECT_CONTROL='1',
@@ -162,7 +164,7 @@ def main():
         matches = [match_result(d, n.returncode, b.returncode) for d, n, b in jobs]
         report = {**summarize(matches), 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
                   'samples': samples, 'processProfile': meter.report(), 'filterThreads': args.filter_threads, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
-                  'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
+                  'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
         (out / 'capacity-report.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps({k: v for k, v in report.items() if k != 'samples'}, indent=2))
         return 0 if report['passed'] else 1
@@ -170,7 +172,7 @@ def main():
         stop_jobs(jobs)
         matches = [match_result(d, n.returncode, b.returncode if b is not None else None) for d,n,b in jobs]
         (out / 'capacity-report.json').write_text(json.dumps({
-            'passed': False, 'productionQualified': False, 'requestedMatches': args.count,
+            'passed': False, 'productionQualified': False, 'hostIdentity': host_identity, 'profile': PROFILE, 'requestedMatches': args.count,
             'failureType': type(error).__name__, 'matches': matches, 'samples': samples,
             'resourceSummary': resource_summary(samples), 'processProfile': meter.report(), 'filterThreads': args.filter_threads
         }, indent=2) + '\n')
