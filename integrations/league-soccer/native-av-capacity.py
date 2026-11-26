@@ -45,7 +45,7 @@ def match_result(directory, native_rc, browser_rc):
             coverage=browser['coverageFraction'], droppedFrames=browser['droppedFrames'],
             decodedFrames=browser['decodedFrames'], fixtureSha256=native['fixtureSha256'],
             audioWindows=native['audio']['nonSilentWindows'],
-            acknowledgements=len(evidence['acknowledgements']))
+            acknowledgements=len(evidence['acknowledgements']), renderProbe=native.get('renderProbe'), softwareGLWorkers=native.get('softwareGLWorkers',2))
         result['passed'] = bool(
             native_rc == browser_rc == 0 and native['status'] == 'local-live-evidence'
             and result['nativeClockMs'] == 300000 and 295 <= result['observedWallSeconds'] <= 305
@@ -130,6 +130,8 @@ def main():
     p.add_argument('--count', type=int, choices=(2, 4, 8, 16), default=2)
     p.add_argument('--filter-threads', type=int, choices=(0, 1), default=0)
     p.add_argument('--cpu-partition', action='store_true')
+    p.add_argument('--render-probe', action='store_true')
+    p.add_argument('--gl-workers', type=int, choices=(1,2), default=2)
     args = p.parse_args()
     groups = partition(os.sched_getaffinity(0), args.count) if args.cpu_partition else [[] for _ in range(args.count)]
     if os.environ.get('TRIBUN_AV_ENCODER','x264') != 'x264':
@@ -144,6 +146,8 @@ def main():
                TRIBUN_EXPECT_FULL_PLAYBACK='1', TRIBUN_PLAYBACK_MIN_SECONDS='300',
                TRIBUN_EXPECT_SUSTAINED='0')
     env['TRIBUN_AV_FILTER_THREADS'] = str(args.filter_threads)
+    env['TRIBUN_AV_SWAP_PROBE'] = '1' if args.render_probe else '0'
+    env['TRIBUN_AV_GL_WORKERS'] = str(args.gl_workers)
     meter = ProcessProfile()
     jobs = []
     logs = []
@@ -181,7 +185,10 @@ def main():
         matches = [match_result(d, n.returncode, b.returncode) for d, n, b in jobs]
         report = {**summarize(matches), 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
                   'samples': samples, 'processProfile': meter.report(), 'filterThreads': args.filter_threads, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
-                  'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
+                  'renderProbeRequested': args.render_probe, 'glWorkers': args.gl_workers, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
+        if args.render_probe:
+            report['renderEvidenceComplete'] = all(isinstance(m.get('renderProbe'),dict) and m['renderProbe'].get('observed') is True for m in matches)
+            report['passed'] = report['passed'] and report['renderEvidenceComplete']
         (out / 'capacity-report.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps({k: v for k, v in report.items() if k != 'samples'}, indent=2))
         return 0 if report['passed'] else 1

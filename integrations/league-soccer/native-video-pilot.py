@@ -60,8 +60,20 @@ def _capture_window(config,limit,audio_env):
     progress=video.with_suffix(".progress");capture_log=video.with_suffix(".capture.log")
     game_log=video.with_suffix(".game.log");offset=0;first=kickoff=final=None;last=None;encoder=None
     sink_input=False;next_audio_probe=0.0;child_env=audio_env or os.environ.copy()
+    gl_workers=os.environ.get("TRIBUN_AV_GL_WORKERS","2")
+    swap_enabled=os.environ.get("TRIBUN_AV_SWAP_PROBE","0")
+    require(gl_workers in ("1","2") and swap_enabled in ("0","1"),"Invalid render diagnostic")
+    require((gl_workers=="2" and swap_enabled=="0") or (hls and not os.environ.get("TRIBUN_GPU_DISPLAY")),"Private software HLS required")
+    game_env=dict(child_env,LP_NUM_THREADS=gl_workers)
+    swap_base=video.parent/"native-swaps"
+    if swap_enabled=="1":
+        from native_swap_probe import compile_probe
+        require(not game_env.get("LD_PRELOAD"),"Existing preload not permitted")
+        hook=video.parent/"native-swap-hook.so"
+        compile_probe(HERE/"native_swap_hook.c",hook)
+        game_env.update(LD_PRELOAD=str(hook),TRIBUN_SWAP_LOG=str(swap_base))
     with game_log.open("wb") as g,capture_log.open("wb") as e:
-        game=subprocess.Popen(["timeout","--kill-after=10s",str(limit)+"s","./gameplayfootball",config],stdout=g,stderr=subprocess.STDOUT,env=child_env)
+        game=subprocess.Popen(["timeout","--kill-after=10s",str(limit)+"s","./gameplayfootball",config],stdout=g,stderr=subprocess.STDOUT,env=game_env)
         try:
             deadline=time.monotonic()+120;window=None
             while time.monotonic()<deadline and game.poll() is None:
@@ -117,7 +129,12 @@ def _capture_window(config,limit,audio_env):
     require("[menu-smoke] Full match complete:" in logs and "[menu-smoke] Full-match verification succeeded, quitting test run" in logs,"Missing native completion markers")
     if audio_env is not None:
         require(sink_input and "falling back to silent audio" not in logs and "using silent audio" not in logs,"Native OpenAL audio unavailable")
-    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"videoEncoder":backend})
+    swap_report=None
+    if swap_enabled=="1":
+        from native_swap_probe import summarize
+        swap_report=summarize(swap_base,kickoff,final)
+        save(video.parent/"native-render-report.json",swap_report)
+    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"videoEncoder":backend,"renderProbe":swap_report,"softwareGLWorkers":int(gl_workers)})
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)
