@@ -246,6 +246,8 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-close-touch] mode=%s contacts=%lu,%lu adjusted=%lu,%lu before=%.6f,%.6f after=%.6f,%.6f\n",
         AITactics::CloseTouchEnabled()?"close":"off",cta.contacts,ctb.contacts,cta.adjusted,ctb.adjusted,
         cta.before,ctb.before,cta.after,ctb.after);
+    std::printf("[tribun-motion] mode=%s planned=%lu limited=%lu\n",
+        AITactics::MotionSmoothEnabled()?"smooth":"off",match.tribunMotionPlanSteps,match.tribunMotionLimitedSteps);
     for(int teamID=0;teamID<2;++teamID){
       const auto& rp=match.tribunRoleProbes[teamID];
       for(int profile=1;profile<AITactics::ProfileCount;++profile)

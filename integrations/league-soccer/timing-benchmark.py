@@ -96,11 +96,13 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False,run_lanes=False,triangle=False,creative_carry=False,duel=False,hold_up=False,finish=False,keeper_ai=False,defense_shape=False,transition=False,role_profile=False,close_touch=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False,run_lanes=False,triangle=False,creative_carry=False,duel=False,hold_up=False,finish=False,keeper_ai=False,defense_shape=False,transition=False,role_profile=False,close_touch=False,motion_smooth=False):
     name,scale,quick=profile
-    attack_policies=(line_break,run_lanes,triangle,creative_carry,duel,hold_up,finish,keeper_ai,defense_shape,transition,role_profile,close_touch)
+    attack_policies=(line_break,run_lanes,triangle,creative_carry,duel,hold_up,finish,keeper_ai,defense_shape,transition,role_profile,close_touch,motion_smooth)
     if any(type(v) is not bool for v in attack_policies) or sum(attack_policies)>1:
         raise ValueError("Independent attack policies cannot be combined before qualification")
+    if motion_smooth and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((retention,box_runs,timed_attack,collision_pose,determinism_probe))):
+        raise ValueError("Motion smoothing requires isolated fixed-clock short-match")
     if close_touch and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((retention,box_runs,timed_attack,collision_pose,determinism_probe))):
         raise ValueError("Close touch requires isolated fixed-clock short-match")
     if type(role_profile) is not bool or (role_profile and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((transition,defense_shape,keeper_ai,finish,hold_up,duel,creative_carry,triangle,line_break,run_lanes,retention,box_runs,timed_attack,collision_pose,determinism_probe)))):
@@ -204,6 +206,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_TRANSITION"]="1" if transition else "0"
     env["TRIBUN_NATIVE_ROLE_PROFILE"]="1" if role_profile else "0"
     env["TRIBUN_NATIVE_CLOSE_TOUCH"]="1" if close_touch else "0"
+    env["TRIBUN_NATIVE_MOTION_SMOOTH"]="1" if motion_smooth else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -308,6 +311,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     report["transition"]=transition
     report["roleProfile"]=role_profile
     report["closeTouch"]=close_touch
+    report["motionSmooth"]=motion_smooth
     if line_break or null_renderer:
         import re
         found=re.findall(r"\[tribun-linebreak\] mode=(linebreak|off) candidates=(\d+),(\d+) selected=(\d+),(\d+)",log_text)
@@ -381,6 +385,10 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         v=touches[0]
         report["closeTouchProbe"]={"contacts":list(map(int,v[1:3])),"adjusted":list(map(int,v[3:5])),
             "before":list(map(float,v[5:7])),"after":list(map(float,v[7:9]))}
+        moves=re.findall(r"\[tribun-motion\] mode=(smooth|off) planned=(\d+) limited=(\d+)",log_text)
+        if len(moves)!=1 or moves[0][0]!=("smooth" if motion_smooth else "off"):
+            raise ValueError("Missing motion planning evidence")
+        report["motionProbe"]={"planned":int(moves[0][1]),"limited":int(moves[0][2])}
     if collision_pose:
         import re
         matches=re.findall(r"\[tribun-contact\] interval-ms=(\d+) updates=(\d+) max-age-ticks=(\d+) missing=(\d+) ball-overlaps=(\d+) keeper-overlaps=(\d+) tackle-overlaps=(\d+) controlled-requests=(\d+)",log_text)

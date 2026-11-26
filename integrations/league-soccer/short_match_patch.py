@@ -382,6 +382,29 @@ struct CloseTouchProbe{
 };
 '''
 
+MOTION_RULES = r'''// Per-step longitudinal and lateral budgets in m/s. Only locomotion plans use them.
+struct MotionDelta {float x,y;};
+inline MotionDelta LimitMotion(float vx,float vy,float dx,float dy,float agility,float acceleration,float balance,float dt){
+  if(!std::isfinite(vx)||!std::isfinite(vy)||!std::isfinite(dx)||!std::isfinite(dy)||
+     !std::isfinite(agility)||!std::isfinite(acceleration)||!std::isfinite(balance)||dt<=0||dt>.05f)return {dx,dy};
+  agility=std::clamp(agility,0.0f,1.0f);
+  acceleration=std::clamp(acceleration,0.0f,1.0f);
+  balance=std::clamp(balance,0.0f,1.0f);
+  const float speed=std::hypot(vx,vy);
+  const float accel=6.5f+4.0f*acceleration,brake=9.0f+4.0f*balance;
+  if(speed<.5f){
+    const float magnitude=std::hypot(dx,dy);
+    const float scale=magnitude>accel*dt?accel*dt/magnitude:1.0f;
+    return {dx*scale,dy*scale};
+  }
+  const float ux=vx/speed,uy=vy/speed;
+  const float longitudinal=std::clamp(dx*ux+dy*uy,-brake*dt,accel*dt);
+  const float lateralLimit=(6.0f+5.0f*agility+2.0f*balance)/(1.0f+.045f*speed)*dt;
+  const float lateral=std::clamp(-dx*uy+dy*ux,-lateralLimit,lateralLimit);
+  return {ux*longitudinal-uy*lateral,uy*longitudinal+ux*lateral};
+}
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -2719,4 +2742,37 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
           match->tribunCloseTouches[team->GetID()].Record(original,touchVec.Get2D().GetLength());
         }
         match->GetBall()->Touch(touchVec);'''),
+    ])
+
+    # Stage 78: bounded native locomotion root-motion planning; no touch or special clips.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool MotionSmoothEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_MOTION_SMOOTH");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + MOTION_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  AITactics::CloseTouchProbe tribunCloseTouches[2];", "  AITactics::CloseTouchProbe tribunCloseTouches[2];\n  unsigned long tribunMotionPlanSteps=0,tribunMotionLimitedSteps=0;"),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoidbase.cpp", [
+        ("  const std::string& animType = anim->GetAnimType();", r'''  const std::string& animType = anim->GetAnimType();
+  const bool smoothMotion=AITactics::MotionSmoothEnabled()&&animType=="movement"&&!touch&&
+      !player->GetExternalController()&&match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer()&&
+      anim->GetVariable("incoming_special_state").empty()&&anim->GetVariable("outgoing_special_state").empty();'''),
+        ("    Vector3 tmpTemporalMovement = temporalMovement + toDesired;", r'''    if(smoothMotion){
+      const auto limited=AITactics::LimitMotion(temporalMovement.coords[0],temporalMovement.coords[1],
+          toDesired.coords[0],toDesired.coords[1],stat_agility,stat_acceleration,
+          player->GetStat("physical_balance"),timeStep_ms*.001f);
+      const Vector3 adjusted(limited.x,limited.y,0);
+      ++match->tribunMotionPlanSteps;
+      if((adjusted-toDesired).GetLength()>.0001f)++match->tribunMotionLimitedSteps;
+      toDesired=adjusted;
+    }
+    Vector3 tmpTemporalMovement = temporalMovement + toDesired;'''),
+        ("      bool hardQuantize = true;", "      bool hardQuantize = !smoothMotion;"),
     ])

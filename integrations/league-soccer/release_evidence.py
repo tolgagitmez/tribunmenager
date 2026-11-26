@@ -51,6 +51,7 @@ FILES=(
  "integrations/league-soccer/attribute-fixtures.cjs",
  "integrations/league-soccer/attribute-contrast.py",
  "integrations/league-soccer/close-touch-benchmark.py",
+ "integrations/league-soccer/motion-smoothing-benchmark.py",
  "integrations/league-soccer/position-skinning-benchmark.py",
  "integrations/league-soccer/runtime-layout.py",
  "integrations/league-soccer/verify-substitutions.py",
