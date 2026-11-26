@@ -8,6 +8,7 @@ ROOT=HERE.parents[1]
 # Include native build inputs, runner, match reports and the live publication/season path.
 FILES=(
  "integrations/league-soccer/upstream.json",
+ "integrations/league-soccer/upstream-asset-inventory.json","integrations/league-soccer/native_rights_audit.py","integrations/league-soccer/UPSTREAM-LICENSE.txt",
  "integrations/league-soccer/instrument.py",
  "integrations/league-soccer/fixture_patch.py",
  "integrations/league-soccer/short_match_patch.py",
