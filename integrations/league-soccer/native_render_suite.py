@@ -60,6 +60,8 @@ def assess_combined(rows,selection,combined,repeat):
     result={'combinedReviewEligible':False,'productionQualified':False,'automaticPromotion':False,'reason':'no-selected-options'}
     selected=tuple(selection['selected'])
     if not any(selected):return result
+    if len(rows)!=4 or not all(row.get('passed') is True for row in rows):
+        result['reason']='incomplete-individual-screen';return result
     if combined is None or repeat is None:
         result['reason']='missing-combined-or-repeat-baseline'
         return result
@@ -70,7 +72,7 @@ def assess_combined(rows,selection,combined,repeat):
         c,cc=validate(repeat,BASE,fixture)
         # Bracket candidates with a second baseline to reject obvious drift.
         drift=abs(c['swapRate']/a['swapRate']-1)<=.10 and abs(c['repeatedFraction']-a['repeatedFraction'])<=.05
-        savings=[1-bc[i]/max(ac[i],cc[i]) for i in range(3)]
+        savings=[1-bc[i]/min(ac[i],cc[i]) for i in range(3)]
         # Demand improvement versus both baselines, not just lower command counts.
         visual=all(b['swapRate']>=1.05*x['swapRate'] and b['repeatedFraction']<=x['repeatedFraction']-.02 and no_regression(x,b) for x in (a,c))
         accepted=drift and visual and all(savings[i]>=.05 for i in range(3) if selected[i])

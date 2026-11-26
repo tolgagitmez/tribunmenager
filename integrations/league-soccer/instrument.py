@@ -1862,7 +1862,7 @@ def foul_event_source(source):
 
 def main():
     from fixture_patch import apply
-    from short_match_patch import apply as apply_short_match
+    from short_match_patch import apply as apply_short_match, optimize_joint_cache
     apply(sys.argv[1])
     apply_short_match(sys.argv[1])
     contact_root=pathlib.Path(sys.argv[1])/"src/onthepitch"
@@ -1901,7 +1901,10 @@ def main():
     humanoid_path = humanoid_dir / "humanoidbase.cpp"
     humanoid_source = humanoid_path.read_text(encoding="utf-8")
     if "[tribun-skinning] runtime=" not in humanoid_source:
-        humanoid_path.write_text(optimize_skinning_channels(humanoid_source), encoding="utf-8")
+        humanoid_source = optimize_skinning_channels(humanoid_source)
+    if "[tribun-skin-cache]" not in humanoid_source:
+        humanoid_source = optimize_joint_cache(humanoid_source)
+    humanoid_path.write_text(humanoid_source, encoding="utf-8")
     (src / "managers/tribun_worker_limit.hpp").write_text(WORKER_LIMIT_HEADER, encoding="utf-8")
     worker_path = src / "managers/taskmanager.cpp"
     worker_source = worker_path.read_text(encoding="utf-8")

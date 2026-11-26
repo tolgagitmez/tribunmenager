@@ -27,6 +27,29 @@ def compare(rows):
         else:result['passed']=False
     return result
 
+def diagnostic_summary(native,browser,children,first_exit):
+    # Retain only allowlisted statuses and boolean checks. Never copy raw
+    # messages, local URLs, capability tokens, logs or private paths.
+    def choose(v,allowed):
+        return v if isinstance(v,str) and v in allowed else None
+    def flags(row,keys):
+        if not isinstance(row,dict):return {}
+        return {k:row[k] for k in keys if type(row.get(k)) is bool}
+    n=native if isinstance(native,dict) else {}
+    b=browser if isinstance(browser,dict) else {}
+    return {'firstFailedChild':first_exit,
+        'nativeExit':children[0].returncode if len(children)>0 else None,
+        'browserExit':children[1].returncode if len(children)>1 else None,
+        'nativeStatus':choose(n.get('status'),('incomplete','local-live-evidence','coverage-inconclusive','failed')),
+        'nativeFailureType':choose(n.get('failureType'),('RuntimeError','TimeoutError','ValueError','AssertionError','KeyboardInterrupt','FileNotFoundError','KeyError','CalledProcessError','OSError')),
+        'runnerExit':n.get('runnerExit') if type(n.get('runnerExit')) is int else None,
+        'captureChecks':flags(n.get('checks'),('captureBeforeKickoff','videoLengthAtLeastObservedMatch','firstSegmentBeforeObservedFinal','wallWithinOneSecond')),
+        'audioChecks':flags(n.get('audio'),('nonSilentCoveragePassed',)),
+        'ownershipChecks':flags(n.get('audioOwnership'),('verified',)),
+        'timelineChecks':flags(n.get('mediaTimeline'),('timelinePassed',)),
+        'browserChecks':flags(b,('passed','ended','playlistComplete','coveragePassed')),
+        'browserReportPresent':bool(b)}
+
 def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None,vao_cache=None,texture_cache=None,render_suite=False):
     root.mkdir(mode=0o700)
     out=root/'run'
@@ -56,7 +79,7 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
         if type(texture_cache) is not int or texture_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048 or (not render_suite and (skin_cache is not None or vao_cache is not None)):
             raise ValueError('Unsupported texture experiment')
         env['TRIBUN_AV_TEXTURE_CACHE']=str(texture_cache)
-    children=[];error=None
+    children=[];error=None;firstExit=None
     fixture_sha=hashlib.sha256(fixture.read_bytes()).hexdigest()
     try:
         with (root/'native.log').open('wb') as n,(root/'browser.log').open('wb') as b:
@@ -64,7 +87,10 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
             children.append(subprocess.Popen(['node',str(HERE/'native-live-video-browser.cjs'),str(out/'local-url.txt')],env=env,stdout=b,stderr=subprocess.STDOUT,start_new_session=True))
             deadline=time.monotonic()+1200
             while any(p.poll() is None for p in children):
-                if any(p.poll() not in (None,0) for p in children):raise RuntimeError('Child failed')
+                failed=[(i,p.returncode) for i,p in enumerate(children) if p.poll() not in (None,0)]
+                if failed:
+                    firstExit={'process':('native','browser')[failed[0][0]],'code':failed[0][1]}
+                    raise RuntimeError('Child failed')
                 if time.monotonic()>deadline:raise TimeoutError('Match deadline')
                 time.sleep(.5)
             if any(p.returncode for p in children):raise RuntimeError('Child failed')
@@ -81,6 +107,7 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
                 p.wait()
     quality=inspect(out)
     passed=False
+    n={};b={}
     try:
         n=json.loads((out/'live-report.json').read_text());b=json.loads((out/'browser-playback-report.json').read_text())
         passed=bool(error is None and n['status']=='local-live-evidence' and n['requestedAttackProfile']==profile
@@ -89,7 +116,8 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
             and n['mediaTimeline']['timelinePassed'] is True and quality['presentation']['checks']['fiveMinuteWall']
             and quality['presentation']['checks']['fullBrowserPlayback'] and b['videoWidth']==1280 and b['videoHeight']==720)
     except (OSError,ValueError,KeyError,TypeError):pass
-    result={'profile':profile,'fixtureSha256':fixture_sha,'passed':passed,'failureType':error,'quality':quality,'renderSuite':render_suite}
+    diagnostics=diagnostic_summary(n,b,children,firstExit)
+    result={'profile':profile,'fixtureSha256':fixture_sha,'passed':passed,'failureType':error,'quality':quality,'renderSuite':render_suite,'diagnostics':diagnostics}
     if render_size is not None:
         result.update(renderSize=render_size,windowGeometry=None,renderProbe=None)
         try:

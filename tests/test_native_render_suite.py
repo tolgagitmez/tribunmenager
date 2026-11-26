@@ -29,3 +29,14 @@ class SuiteTest(unittest.TestCase):
         b=self.row((1,0,0),(.5,.9,1));b['fixtureSha256']='other'
         self.assertEqual(assess_individual([base,b])['selected'],[0,0,0])
         self.assertFalse(assess_individual([])['baselineValid'])
+
+    def test_cost_must_improve_against_both_baselines(self):
+        base=self.row((0,0,0))
+        rows=[base,self.row((1,0,0),(.9,.9,1)),self.row((0,1,0)),self.row((0,0,1))]
+        selection=assess_individual(rows)
+        self.assertEqual(selection['selected'],[1,0,0])
+        combined=self.row((1,0,0),(.9,.9,1),rate=17,repeat=.45)
+        faster=self.row((0,0,0),(.85,.9,1))
+        self.assertFalse(assess_combined(rows,selection,combined,faster)['combinedReviewEligible'])
+        rows[2]['passed']=False
+        self.assertFalse(assess_combined(rows,selection,combined,base)['combinedReviewEligible'])
