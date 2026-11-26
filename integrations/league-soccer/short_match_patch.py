@@ -696,12 +696,19 @@ inline float RetentionRiskCost(float odds,float pressureDistance){
   if(pressureDistance<=2.2f)return 0.0f;
   return std::max(0.0f,.76f-odds)*1.1f;
 }
+inline bool RenderedBoxLaneEnabled() {
+  static const bool enabled=[]{
+    const char* v=std::getenv("TRIBUN_AV_BOX_LANE");
+    return v && std::strcmp(v,"1")==0;
+  }();
+  return ShortMatchAttackEnabled() && enabled;
+}
 inline bool BoxLaneRunsEnabled() {
   static const bool enabled=[]{
     const char* v=std::getenv("TRIBUN_NATIVE_BOX_LANE_RUNS");
     return v && std::strcmp(v,"1")==0;
   }();
-  return ShortMatchAttackEnabled() && enabled;
+  return ShortMatchAttackEnabled() && (enabled || RenderedBoxLaneEnabled());
 }
 inline bool BoxLaneTarget(float ballDepth,float targetDepth,float progress,
                          float runDistance,float passDistance,float onsideMargin,
@@ -1511,14 +1518,16 @@ void Referee::Process() {'''),
         ("        totalRating /= totalWeight2;", "        totalRating = (totalRating-retentionPenalty) / totalWeight2;"),
     ])
 
-    # A single existing secondary outlet chooses a passable central box channel.
-    # Keep wide deliveries, explicit combinations, and the final native offside clamp.
+    # A single existing secondary outlet chooses a passable box channel.
+    # Keep explicit combinations and the final native offside clamp.
     edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ('#include "elizacontroller.hpp"', '#include "elizacontroller.hpp"\n#include <cstdio>'),
         ("  // stay away from opponents\n  std::vector<Player*> opponents;", r'''  if(AITactics::BoxLaneRunsEnabled() && match->IsInPlay() && !match->IsInSetPiece() &&
       !team->GetHumanGamerCount() && designatedPlayer!=CastPlayer() &&
       designatedPlayer->HasUniquePossession() && dynamicMindSet>=.45f &&
       player==team->GetController()->GetForwardSupportPlayer() &&
-      !adaptedMakeRun && !combinationRun && std::abs(mainManPos.coords[1])<13.0f){
+      !adaptedMakeRun && !combinationRun &&
+      std::abs(mainManPos.coords[1])<(AITactics::RenderedBoxLaneEnabled()?23.0f:13.0f)){
     const float forward=-team->GetSide();
     const float depth=pitchHalfW-mainManPos.coords[0]*forward;
     if(depth>=17.0f && depth<=34.0f){
@@ -1527,9 +1536,11 @@ void Referee::Process() {'''),
       const float line=AI_GetOffsideLine(match,mentalImage,abs(team->GetID()-1))*forward;
       const float limit=std::min(line,offsideX*forward);
       const float x=std::min(pitchHalfW-9.0f,limit-1.25f);
+      const bool rendered=AITactics::RenderedBoxLaneEnabled();
       float best=-10000.0f;
       Vector3 target;
-      for(float y:{-8.0f,0.0f,8.0f}){
+      for(float y:{-16.0f,-8.0f,0.0f,8.0f,16.0f}){
+        if(!rendered && std::abs(y)>8.0f)continue;
         const Vector3 candidate(x*forward,y,0);
         const auto delta=candidate-mainManPos;
         const float passDistance=delta.GetLength();
@@ -1558,6 +1569,13 @@ void Referee::Process() {'''),
         lane.decayType=e_DecayType_Constant;
         lane.power=1.6f;
         forceField.push_back(lane);
+        if(rendered){
+          static const bool observed=[]{
+            std::fprintf(stderr,"[tribun-box-entry] lane-selected=1\n");
+            return true;
+          }();
+          (void)observed;
+        }
       }
     }
   }

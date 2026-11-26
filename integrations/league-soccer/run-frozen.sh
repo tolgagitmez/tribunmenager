@@ -220,6 +220,12 @@ if [[ "${TRIBUN_NATIVE_REALTIME:-0}" == 1 ]]; then
   grep -F "\"menu_smoke_match_time_scale\" \"$scale\"" "$config" >/dev/null
   limit=850
 fi
+case "${TRIBUN_AV_BOX_LANE:-0}" in
+  0) ;;
+  1)
+    [[ "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" == short-match && -n "${TRIBUN_NATIVE_VIDEO_OUT:-}" && -n "${TRIBUN_NATIVE_HLS_DIR:-}" && "${TRIBUN_NATIVE_AUDIO_CAPTURE:-0}" == 1 && "${TRIBUN_NATIVE_VIDEO_CONTROL:-0}" == 0 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_REALTIME:-0}" == 1 && "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 0 && "${TRIBUN_NATIVE_NO_DRAW:-0}" == 0 && "${TRIBUN_NATIVE_NO_UPLOAD:-0}" == 0 && "$render_interval" == 0 && "$active_policies" == 0 && -z "${TRIBUN_LEAGUE_SOCCER_COMMAND_DIR:-}" && -z "${TRIBUN_GPU_DISPLAY:-}" && "${TRIBUN_AV_ENCODER:-x264}" == x264 && -z "${TRIBUN_AV_RENDER_SIZE:-}" && -z "${TRIBUN_AV_SHADOW_SIZE:-}" && -z "${TRIBUN_AV_SKIN_CACHE:-}" && -z "${TRIBUN_AV_VAO_CACHE:-}" && -z "${TRIBUN_AV_TEXTURE_CACHE:-}" && "${TRIBUN_NATIVE_BOX_LANE_RUNS:-0}" == 0 && "${TRIBUN_NATIVE_TIMED_ATTACK:-0}" == 0 && "${TRIBUN_NATIVE_FINAL_THIRD_RETENTION:-0}" == 0 && "${TRIBUN_NATIVE_QUICK_RESTARTS:-0}" == 0 && "${TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS:-0}" == 0 ]] || { echo "Isolated rendered box-lane trial required" >&2; exit 2; } ;;
+  *) exit 2 ;;
+esac
 case "${TRIBUN_AV_RENDER_SUITE:-0}" in
   0) ;;
   1)

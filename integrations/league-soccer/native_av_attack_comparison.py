@@ -50,7 +50,7 @@ def diagnostic_summary(native,browser,children,first_exit):
         'browserChecks':flags(b,('passed','ended','playlistComplete','coveragePassed')),
         'browserReportPresent':bool(b)}
 
-def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None,vao_cache=None,texture_cache=None,render_suite=False):
+def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None,vao_cache=None,texture_cache=None,render_suite=False,box_lane=False):
     root.mkdir(mode=0o700)
     out=root/'run'
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_NATIVE_','TRIBUN_AV_','TRIBUN_GPU_','TRIBUN_LEAGUE_SOCCER_','TRIBUN_EXPECT_','TRIBUN_PLAYBACK_'))}
@@ -79,11 +79,13 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
         if type(texture_cache) is not int or texture_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048 or (not render_suite and (skin_cache is not None or vao_cache is not None)):
             raise ValueError('Unsupported texture experiment')
         env['TRIBUN_AV_TEXTURE_CACHE']=str(texture_cache)
+    if box_lane and (profile!='short-match' or any(x is not None for x in (render_size,shadow_size,skin_cache,vao_cache,texture_cache)) or render_suite):
+        raise ValueError('Isolated box lane comparison required')
     children=[];error=None;firstExit=None
     fixture_sha=hashlib.sha256(fixture.read_bytes()).hexdigest()
     try:
         with (root/'native.log').open('wb') as n,(root/'browser.log').open('wb') as b:
-            children.append(subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(fixture),str(out),'--audio','--linger','60','--attack-profile',profile],env=env,stdout=n,stderr=subprocess.STDOUT))
+            children.append(subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(fixture),str(out),'--audio','--linger','60','--attack-profile',profile]+(['--box-lane'] if box_lane else []),env=env,stdout=n,stderr=subprocess.STDOUT))
             children.append(subprocess.Popen(['node',str(HERE/'native-live-video-browser.cjs'),str(out/'local-url.txt')],env=env,stdout=b,stderr=subprocess.STDOUT,start_new_session=True))
             deadline=time.monotonic()+1200
             while any(p.poll() is None for p in children):
@@ -117,7 +119,15 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
             and quality['presentation']['checks']['fullBrowserPlayback'] and b['videoWidth']==1280 and b['videoHeight']==720)
     except (OSError,ValueError,KeyError,TypeError):pass
     diagnostics=diagnostic_summary(n,b,children,firstExit)
-    result={'profile':profile,'fixtureSha256':fixture_sha,'passed':passed,'failureType':error,'quality':quality,'renderSuite':render_suite,'diagnostics':diagnostics}
+    result={'profile':profile,'fixtureSha256':fixture_sha,'passed':passed,'failureType':error,'quality':quality,'renderSuite':render_suite,'diagnostics':diagnostics,'boxLane':box_lane,'boxLaneObserved':False,'evidenceErrors':{}}
+    if box_lane:
+        try:
+            log=out/'native-match.game.log'
+            if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
+            result['boxLaneObserved']=n.get('requestedBoxLane') is True and '[tribun-box-entry] lane-selected=1' in log.read_text(errors='replace').splitlines()
+            if not result['boxLaneObserved']:result['passed']=False
+        except (OSError,ValueError) as exc:
+            result['passed']=False;result['evidenceErrors']['boxLane']=type(exc).__name__
     if render_size is not None:
         result.update(renderSize=render_size,windowGeometry=None,renderProbe=None)
         try:
@@ -136,7 +146,7 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
             log=out/'native-match.game.log'
             if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
             result['shadowEvidence']=shadow_evidence(log.read_text(errors='replace'),shadow_size)
-        except (OSError,ValueError):result['passed']=False
+        except (OSError,ValueError) as exc:result['passed']=False;result['evidenceErrors']['shadow']=type(exc).__name__
     if skin_cache is not None:
         from native_skinning_cache_comparison import parse_skin
         result.update(skinCache=skin_cache,skinEvidence=None)
@@ -144,7 +154,7 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
             log=out/'native-match.game.log'
             if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
             result['skinEvidence']=parse_skin(log.read_text(errors='replace'),skin_cache)
-        except (OSError,ValueError):result['passed']=False
+        except (OSError,ValueError) as exc:result['passed']=False;result['evidenceErrors']['skin']=type(exc).__name__
     if vao_cache is not None:
         from native_vao_cache_comparison import parse_vao
         result.update(vaoCache=vao_cache,vaoEvidence=None)
@@ -152,7 +162,7 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
             log=out/'native-match.game.log'
             if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
             result['vaoEvidence']=parse_vao(log.read_text(errors='replace'),vao_cache)
-        except (OSError,ValueError):result['passed']=False
+        except (OSError,ValueError) as exc:result['passed']=False;result['evidenceErrors']['vao']=type(exc).__name__
     if texture_cache is not None:
         from native_texture_cache_comparison import parse_texture
         result.update(textureCache=texture_cache,textureEvidence=None)
@@ -160,7 +170,7 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
             log=out/'native-match.game.log'
             if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
             result['textureEvidence']=parse_texture(log.read_text(errors='replace'),texture_cache)
-        except (OSError,ValueError):result['passed']=False
+        except (OSError,ValueError) as exc:result['passed']=False;result['evidenceErrors']['texture']=type(exc).__name__
     return result
 
 def main():
