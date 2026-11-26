@@ -1,4 +1,4 @@
-name: Stage 191 native build and match validation
+name: Stage 198 native build and match evidence checkpoints
 on:
   pull_request:
     branches: [experiment/native-integration-validation-stage190]
@@ -102,6 +102,17 @@ jobs:
           TRIBUN_AV_COORDINATED_RUNS: '0'
         run: |
           bash BASLAT.sh --native-runtime "$RUNNER_TEMP/render-runtime" --native-session-root "$RUNNER_TEMP/alpha-state" --port 18765 --native-delay 30
+      - name: Preserve baseline match evidence immediately
+        if: always() && steps.baseline.outcome != 'skipped' && steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-baseline-match-evidence
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/alpha-state/alpha-*/match/private-beta-report.json
+            ${{ runner.temp }}/alpha-state/alpha-*/match/*/run/native-match.game.log
+            ${{ runner.temp }}/alpha-state/alpha-*/match/*/run/match.ndjson
       - name: Experimental private match
         id: experimental
         if: always() && steps.build.outcome == 'success'
@@ -110,6 +121,17 @@ jobs:
           TRIBUN_AV_COORDINATED_RUNS: '1'
         run: |
           bash BASLAT.sh --native-runtime "$RUNNER_TEMP/render-runtime" --native-session-root "$RUNNER_TEMP/coordinated-state" --port 18766 --native-delay 30
+      - name: Preserve experimental match evidence immediately
+        if: always() && steps.experimental.outcome != 'skipped' && steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-experimental-match-evidence
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/coordinated-state/alpha-*/match/private-beta-report.json
+            ${{ runner.temp }}/coordinated-state/alpha-*/match/*/run/native-match.game.log
+            ${{ runner.temp }}/coordinated-state/alpha-*/match/*/run/match.ndjson
       - name: Validate real match evidence for both profiles
         if: always()
         shell: bash
