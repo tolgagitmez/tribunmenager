@@ -41,7 +41,12 @@ def capture_window(config,limit):
     enabled=os.environ.get("TRIBUN_NATIVE_AUDIO_CAPTURE","0")
     require(enabled in ("0","1"),"Invalid audio capture flag")
     if enabled=="1":
-        require(bool(os.environ.get("TRIBUN_NATIVE_HLS_DIR")),"Audio requires isolated HLS capture")
+        extended=os.environ.get("TRIBUN_NATIVE_EXTENDED_CAPTURE","0")=="1"
+        require(bool(os.environ.get("TRIBUN_NATIVE_HLS_DIR")) or
+                (extended and os.environ.get("TRIBUN_NATIVE_EXTENDED_MATCH")=="1" and
+                 not os.environ.get("TRIBUN_GPU_DISPLAY") and
+                 os.environ.get("TRIBUN_NATIVE_VIDEO_CONTROL","0")=="0"),
+                "Audio requires isolated HLS or explicitly extended offline capture")
         with private_audio(Path(os.environ["TRIBUN_NATIVE_VIDEO_OUT"]).parent) as audio_env:
             _capture_window(str(audio_config(Path(config))),limit,audio_env)
     else:
@@ -67,6 +72,8 @@ def _capture_window(config,limit,audio_env):
     progress=video.with_suffix(".progress");capture_log=video.with_suffix(".capture.log")
     game_log=video.with_suffix(".game.log");offset=0;first=kickoff=final=None;last=None;encoder=None
     sink_input=False;next_audio_probe=0.0;audio_probes={};child_env=audio_env or os.environ.copy()
+    extended=os.environ.get("TRIBUN_NATIVE_EXTENDED_CAPTURE","0")=="1"
+    observations=[]; encoder_launch=None; encoder_stop=None
     gl_workers=os.environ.get("TRIBUN_AV_GL_WORKERS","2")
     swap_enabled=os.environ.get("TRIBUN_AV_SWAP_PROBE","0")
     require(gl_workers in ("1","2") and swap_enabled in ("0","1"),"Invalid render diagnostic")
@@ -134,6 +141,7 @@ def _capture_window(config,limit,audio_env):
             filter_args=[] if filter_threads=="0" else ["-filter_threads","1"]
             if not hls:
                 encode_args=["-vf","scale=trunc(iw/2)*2:trunc(ih/2)*2","-c:v","libx264","-threads","2","-preset","ultrafast","-crf","25","-pix_fmt","yuv420p"]
+            encoder_launch=time.monotonic()
             encoder=subprocess.Popen(["ffmpeg","-nostdin","-hide_banner","-loglevel","warning","-y",*init_args,"-thread_queue_size","512","-f","x11grab",
               "-draw_mouse","0","-framerate","25","-window_id",window,"-i",os.environ["DISPLAY"],
               *audio_args,*filter_args,*encode_args,"-progress",str(progress),*output_args],stdout=e,stderr=subprocess.STDOUT,env=child_env)
@@ -142,7 +150,8 @@ def _capture_window(config,limit,audio_env):
                 if first is None and progress.exists():
                     if any(l.startswith("frame=") and l[6:].strip().isdigit() and int(l[6:])>0 for l in progress.read_text(errors="replace").splitlines()):first=time.monotonic()
                 if not trace.exists():return
-                require(trace.stat().st_size<=100*1024*1024,"Trace too large")
+                require(trace.stat().st_size<=(512 if extended else 100)*1024*1024,"Trace too large")
+                batch_last=None
                 with trace.open("rb") as f:
                     f.seek(offset)
                     while True:
@@ -153,6 +162,10 @@ def _capture_window(config,limit,audio_env):
                         c=row.get("fixedClock",{})
                         if c.get("started") and kickoff is None:kickoff=time.monotonic()
                         if row.get("done") and final is None:final=time.monotonic()
+                        if extended and c.get("started"):
+                            batch_last=c.get("elapsedMs")
+                if batch_last is not None:
+                    observations.append({"nativeMs":batch_last,"observedMonotonic":time.monotonic()})
             while game.poll() is None:
                 drain()
                 if audio_env is not None and not sink_input and time.monotonic()>=next_audio_probe:
@@ -165,8 +178,15 @@ def _capture_window(config,limit,audio_env):
             drain()
             require(game.returncode==0 and last and last.get("done") is True,"Native match did not complete")
         finally:
+            encoder_stop=time.monotonic()
             stop(encoder);stop(game)
-    logs=game_log.read_text(errors="replace");print(logs)
+            if extended:
+                save(video.with_suffix(".clock-observations.json"),{
+                    "encoderLaunchMonotonic":encoder_launch,
+                    "encoderStopRequestedMonotonic":encoder_stop,
+                    "samples":observations,
+                    "scope":"Trace polling and encoder process observations, NOT exact media PTS alignment."})
+    logs=game_log.read_text(errors="replace");print(logs[-16000:] if extended else logs)
     require("[menu-smoke] Full match complete:" in logs and "[menu-smoke] Full-match verification succeeded, quitting test run" in logs,"Missing native completion markers")
     if audio_env is not None:
         require("falling back to silent audio" not in logs and "using silent audio" not in logs,"Native OpenAL fallback to silent audio")
