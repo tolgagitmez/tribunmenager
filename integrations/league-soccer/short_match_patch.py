@@ -25,6 +25,24 @@ inline float LineBreakBonus(int defenders,float progress) {
 }
 '''
 
+RUN_LANE_RULES = r'''// Coordinates are expressed in the attacking direction, in metres.
+inline float RunLaneY(float carrierY,bool primary,float lane) {
+  const float side=carrierY>=0.0f?1.0f:-1.0f;
+  return (primary?side:-side)*lane;
+}
+inline bool RunLaneEligible(float depth,float progress,float distance,float passDistance,
+    float margin,float endpoint,float corridor,float teammateGap) {
+  return depth>=6.0f && depth<=30.0f && progress>=2.0f && distance>=3.0f &&
+    distance<=17.0f && passDistance>=7.0f && passDistance<=32.0f &&
+    margin>=1.5f && endpoint>=2.2f && corridor>=1.5f && teammateGap>=3.5f;
+}
+inline float RunLaneScore(float endpoint,float corridor,float mateGap,float progress,float distance,float lateralChange) {
+  return std::min(endpoint,8.0f)*0.40f+std::min(corridor,5.0f)*0.45f+
+    std::min(mateGap,9.0f)*0.12f+std::min(progress,12.0f)*0.09f-
+    distance*0.10f-lateralChange*0.05f;
+}
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -1328,4 +1346,89 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
         ("          bestMateRating = mateRating;\n          bestMateSit = mateSit;", "          bestMateRating = mateRating;\n          bestMateSit = mateSit;\n          bestLineBreak=useLineBreak;"),
         ("    _AddPass(commandQueue, bestMateRating.player, bestMateRating.passType);", r'''    if(bestLineBreak)++match->tribunLineBreakSelections[team->GetID()];
     _AddPass(commandQueue, bestMateRating.player, bestMateRating.passType);'''),
+    ])
+
+    # Stage 64: choose separated, passable targets for the existing two attacking outlets.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool RunLanesEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_RUN_LANES");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + RUN_LANE_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  unsigned long tribunLineBreakSelections[2]={0,0};", """  unsigned long tribunLineBreakSelections[2]={0,0};
+  unsigned long tribunRunLanePrimary[2]={0,0},tribunRunLaneSecondary[2]={0,0};
+  unsigned long tribunRunLaneAttempts[2]={0,0};"""),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  if (adaptedMakeRun) {\n    ForceSpot spot;\n    spot.origin =\n        Vector3(-team->GetSide() * pitchHalfW,", r'''  bool chosenLane=false;
+  const bool primaryLane=makeRun && !combinationRun;
+  const bool secondaryLane=!adaptedMakeRun &&
+      player==team->GetController()->GetForwardSupportPlayer();
+  if(AITactics::RunLanesEnabled() && match->IsInPlay() && !match->IsInSetPiece() &&
+      !team->GetHumanGamerCount() && designatedPlayer!=CastPlayer() &&
+      designatedPlayer->HasUniquePossession() && !combinationRun && dynamicMindSet>=.45f &&
+      (primaryLane || secondaryLane) && std::abs(mainManPos.coords[1])<13.0f){
+    const float forward=-team->GetSide();
+    const float carrierDepth=pitchHalfW-mainManPos.coords[0]*forward;
+    if(carrierDepth>=17.0f && carrierDepth<=40.0f){
+      ++match->tribunRunLaneAttempts[team->GetID()];
+      std::vector<PlayerImage> rivals,mates;
+      mentalImage->GetTeamPlayerImages(abs(team->GetID()-1),-1,rivals);
+      mentalImage->GetTeamPlayerImages(team->GetID(),CastPlayer()->GetID(),mates);
+      const float limit=std::min(offsideX*forward,
+          AI_GetOffsideLine(match,mentalImage,abs(team->GetID()-1))*forward);
+      const float leadX=std::min(pitchHalfW-6.0f,limit-1.5f);
+      float best=-10000.0f;
+      Vector3 target(0);
+      for(float setback:{0.0f,3.0f,6.0f}){
+        for(float width:{4.5f,10.0f,15.5f}){
+          const float x=leadX-setback;
+          const float y=AITactics::RunLaneY(mainManPos.coords[1],primaryLane,width);
+          const Vector3 candidate(x*forward,y,0);
+          const auto delta=candidate-mainManPos;
+          const float passDistance=delta.GetLength();
+          const auto run=candidate-currentPos;
+          if(passDistance<.1f)continue;
+          float endpoint=100.0f,corridor=100.0f,mateGap=100.0f;
+          for(const auto& rival:rivals){
+            const auto predicted=rival.position+rival.movement*.35f;
+            endpoint=std::min(endpoint,(predicted-candidate).Get2D().GetLength());
+            const auto offset=predicted-mainManPos;
+            const float u=(offset.coords[0]*delta.coords[0]+offset.coords[1]*delta.coords[1])/(passDistance*passDistance);
+            if(u>.05f && u<.95f)
+              corridor=std::min(corridor,(predicted-(mainManPos+delta*u)).Get2D().GetLength());
+          }
+          for(const auto& mate:mates)
+            mateGap=std::min(mateGap,(mate.position+mate.movement*.35f-candidate).Get2D().GetLength());
+          const float progress=run.coords[0]*forward;
+          if(!AITactics::RunLaneEligible(pitchHalfW-x,progress,run.GetLength(),passDistance,
+                limit-x,endpoint,corridor,mateGap))continue;
+          const float score=AITactics::RunLaneScore(endpoint,corridor,mateGap,progress,
+                run.GetLength(),std::abs(run.coords[1]));
+          if(score>best){best=score;target=candidate;}
+        }
+      }
+      if(best>-9999.0f){
+        ForceSpot spot;
+        spot.origin=target;
+        spot.magnetType=e_MagnetType_Attract;
+        spot.decayType=e_DecayType_Constant;
+        spot.power=primaryLane?2.0f*runWeight:1.65f;
+        forceField.push_back(spot);
+        chosenLane=true;
+        if(primaryLane)++match->tribunRunLanePrimary[team->GetID()];
+        else ++match->tribunRunLaneSecondary[team->GetID()];
+      }
+    }
+  }
+  if (adaptedMakeRun && !chosenLane) {
+    ForceSpot spot;
+    spot.origin =
+        Vector3(-team->GetSide() * pitchHalfW,'''),
     ])

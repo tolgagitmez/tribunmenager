@@ -195,6 +195,9 @@ void TribunTrace(Match& match, bool done) {
         AITactics::LineBreakEnabled()?"linebreak":"off",
         match.tribunLineBreakCandidates[0],match.tribunLineBreakCandidates[1],
         match.tribunLineBreakSelections[0],match.tribunLineBreakSelections[1]);
+    std::printf("[tribun-runlanes] mode=%s attempts=%lu,%lu primary=%lu,%lu secondary=%lu,%lu\n",
+        AITactics::RunLanesEnabled()?"lanes":"off",match.tribunRunLaneAttempts[0],match.tribunRunLaneAttempts[1],
+        match.tribunRunLanePrimary[0],match.tribunRunLanePrimary[1],match.tribunRunLaneSecondary[0],match.tribunRunLaneSecondary[1]);
     std::fflush(stdout);
   }
   if (done && tribun_visual::collisionOnly()) {
