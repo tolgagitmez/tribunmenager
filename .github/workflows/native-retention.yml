@@ -1,0 +1,37 @@
+name: Native final-third retention paired diagnostic
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/league-soccer-native]
+    paths:
+      - 'integrations/league-soccer/retention-benchmark.py'
+      - '.github/workflows/native-retention.yml'
+permissions:
+  contents: read
+jobs:
+  retention:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_retention.py
+      - name: Build pinned native runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/retention-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Paired six-match comparison
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/retention-fixtures"
+          python3 integrations/league-soccer/retention-benchmark.py "$RUNNER_TEMP/retention-runtime" "$RUNNER_TEMP/retention-fixtures" "$RUNNER_TEMP/retention"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-retention-diagnostics
+          path: ${{ runner.temp }}/retention/
+          if-no-files-found: ignore

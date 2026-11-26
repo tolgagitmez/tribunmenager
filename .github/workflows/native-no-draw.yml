@@ -1,0 +1,41 @@
+name: Native no-draw diagnostic
+on:
+  push:
+    branches: [integration/league-soccer-native]
+    paths:
+      - 'integrations/league-soccer/no-draw-benchmark.py'
+      - 'integrations/league-soccer/instrument.py'
+      - 'integrations/league-soccer/timing-benchmark.py'
+      - 'tests/test_native_no_draw.py'
+      - '.github/workflows/native-no-draw.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-draw:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_no_draw.py
+      - run: python3 -m unittest discover -s tests -p test_native_render_cadence.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/no-draw-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare identical 100 ms schedules with and without drawing
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/no-draw-fixtures"
+          python3 integrations/league-soccer/no-draw-benchmark.py "$RUNNER_TEMP/no-draw-runtime" "$RUNNER_TEMP/no-draw-fixtures/counter-possession.json" "$RUNNER_TEMP/no-draw-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-no-draw
+          path: ${{ runner.temp }}/no-draw-results/
+          if-no-files-found: ignore

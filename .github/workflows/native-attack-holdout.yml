@@ -1,0 +1,21 @@
+name: Native held-out attack retest contracts
+on:
+  push:
+    paths:
+      - 'tools/native-attack-review.py'
+      - 'integrations/league-soccer/attack-holdout*.py'
+      - 'integrations/league-soccer/attack-holdout-fixtures.cjs'
+      - 'tests/test_attack_holdout.py'
+      - '.github/workflows/native-attack-holdout.yml'
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_attack_holdout.py
+      - run: node integrations/league-soccer/attack-holdout-fixtures.cjs "$RUNNER_TEMP/holdout-fixtures"

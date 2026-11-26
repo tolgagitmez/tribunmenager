@@ -1,0 +1,78 @@
+name: League-Soccer integration readiness diagnostics
+on:
+  workflow_dispatch:
+    inputs:
+      full_release_review:
+        description: 'Run fixed clock, live commands and concurrent capacity on the same runtime'
+        type: boolean
+        default: true
+  push:
+    branches: [integration/league-soccer-native]
+    paths:
+      - 'integrations/league-soccer/readiness.py'
+      - 'integrations/league-soccer/readiness-fixtures.cjs'
+      - '.github/workflows/league-soccer-readiness.yml'
+permissions:
+  contents: read
+jobs:
+  readiness:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate readiness gates
+        run: python3 -m unittest discover -s tests -p test_native_readiness.py
+      - name: Freeze three tactical scenarios
+        run: node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/readiness-fixtures"
+      - name: Build native runtime once
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/readiness-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Execute nine observed matches with fixed-clock candidate
+        run: python3 integrations/league-soccer/readiness.py "$RUNNER_TEMP/readiness-runtime" "$RUNNER_TEMP/readiness-fixtures" "$RUNNER_TEMP/readiness" --fixed-duration
+      - name: Standalone fixed-duration match
+        if: ${{ !cancelled() && inputs.full_release_review }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-review"
+          python3 integrations/league-soccer/fixed-duration.py "$RUNNER_TEMP/readiness-runtime" "$RUNNER_TEMP/readiness-fixtures/counter-possession.json" "$RUNNER_TEMP/release-review/fixed"
+      - name: Fixed clock with both-half tactics and reserve changes
+        if: ${{ !cancelled() && inputs.full_release_review }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-review"
+          node -e 'console.log(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").substitutionDemo()))' > "$RUNNER_TEMP/release-review/combined-fixture.json"
+          python3 integrations/league-soccer/manager-control-smoke.py "$RUNNER_TEMP/readiness-runtime" "$RUNNER_TEMP/release-review/combined-fixture.json" "$RUNNER_TEMP/release-review/combined.ndjson" --fixed-duration
+      - name: Measure concurrent fixed-duration capacity
+        if: ${{ !cancelled() && inputs.full_release_review }}
+        run: python3 integrations/league-soccer/capacity-benchmark.py "$RUNNER_TEMP/readiness-runtime" "$RUNNER_TEMP/readiness-fixtures" "$RUNNER_TEMP/release-review/capacity"
+      - name: Collect available evidence and evaluate release gate
+        if: ${{ !cancelled() && inputs.full_release_review }}
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-review"
+          args=()
+          for item in \
+            "readiness:$RUNNER_TEMP/readiness/readiness.json" \
+            "fixed-duration:$RUNNER_TEMP/release-review/fixed.fixed-report.json" \
+            "combined-controls:$RUNNER_TEMP/release-review/combined.ndjson.combined.json" \
+            "capacity:$RUNNER_TEMP/release-review/capacity/capacity.json"; do
+            kind="${item%%:*}"
+            file="${item#*:}"
+            if [[ -f "$file" ]]; then args+=("--$kind" "$file"); fi
+          done
+          python3 integrations/league-soccer/release_evidence.py "${args[@]}" | tee "$RUNNER_TEMP/release-review/release-gate.json"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-readiness-diagnostics
+          path: |
+            ${{ runner.temp }}/readiness/
+            ${{ runner.temp }}/readiness-fixtures/
+            ${{ runner.temp }}/release-review/
+          if-no-files-found: ignore

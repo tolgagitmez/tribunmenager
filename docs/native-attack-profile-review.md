@@ -1,0 +1,7 @@
+# Pilot 37 — attack profile selection
+The three independent trials are still running. Retention and box-lane builds finished and entered the actual paired match steps; timed attack is still building. Do not select a winner prematurely.
+The new offline review tool accepts the existing JSON outputs:
+```bash
+python3 tools/native-attack-review.py --retention retention.json --box-runs box-runs.json --timed-attack timed-attack.json --out review.json
+```
+It recomputes paired means from the raw rows, checks unique scenario/seed identity, validates actual contact counts, compares shot/on-target/controlled entry non-regression, and screens the intended effect of each policy. A drop greater than five percentage points in observed resolved recovery rate or resolved coverage blocks selection. These are provisional screening thresholds, not statistical significance or production rules. At least three complete independent scenario pairs are needed; the one-pair timed smoke cannot qualify. Individual scenarios losing all previously observed shots/controlled entries block selection even if the averages improve. Missing/invalid evidence cannot authorize any profile. Selected profiles still require a same-binary retest and interaction test on held-out seeds before a combination can be proposed. No motor or fingerprint changes in this step. Unit tests cover incomplete, invalid, regression, and synthetic successful reports; no new long build triggered.

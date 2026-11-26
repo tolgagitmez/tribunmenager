@@ -1,0 +1,38 @@
+name: League-Soccer live duration calibration
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/league-soccer-native]
+    paths:
+      - 'integrations/league-soccer/timing-benchmark.py'
+      - '.github/workflows/league-soccer-duration.yml'
+permissions:
+  contents: read
+jobs:
+  calibrate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Timing arithmetic tests
+        run: python3 -m unittest discover -s tests -p test_native_timing.py
+      - name: Build native runtime once
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/duration-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare measured match duration and attack output
+        run: |
+          node -e 'console.log(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/duration-fixture.json"
+          python3 integrations/league-soccer/timing-benchmark.py "$RUNNER_TEMP/duration-runtime" "$RUNNER_TEMP/duration-fixture.json" "$RUNNER_TEMP/duration"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-duration-calibration
+          path: ${{ runner.temp }}/duration.*
+          if-no-files-found: ignore

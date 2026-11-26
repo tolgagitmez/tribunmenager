@@ -1,0 +1,36 @@
+name: League-Soccer reserve lifecycle diagnostic
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/league-soccer-native]
+    paths:
+      - 'integrations/league-soccer/fixture_patch.py'
+      - 'integrations/league-soccer/verify-substitutions.py'
+      - '.github/workflows/league-soccer-reserve-diagnostic.yml'
+permissions:
+  contents: read
+jobs:
+  prewarmed-reserve:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Native CPU match with two planned substitutions
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/reserves.ndjson" --sub-demo
+      - name: Verify actual player identities before and after halftime
+        run: python3 integrations/league-soccer/verify-substitutions.py "$RUNNER_TEMP/reserves.ndjson" "$RUNNER_TEMP/reserves.ndjson.fixture.json"
+      - name: Verify season candidate
+        run: python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert len(s["substitutions"])==2 and all(c["performed"] for c in s["substitutions"])' "$RUNNER_TEMP/reserves.ndjson.season.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-reserve-diagnostic
+          path: ${{ runner.temp }}/reserves.ndjson*
+          if-no-files-found: ignore

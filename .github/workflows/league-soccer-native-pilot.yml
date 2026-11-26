@@ -1,0 +1,65 @@
+name: League-Soccer native pilot
+on:
+  workflow_dispatch:
+    inputs:
+      diagnose_substitutions:
+        description: 'Run quarantined halftime substitution crash diagnostic'
+        type: boolean
+        default: false
+  push:
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'native_live.py'
+      - 'native_shadow.py'
+      - 'tests/test_native_*.py'
+      - '.github/workflows/league-soccer-native-pilot.yml'
+permissions:
+  contents: read
+jobs:
+  native-trace:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fixture adapter unit tests
+        run: node --test integrations/league-soccer/fixture-adapter.test.cjs integrations/league-soccer/native-replay.test.cjs integrations/league-soccer/broadcast.test.cjs integrations/league-soccer/compare-attacks.test.cjs integrations/league-soccer/native-stream-view.test.cjs integrations/league-soccer/native-advisor.test.cjs
+      - name: Python shadow queue tests
+        run: python3 -m unittest discover -s tests -p 'test_native_*.py'
+      - name: Build pinned upstream and capture full match
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/tribun-native-runtime
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/league-soccer.ndjson" --demo
+      - name: Verify reusable native runtime from frozen fixture
+        run: |
+          node -e 'process.stdout.write(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/native-config.json"
+          python3 integrations/league-soccer/manager-control-smoke.py "$RUNNER_TEMP/tribun-native-runtime" "$RUNNER_TEMP/native-config.json" "$RUNNER_TEMP/league-soccer.ndjson.reused"
+      - name: Experimental prewarmed reserve diagnostic (opt-in)
+        if: ${{ inputs.diagnose_substitutions }}
+        env:
+          TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS: '1'
+        run: |
+          node -e 'const c=require("./integrations/league-soccer/fixture-adapter.cjs").demo(); for(const [r,s] of [[c.players,c.starters],[c.awayPlayers,c.awayStarters]])r.push({...r[0],id:100,name:"Reserve"}); c.nativeSubstitutions=[[{out:c.starters[0],in:100}],[{out:c.awayStarters[0],in:100}]]; console.log(JSON.stringify(c))' > "$RUNNER_TEMP/sub-config.json"
+          bash integrations/league-soccer/run-frozen.sh "$RUNNER_TEMP/tribun-native-runtime" "$RUNNER_TEMP/sub-config.json" "$RUNNER_TEMP/league-soccer.ndjson.sub"
+          python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); assert len(s["substitutions"])==2 and all(c["performed"] for c in s["substitutions"])' "$RUNNER_TEMP/league-soccer.ndjson.sub.season.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: league-soccer-native-trace
+          path: ${{ runner.temp }}/league-soccer.ndjson*
+          if-no-files-found: ignore
+  replay-webgl:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node integrations/league-soccer/replay-browser.cjs
