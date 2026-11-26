@@ -35,7 +35,7 @@ def prepare(runtime,root):
     if manifest.get('upstream')!=json.loads((HERE/'upstream.json').read_text()):raise ValueError('Wrong upstream revision')
     return private_new(root)
 
-def run(runtime,root,port,delay):
+def run(runtime,root,port,delay,result_seconds=30):
     root=prepare(runtime,root)
     lock=lock_host()
     try:
@@ -77,8 +77,8 @@ def run(runtime,root,port,delay):
                 result['quality']=inspect_quality(root/attempt/'run')
                 (root/'private-beta-report.json').write_text(json.dumps(result,indent=2)+'\n')
                 print(json.dumps(result,ensure_ascii=False),flush=True)
-                print('Lig ekranını kontrol et. Sunucu 30 saniye sonra kapanır.',flush=True)
-                time.sleep(30)
+                print('Lig ekranını kontrol et. Sunucu '+str(result_seconds)+' saniye sonra kapanır.',flush=True)
+                time.sleep(result_seconds)
                 return 0 if result['passed'] else 1
             finally:http.shutdown();thread.join(timeout=5);server.LIVE_MATCHES.close()
     finally:os.close(lock)
@@ -87,9 +87,11 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('runtime',type=Path);p.add_argument('new_private_directory',type=Path)
     p.add_argument('--port',type=int,default=8000);p.add_argument('--delay',type=int,default=60)
+    p.add_argument('--result-seconds',type=int,default=30,help='Local result review window')
     p.add_argument('--private-diagnostic',action='store_true')
     a=p.parse_args()
     if not a.private_diagnostic:p.error('Explicit private diagnostic opt-in required')
     if not 1<=a.port<=65535 or not 30<=a.delay<=300:p.error('Invalid port or delay')
-    return run(a.runtime.resolve(),a.new_private_directory,a.port,a.delay)
+    if not 0<=a.result_seconds<=600:p.error('Invalid result review duration')
+    return run(a.runtime.resolve(),a.new_private_directory,a.port,a.delay,a.result_seconds)
 if __name__=='__main__':raise SystemExit(main())

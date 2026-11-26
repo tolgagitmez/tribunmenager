@@ -1,3 +1,7 @@
+## Deneysel native alfa
+
+[Yeni League-Soccer motoruyla tek maçlık özel alfa başlatma rehberi](docs/NATIVE_ALPHA.md). Bu dal genel sürüm değildir; mevcut main kurulumu ayrı kalır.
+
 # Kurulum ve başlatma
 
 **[Oyunu kurmak ve çalıştırmak için adım adım KURULUM.md rehberini aç.](KURULUM.md)** Python 3.10+ yeterlidir: Windows’ta `BASLAT.bat`, macOS/Linux’ta `sh BASLAT.sh`. Varsayılan yerel maç modu eksik ekonomi kataloğuna ihtiyaç duymaz.

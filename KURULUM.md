@@ -1,3 +1,7 @@
+## Yeni motorla özel alfa (deneysel dal)
+
+[Yerel League-Soccer alfa kurulumu](docs/NATIVE_ALPHA.md). Mevcut aşağıdaki main başlatıcısı eski motor içindir.
+
 # Tribün Manager kurulumu
 
 Yerel futbol simülasyonu için **Python 3.10 veya üzeri** ve güncel Chrome, Edge veya Firefox yeterlidir. Oynamak için Node.js, npm veya Python paketi kurman gerekmez. İnternet bağlantısı olmadan yerel maç oynanabilir; bazı isteğe bağlı font ve görseller yüklenmeyebilir.
