@@ -103,7 +103,8 @@ def main():
     p.add_argument("--box-lane",action="store_true",help="Private full AV box-lane experiment")
     p.add_argument("--timed-pass",action="store_true",help="Private full AV timed-pass experiment")
     p.add_argument("--controlled-carry",action="store_true",help="Private full AV controlled-carry experiment")
-    a=p.parse_args();V.require(not a.controlled_carry or (a.attack_profile=="short-match" and a.audio and not a.interactive and not a.halftime_plan and not a.league_control and not a.box_lane and not a.timed_pass),"Carry requires isolated short-match AV");V.require(not a.timed_pass or (a.attack_profile=="short-match" and a.audio and not a.interactive and not a.halftime_plan and not a.league_control and not a.box_lane),"Timed pass requires isolated short-match AV");V.require(not a.box_lane or (a.attack_profile=="short-match" and a.audio and not a.interactive and not a.halftime_plan and not a.league_control),"Box lane requires private short-match AV");V.require(a.attack_profile=="baseline" or (a.audio and not a.interactive and not a.halftime_plan and not a.league_control),"Short-match AV requires isolated audio diagnostic");V.require(not a.league_control or a.interactive,"League control requires interactive mode");V.require(0<=a.linger<=120,"Invalid linger")
+    p.add_argument("--attacking-duel",action="store_true",help="Private full AV attacking-duel experiment")
+    a=p.parse_args();V.require(not a.attacking_duel or (a.attack_profile=="short-match" and a.audio and not a.interactive and not a.halftime_plan and not a.league_control and not a.box_lane and not a.timed_pass and not a.controlled_carry),"Duel requires isolated short-match AV");V.require(not a.controlled_carry or (a.attack_profile=="short-match" and a.audio and not a.interactive and not a.halftime_plan and not a.league_control and not a.box_lane and not a.timed_pass),"Carry requires isolated short-match AV");V.require(not a.timed_pass or (a.attack_profile=="short-match" and a.audio and not a.interactive and not a.halftime_plan and not a.league_control and not a.box_lane),"Timed pass requires isolated short-match AV");V.require(not a.box_lane or (a.attack_profile=="short-match" and a.audio and not a.interactive and not a.halftime_plan and not a.league_control),"Box lane requires private short-match AV");V.require(a.attack_profile=="baseline" or (a.audio and not a.interactive and not a.halftime_plan and not a.league_control),"Short-match AV requires isolated audio diagnostic");V.require(not a.league_control or a.interactive,"League control requires interactive mode");V.require(0<=a.linger<=120,"Invalid linger")
     runtime=a.runtime.resolve();fixture=a.fixture.resolve();out=a.out.resolve()
     config=json.loads(fixture.read_text());plans=plan_from_config(config)
     V.require(bool(plans)==a.halftime_plan,"Use explicit --halftime-plan with prepared changes")
@@ -125,7 +126,7 @@ def main():
             path=out/f"local-manager-{side}.txt"
             path.write_text(f"http://127.0.0.1:{server.server_port}/{key}/\n");path.chmod(0o600)
     report=stamp({"schema":1,"authoritative":False,"productionEnabled":False,"status":"incomplete",
-        "fixtureSha256":sha(fixture),"requestedAttackProfile":a.attack_profile,"requestedBoxLane":a.box_lane,"requestedTimedPass":a.timed_pass,"requestedControlledCarry":a.controlled_carry,"controlSource":"league-gateway" if a.league_control else "local-diagnostic","videoRedistributionApproved":False,"transport":"local-hls-fmp4"},runtime,"native-live-video")
+        "fixtureSha256":sha(fixture),"requestedAttackProfile":a.attack_profile,"requestedBoxLane":a.box_lane,"requestedTimedPass":a.timed_pass,"requestedControlledCarry":a.controlled_carry,"requestedAttackingDuel":a.attacking_duel,"controlSource":"league-gateway" if a.league_control else "local-diagnostic","videoRedistributionApproved":False,"transport":"local-hls-fmp4"},runtime,"native-live-video")
     report_path=out/"live-report.json";write_json(report_path,report)
     env=V.env_for(os.environ,video);env["TRIBUN_NATIVE_HLS_DIR"]=str(media);env["TRIBUN_NATIVE_AUDIO_CAPTURE"]="1" if a.audio else "0"
     env["TRIBUN_LEAGUE_SOCCER_ATTACK"]=a.attack_profile
@@ -135,6 +136,8 @@ def main():
     if a.timed_pass:env["TRIBUN_AV_TIMED_ATTACK"]="1"
     env.pop("TRIBUN_AV_CONTROLLED_CARRY",None)
     if a.controlled_carry:env["TRIBUN_AV_CONTROLLED_CARRY"]="1"
+    env.pop("TRIBUN_AV_DUEL",None)
+    if a.attacking_duel:env["TRIBUN_AV_DUEL"]="1"
     if a.halftime_plan:env["TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"]="1"
     if control:
         env["TRIBUN_NATIVE_VIDEO_CONTROL"]="1";env["TRIBUN_LEAGUE_SOCCER_COMMAND_DIR"]=str(control.directory)

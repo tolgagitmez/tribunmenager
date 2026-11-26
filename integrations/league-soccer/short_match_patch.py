@@ -2144,13 +2144,21 @@ Vector3 AI_GetForceFieldMovement'''),
 
     # Stage 67: exploit closing defender momentum; observe the same named defender after the carry.
     edit(root, "src/onthepitch/aitactics.hpp", [
-        ("struct FixedDurationClock {", r'''inline bool DuelEnabled() {
+        ("struct FixedDurationClock {", r'''inline bool RenderedDuelEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_AV_DUEL");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+inline bool DuelEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_DUEL");
     return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
-  return enabled;
+  return enabled || RenderedDuelEnabled();
 }
 ''' + DUEL_RULES + "struct FixedDurationClock {"),
     ])
@@ -2224,11 +2232,22 @@ Vector3 AI_GetForceFieldMovement'''),
           }
           // Reward exiting opposite a defender's lateral momentum, not magical misdirection.
           const float wrongFoot=-dir.coords[1]*std::clamp(rivalMotion.coords[1]/3.0f,-1.0f,1.0f);
-          return AITactics::DuelEscapeScore(dir.coords[0]*-side*advance,clearance,turn,speed,skill,wrongFoot);
+          const float base=AITactics::DuelEscapeScore(dir.coords[0]*-side*advance,clearance,turn,speed,skill,wrongFoot);
+          // Favor a lateral escape that opens a real gap from the same
+          // defender; never override rejected geometry or speed caps.
+          if(AITactics::RenderedDuelEnabled() && base>-999.0f){
+            const auto futureDefender=defender->GetPosition()+rivalMotion*.55f;
+            const auto gapVector=(end-futureDefender).Get2D();
+            const float ahead=gapVector.coords[0]*-side;
+            const float gapGain=gapVector.GetLength()-closest;
+            return base+.35f*std::clamp(gapGain,0.0f,2.0f)+.20f*std::clamp(ahead,0.0f,2.0f);
+          }
+          return base;
         };
         const float baseline=rate(current,clamp(desiredVelocity/sprintVelocity,0.0f,1.0f));
         float best=baseline,chosenSpeed=0.0f;Vector3 chosen=current;
-        for(float angle:{-.95f,-.60f,-.30f,.30f,.60f,.95f}){
+        for(float angle:{-1.20f,-.95f,-.60f,-.30f,.30f,.60f,.95f,1.20f}){
+          if(!AITactics::RenderedDuelEnabled() && std::abs(angle)>1.0f)continue;
           const auto dir=forward.GetRotated2D(angle);
           const float turn=dir.coords[0]*facing.coords[0]+dir.coords[1]*facing.coords[1];
           const float cap=AITactics::CarrySpeedLimit(skill,closest,gap,turn);

@@ -395,6 +395,16 @@ void TribunTrace(Match& match, bool done) {
            << ",\"followupShots\":" << r.followupShots << '}';
   }
   output << ']';
+  output << ",\"attackingDuels\":[";
+  for(int t=0;t<2;++t){
+    if(t)output << ',';
+    const auto& d=match.tribunDuelTrials[t];
+    output << "{\"inspected\":" << d.inspected << ",\"context\":" << d.context
+           << ",\"geometry\":" << d.geometry << ",\"available\":" << d.available
+           << ",\"attempts\":" << d.attempts << ",\"beaten\":" << d.beaten
+           << ",\"lost\":" << d.lost << ",\"cancelled\":" << d.cancelled << '}';
+  }
+  output << ']';
   output << ",\"controlledCarries\":[";
   for(int t=0;t<2;++t){
     if(t)output << ',';
