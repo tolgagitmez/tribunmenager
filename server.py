@@ -366,7 +366,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_response(code);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.send_header('Cache-Control','no-store');self.end_headers();self.wfile.write(body)
     def native_av_access(self,round_number,body=None):
         root=os.environ.get('TRIBUN_NATIVE_AV_GATEWAY_ROOT')
-        if not root:return self.json_response({'error':'Native AV deneysel erişimi kapalı.'},503)
+        if not root or Path(root).resolve().is_relative_to(ROOT.resolve()):return self.json_response({'error':'Native AV deneysel erişimi kapalı.'},503)
         try:
             with LOCK,closing(db()) as c:
                 attempt,side=native_av_gateway.resolve(c,self.transfer_token(),round_number,time.time())
@@ -417,7 +417,7 @@ class Handler(SimpleHTTPRequestHandler):
         # Decode before checking private paths; native capability files must never be static assets.
         from urllib.parse import unquote
         decoded=unquote(p.path)
-        if any(part.startswith('local-manager-') or part=='local-url.txt' for part in Path(decoded).parts):
+        if any(part.startswith('local-manager-') or part in ('local-url.txt','league-gateway.key') for part in Path(decoded).parts):
             return self.json_response({'error':'Dosya erişime kapalı.'},403)
         parts=Path(decoded).parts
         if any(x.startswith('.') or x in ('work','node_modules','__pycache__') for x in parts if x not in ('/','')) or decoded.endswith(('.py','.sqlite','.sqlite3','.db','-wal','-shm')):

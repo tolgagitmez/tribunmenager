@@ -86,7 +86,7 @@ def finish(path,key,sha,attempt,report=None,error=None):
 def verify_output(out,sha):
     return verify_recording(out/'fixture.json',out/'run',sha)
 
-def verify_recording(fixture_path,directory,sha):
+def verify_recording(fixture_path,directory,sha,*,control_source='local-diagnostic'):
     fixture=json.loads(fixture_path.read_text())
     if digest(fixture)!=sha:raise ValueError('Fixture mismatch')
     native=json.loads((directory/'live-report.json').read_text())
@@ -97,6 +97,7 @@ def verify_recording(fixture_path,directory,sha):
     final=json.loads(raw.splitlines()[-1])
     score=final.get('score')
     if not (native.get('status')=='local-live-evidence' and native.get('authoritative') is False
+            and native.get('controlSource','local-diagnostic')==control_source
             and native['nativeClock']['nativeElapsedMs']==300000 and native['mediaTimeline']['timelinePassed'] is True
             and native['audio']['nonSilentCoveragePassed'] is True and native['audioOwnership']['verified'] is True
             and type(native['checks']['observedWallSeconds']) in (int,float) and 295<=native['checks']['observedWallSeconds']<=305
@@ -122,7 +123,7 @@ def verify_recording(fixture_path,directory,sha):
     sidecar=json.loads(Path(str(trace)+'.season.json').read_text())
     season=native_av_season.verify_candidate(final,manifest,sidecar)
     return {'authoritative':False,'verified':True,'configSha256':sha,'score':score,'season':season,
-            'traceSha256':native['traceSha256'],'coverage':browser['coverageFraction'],'audioOwnershipVerified':True,'engine':'league-soccer'}
+            'traceSha256':native['traceSha256'],'coverage':browser['coverageFraction'],'audioOwnershipVerified':True,'controlSource':control_source,'engine':'league-soccer'}
 
 def run_match(runtime, root, job):
     key,sha,config,attempt=job

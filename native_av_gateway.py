@@ -48,12 +48,24 @@ def private_url(root,attempt,side):
         return value
     except (OSError,ValueError):raise GatewayError('Motor bağlantısı hazır değil.') from None
 
+def gateway_secret(root,attempt):
+    if not re.fullmatch('[0-9a-f]{32}',attempt):raise GatewayError('Geçersiz maç.')
+    path=Path(root).resolve()/attempt/'run'/'league-gateway.key'
+    try:
+        if path.resolve()!=path:raise OSError()
+        info=path.stat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid!=os.getuid() or info.st_mode&0o077 or info.st_size>128:raise OSError()
+        value=path.read_text().strip()
+        if not re.fullmatch('[A-Za-z0-9_-]{43}',value):raise ValueError()
+        return value
+    except (OSError,ValueError):raise GatewayError('Lig kontrollü motor bağlantısı hazır değil.') from None
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):return None
 
 def forward(root,attempt,side,round_number,body=None):
     base=private_url(root,attempt,side)
-    data=None;headers={'Accept':'application/json'}
+    data=None;headers={'Accept':'application/json','X-Tribun-Internal-Control':gateway_secret(root,attempt)}
     if body is not None:
         native_live.validate_command(body)
         if type(body['round']) is not int or body['round']!=round_number:raise GatewayError('Maç günü eşleşmiyor.',400)

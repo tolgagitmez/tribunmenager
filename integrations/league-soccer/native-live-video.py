@@ -17,7 +17,7 @@ def write_json(path,data):
     tmp=path.with_suffix(".tmp");tmp.write_text(json.dumps(data,indent=2,allow_nan=False)+"\n");tmp.replace(path)
 def allowed(name):
     return name in ("live.m3u8","init.mp4") or bool(re.fullmatch(r"segment-[0-9]{5}\.m4s",name))
-def make_server(media,token,state,control=None):
+def make_server(media,token,state,control=None,gateway_key=None):
     prefix="/"+token+"/"
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args):pass
@@ -37,9 +37,12 @@ def make_server(media,token,state,control=None):
             self.send_header("Referrer-Policy","no-referrer");self.end_headers()
             try:self.wfile.write(data)
             except (BrokenPipeError,ConnectionResetError):pass
+        def gateway_allowed(self):
+            return gateway_key is None or secrets.compare_digest(self.headers.get('X-Tribun-Internal-Control',''),gateway_key)
         def do_POST(self):
             name,side=self.route()
             if name!="tactics.json" or side is None or control is None:self.send_error(404);return
+            if not self.gateway_allowed():self.send_error(403);return
             if self.headers.get("Origin")!=f"http://127.0.0.1:{self.server.server_port}" or self.headers.get("Content-Type")!="application/json":
                 self.send_error(403);return
             try:
@@ -57,6 +60,7 @@ def make_server(media,token,state,control=None):
             if name is None:self.send_error(404);return
             if name=="tactics.json":
                 if side is None or control is None:self.send_error(404);return
+                if not self.gateway_allowed():self.send_error(403);return
                 self.send_json(200,control.read(side));return
             if name in ("","index.html"):
                 data=(HERE/"native-live-video.html").read_bytes();mime="text/html; charset=utf-8"
@@ -94,7 +98,8 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)
     p.add_argument("--linger",type=int,default=15);p.add_argument("--audio",action="store_true");p.add_argument("--interactive",action="store_true");p.add_argument("--halftime-plan",action="store_true")
-    a=p.parse_args();V.require(0<=a.linger<=120,"Invalid linger")
+    p.add_argument("--league-control",action="store_true",help="Private authenticated gateway only")
+    a=p.parse_args();V.require(not a.league_control or a.interactive,"League control requires interactive mode");V.require(0<=a.linger<=120,"Invalid linger")
     runtime=a.runtime.resolve();fixture=a.fixture.resolve();out=a.out.resolve()
     config=json.loads(fixture.read_text());plans=plan_from_config(config)
     V.require(bool(plans)==a.halftime_plan,"Use explicit --halftime-plan with prepared changes")
@@ -102,7 +107,11 @@ def main():
     state={"phase":"starting","engine":"league-soccer","authoritative":False,"audio":False,"audioRequested":a.audio}
     trace=out/"match.ndjson";video=out/"native-match.mp4"
     control=ControlBridge(config,out/"commands",trace) if a.interactive else None
-    token=secrets.token_urlsafe(24);server=make_server(media,token,state,control)
+    gateway_key=secrets.token_urlsafe(32) if a.league_control else None
+    if gateway_key:
+        fd=os.open(out/"league-gateway.key",os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+        with os.fdopen(fd,"w") as f:f.write(gateway_key+"\n")
+    token=secrets.token_urlsafe(24);server=make_server(media,token,state,control,gateway_key)
     url=f"http://127.0.0.1:{server.server_port}/{token}/"
     # URL is private to local filesystem; never included in report or artifact.
     (out/"local-url.txt").write_text(url+"\n");(out/"local-url.txt").chmod(0o600)
@@ -112,7 +121,7 @@ def main():
             path=out/f"local-manager-{side}.txt"
             path.write_text(f"http://127.0.0.1:{server.server_port}/{key}/\n");path.chmod(0o600)
     report=stamp({"schema":1,"authoritative":False,"productionEnabled":False,"status":"incomplete",
-        "fixtureSha256":sha(fixture),"videoRedistributionApproved":False,"transport":"local-hls-fmp4"},runtime,"native-live-video")
+        "fixtureSha256":sha(fixture),"controlSource":"league-gateway" if a.league_control else "local-diagnostic","videoRedistributionApproved":False,"transport":"local-hls-fmp4"},runtime,"native-live-video")
     report_path=out/"live-report.json";write_json(report_path,report)
     env=V.env_for(os.environ,video);env["TRIBUN_NATIVE_HLS_DIR"]=str(media);env["TRIBUN_NATIVE_AUDIO_CAPTURE"]="1" if a.audio else "0"
     if a.halftime_plan:env["TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"]="1"
