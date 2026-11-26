@@ -1,7 +1,7 @@
-name: Stage 215 native keeper-aware box aim validation
+name: Stage 216 legacy and extended native clock validation
 on:
   pull_request:
-    branches: [experiment/native-early-run-pass-stage214]
+    branches: [experiment/native-box-aim-stage215]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
@@ -169,3 +169,37 @@ jobs:
             ${{ runner.temp }}/coordinated-evidence.json
             ${{ runner.temp }}/attack-comparison.json
           if-no-files-found: warn
+  extended_trace:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sudo apt-get update && sudo apt-get install -y xvfb xauth
+      - name: Build and record independent 30-minute CPU fixture
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_FIXED_DURATION: '1'
+          TRIBUN_NATIVE_EXTENDED_MATCH: '1'
+          TRIBUN_LEAGUE_SOCCER_SEED: '2026'
+        run: |
+          set -o pipefail
+          bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/extended.ndjson" --demo 2>&1 | tee "$RUNNER_TEMP/extended-run.log"
+      - name: Verify exact extended clock and full-time result
+        run: |
+          python3 integrations/league-soccer/native_extended_clock_verify.py "$RUNNER_TEMP/extended.ndjson" "$RUNNER_TEMP/extended-report.json"
+          cat "$RUNNER_TEMP/extended-report.json" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: extended-native-trace
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/extended.ndjson
+            ${{ runner.temp }}/extended.ndjson.fixture.json
+            ${{ runner.temp }}/extended.ndjson.attack.json
+            ${{ runner.temp }}/extended-report.json
+            ${{ runner.temp }}/extended-run.log

@@ -64,6 +64,12 @@ patches = {name: hashlib.sha256((here / name).read_bytes()).hexdigest() for name
 PY
   if [[ "${TRIBUN_PREPARE_ONLY:-0}" == 1 ]]; then exit 0; fi
 fi
+# Extended simulation is an isolated trace experiment, not a five-minute live stream.
+extended="${TRIBUN_NATIVE_EXTENDED_MATCH:-0}"
+case "$extended" in 0|1) ;; *) echo "Invalid TRIBUN_NATIVE_EXTENDED_MATCH" >&2; exit 2;; esac
+if [[ "$extended" == 1 ]]; then
+  [[ $# -ge 2 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_BENCHMARK:-0}" != 1 ]] || { echo "Extended match requires a frozen CPU fixture and fixed duration; not a benchmark" >&2; exit 2; }
+fi
 # Build once; each match gets a fresh native process and identical frozen elevens.
 config="$work/source/data/menu_smoke_full_match.config"
 if [[ "${TRIBUN_BENCHMARK:-0}" == 1 ]]; then
@@ -100,5 +106,7 @@ if [[ "${TRIBUN_BENCHMARK:-0}" == 1 ]]; then
   done
   node "$here/compare-attacks.cjs" "$out" "${seeds[@]}"
 else
-  run_match "$out" "${TRIBUN_LEAGUE_SOCCER_SEED:-}" "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" 420
+  limit=420
+  if [[ "$extended" == 1 ]]; then limit=3600; fi
+  run_match "$out" "${TRIBUN_LEAGUE_SOCCER_SEED:-}" "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" "$limit"
 fi
