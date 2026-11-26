@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+import uuid
 
 HERE = Path(__file__).resolve().parent
 
@@ -142,6 +143,7 @@ def main():
         p.error('Concurrent GPU diagnostics require separate dedicated displays; use single-match GPU pilot')
     runtime, fixtures, out = (x.resolve() for x in (args.runtime, args.fixtures, args.out))
     host_identity = identity(runtime)
+    trial_id = uuid.uuid4().hex
     out.mkdir(parents=True, exist_ok=False)
     names = prepare_fixtures(fixtures, out / 'fixtures', args.count)
     env = dict(os.environ, TRIBUN_EXPECT_AUDIO='1', TRIBUN_EXPECT_CONTROL='1',
@@ -185,7 +187,7 @@ def main():
             group_previous = current_group
             samples.append(sample)
         matches = [match_result(d, n.returncode, b.returncode) for d, n, b in jobs]
-        report = {**summarize(matches), 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
+        report = {**summarize(matches), 'trialId': trial_id, 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
                   'samples': samples, 'processProfile': meter.report(), 'filterThreads': args.filter_threads, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
                   'renderProbeRequested': args.render_probe, 'glWorkers': args.gl_workers, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
         if args.render_probe:
@@ -198,7 +200,7 @@ def main():
         stop_jobs(jobs)
         matches = [match_result(d, n.returncode, b.returncode if b is not None else None) for d,n,b in jobs]
         (out / 'capacity-report.json').write_text(json.dumps({
-            'passed': False, 'productionQualified': False, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'requestedMatches': args.count,
+            'passed': False, 'trialId': trial_id, 'productionQualified': False, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'requestedMatches': args.count,
             'failureType': type(error).__name__, 'matches': matches, 'samples': samples,
             'resourceSummary': resource_summary(samples), 'processProfile': meter.report(), 'filterThreads': args.filter_threads
         }, indent=2) + '\n')

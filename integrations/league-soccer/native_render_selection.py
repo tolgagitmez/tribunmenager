@@ -47,8 +47,11 @@ def compare(pairs):
             'note':'Swap cadence is not unique animation frames; subjective quality and production capacity remain unverified.'}
     if len(pairs)<2:return report
     try:
+        trials=[r['trialId'] for pair in pairs for r in pair]
+        if not all(isinstance(x,str) and len(x)==32 for x in trials) or len(set(trials))!=len(trials):raise ValueError('Repeated or invalid trial identity')
+        context=pair_key(pairs[0][0])
         for baseline,candidate in pairs:
-            if pair_key(baseline)!=pair_key(candidate):raise ValueError('Mismatched host or fixtures')
+            if pair_key(baseline)!=context or pair_key(candidate)!=context:raise ValueError('Mismatched host or fixtures')
             a,b=metrics(baseline,2),metrics(candidate,1)
             report['pairs'].append({'baseline':a,'candidate':b,'baselineQualityPassed':acceptable(a),'candidateQualityPassed':acceptable(b),
                 'engineCpuSavingFraction':1-b['engineCpuSeconds']/a['engineCpuSeconds'],
