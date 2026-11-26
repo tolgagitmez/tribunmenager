@@ -2,6 +2,7 @@
 import argparse,hashlib,importlib.util,json,math,os,signal,subprocess,time
 from pathlib import Path
 from native_audio_capture import private_audio, audio_config
+from native_hw_encoder import selected, preflight
 HERE=Path(__file__).resolve().parent
 def require(ok,message):
     if not ok:raise ValueError(message)
@@ -51,6 +52,11 @@ def _capture_window(config,limit,audio_env):
     if hls:
         hls=Path(hls)
         require(hls.is_absolute() and hls.is_dir() and not any(hls.iterdir()),"New empty HLS directory required")
+    backend,device,index,encoder_plan=selected(os.environ)
+    require(backend=="x264" or hls,"Hardware encoding requires private HLS")
+    init_args,encode_args,gop_args=encoder_plan
+    if backend!="x264":
+        save(video.parent/"encoder-preflight.json",preflight(backend,device,index))
     progress=video.with_suffix(".progress");capture_log=video.with_suffix(".capture.log")
     game_log=video.with_suffix(".game.log");offset=0;first=kickoff=final=None;last=None;encoder=None
     sink_input=False;next_audio_probe=0.0;child_env=audio_env or os.environ.copy()
@@ -66,7 +72,7 @@ def _capture_window(config,limit,audio_env):
             require(window is not None and window.isdigit(),"Native SDL window not found")
             output_args=["-movflags","+faststart",str(video)]
             if hls:
-                output_args=["-g","50","-keyint_min","50","-sc_threshold","0","-tune","zerolatency","-profile:v","baseline","-level:v","3.1",
+                output_args=[*gop_args,
                   "-f","hls","-hls_time","2","-hls_list_size","0","-hls_playlist_type","event","-hls_segment_type","fmp4",
                   "-hls_fmp4_init_filename","init.mp4","-hls_flags","independent_segments+temp_file",
                   "-hls_segment_filename",str(hls/"segment-%05d.m4s"),str(hls/"live.m3u8")]
@@ -75,10 +81,11 @@ def _capture_window(config,limit,audio_env):
             require(filter_threads in ("0","1"),"Invalid diagnostic filter threads")
             require(filter_threads=="0" or hls,"Filter experiment requires local HLS")
             filter_args=[] if filter_threads=="0" else ["-filter_threads","1"]
-            encoder=subprocess.Popen(["ffmpeg","-nostdin","-hide_banner","-loglevel","warning","-y","-thread_queue_size","512","-f","x11grab",
+            if not hls:
+                encode_args=["-vf","scale=trunc(iw/2)*2:trunc(ih/2)*2","-c:v","libx264","-threads","2","-preset","ultrafast","-crf","25","-pix_fmt","yuv420p"]
+            encoder=subprocess.Popen(["ffmpeg","-nostdin","-hide_banner","-loglevel","warning","-y",*init_args,"-thread_queue_size","512","-f","x11grab",
               "-draw_mouse","0","-framerate","25","-window_id",window,"-i",os.environ["DISPLAY"],
-              *audio_args,*filter_args,"-vf",("scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2" if hls else "scale=trunc(iw/2)*2:trunc(ih/2)*2"),"-c:v","libx264","-threads","2",
-              "-preset","ultrafast","-crf","25","-pix_fmt","yuv420p","-progress",str(progress),*output_args],stdout=e,stderr=subprocess.STDOUT,env=child_env)
+              *audio_args,*filter_args,*encode_args,"-progress",str(progress),*output_args],stdout=e,stderr=subprocess.STDOUT,env=child_env)
             def drain():
                 nonlocal offset,kickoff,final,last,first
                 if first is None and progress.exists():
@@ -110,7 +117,7 @@ def _capture_window(config,limit,audio_env):
     require("[menu-smoke] Full match complete:" in logs and "[menu-smoke] Full-match verification succeeded, quitting test run" in logs,"Missing native completion markers")
     if audio_env is not None:
         require(sink_input and "falling back to silent audio" not in logs and "using silent audio" not in logs,"Native OpenAL audio unavailable")
-    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input})
+    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input,"videoEncoder":backend})
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)

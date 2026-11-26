@@ -119,6 +119,8 @@ def main():
     p.add_argument('--count', type=int, choices=(2, 4, 8, 16), default=2)
     p.add_argument('--filter-threads', type=int, choices=(0, 1), default=0)
     args = p.parse_args()
+    if os.environ.get('TRIBUN_AV_ENCODER','x264') != 'x264':
+        p.error('Hardware encoder concurrency is not qualified; use single-match pilot')
     if os.environ.get('TRIBUN_GPU_DISPLAY'):
         p.error('Concurrent GPU diagnostics require separate dedicated displays; use single-match GPU pilot')
     runtime, fixtures, out = (x.resolve() for x in (args.runtime, args.fixtures, args.out))

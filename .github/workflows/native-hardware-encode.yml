@@ -1,0 +1,18 @@
+name: Stage 128 hardware encoder contract tests
+on:
+  push:
+    branches: [experiment/native-hardware-encode-stage128]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_hw_encoder.py
+          python3 -m unittest discover -s tests -p test_native_gpu_display.py
+          python3 -m unittest discover -s tests -p test_native_av_capacity.py
+          python3 -m py_compile integrations/league-soccer/native_hw_encoder.py integrations/league-soccer/native-video-pilot.py integrations/league-soccer/native-live-video.py
+      - name: Explicitly report lack of hardware qualification
+        run: echo 'Contract tests only; no physical hardware encoder or match capacity qualified.'
