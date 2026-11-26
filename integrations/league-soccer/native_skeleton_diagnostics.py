@@ -8,6 +8,8 @@ LIMIT=32*1024*1024
 MAX_EVENTS=200
 PATTERN=re.compile(r'\[tribun-skeleton-feet\] snapshot=(\d+) match_ms=(\d+) phase=(-?\d+) player=(-?\d+) anim=(-?\d+) frame=(-?\d+) touch_frame=(-?\d+) left=(\S+) right=(\S+) ball=(\S+)')
 
+BLEND=re.compile(r'\[tribun-leg-blend\] phase=(-?\d+) match_ms=(\d+) player=(-?\d+) actual=(\S+) anim=(\S+) native=(\S+) adjusted=(\S+)')
+
 def vec(value):
     v=tuple(map(float,value.split(',')))
     if len(v)!=3 or not all(math.isfinite(x) for x in v):
@@ -26,10 +28,29 @@ def inspect_skeleton(path):
     max_speed={'left':None,'right':None}
     contacts=[]
     contact_count=0
+    blend_count=0
+    blend_max=0.0
+    blend_sum=0.0
     near_ground=.16
     speed_threshold=.5
     with path.open('r',encoding='utf-8',errors='replace') as log:
         for line in log:
+            if line.startswith('[tribun-leg-blend]'):
+                m=BLEND.fullmatch(line.rstrip('\r\n'))
+                try:
+                    if not m:
+                        raise ValueError('Malformed blend record')
+                    actual,anim,native,adjusted=map(float,m.groups()[3:])
+                    if not all(math.isfinite(v) for v in (actual,anim,native,adjusted)) or min(actual,anim)<0 or not (.1<=native<=1.1 and .1<=adjusted<=1.1) or abs(adjusted-native)>.1201:
+                        raise ValueError('Invalid blend values')
+                except ValueError:
+                    invalid+=1
+                    continue
+                delta=abs(adjusted-native)
+                blend_count+=1
+                blend_max=max(blend_max,delta)
+                blend_sum+=delta
+                continue
             if not line.startswith('[tribun-skeleton-feet]'):
                 continue
             m=PATTERN.fullmatch(line.rstrip('\r\n'))
@@ -77,5 +98,7 @@ def inspect_skeleton(path):
         intervals=dict(intervals),maxHorizontalAnkleSpeed={k:None if v is None else round(v,3) for k,v in max_speed.items()},
         lowAnkleHeightThreshold=near_ground,lowAnkleSpeedThreshold=speed_threshold,
         contactFrameSamples=contact_count,contactFrames=contacts,contactFramesTruncated=contact_count>len(contacts),
-        evidenceAvailable=samples>0,
-        scope='Native applied skeletal ankle positions before historical temporal smoothing. Low ankle motion is a candidate, not verified foot slide or sole-ground contact. Contact-frame distances are ankle-to-ball, not boot-to-ball or actual successful touch. Snapshot gaps and animation transitions are excluded from motion estimates.')
+        legBlendSamples=blend_count,maxLegBlendDelta=round(blend_max,5) if blend_count else None,
+        meanLegBlendDelta=round(blend_sum/blend_count,5) if blend_count else None,
+        evidenceAvailable=samples>0 or blend_count>0,
+        scope='Native applied skeletal ankle positions before historical temporal smoothing. Low ankle motion is a candidate, not verified foot slide or sole-ground contact. Contact-frame distances are ankle-to-ball, not boot-to-ball or actual successful touch. Snapshot gaps and animation transitions are excluded from motion estimates. Blend samples indicate changed correction factors, not actual foot slide reduction.')
