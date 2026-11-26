@@ -12,7 +12,16 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium}=requ
   await page.goto(url);await page.locator('#start').click();
   await page.waitForFunction(()=>document.querySelector('video').currentTime>2&&!document.querySelector('video').paused,{},{timeout:120000});
   const state=await page.evaluate(async()=>({status:await(await fetch('status.json')).json(),time:document.querySelector('video').currentTime,width:document.querySelector('video').videoWidth}));
-  assert.equal(state.status.phase,'streaming');assert.ok(state.width>0);assert.deepEqual(errors,[]);
+  assert.equal(state.status.phase,'streaming');assert.ok(state.width>0);
+  if(process.env.TRIBUN_EXPECT_AUDIO==='1'){
+   assert.equal(state.status.audioRequested,true);
+   await page.locator('#sound').click();assert.equal(await page.locator('video').evaluate(v=>v.muted),false);
+   await page.waitForFunction(()=>document.querySelector('video').currentTime>4,{},{timeout:30000});
+   const bytes=await page.locator('video').evaluate(v=>typeof v.webkitAudioDecodedByteCount==='number'?v.webkitAudioDecodedByteCount:null);
+   if(bytes!==null)assert.ok(bytes>0,'No decoded audio bytes');
+   console.log(JSON.stringify({audioRequested:true,unmuted:true,decodedAudioBytes:bytes}));
+  }
+  assert.deepEqual(errors,[]);
   console.log(JSON.stringify({playedDuringMatch:true,mediaTime:state.time,videoWidth:state.width}));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

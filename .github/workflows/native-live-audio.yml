@@ -1,0 +1,50 @@
+name: Original native OpenAL audiovisual HLS pilot
+on:
+  push:
+    branches: [experiment/native-live-audio-stage116]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audio:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_audio_capture.py
+      - run: python3 -m unittest discover -s tests -p test_native_live_video.py
+      - run: node --test integrations/league-soccer/native-live-video.test.cjs
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth pulseaudio pulseaudio-utils libopenal-dev
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build pinned OpenAL runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/live-audio-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Play native audiovisual stream and audit actual AAC signal
+        env:
+          TRIBUN_EXPECT_AUDIO: '1'
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/audio-fixtures"
+          out="$RUNNER_TEMP/live-audio-result"
+          python3 integrations/league-soccer/native-live-video.py "$RUNNER_TEMP/live-audio-runtime" "$RUNNER_TEMP/audio-fixtures/balanced.json" "$out" --audio &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt"
+          wait "$pid"
+          trap - EXIT
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-audio-measurements-only
+          path: |
+            ${{ runner.temp }}/live-audio-result/live-report.json
+            ${{ runner.temp }}/live-audio-result/runner.log
+            ${{ runner.temp }}/live-audio-result/native-audio.log
+          if-no-files-found: ignore

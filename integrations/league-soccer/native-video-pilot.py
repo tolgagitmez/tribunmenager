@@ -1,6 +1,7 @@
 """Private diagnostic: original native game window -> local MP4, no WebGL reconstruction."""
 import argparse,hashlib,importlib.util,json,math,os,signal,subprocess,time
 from pathlib import Path
+from native_audio_capture import private_audio, audio_config
 HERE=Path(__file__).resolve().parent
 def require(ok,message):
     if not ok:raise ValueError(message)
@@ -35,6 +36,15 @@ def assess(capture,video):
        "encodedCadenceAtLeast20":video["averageEncodedPacketsPerSecond"]>=20,
        "note":"Observation clocks and encoded frame cadence are not exact synchronization or unique rendered FPS."}
 def capture_window(config,limit):
+    enabled=os.environ.get("TRIBUN_NATIVE_AUDIO_CAPTURE","0")
+    require(enabled in ("0","1"),"Invalid audio capture flag")
+    if enabled=="1":
+        require(bool(os.environ.get("TRIBUN_NATIVE_HLS_DIR")),"Audio requires isolated HLS capture")
+        with private_audio(Path(os.environ["TRIBUN_NATIVE_VIDEO_OUT"]).parent) as audio_env:
+            _capture_window(str(audio_config(Path(config))),limit,audio_env)
+    else:
+        _capture_window(config,limit,None)
+def _capture_window(config,limit,audio_env):
     video=Path(os.environ["TRIBUN_NATIVE_VIDEO_OUT"]);trace=Path(os.environ["TRIBUN_LEAGUE_SOCCER_TRACE"])
     require(video.is_absolute() and not video.exists() and video.suffix==".mp4","New absolute MP4 path required")
     hls=os.environ.get("TRIBUN_NATIVE_HLS_DIR")
@@ -43,8 +53,9 @@ def capture_window(config,limit):
         require(hls.is_absolute() and hls.is_dir() and not any(hls.iterdir()),"New empty HLS directory required")
     progress=video.with_suffix(".progress");capture_log=video.with_suffix(".capture.log")
     game_log=video.with_suffix(".game.log");offset=0;first=kickoff=final=None;last=None;encoder=None
+    sink_input=False;next_audio_probe=0.0;child_env=audio_env or os.environ.copy()
     with game_log.open("wb") as g,capture_log.open("wb") as e:
-        game=subprocess.Popen(["timeout","--kill-after=10s",str(limit)+"s","./gameplayfootball",config],stdout=g,stderr=subprocess.STDOUT)
+        game=subprocess.Popen(["timeout","--kill-after=10s",str(limit)+"s","./gameplayfootball",config],stdout=g,stderr=subprocess.STDOUT,env=child_env)
         try:
             deadline=time.monotonic()+120;window=None
             while time.monotonic()<deadline and game.poll() is None:
@@ -59,10 +70,11 @@ def capture_window(config,limit):
                   "-f","hls","-hls_time","2","-hls_list_size","0","-hls_playlist_type","event","-hls_segment_type","fmp4",
                   "-hls_fmp4_init_filename","init.mp4","-hls_flags","independent_segments+temp_file",
                   "-hls_segment_filename",str(hls/"segment-%05d.m4s"),str(hls/"live.m3u8")]
-            encoder=subprocess.Popen(["ffmpeg","-nostdin","-hide_banner","-loglevel","warning","-y","-f","x11grab",
+            audio_args=["-an"] if audio_env is None else ["-thread_queue_size","512","-f","pulse","-i","tribun_match.monitor","-map","0:v:0","-map","1:a:0","-c:a","aac","-profile:a","aac_low","-b:a","96k","-ar","48000","-ac","2"]
+            encoder=subprocess.Popen(["ffmpeg","-nostdin","-hide_banner","-loglevel","warning","-y","-thread_queue_size","512","-f","x11grab",
               "-draw_mouse","0","-framerate","25","-window_id",window,"-i",os.environ["DISPLAY"],
-              "-an","-vf",("scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2" if hls else "scale=trunc(iw/2)*2:trunc(ih/2)*2"),"-c:v","libx264","-threads","2",
-              "-preset","ultrafast","-crf","25","-pix_fmt","yuv420p","-progress",str(progress),*output_args],stdout=e,stderr=subprocess.STDOUT)
+              *audio_args,"-vf",("scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2" if hls else "scale=trunc(iw/2)*2:trunc(ih/2)*2"),"-c:v","libx264","-threads","2",
+              "-preset","ultrafast","-crf","25","-pix_fmt","yuv420p","-progress",str(progress),*output_args],stdout=e,stderr=subprocess.STDOUT,env=child_env)
             def drain():
                 nonlocal offset,kickoff,final,last,first
                 if first is None and progress.exists():
@@ -81,6 +93,9 @@ def capture_window(config,limit):
                         if row.get("done") and final is None:final=time.monotonic()
             while game.poll() is None:
                 drain()
+                if audio_env is not None and not sink_input and time.monotonic()>=next_audio_probe:
+                    result=subprocess.run(["pactl","list","short","sink-inputs"],env=child_env,capture_output=True,text=True,timeout=3,check=True)
+                    sink_input=bool(result.stdout.strip());next_audio_probe=time.monotonic()+2
                 if encoder.poll() is not None and final is None:raise RuntimeError("Video encoder stopped before full time")
                 time.sleep(.075)
             drain()
@@ -89,7 +104,9 @@ def capture_window(config,limit):
             stop(encoder);stop(game)
     logs=game_log.read_text(errors="replace");print(logs)
     require("[menu-smoke] Full match complete:" in logs and "[menu-smoke] Full-match verification succeeded, quitting test run" in logs,"Missing native completion markers")
-    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":False})
+    if audio_env is not None:
+        require(sink_input and "falling back to silent audio" not in logs and "using silent audio" not in logs,"Native OpenAL audio unavailable")
+    save(video.with_suffix(".capture.json"),{"firstEncodedObserved":first,"kickoffObserved":kickoff,"finalObserved":final,"windowId":window,"audio":audio_env is not None,"nativeSinkInputObserved":sink_input})
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)

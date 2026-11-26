@@ -8,5 +8,6 @@ test('restricted sequential media playlist',()=>{
 test('derive exact H.264 codec from AVC configuration',()=>{
  const box=Uint8Array.from([0,0,0,0,0,0,0,15,97,118,99,67,1,66,192,31,0,0,0]);
  assert.equal(L.codec(box),'video/mp4; codecs="avc1.42c01f"');
+ assert.equal(L.codec(box,true),'video/mp4; codecs="avc1.42c01f,mp4a.40.2"');
  assert.throws(()=>L.codec(new Uint8Array(20)));
 });
