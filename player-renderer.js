@@ -9,7 +9,7 @@ const matmul=(a,b)=>{const out=new Float32Array(16);for(let c=0;c<4;c++)for(let 
 const decode=s=>{const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a.buffer;};
 const VS=`precision highp float;
 attribute vec3 aPosition;attribute vec3 aNormal;attribute vec2 aUV;attribute vec4 aJoints;attribute vec4 aWeights;attribute float aMaterial;attribute vec3 aColor;
-uniform mat4 uVP;uniform vec4 uBoneReal[19];uniform vec4 uBoneDual[19];uniform vec3 uVariant;uniform float uGoalie;uniform float uStandardAsset;
+uniform mat4 uVP;uniform vec4 uBoneReal[19];uniform vec4 uBoneDual[19];uniform vec3 uVariant;uniform float uGoalie;uniform float uStandardAsset;uniform vec3 uBodyTransform;
 varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying vec2 vUV;varying float vMaterial;varying float vHand;
 vec3 rotateUnit(vec4 q,vec3 p){return p+2.*cross(q.xyz,cross(q.xyz,p)+q.w*p);}
 void main(){vec3 p=aPosition;float head=smoothstep(1.59,1.68,p.y);if(uStandardAsset<.5){p.z*=mix(1.,uVariant.x,head);p.x+=head*max(0.,p.x-.035)*uVariant.y;}
@@ -22,7 +22,7 @@ vec4 r=r0*weights.x+r1*weights.y+r2*weights.z+r3*weights.w;
 vec4 d=uBoneDual[int(aJoints.x)]*weights.x+uBoneDual[int(aJoints.y)]*weights.y+uBoneDual[int(aJoints.z)]*weights.z+uBoneDual[int(aJoints.w)]*weights.w;
 float magnitude=max(length(r),.000001);r/=magnitude;d/=magnitude;d-=r*dot(r,d);
 vec3 translation=2.*(r.w*d.xyz-d.w*r.xyz+cross(r.xyz,d.xyz));
-vec4 w=vec4(rotateUnit(r,p)+translation,1.);vWorld=w.xyz;vNormal=normalize(rotateUnit(r,aNormal));vBind=p;vUV=aUV;vMaterial=aMaterial;vColor=aColor;gl_Position=uVP*w;}`;
+vec4 w=vec4(rotateUnit(r,p)+translation,1.);float bodyScale=uBodyTransform.z>0.?uBodyTransform.z:1.;vec3 origin=vec3(uBodyTransform.x,0.,uBodyTransform.y);w.xyz=origin+(w.xyz-origin)*bodyScale;vWorld=w.xyz;vNormal=normalize(rotateUnit(r,aNormal));vBind=p;vUV=aUV;vMaterial=aMaterial;vColor=aColor;gl_Position=uVP*w;}`;
 const FS=`precision highp float;
 varying vec3 vWorld;varying vec3 vNormal;varying vec3 vBind;varying vec3 vColor;varying vec2 vUV;varying float vMaterial;varying float vHand;
 uniform sampler2D uSkinTexture;uniform sampler2D uFabricTexture;
@@ -105,7 +105,8 @@ color=aces(color*(uStudio>.5?1.03:.95));gl_FragColor=vec4(pow(color,vec3(1./2.2)
 // and appearance from a nearest-filtered float texture. No shared pose.
 const BATCH_WIDTH=45,BATCH_ROWS=32;
 const BATCH_VS=VS.replace('uniform vec4 uBoneReal[19];uniform vec4 uBoneDual[19];uniform vec3 uVariant;uniform float uGoalie;','attribute float aInstance;uniform sampler2D uInstances;varying float vInstance;vec4 instanceData(float column){return texture2D(uInstances,vec2((column+.5)/45.,(aInstance+.5)/32.));}')
- .replace('void main(){vec3 p=aPosition;','void main(){vInstance=aInstance;vec4 appearance=instanceData(44.);vec3 uVariant=appearance.xyz;float uGoalie=appearance.w;vec3 p=aPosition;')
+ .replace('uniform vec3 uBodyTransform;','')
+ .replace('void main(){vec3 p=aPosition;','void main(){vInstance=aInstance;vec4 appearance=instanceData(44.);vec3 uVariant=appearance.xyz;float uGoalie=appearance.w;vec3 uBodyTransform=vec3(instanceData(38.).w,instanceData(39.).w,instanceData(40.).w);vec3 p=aPosition;')
  .replace(/uBoneReal\[int\(aJoints\.([xyzw])\)\]/g,'instanceData(aJoints.$1)')
  .replace(/uBoneDual\[int\(aJoints\.([xyzw])\)\]/g,'instanceData(19.+aJoints.$1)');
 const BATCH_FS=`precision highp float;
@@ -126,10 +127,14 @@ function appearanceOf(p){
  const v=p.visual||{},n=p.index||0,isGK=(v.role||p.role)==='GK',ref=p.referee;
  return {skin:v.skin||p.skin||[.69,.48,.34],shirt:v.shirt||(ref?[.94,.76,.16]:isGK?(p.team===0?[.42,.23,.67]:[.91,.59,.12]):p.team===0?[.075,.29,.68]:[.65,.075,.13]),shorts:v.shorts||(ref?[.10,.12,.14]:p.team===0?[.88,.90,.93]:[.09,.12,.16]),hair:v.hair||p.hair||[.10,.065,.043],boots:v.boots||[[.055,.065,.08],[.91,.42,.09],[.07,.56,.45]][n%3],iris:v.iris||[[.15,.25,.18],[.30,.18,.09],[.13,.28,.36]][n%3],variant:v.variant||[.94+(n%4)*.035,(n%3-1)*.06,0],goalie:isGK?1:0,number:p.num||n+1,beard:v.beard??(n%4===2?.85:0)};
 }
+function renderBodyScale(p){return Number.isFinite(p.nativeAnatomy?.scale)?clamp(p.nativeAnatomy.scale,1.45/1.88,2.15/1.88):1;}
+function normalizedBoneOrigin(p,a,scale){return [p.x+(a[0]-p.x)/scale,a[1]/scale,p.z+(a[2]-p.z)/scale];}
 function packInstance(data,row,dual,p){
  const offset=row*BATCH_WIDTH*4,a=appearanceOf(p);
  data.set(dual.real,offset);data.set(dual.dual,offset+19*4);
  for(const [i,key] of ['skin','shirt','shorts','hair','boots','iris','variant'].entries()){const at=offset+(38+i)*4;data.set(a[key],at);data[at+3]=key==='variant'?a.goalie:0;}
+ // Spare appearance alpha channels carry the scale origin; row width stays 45.
+ data[offset+38*4+3]=p.x||0;data[offset+39*4+3]=p.z||0;data[offset+40*4+3]=renderBodyScale(p);
 }
 function quatAlign(a,b,v){const c=cross(a,b),d=clamp(dot(a,b),-1,1);if(d<-.9999){let axis=unit(cross(a,Math.abs(a[0])<.8?[1,0,0]:[0,1,0]));return sub(mul(axis,2*dot(axis,v)),v);}return add(add(v,cross(c,v)),mul(cross(c,cross(c,v)),1/(1+d)));}
 function presentationPalette(p,assets){const a=new Float32Array(assets.bones.length*16),c=Math.cos(p.face||0),s=Math.sin(p.face||0),M=[c,0,s,0,0,1,0,0,-s,0,c,0,p.x,0,p.z,1];for(let i=0;i<assets.bones.length;i++)a.set(M,i*16);return a;}
@@ -138,7 +143,7 @@ function palette(p,assets,pose){
  const f=[Math.cos(p.face||0),0,Math.sin(p.face||0)],side=[-f[2],0,f[0]],yaw=v=>[v[0]*f[0]+v[2]*side[0],v[1],v[0]*f[2]+v[2]*side[2]],frames=Rig.boneFrames(pose);
  const all=new Float32Array(assets.bones.length*16),headYaw=Number.isFinite(pose.headYaw)?clamp(pose.headYaw,-.8,.8):0;
  assets.bones.forEach((bone,i)=>{const scan=bone.name==='head'?headYaw:bone.name==='neck'?headYaw*.25:0,cs=Math.cos(scan),sn=Math.sin(scan),boneYaw=v=>{const u=yaw(v);return scan?[u[0]*cs-u[2]*sn,u[1],u[0]*sn+u[2]*cs]:u;};const [a,b]=frames[bone.name],rest=unit(sub(bone.tail,bone.head)),start=boneYaw(rest),target=unit(sub(b,a)),M=new Float32Array(16);
-  for(let col=0;col<3;col++){const v=quatAlign(start,target,boneYaw(bone.matrix.slice(col*4,col*4+3)));for(let j=0;j<3;j++)M[col*4+j]=v[j];}M[12]=a[0];M[13]=a[1];M[14]=a[2];M[15]=1;all.set(matmul(M,bone.inverseBind),i*16);
+  for(let col=0;col<3;col++){const v=quatAlign(start,target,boneYaw(bone.matrix.slice(col*4,col*4+3)));for(let j=0;j<3;j++)M[col*4+j]=v[j];}const origin=normalizedBoneOrigin(p,a,pose.nativeAnatomy?.scale||1);M[12]=origin[0];M[13]=origin[1];M[14]=origin[2];M[15]=1;all.set(matmul(M,bone.inverseBind),i*16);
  });return all;
 }
 // Runtime mesh LOD for the licensed, single-LOD MakeHuman asset.
@@ -215,7 +220,7 @@ class PlayerRenderer{
   this.gl=gl;this.assets=assets;this.options=options;this.studio=false;this.visualQuality='auto';this.lastRenderStats={players:0,fast:0,detailed:0,triangles:0,paletteBuilds:0,paletteHits:0,dualBuilds:0,dualHits:0,lodBinds:0};this.poseCache=new WeakMap();
   const shader=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;};
   const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,VS));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,options.standardMaterials?'#define STANDARD_ASSET\n'+FS:FS));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));this.program=program;
-  this.loc={};for(const n of ['uVP','uBoneReal[0]','uBoneDual[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uFast','uSkinTexture','uFabricTexture','uStandardAsset','uMaterialBase[0]','uMaterialRoughness[0]'])this.loc[n]=gl.getUniformLocation(program,n);
+  this.loc={};for(const n of ['uVP','uBoneReal[0]','uBoneDual[0]','uEye','uSkin','uShirt','uShorts','uHair','uBoots','uIris','uVariant','uNumber','uBeard','uStudio','uGoalie','uFast','uSkinTexture','uFabricTexture','uStandardAsset','uBodyTransform','uMaterialBase[0]','uMaterialRoughness[0]'])this.loc[n]=gl.getUniformLocation(program,n);
   this.attributes=[['aPosition',3,0],['aNormal',3,3],['aUV',2,6],['aJoints',4,8],['aWeights',4,12],['aMaterial',1,16],['aColor',3,17]].map(([n,size,off])=>({location:gl.getAttribLocation(program,n),size,off}));
   const uint32=assets.lods.some(a=>a.indexType==='I')?gl.getExtension('OES_element_index_uint'):true;
   const original=assets.lods.map(a=>({vertices:new Float32Array(decode(a.vertices)),
@@ -342,6 +347,7 @@ class PlayerRenderer{
    if(hidden)continue;
    if(!dual){dual=this.transientDual=Skinning.fromMatrices(connected,this.transientDual);renderStats.dualBuilds++;}
    if(batch){packInstance(batch.data,batchCount++,dual,p);batchLOD=lod;continue;}
+   gl.uniform3fv(this.loc.uBodyTransform,[p.x||0,p.z||0,renderBodyScale(p)]);
    gl.uniform4fv(this.loc['uBoneReal[0]'],dual.real);gl.uniform4fv(this.loc['uBoneDual[0]'],dual.dual);
    // Preserve draw order and all individual uniforms. Bind vertex attributes
    // only when LOD actually changes, rather than 23 times per broadcast frame.
@@ -358,5 +364,5 @@ class PlayerRenderer{
  }
  dispose(){if(this.disposed)return;this.disposed=true;this.poseCache=new WeakMap();this.transientDual=null;const gl=this.gl;if(this.batch){gl.deleteBuffer(this.batch.buffer);gl.deleteTexture(this.batch.texture);for(const shader of this.batch.shaders)gl.deleteShader(shader);gl.deleteProgram(this.batch.program);this.batch=null;}for(const lod of this.lods||[])if(lod){gl.deleteBuffer(lod.vertex);gl.deleteBuffer(lod.index);}for(const texture of Object.values(this.textures||{}))gl.deleteTexture(texture);if(this.program){for(const shader of gl.getAttachedShaders(this.program)||[])gl.deleteShader(shader);gl.deleteProgram(this.program);}}
 }
-PlayerRenderer.packInstance=packInstance;PlayerRenderer.batchShaders={vertex:BATCH_VS,fragment:BATCH_FS,width:BATCH_WIDTH,rows:BATCH_ROWS};PlayerRenderer.playerInView=playerInView;PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
+PlayerRenderer.normalizedBoneOrigin=normalizedBoneOrigin;PlayerRenderer.renderBodyScale=renderBodyScale;PlayerRenderer.packInstance=packInstance;PlayerRenderer.batchShaders={vertex:BATCH_VS,fragment:BATCH_FS,width:BATCH_WIDTH,rows:BATCH_ROWS};PlayerRenderer.playerInView=playerInView;PlayerRenderer.renderPalette=renderPalette;PlayerRenderer.skinning=Skinning;PlayerRenderer.simplifyLOD=simplifyLOD;PlayerRenderer.presentationPalette=presentationPalette;PlayerRenderer.vertexShader=VS;PlayerRenderer.fragmentShader=FS;PlayerRenderer.palette=palette;PlayerRenderer.decode=decode;root.TribunPlayerRenderer=PlayerRenderer;if(typeof module!=='undefined'&&module.exports)module.exports=PlayerRenderer;
 })(typeof window!=='undefined'?window:globalThis);

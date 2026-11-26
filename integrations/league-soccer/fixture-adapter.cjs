@@ -59,7 +59,7 @@ function convert(config) {
    requireValue(typeof source.name==='string'&&source.name.trim(),'Invalid player name');
    const pos=Model.slotFor(formation,slot),f=formations[formation][slot],effective=Model.forSlot(source,pos);
    const stats=Object.fromEntries(Object.entries(nativeStats).map(([key,attr])=>[key,clamp(effective[attr]/100,.01,1)]));
-   return {nativeId:team*11+slot+1,rosterId:id,rosterUid:source.uid??source.rosterUid??null,startFitness:clamp(Number.isFinite(source.fitness)?source.fitness:95,0,100),slot,position:pos.position,role:nativeRole[pos.position],x:f[1]/52.5,y:-f[2]/34,name:source.name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),rating:clamp(effective.skill/100,.01,1),stats};
+   return {nativeId:team*11+slot+1,rosterId:id,rosterUid:source.uid??source.rosterUid??null,preferredFoot:['left','right','both'].includes(source.preferredFoot)?source.preferredFoot:'unknown',startFitness:clamp(Number.isFinite(source.fitness)?source.fitness:95,0,100),slot,position:pos.position,role:nativeRole[pos.position],x:f[1]/52.5,y:-f[2]/34,name:source.name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),rating:clamp(effective.skill/100,.01,1),stats};
   });
   // Preserve exact selected slot identities; native GK-first order is explicit.
   players.sort((a,b)=>Number(b.role==='GK')-Number(a.role==='GK')||a.x-b.x||a.slot-b.slot);
@@ -71,7 +71,7 @@ function convert(config) {
    requireValue(typeof source.name==='string'&&source.name.trim(),'Invalid reserve name');
    const effective=Model.forSlot(source,pos);
    const stats=Object.fromEntries(Object.entries(nativeStats).map(([key,attr])=>[key,clamp(effective[attr]/100,.01,1)]));
-   return {nativeId:23+team*7+i,rosterId:source.id,rosterUid:source.uid??source.rosterUid??null,startFitness:clamp(Number.isFinite(source.fitness)?source.fitness:95,0,100),slot:slot??11+i,position:pos.position,role:nativeRole[pos.position],x:0,y:0,name:source.name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),rating:clamp(effective.skill/100,.01,1),stats};
+   return {nativeId:23+team*7+i,rosterId:source.id,rosterUid:source.uid??source.rosterUid??null,preferredFoot:['left','right','both'].includes(source.preferredFoot)?source.preferredFoot:'unknown',startFitness:clamp(Number.isFinite(source.fitness)?source.fitness:95,0,100),slot:slot??11+i,position:pos.position,role:nativeRole[pos.position],x:0,y:0,name:source.name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),rating:clamp(effective.skill/100,.01,1),stats};
   });
   const substitutions=plan.map(c=>({out:players.find(p=>p.rosterId===c.out).nativeId,in:bench.find(p=>p.rosterId===c.in).nativeId}));
   return {team,formation,players,bench,substitutions,tactics:{team_pressure:t.press/100,counter_attack:t.onWin==='counter'||t.playstyle==='counter'?.9:t.playstyle==='possession'?.2:.5,support_distance:t.passing==='short'?.2:t.passing==='direct'?.8:t.width==='wide'?.75:t.width==='narrow'?.25:.5},unsupported};
