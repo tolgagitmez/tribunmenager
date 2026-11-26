@@ -68,6 +68,12 @@ def native_command(args, platform=None):
     if args.native_runtime:options+=['--runtime',args.native_runtime]
     if args.native_session_root:options+=['--session-root',args.native_session_root]
     if args.native_prepare_only:options.append('--prepare-only')
+    profile=getattr(args,'native_attack_profile','default')
+    if profile not in ('default','lanes','coordinated'):raise ValueError('Invalid private attack profile')
+    if profile!='default':
+        if not platform.startswith('linux'):raise ValueError('Private attack profiles require this Linux source checkout.')
+        if args.native_prepare_only or getattr(args,'native_wsl_gpu',False):raise ValueError('Private attack profiles require a rendered software match.')
+        options+=['--attack-profile',profile]
     if platform.startswith('linux'):
         if args.native_update:raise ValueError('Linux kaynak kodunu git ile acikca guncelle.')
         return [sys.executable,str(ROOT/'integrations/league-soccer/native_alpha.py'),'--private-diagnostic',*options]
@@ -99,10 +105,12 @@ def main(argv=None):
     parser.add_argument('--native-runtime')
     parser.add_argument('--native-session-root')
     parser.add_argument('--native-delay', type=int, default=120)
+    parser.add_argument('--native-attack-profile', choices=['default','lanes','coordinated'], default='default', help='Explicit Linux private diagnostic only')
     args = parser.parse_args(argv)
     if args.port is None:args.port=8765 if args.mode=='native' else 8000
     if not 1 <= args.port <= 65535:
         parser.error('Port 1–65535 arasında olmalı.')
+    if args.mode!='native' and args.native_attack_profile!='default':parser.error('Native attack profile requires native mode.')
     if args.mode=='native':
         try:
             command=native_command(args)
