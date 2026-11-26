@@ -3343,6 +3343,107 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 176: temporarily prefer an existing alternative after repeated
+    # rejection of the first attacking candidate. Never discard commands.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''struct ActionAlternativeWatch {
+  int phase=-1,kind=-1;
+  unsigned int rejects=0;
+  unsigned long first=0,last=0,next=0;
+  void Reset(){phase=kind=-1;rejects=0;first=last=next=0;}
+  void Observe(bool eligible,int period,unsigned long now){
+    if(!eligible || (phase!=-1 && phase!=period) ||
+        (rejects && (now<last || now-last>600UL)))Reset();
+    if(eligible)phase=period;
+  }
+  void Rejected(int type,unsigned long now){
+    if(kind!=type || !rejects || now<last || now-last>600UL){
+      kind=type;rejects=1;first=last=now;return;
+    }
+    if(now==last)return;
+    last=now;
+    if(rejects<1000)++rejects;
+  }
+  void Accepted(int type){
+    if(kind==type){kind=-1;rejects=0;first=last=0;}
+  }
+  bool Ready(int type,unsigned long now)const{
+    return kind==type && rejects>=3 && now>=last &&
+        now-last<=600UL && now-first>=160UL && now>=next;
+  }
+  void Promoted(unsigned long now){next=now+500UL;}
+};
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.hpp", [
+        ('#include "humanoidbase.hpp"', '#include "humanoidbase.hpp"\n#include "../../aitactics.hpp"'),
+        ("  Team* team;", "  Team* team;\n  AITactics::ActionAlternativeWatch tribunAlternative;"),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ('#include "humanoid.hpp"', '#include "humanoid.hpp"\n#include <algorithm>'),
+        ("void Humanoid::ResetSituation(const Vector3& focusPos) {", "void Humanoid::ResetSituation(const Vector3& focusPos) {\n  tribunAlternative.Reset();"),
+        ("  const auto tribunActionName=[]", r'''  const auto tribunNow=match->GetActualTime_ms();
+  const auto tribunBall=match->GetBall()->Predict(0);
+  const bool tribunAlternativeEligible=tribunAudit &&
+      CastPlayer()->IsActive() && CastPlayer()->HasUniquePossession() &&
+      match->GetDesignatedPossessionPlayer()==player &&
+      match->GetLastTouchPlayer()==player && tribunBall.coords[2]<.8f &&
+      (tribunBall.Get2D()-player->GetPosition().Get2D()).GetLength()<=1.25f &&
+      player->GetMovement().GetLength()<.75f &&
+      match->GetBall()->GetMovement().GetLength()<1.0f;
+  tribunAlternative.Observe(tribunAlternativeEligible,
+      static_cast<int>(match->GetMatchPhase()),tribunNow);
+  const auto tribunAttackCandidate=[](e_FunctionType type){
+    return type==e_FunctionType_ShortPass || type==e_FunctionType_LongPass ||
+        type==e_FunctionType_HighPass || type==e_FunctionType_Shot;
+  };
+  const auto tribunActionName=[]'''),
+        ("    // iterate through the command queue and pick the first that is applicable", r'''    // Reorder only a native alternative already judged viable by the AI.
+    // Retain the original candidate and every fallback.
+    bool tribunPromoted=false;
+    if(tribunAlternativeEligible && !commandQueue.empty() &&
+        tribunAttackCandidate(commandQueue.front().desiredFunctionType) &&
+        tribunAlternative.Ready(static_cast<int>(commandQueue.front().desiredFunctionType),tribunNow)){
+      const auto original=commandQueue.front().desiredFunctionType;
+      auto alternative=commandQueue.end();
+      // Prefer another native short pass type over a slow movement fallback.
+      for(auto it=commandQueue.begin()+1;it!=commandQueue.end();++it){
+        if(it->desiredFunctionType==e_FunctionType_ShortPass && original!=e_FunctionType_ShortPass){
+          alternative=it;break;
+        }
+      }
+      if(alternative==commandQueue.end()){
+        for(auto it=commandQueue.begin()+1;it!=commandQueue.end();++it){
+          if(it->desiredFunctionType==e_FunctionType_BallControl &&
+              it->useDesiredMovement && it->desiredVelocityFloat>=1.2f){
+            alternative=it;break;
+          }
+        }
+      }
+      if(alternative!=commandQueue.end()){
+        const auto promoted=alternative->desiredFunctionType;
+        std::rotate(commandQueue.begin(),alternative,alternative+1);
+        tribunAlternative.Promoted(tribunNow);
+        tribunPromoted=true;
+        std::fprintf(stderr,"[tribun-action-alternative] phase=%d match_ms=%lu team=%d player=%d from=%s to=%s\n",
+            static_cast<int>(match->GetMatchPhase()),
+            static_cast<unsigned long>(match->GetMatchTime_ms()),team->GetID(),CastPlayer()->GetID(),
+            tribunActionName(original),tribunActionName(promoted));
+      }
+    }
+    // iterate through the command queue and pick the first that is applicable'''),
+        ("    bool preferPassAndShot = false;", "    bool preferPassAndShot = tribunPromoted;"),
+        ("      if(auditCandidate)\n        tribunActionLog(found?\"accepted\":\"rejected\",tribunActionName(command.desiredFunctionType));", r'''      if(auditCandidate)
+        tribunActionLog(found?"accepted":"rejected",tribunActionName(command.desiredFunctionType));
+      if(tribunAlternativeEligible && tribunAttackCandidate(command.desiredFunctionType)){
+        const int kind=static_cast<int>(command.desiredFunctionType);
+        if(found)tribunAlternative.Accepted(kind);
+        else if(i==0 && !tribunPromoted)tribunAlternative.Rejected(kind,tribunNow);
+      }'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
