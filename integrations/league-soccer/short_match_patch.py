@@ -3517,6 +3517,76 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 178: bounded native preparation when repeated contact failures
+    # persist and no suitable Stage 176/177 alternative is queued.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool SafeBodyPreparation(float bodyDot,float adjustment,float ballDistance,
+    float opponentClearance,float playerSpeed,float ballSpeed){
+  return std::isfinite(bodyDot) && std::isfinite(adjustment) &&
+      std::isfinite(ballDistance) && std::isfinite(opponentClearance) &&
+      std::isfinite(playerSpeed) && std::isfinite(ballSpeed) &&
+      bodyDot>=-1.01f && bodyDot<=1.01f && adjustment>=.12f && adjustment<=.8f &&
+      ballDistance>=.2f && ballDistance<=.95f && opponentClearance>=2.2f &&
+      playerSpeed>=0 && playerSpeed<.75f && ballSpeed>=0 && ballSpeed<.65f &&
+      (bodyDot<.5f || adjustment>.35f);
+}
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ("    // iterate through the command queue and pick the first that is applicable", r'''    // A short native adjustment is a fallback, not a forced pass or turn.
+    // Retain the unmodified queue if preparation cannot safely be attempted.
+    if(!tribunPromoted && tribunAlternativeEligible && !commandQueue.empty() &&
+        tribunAttackCandidate(commandQueue.front().desiredFunctionType) &&
+        tribunMissedTouch.Ready(static_cast<int>(commandQueue.front().desiredFunctionType),tribunNow)){
+      const auto original=commandQueue.front().desiredFunctionType;
+      const auto pos=player->GetPosition().Get2D();
+      const auto ball=match->GetBall()->Predict(100).Get2D();
+      const auto aim=commandQueue.front().touchInfo.desiredDirection.Get2D();
+      const float aimLength=aim.GetLength();
+      if(std::isfinite(aimLength) && aimLength>.1f){
+        const auto direction=aim.GetNormalized(spatialState.directionVec);
+        // Aim-relative approach, not a prescribed foot placement.
+        const auto target=ball-direction*.45f;
+        const auto delta=target-pos;
+        const float step=delta.GetLength();
+        const float bodyDot=spatialState.bodyDirectionVec.Get2D().GetNormalized(spatialState.directionVec).GetDotProduct(direction);
+        float clearance=100.0f;
+        std::vector<Player*> opponents;
+        match->GetTeam(abs(team->GetID()-1))->GetActivePlayers(opponents);
+        for(auto* opponent:opponents){
+          if(!opponent || !opponent->IsActive())continue;
+          const auto future=(opponent->GetPosition()+opponent->GetMovement()*.2f).Get2D();
+          clearance=std::min(clearance,std::min((future-target).GetLength(),
+              (opponent->GetPosition().Get2D()-pos).GetLength()));
+        }
+        if(AITactics::SafeBodyPreparation(bodyDot,step,(tribunBall.Get2D()-pos).GetLength(),
+            clearance,player->GetMovement().GetLength(),match->GetBall()->GetMovement().GetLength()) &&
+            std::abs(target.coords[0])<pitchHalfW-.7f && std::abs(target.coords[1])<pitchHalfH-.7f){
+          for(const auto& candidate:commandQueue){
+            if(candidate.desiredFunctionType!=e_FunctionType_Movement || !candidate.useDesiredMovement)continue;
+            auto preparation=candidate;
+            preparation.desiredDirection=delta.GetNormalized(spatialState.directionVec);
+            preparation.desiredVelocityFloat=1.2f;
+            preparation.useDesiredLookAt=true;
+            preparation.desiredLookAt=pos+direction*5.0f;
+            commandQueue.insert(commandQueue.begin(),preparation);
+            tribunMissedTouch.Promoted(tribunNow);
+            tribunAlternative.Promoted(tribunNow);
+            tribunPromoted=true;
+            std::fprintf(stderr,"[tribun-body-preparation] phase=%d match_ms=%lu team=%d player=%d action=%s body_dot=%.4f adjustment=%.4f clearance=%.4f\n",
+                static_cast<int>(match->GetMatchPhase()),
+                static_cast<unsigned long>(match->GetMatchTime_ms()),team->GetID(),CastPlayer()->GetID(),
+                tribunActionName(original),bodyDot,step,clearance);
+            break;
+          }
+        }
+      }
+    }
+    // iterate through the command queue and pick the first that is applicable'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
