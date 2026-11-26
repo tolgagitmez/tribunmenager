@@ -12,7 +12,7 @@ class ActivationRedesignTest(unittest.TestCase):
     def test_revised_gates_and_unchanged_success(self):
         with tempfile.TemporaryDirectory() as d:
             f=Path(d)
-            (f/"rules.hpp").write_text("#include <algorithm>\n"+p.TRIANGLE_RULES+p.DUEL_RULES+p.HOLD_UP_RULES)
+            (f/"rules.hpp").write_text("#include <algorithm>\n#include <cstdlib>\n// Stage 211: standalone fixture; the real gate lives in aitactics.hpp and is closed unless TRIBUN_AV_PRESSURE_HOLD and TRIBUN_AV_IDLE_RECOVERY are set\ninline bool PressureHold185Enabled(){return false;}\n"+p.TRIANGLE_RULES+p.DUEL_RULES+p.HOLD_UP_RULES)
             (f/"test.cpp").write_text(r'''
 #include "rules.hpp"
 #include <cassert>

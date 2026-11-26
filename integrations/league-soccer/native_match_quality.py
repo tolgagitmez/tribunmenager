@@ -133,4 +133,9 @@ def inspect(directory):
         from native_offball_diagnostics import inspect_offball
         result['offballLanes']=inspect_offball(directory/'native-match.game.log')
     except (OSError,ValueError,TypeError) as exc:result['errors']['offballLanes']=type(exc).__name__
+    result['animationRejections210']=None
+    try:
+        from native_animation_rejections import inspect_rejections
+        result['animationRejections210']=inspect_rejections(directory/'native-match.game.log')
+    except (OSError,ValueError,TypeError) as exc:result['errors']['animationRejections210']=type(exc).__name__
     return result
