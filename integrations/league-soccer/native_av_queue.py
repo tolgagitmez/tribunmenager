@@ -177,7 +177,7 @@ def run_match(runtime, root, job, *, database=None):
     return verify_output(out,sha)
 
 def main():
-    from native_admission import identity,verified_slots,pressure_ok,sample_host
+    from native_scheduler_policy import fingerprint,admitted_slots,pressure_ok,sample
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('database',type=Path);p.add_argument('runtime',type=Path);p.add_argument('output',type=Path)
     p.add_argument('--evidence',type=Path,required=True)
@@ -185,8 +185,8 @@ def main():
     db=a.database.resolve();runtime=a.runtime.resolve();out=a.output.resolve()
     if not db.is_file():p.error('Existing dev league database required')
     out.mkdir(mode=0o700,parents=True,exist_ok=True)
-    slots=verified_slots(json.loads(a.evidence.read_text()),identity(runtime))
-    if not slots or not pressure_ok(sample_host(out)):p.error('No verified local capacity or insufficient resources')
+    slots=admitted_slots(json.loads(a.evidence.read_text()),fingerprint(runtime),time.time())
+    if not slots or not pressure_ok(sample(out)):p.error('No verified local capacity or insufficient resources')
     # One execution per invocation; atomic reservation coordinates other workers.
     job=claim(db,slots,managed=True)
     if not job:return

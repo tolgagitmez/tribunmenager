@@ -1,0 +1,17 @@
+name: Stage 145 conservative native scheduling
+on:
+  push:
+    branches: [experiment/native-admission-scheduler-stage145]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_scheduler_policy.py
+          python3 -m unittest discover -s tests -p test_native_admission.py
+          python3 -m unittest discover -s tests -p test_native_worker_recovery.py
+          python3 -m unittest discover -s tests -p test_native_av_capacity.py
+          python3 -m py_compile integrations/league-soccer/native_av_scheduler.py integrations/league-soccer/native-av-capacity.py

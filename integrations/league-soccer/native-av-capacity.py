@@ -153,6 +153,9 @@ def main():
         p.error('Concurrent GPU diagnostics require separate dedicated displays; use single-match GPU pilot')
     runtime, fixtures, out = (x.resolve() for x in (args.runtime, args.fixtures, args.out))
     host_identity = identity(runtime)
+    from native_scheduler_policy import fingerprint, sample as admission_sample
+    try:admission_identity=fingerprint(runtime)
+    except (OSError,ValueError,KeyError):admission_identity=None
     trial_id = uuid.uuid4().hex
     out.mkdir(parents=True, exist_ok=False)
     names = prepare_fixtures(fixtures, out / 'fixtures', args.count)
@@ -199,9 +202,23 @@ def main():
             group_previous = current_group
             samples.append(sample)
         matches = [match_result(d, n.returncode, b.returncode) for d, n, b in jobs]
-        report = {**summarize(matches), 'trialId': trial_id, 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
+        report = {**summarize(matches), 'completedAt': time.time(), 'admissionIdentity': admission_identity, 'trialId': trial_id, 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
                   'samples': samples, 'processProfile': meter.report(), 'filterThreads': args.filter_threads, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
                   'encoderThreads': args.encoder_threads, 'renderProbeRequested': args.render_probe, 'glWorkers': args.gl_workers, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
+        # Assess resource headroom throughout the sampled match period, not just idle after it.
+        group_rows=[s['cgroup'] for s in samples]
+        try:
+            limits=[min(s['availableMemoryMiB'],(g['memoryLimitBytes']-g['memoryCurrentBytes'])/1048576) if g.get('memoryLimitBytes') is not None else s['availableMemoryMiB'] for s,g in zip(samples,group_rows)]
+            periods=sum(g['intervalDelta']['nr_periods'] for g in group_rows)
+            throttled=sum(g['intervalDelta']['nr_throttled'] for g in group_rows)
+            busy=[]
+            for i,g in enumerate(group_rows):
+                interval=samples[i]['elapsedSeconds']-(samples[i-1]['elapsedSeconds'] if i else 0)
+                quota=min(host_identity['logicalCpus'],g['quotaCpus']) if g['quotaCpus'] is not None else host_identity['logicalCpus']
+                busy.append(100*g['intervalDelta']['usage_usec']/(interval*1000000*quota))
+            resource=report['resourceSummary']
+            report['admissionGroupSummary']={'cpuBusyPercent':resource['cpuP95Percent'],'availableMemoryMiB':resource['minimumAvailableMemoryMiB'],'freeDiskMiB':resource['minimumFreeDiskMiB'],'groupCpuBusyPercent':sorted(busy)[math.ceil(.95*len(busy))-1],'groupThrottleFraction':throttled/max(1,periods),'groupMemoryHeadroomMiB':min(limits)}
+        except (KeyError,ValueError,ZeroDivisionError,IndexError,TypeError):report['admissionGroupSummary']=None
         if args.motion_audit:
             report['motionAuditRequested']=True
             report['passed']=report['passed'] and all(isinstance(m.get('motionAudit'),dict) for m in matches)
