@@ -1870,11 +1870,34 @@ inline bool CollectiveEnabled() {
   }();
   return enabled;
 }
+inline bool Offball188Enabled(){
+  static const bool enabled=[]{
+    const char* flag=std::getenv("TRIBUN_AV_OFFBALL_LANES");
+    const char* idle=std::getenv("TRIBUN_AV_IDLE_RECOVERY");
+    return flag && std::strcmp(flag,"1")==0 && idle && std::strcmp(idle,"1")==0 &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+inline float OffballArrival188(float distance,float speed){
+  return std::clamp(distance/std::clamp(speed+1.5f,3.0f,6.5f),.35f,1.5f);
+}
+inline bool OffballLane188(float progress,float distance,float margin,float endpoint,float corridor,float teammateGap,float runClearance){
+  return std::isfinite(progress)&&std::isfinite(distance)&&std::isfinite(margin)&&
+      std::isfinite(endpoint)&&std::isfinite(corridor)&&std::isfinite(teammateGap)&&
+      std::isfinite(runClearance)&&progress>=2.0f&&distance>=3.0f&&distance<=9.0f&&
+      margin>=1.5f&&endpoint>=2.2f&&corridor>=1.5f&&teammateGap>=3.5f&&runClearance>=1.0f;
+}
+inline float OffballScore188(float endpoint,float corridor,float teammateGap,float progress,float distance,float lateral,float runClearance){
+  return .75f*std::min(endpoint,6.0f)+.9f*std::min(corridor,5.0f)+
+      .40f*std::min(teammateGap,8.0f)+.2f*progress-.18f*distance+
+      .12f*std::min(lateral,5.0f)+.25f*std::min(runClearance,4.0f);
+}
 inline bool RunLanesEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_RUN_LANES");
-    return (CollectiveEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
-        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+    return Offball188Enabled() || ((CollectiveEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE"));
   }();
   return enabled;
 }
@@ -1893,11 +1916,11 @@ inline bool RunLanesEnabled() {
   if(AITactics::RunLanesEnabled() && match->IsInPlay() && !match->IsInSetPiece() &&
       !team->GetHumanGamerCount() && designatedPlayer!=CastPlayer() &&
       designatedPlayer->HasUniquePossession() && !combinationRun && dynamicMindSet>=.45f &&
-      (!AITactics::CollectiveEnabled() || team->GetController()->GetTribunTriangle().stage==0) &&
-      (primaryLane || secondaryLane) && std::abs(mainManPos.coords[1])<13.0f){
+      (!(AITactics::CollectiveEnabled() || AITactics::Offball188Enabled()) || team->GetController()->GetTribunTriangle().stage==0) &&
+      (primaryLane || secondaryLane) && (!AITactics::Offball188Enabled() || (!match->GetBallRetainer() && CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK)) && std::abs(mainManPos.coords[1])<(AITactics::Offball188Enabled()?22.0f:13.0f)){
     const float forward=-team->GetSide();
     const float carrierDepth=pitchHalfW-mainManPos.coords[0]*forward;
-    if(carrierDepth>=17.0f && carrierDepth<=40.0f){
+    if(carrierDepth>=17.0f && carrierDepth<=(AITactics::Offball188Enabled()?46.0f:40.0f)){
       ++match->tribunRunLaneAttempts[team->GetID()];
       std::vector<PlayerImage> rivals,mates;
       mentalImage->GetTeamPlayerImages(abs(team->GetID()-1),-1,rivals);
@@ -1909,8 +1932,8 @@ inline bool RunLanesEnabled() {
       Vector3 target(0);
       for(float setback:{0.0f,3.0f,6.0f}){
         for(float width:{4.5f,10.0f,15.5f}){
-          const float x=leadX-setback;
-          const float y=AITactics::RunLaneY(mainManPos.coords[1],primaryLane,width);
+          const float x=AITactics::Offball188Enabled()?std::min(leadX-setback,currentPos.coords[0]*forward+6.0f):leadX-setback;
+          const float y=AITactics::Offball188Enabled()?clamp(currentPos.coords[1]+clamp(AITactics::RunLaneY(mainManPos.coords[1],primaryLane,width)-currentPos.coords[1],-5.0f,5.0f),-24.0f,24.0f):AITactics::RunLaneY(mainManPos.coords[1],primaryLane,width);
           const Vector3 candidate(x*forward,y,0);
           const auto delta=candidate-mainManPos;
           const float passDistance=delta.GetLength();
@@ -1930,8 +1953,23 @@ inline bool RunLanesEnabled() {
           const float progress=run.coords[0]*forward;
           if(!AITactics::RunLaneEligible(pitchHalfW-x,progress,run.GetLength(),passDistance,
                 limit-x,endpoint,corridor,mateGap))continue;
-          const float score=AITactics::RunLaneScore(endpoint,corridor,mateGap,progress,
+          float score=AITactics::RunLaneScore(endpoint,corridor,mateGap,progress,
                 run.GetLength(),std::abs(run.coords[1]));
+          if(AITactics::Offball188Enabled()){
+            const float arrival=AITactics::OffballArrival188(run.GetLength(),player->GetMovement().Get2D().GetLength());
+            float endGap=100.0f,passGap=100.0f,teamGap=100.0f,runGap=100.0f;
+            for(const auto& rival:rivals){
+              endGap=std::min(endGap,(rival.position+rival.movement*arrival-candidate).Get2D().GetLength());
+              for(float f:{.25f,.5f,.75f}){
+                const auto future=rival.position+rival.movement*(arrival*f);
+                passGap=std::min(passGap,(future-(mainManPos+delta*f)).Get2D().GetLength());
+                runGap=std::min(runGap,(future-(currentPos+run*f)).Get2D().GetLength());
+              }
+            }
+            for(const auto& mate:mates)teamGap=std::min(teamGap,(mate.position+mate.movement*arrival-candidate).Get2D().GetLength());
+            if(!AITactics::OffballLane188(progress,run.GetLength(),limit-x,endGap,passGap,teamGap,runGap))continue;
+            score=AITactics::OffballScore188(endGap,passGap,teamGap,progress,run.GetLength(),std::abs(run.coords[1]),runGap);
+          }
           if(score>best){best=score;target=candidate;}
         }
       }
@@ -1943,6 +1981,10 @@ inline bool RunLanesEnabled() {
         spot.power=primaryLane?2.0f*runWeight:1.65f;
         forceField.push_back(spot);
         chosenLane=true;
+        if(AITactics::Offball188Enabled() && match->GetActualTime_ms()%250UL==0)
+          printf("[tribun-offball188] team=%d player=%d role=%s match_ms=%lu x=%.4f y=%.4f score=%.4f\n",
+              team->GetID(),CastPlayer()->GetID(),primaryLane?"primary":"secondary",
+              static_cast<unsigned long>(match->GetMatchTime_ms()),target.coords[0],target.coords[1],best);
         if(primaryLane)++match->tribunRunLanePrimary[team->GetID()];
         else ++match->tribunRunLaneSecondary[team->GetID()];
       }
