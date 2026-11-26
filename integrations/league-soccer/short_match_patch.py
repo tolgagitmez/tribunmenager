@@ -2305,10 +2305,11 @@ inline bool DuelEnabled() {
             if(score>best){best=score;chosen=dir;chosenSpeed=actualFraction;}
           }
         }
+        const bool newDuel=trial.carrier<0;
         if(best>baseline+(AITactics::DuelEscape184Enabled()?.45f:.25f)&&best>-999.0f&&
             (trial.carrier==player->GetID()||trial.Begin(player->GetID(),defender->GetID(),myPos.coords[0],-side,match->GetActualTime_ms()))){
           desiredDirection=chosen;desiredVelocity=sprintVelocity*chosenSpeed;
-          if(AITactics::DuelEscape184Enabled() && trial.start==match->GetActualTime_ms())
+          if(AITactics::DuelEscape184Enabled() && newDuel)
             printf("[tribun-duel-escape] team=%d carrier=%d defender=%d event=started\n",
                 team->GetID(),player->GetID(),defender->GetID());
         }
