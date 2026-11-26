@@ -15,6 +15,7 @@ from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_con
 import season_state
 import native_shadow
 import native_live
+import native_av_gateway
 import importlib.util
 _av_spec=importlib.util.spec_from_file_location('native_av_queue',Path(__file__).resolve().parent/'integrations/league-soccer/native_av_queue.py')
 native_av_queue=importlib.util.module_from_spec(_av_spec)
@@ -363,8 +364,20 @@ class Handler(SimpleHTTPRequestHandler):
     def json_response(self, data, code=200):
         body=json.dumps(data,ensure_ascii=False).encode('utf-8')
         self.send_response(code);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.send_header('Cache-Control','no-store');self.end_headers();self.wfile.write(body)
+    def native_av_access(self,round_number,body=None):
+        root=os.environ.get('TRIBUN_NATIVE_AV_GATEWAY_ROOT')
+        if not root:return self.json_response({'error':'Native AV deneysel erişimi kapalı.'},503)
+        try:
+            with LOCK,closing(db()) as c:
+                attempt,side=native_av_gateway.resolve(c,self.transfer_token(),round_number,time.time())
+            return self.json_response(native_av_gateway.forward(root,attempt,side,round_number,body),202 if body is not None else 200)
+        except (native_av_gateway.GatewayError,native_live.ControlError) as e:return self.json_response({'error':str(e)},e.status)
+        except (sqlite3.Error,OSError,ValueError,TypeError):return self.json_response({'error':'Native AV erişimi kullanılamıyor.'},503)
     def do_GET(self):
         p=urlsplit(self.path)
+        if p.path=='/api/league/native-av/tactics':
+            v=parse_qs(p.query).get('round',[''])[0]
+            return self.native_av_access(int(v) if len(v)==1 and v in '0123456789' else None)
         if p.path=='/api/transfers/state':
             if not TRANSFERS_ENABLED:return self.json_response({'error':'Lig modunda transfer hizmeti kapalı.'},503)
             try:return self.json_response(transfer_service().status(self.transfer_token()))
@@ -401,8 +414,13 @@ class Handler(SimpleHTTPRequestHandler):
             except sqlite3.Error:return self.json_response({'error':'Canlı maç kaydına ulaşılamadı.'},503)
         if p.path.startswith('/api/'):return self.json_response({'error':'API yolu bulunamadı.'},404)
         # Development data and server code must never be downloadable as assets.
-        parts=Path(p.path).parts
-        if any(x.startswith('.') or x in ('work','node_modules','__pycache__') for x in parts if x not in ('/','')) or p.path.endswith(('.py','.sqlite','.sqlite3','.db','-wal','-shm')):
+        # Decode before checking private paths; native capability files must never be static assets.
+        from urllib.parse import unquote
+        decoded=unquote(p.path)
+        if any(part.startswith('local-manager-') or part=='local-url.txt' for part in Path(decoded).parts):
+            return self.json_response({'error':'Dosya erişime kapalı.'},403)
+        parts=Path(decoded).parts
+        if any(x.startswith('.') or x in ('work','node_modules','__pycache__') for x in parts if x not in ('/','')) or decoded.endswith(('.py','.sqlite','.sqlite3','.db','-wal','-shm')):
             return self.json_response({'error':'Dosya erişime kapalı.'},403)
         return super().do_GET()
     def transfer_token(self):
@@ -410,6 +428,17 @@ class Handler(SimpleHTTPRequestHandler):
         return auth[7:] if auth.startswith('Bearer ') else ''
     def do_POST(self):
         p=urlsplit(self.path).path
+        if p=='/api/league/native-av/tactics':
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0<length<=2048:raise ValueError()
+                self.connection.settimeout(5)
+                body=json.loads(self.rfile.read(length))
+                if not isinstance(body,dict):raise ValueError()
+                native_live.validate_command(body)
+                return self.native_av_access(body.get('round'),body)
+            except native_live.ControlError as e:return self.json_response({'error':str(e)},e.status)
+            except (ValueError,TypeError,UnicodeError,TimeoutError):return self.json_response({'error':'Geçersiz komut.'},400)
         if p=='/api/league/native-pilot/tactics':
             try:
                 length=int(self.headers.get('Content-Length','0'))
