@@ -1,7 +1,7 @@
 name: Native locomotion smoothing diagnostic
 on:
   push:
-    branches: [experiment/native-motion-smooth-stage78]
+    branches: [experiment/native-motion-smooth-stage78, experiment/native-motion-refinement-stage78]
     paths:
       - 'integrations/league-soccer/**'
       - 'tests/test_native_motion_smooth.py'

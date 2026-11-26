@@ -19,6 +19,7 @@ class MotionTest(unittest.TestCase):
             (f/"test.cpp").write_text(r'''
 #include "rules.hpp"
 #include <cassert>
+#include <limits>
 int main(){
   auto a=LimitMotion(0,0,1,0,.5f,.5f,.5f,.01f);assert(a.x>0&&a.x<.09f);
   auto high=LimitMotion(4,0,0,1,.9f,.5f,.9f,.01f);
@@ -27,6 +28,22 @@ int main(){
   auto brake=LimitMotion(5,0,-5,0,.5f,.5f,.5f,.01f);assert(brake.x>-.12f&&brake.x<-.10f);
   auto small=LimitMotion(5,0,.01f,.01f,.5f,.5f,.5f,.01f);assert(std::abs(small.x-.01f)<.00001f);
   auto rotated=LimitMotion(0,4,-1,0,.9f,.5f,.9f,.01f);assert(std::abs(rotated.x+high.y)<.00001f);
+  auto diagonal=LimitMotion(5,0,1,1,.5f,.5f,.5f,.01f);
+  const float longitudinal=.085f, lateral=.095f/1.225f;
+  assert(std::hypot(diagonal.x/longitudinal,diagonal.y/lateral)<=1.00001f);
+  assert(diagonal.x>0&&diagonal.y>0&&std::abs(diagonal.x-diagonal.y)<.00001f);
+  auto reverseTurn=LimitMotion(5,0,-1,1,.5f,.5f,.5f,.01f);
+  assert(std::hypot(reverseTurn.x/.11f,reverseTurn.y/lateral)<=1.00001f);
+  auto left=LimitMotion(.499f,0,-1,1,.5f,.5f,.5f,.01f);
+  auto right=LimitMotion(.501f,0,-1,1,.5f,.5f,.5f,.01f);
+  assert(std::hypot(left.x-right.x,left.y-right.y)<.001f);
+  for(float edge : {.25f,.75f}){
+    auto l=LimitMotion(edge-.001f,0,0,1,.9f,.5f,.9f,.01f);
+    auto r=LimitMotion(edge+.001f,0,0,1,.9f,.5f,.9f,.01f);
+    assert(std::hypot(l.x-r.x,l.y-r.y)<.001f);
+  }
+  auto invalid=LimitMotion(5,0,.2f,.3f,.5f,.5f,.5f,std::numeric_limits<float>::quiet_NaN());
+  assert(invalid.x==.2f&&invalid.y==.3f);
 }
 ''')
             subprocess.run(["c++","-std=c++17",str(f/"test.cpp"),"-o",str(f/"test")],check=True)

@@ -386,22 +386,33 @@ MOTION_RULES = r'''// Per-step longitudinal and lateral budgets in m/s. Only loc
 struct MotionDelta {float x,y;};
 inline MotionDelta LimitMotion(float vx,float vy,float dx,float dy,float agility,float acceleration,float balance,float dt){
   if(!std::isfinite(vx)||!std::isfinite(vy)||!std::isfinite(dx)||!std::isfinite(dy)||
-     !std::isfinite(agility)||!std::isfinite(acceleration)||!std::isfinite(balance)||dt<=0||dt>.05f)return {dx,dy};
+     !std::isfinite(agility)||!std::isfinite(acceleration)||!std::isfinite(balance)||!std::isfinite(dt)||dt<=0||dt>.05f)return {dx,dy};
   agility=std::clamp(agility,0.0f,1.0f);
   acceleration=std::clamp(acceleration,0.0f,1.0f);
   balance=std::clamp(balance,0.0f,1.0f);
   const float speed=std::hypot(vx,vy);
   const float accel=6.5f+4.0f*acceleration,brake=9.0f+4.0f*balance;
-  if(speed<.5f){
-    const float magnitude=std::hypot(dx,dy);
-    const float scale=magnitude>accel*dt?accel*dt/magnitude:1.0f;
-    return {dx*scale,dy*scale};
-  }
+  // At low speed, direction is poorly defined. Blend continuously from a
+  // circular acceleration budget to the directional traction envelope.
+  const float magnitude=std::hypot(dx,dy);
+  const float scale=magnitude>accel*dt?accel*dt/magnitude:1.0f;
+  const MotionDelta circular{dx*scale,dy*scale};
+  if(speed<=.25f)return circular;
   const float ux=vx/speed,uy=vy/speed;
-  const float longitudinal=std::clamp(dx*ux+dy*uy,-brake*dt,accel*dt);
+  const float requestedLong=dx*ux+dy*uy;
+  const float requestedLat=-dx*uy+dy*ux;
+  const float longLimit=(requestedLong<0.0f?brake:accel)*dt;
   const float lateralLimit=(6.0f+5.0f*agility+2.0f*balance)/(1.0f+.045f*speed)*dt;
-  const float lateral=std::clamp(-dx*uy+dy*ux,-lateralLimit,lateralLimit);
-  return {ux*longitudinal-uy*lateral,uy*longitudinal+ux*lateral};
+  // Combined longitudinal/lateral traction: one shared budget, not two
+  // independent maxima. Scale the requested vector without rotating it.
+  const float utilization=std::hypot(requestedLong/longLimit,requestedLat/lateralLimit);
+  const float tractionScale=utilization>1.0f?1.0f/utilization:1.0f;
+  const float longitudinal=requestedLong*tractionScale,lateral=requestedLat*tractionScale;
+  const MotionDelta directional{ux*longitudinal-uy*lateral,uy*longitudinal+ux*lateral};
+  const float blend=std::clamp((speed-.25f)/.50f,0.0f,1.0f);
+  const float weight=blend*blend*(3.0f-2.0f*blend);
+  return {circular.x+(directional.x-circular.x)*weight,
+          circular.y+(directional.y-circular.y)*weight};
 }
 '''
 
@@ -2768,7 +2779,7 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
       const auto limited=AITactics::LimitMotion(temporalMovement.coords[0],temporalMovement.coords[1],
           toDesired.coords[0],toDesired.coords[1],stat_agility,stat_acceleration,
           player->GetStat("physical_balance"),timeStep_ms*.001f);
-      const Vector3 adjusted(limited.x,limited.y,0);
+      const Vector3 adjusted(limited.x,limited.y,toDesired.coords[2]);
       ++match->tribunMotionPlanSteps;
       if((adjusted-toDesired).GetLength()>.0001f)++match->tribunMotionLimitedSteps;
       toDesired=adjusted;
