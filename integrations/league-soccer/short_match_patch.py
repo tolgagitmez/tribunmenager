@@ -3444,6 +3444,79 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 177: distinguish failed touch geometry from selector rejection.
+    # Do not enlarge the native contact radius or force a ball touch.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''struct MissedTouchWatch {
+  int phase=-1,kind=-1;
+  unsigned int misses=0;
+  unsigned long first=0,last=0,next=0;
+  void Reset(){phase=kind=-1;misses=0;first=last=next=0;}
+  void Observe(bool controlled,int period,unsigned long now){
+    if(!controlled || (phase!=-1 && phase!=period) ||
+       (misses && (now<last || now-first>1500UL)))Reset();
+    if(controlled)phase=period;
+  }
+  void Miss(int type,unsigned long now){
+    if(kind!=type || !misses || now<last || now-first>1500UL){
+      kind=type;misses=1;first=last=now;return;
+    }
+    if(now==last)return;
+    last=now;if(misses<1000)++misses;
+  }
+  bool Ready(int type,unsigned long now)const{
+    return kind==type && misses>=2 && now>=last &&
+        now-first<=1500UL && now>=next;
+  }
+  void Promoted(unsigned long now){next=now+500UL;misses=0;kind=-1;first=last=0;}
+  void Contact(){misses=0;kind=-1;first=last=0;}
+};
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.hpp", [
+        ("  AITactics::ActionAlternativeWatch tribunAlternative;", "  AITactics::ActionAlternativeWatch tribunAlternative;\n  AITactics::MissedTouchWatch tribunMissedTouch;"),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ("  tribunAlternative.Reset();\n  HumanoidBase::ResetSituation", "  tribunAlternative.Reset();\n  tribunMissedTouch.Reset();\n  HumanoidBase::ResetSituation"),
+        ("  const auto tribunAttackCandidate=[]", r'''  const bool tribunTouchControlled=tribunAudit &&
+      CastPlayer()->IsActive() && CastPlayer()->HasUniquePossession() &&
+      match->GetDesignatedPossessionPlayer()==player &&
+      match->GetLastTouchPlayer()==player;
+  tribunMissedTouch.Observe(tribunTouchControlled,
+      static_cast<int>(match->GetMatchPhase()),tribunNow);
+  const auto tribunAttackCandidate=[]'''),
+        ("        tribunAlternative.Ready(static_cast<int>(commandQueue.front().desiredFunctionType),tribunNow)){", r'''        (tribunAlternative.Ready(static_cast<int>(commandQueue.front().desiredFunctionType),tribunNow) ||
+         tribunMissedTouch.Ready(static_cast<int>(commandQueue.front().desiredFunctionType),tribunNow))){
+      const bool touchRetry=tribunMissedTouch.Ready(static_cast<int>(commandQueue.front().desiredFunctionType),tribunNow);'''),
+        ("        tribunAlternative.Promoted(tribunNow);\n        tribunPromoted=true;", r'''        tribunAlternative.Promoted(tribunNow);
+        if(touchRetry){
+          tribunMissedTouch.Promoted(tribunNow);
+          std::fprintf(stderr,"[tribun-touch-retry] phase=%d match_ms=%lu team=%d player=%d from=%s to=%s\n",
+              static_cast<int>(match->GetMatchPhase()),
+              static_cast<unsigned long>(match->GetMatchTime_ms()),team->GetID(),CastPlayer()->GetID(),
+              tribunActionName(original),tribunActionName(promoted));
+        }
+        tribunPromoted=true;'''),
+        ('      tribunActionLog("missed-touch",tribunActionName(currentAnim->functionType));', r'''      tribunActionLog("missed-touch",tribunActionName(currentAnim->functionType));
+    if(tribunTouchControlled && tribunAttackCandidate(currentAnim->functionType) &&
+        !(fullBallDistance < touchableDistance &&
+          fabs(desiredBallHeight-match->GetBall()->Predict(0).coords[2])<1.0f)){
+      tribunMissedTouch.Miss(static_cast<int>(currentAnim->functionType),tribunNow);
+      std::fprintf(stderr,"[tribun-touch-geometry] phase=%d match_ms=%lu team=%d player=%d action=%s distance=%.4f limit=%.4f height_error=%.4f body_angle=%.4f player_speed=%.4f ball_speed=%.4f frame=%d touch_frame=%d\n",
+          static_cast<int>(match->GetMatchPhase()),
+          static_cast<unsigned long>(match->GetMatchTime_ms()),team->GetID(),CastPlayer()->GetID(),
+          tribunActionName(currentAnim->functionType),fullBallDistance,touchableDistance,
+          fabs(desiredBallHeight-match->GetBall()->Predict(0).coords[2]),
+          spatialState.bodyAngle,player->GetMovement().GetLength(),
+          match->GetBall()->GetMovement().GetLength(),currentAnim->frameNum,currentAnim->touchFrame);
+    }'''),
+        ('        tribunActionLog("contact",tribunActionName(currentAnim->functionType));', '        tribunMissedTouch.Contact();\n        tribunActionLog("contact",tribunActionName(currentAnim->functionType));'),
+        ('        tribunActionLog("contact","shot");', '        tribunMissedTouch.Contact();\n        tribunActionLog("contact","shot");'),
+        ('        tribunActionLog("contact","ball-control");', '        tribunMissedTouch.Contact();\n        tribunActionLog("contact","ball-control");'),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
