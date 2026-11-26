@@ -57,7 +57,20 @@ configurePlayerModel(){
  catch(error){this.playerAppearanceError=error.message;publish({rendererError:error,validation:error.validation});return;}
  candidate.ready.then(()=>{this.playerRenderer=candidate;this.setPerformanceMode(this.performance.mode);publish({renderer:candidate,validation:candidate.validation});}).catch(error=>{this.playerRenderer=null;this.playerAppearanceError=error.message;publish({rendererError:error,validation:candidate.validation});});
 }
-makeStatic(){let m=new Mesh(),green=[.09,.34,.16],white=[.72,.83,.75],seat=[.055,.12,.20],ad=[.09,.33,.52],stripe=[.11,.39,.19];m.box(0,-.4,0,137,.6,98,[.035,.075,.09]);for(let i=0;i<12;i++)m.box(-47.66+i*8.67,-.035,0,8.67,.07,68,i%2?green:stripe);
+setStadiumStyle(style){
+ if(!['classic','broadcast'].includes(style))throw Error('Invalid stadium style');
+ this.stadiumStyle=style==='broadcast'&&window.TribunStadiumDesign?'broadcast':'classic';
+ if(this.gl)this.makeStatic();
+ return this.performanceMode();
+}
+makeStatic(){
+ const key=(this.stadiumStyle||'classic')+':'+(this.stadiumStyle==='broadcast'?this.performance.mode:'base');
+ if(this.staticKey===key)return;
+ if(this.stadiumStyle==='broadcast'&&window.TribunStadiumDesign){
+  const m=new Mesh();window.TribunStadiumDesign.build(m,goal,this.performance.mode);
+  this.uploadStatic(m,key);return;
+ }
+ let m=new Mesh(),green=[.09,.34,.16],white=[.72,.83,.75],seat=[.055,.12,.20],ad=[.09,.33,.52],stripe=[.11,.39,.19];m.box(0,-.4,0,137,.6,98,[.035,.075,.09]);for(let i=0;i<12;i++)m.box(-47.66+i*8.67,-.035,0,8.67,.07,68,i%2?green:stripe);
 // proper field boundary and areas
 const line=(x,z,X,Z,w=.18)=>m.line(x,.055,z,X,.055,Z,w,white);line(-52,-34,52,-34);line(-52,34,52,34);line(-52,-34,-52,34);line(52,-34,52,34);line(0,-34,0,34);
 for(let a=-1;a<=1;a+=2){let x=52*a,inner=35*a;line(x,-20,inner,-20);line(inner,-20,inner,20);line(inner,20,x,20);let small=46*a;line(x,-9,small,-9);line(small,-9,small,9);line(small,9,x,9);m.sphere(41.5*a,.08,0,.2,.09,.2,white);}
@@ -71,7 +84,8 @@ for(let x of [-1,1]){m.box(x*57,1,0,1.5,2,82,[.04,.17,.28]);for(let row=0;row<10
 let rs=1783;let rnd=()=>{rs=(Math.imul(rs,1664525)+1013904223)>>>0;return rs/4294967296};const crowdColors=[[.12,.38,.57],[.31,.38,.44],[.51,.55,.60],[.07,.21,.37],[.38,.22,.20],[.65,.54,.32]];for(let j=0;j<680;j++){let edge=rnd()>.5?'long':'short';let s=rnd()>.5?1:-1;let row=Math.floor(rnd()*8),x,z;if(edge==='long'){x=(rnd()-.5)*120;z=s*(40+row*1.3)}else{x=s*(60+row*1.3);z=(rnd()-.5)*85}let y=3.7+row*.96;let col=crowdColors[Math.floor(rnd()*crowdColors.length)];m.box(x,y,z,.32,.50,.32,col);m.sphere(x,y+.34,z,.17,.18,.17,[.55,.43,.36],3,5)}
 // floodlights towers and glow fixtures
 for(let x of [-65,65])for(let z of [-50,50]){m.box(x,17,z,.9,35,.9,[.13,.20,.28]);m.box(x,34,z,12,4,.5,[.65,.78,.86]);for(let k=0;k<7;k++)m.box(x-5+k*1.65,34.5,z-.35,.92,1.9,.14,[.84,.92,1])}
-this.staticCount=m.ct;let gl=this.gl;gl.bindBuffer(gl.ARRAY_BUFFER,this.staticBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(m.v),gl.STATIC_DRAW);}
+this.uploadStatic(m,key);}
+uploadStatic(m,key){this.staticCount=m.ct;let gl=this.gl;gl.bindBuffer(gl.ARRAY_BUFFER,this.staticBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(m.v),gl.STATIC_DRAW);this.staticKey=key;this.staticUploads=(this.staticUploads||0)+1;}
 figure(mesh,p,dt){
  if(!p.active)return;const rig=window.TribunHumanoidRig;if(!rig)return;
  const pose=rig.getPose(p),skin=p.skin||[.72,.52,.38],hair=p.hair||[.12,.10,.08],isGK=p.role==='GK',ref=p.referee;
@@ -147,9 +161,11 @@ setPerformanceMode(mode){
  if(!['balanced','performance','quality'].includes(mode))throw Error('Invalid graphics mode');
  this.performance.mode=mode;this.performance.scale=1;this.performance.lowFrames=0;this.performance.goodFrames=0;
  if(this.playerRenderer)this.playerRenderer.visualQuality=mode==='performance'?'fast':mode==='quality'?'detailed':'auto';
+ if(this.gl&&this.stadiumStyle==='broadcast')this.makeStatic();
  return this.performanceMode();
 }
 performanceMode(){return {mode:this.performance.mode,scale:this.performance.scale,fps:this.performance.fps,
+ stadium:{style:this.gl?(this.stadiumStyle||'classic'):'2d',triangles:(this.staticCount||0)/3,uploads:this.staticUploads||0},
  canvas:[this.canvas.width,this.canvas.height],players:this.playerRenderer?.lastRenderStats||null,dynamicBuffer:{capacityBytes:(this.dynamicCapacity||0)*4,uploadedBytes:this.dynamicUploadedBytes||0,allocations:this.dynamicAllocations||0}};}
 observeFrame(dt,paused=false){
  if(paused||!Number.isFinite(dt)||dt<=0||dt>2||(typeof document!=='undefined'&&document.hidden))return;

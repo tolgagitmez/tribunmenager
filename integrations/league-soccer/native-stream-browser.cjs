@@ -29,6 +29,11 @@ function packet(seq,score=[0,0],done=false){
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_STREAM_TEST.presentation().modelReady,{},{timeout:30000});
+  const initial=await page.evaluate(()=>window.TRIBUN_NATIVE_STREAM_TEST.presentation().graphics.stadium);
+  assert.equal(initial.style,'broadcast');assert.ok(initial.triangles>0);
+  await page.locator('#stadiumStyle').selectOption('classic');
+  assert.equal(await page.evaluate(()=>window.TRIBUN_NATIVE_STREAM_TEST.presentation().graphics.stadium.style),'classic');
+  await page.locator('#stadiumStyle').selectOption('broadcast');
   await page.locator('#advancedPresentation').check();
   await page.locator('#quality').selectOption('performance');
   await page.waitForFunction(()=>{const p=window.TRIBUN_NATIVE_STREAM_TEST.presentation();return p.enabled&&p.graphics.canvas[0]*p.graphics.canvas[1]<=450000;});

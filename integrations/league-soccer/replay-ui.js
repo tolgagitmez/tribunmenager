@@ -2,7 +2,7 @@
 (function(){
 const $=id=>document.getElementById(id);
 const rig=window.TribunHumanoidRig,api=window.TribunNativeReplay,scene=new Stadium3D($('pitch'));
-scene.setPerformanceMode('balanced');
+scene.setPerformanceMode('balanced');scene.setStadiumStyle($('stadiumStyle').value);
 const tv=window.TribunBroadcastDesign.create(document);
 $('renderMode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
 let replay=null,frames=null,manifest=null,position=0,playing=false,last=null,generation=0,current=null,broadcast=null,broadcastStart=0;
@@ -100,6 +100,7 @@ function configureGraphics(){
  invalidate(performance.now(),300);
 }
 $('quality').onchange=configureGraphics;
+$('stadiumStyle').onchange=()=>{scene.setStadiumStyle($('stadiumStyle').value);invalidate(performance.now(),200);};
 $('renderOptimization').onchange=()=>{optimized=$('renderOptimization').checked;configureGraphics();reset();draw();};
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{configureGraphics();}).observe($('pitch'));
 window.addEventListener('resize',configureGraphics);
