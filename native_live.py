@@ -77,6 +77,9 @@ class Session:
         self.revisions=[0,0]
         self.last_submit=[-math.inf,-math.inf]
         self.requests=[{},{}]
+        self.applied=[0,0]
+        self.applied_formation=[0,0]
+        self.pending=[None,None]
     def ingest(self,frame):
         with self.lock:
             if self.ended:raise ValueError("Trace continued after final")
@@ -87,8 +90,9 @@ class Session:
             score=frame.get("score")
             if not isinstance(score,list) or len(score)!=2 or any(type(v) is not int or v<0 for v in score):
                 raise ValueError("Invalid native score")
-            if self.frame and (frame["elapsedMs"]<self.frame["elapsedMs"] or any(x<y for x,y in zip(score,self.frame["score"]))):
+            if self.frame and (frame["elapsedMs"]<self.frame["elapsedMs"] or frame["matchMs"]<self.frame["matchMs"] or any(x<y for x,y in zip(score,self.frame["score"]))):
                 raise ValueError("Regressing native frame")
+            self.verify_acknowledgements(frame)
             observed=self.clock()
             if self.first_open is None and frame.get("inPlay") is True and frame["matchMs"]<2700000 and not frame["done"]:
                 self.first_open=observed
@@ -101,6 +105,34 @@ class Session:
             self.frame=frame
             self.sequence+=1
             self.last_received=self.clock()
+    def verify_acknowledgements(self,frame):
+        # The mailbox is not an acknowledgement. Only a matching trace
+        # revision and values can release the one-command-per-team gate.
+        rows=frame.get("managerTactics")
+        if rows is None:
+            if any(self.revisions):raise ValueError("Missing native command acknowledgements")
+            return
+        if not isinstance(rows,list) or len(rows)!=2 or any(not isinstance(a,dict) or type(a.get("team")) is not int for a in rows) or {a["team"] for a in rows}!={0,1}:
+            raise ValueError("Invalid native acknowledgement teams")
+        updates=[]
+        for ack in rows:
+            side=ack["team"];rev=ack.get("revision")
+            if type(rev) is not int or not self.applied[side]<=rev<=self.revisions[side]:
+                raise ValueError("Unexpected native acknowledgement revision")
+            if rev==self.applied[side]:continue
+            pending=self.pending[side]
+            if not pending or rev!=pending["revision"]:raise ValueError("Unknown native acknowledgement")
+            values=pending["values"]
+            formation=values[-1] or self.applied_formation[side]
+            if any(type(ack.get(k)) is not int or ack[k]!=v for k,v in zip(FIELDS,(*values[:-1],formation))):
+                raise ValueError("Native acknowledgement values differ")
+            match_ms,elapsed_ms=ack.get("appliedMatchMs"),ack.get("appliedElapsedMs")
+            if type(match_ms) is not int or not pending["earliest"]<=match_ms<=frame["matchMs"] or type(elapsed_ms) is not int or not pending["elapsed"]<=elapsed_ms<=frame["elapsedMs"]:
+                raise ValueError("Invalid acknowledgement time")
+            updates.append((side,rev,formation))
+        # Validate both teams before committing any state.
+        for side,rev,formation in updates:
+            self.applied[side]=rev;self.applied_formation[side]=formation;self.pending[side]=None
     def close(self):
         with self.lock:self.ended=True
     def timing(self):
@@ -116,11 +148,12 @@ class Session:
             frame=self.frame
             fresh=self.last_received is not None and self.clock()-self.last_received<5
             can=bool(frame and fresh and not self.ended and frame["matchMs"]<5400000)
-            ack=next((x for x in (frame or {}).get("managerTactics",[]) if x.get("team")==side),{})
+            waiting=self.pending[side] is not None
+            pending_state="not-applied-at-end" if waiting and self.ended else "waiting-for-engine" if waiting else "applied" if self.applied[side] else "idle"
             return dict(engine="league-soccer",authoritative=False,source="interactive-native",
                 state="running",phase="playing" if frame else "waiting",frame=frame,sequence=self.sequence,
-                side=side,canControl=can,submittedRevision=self.revisions[side],
-                appliedRevision=ack.get("revision",0),finalizing=self.ended,
+                side=side,canControl=can and not waiting,submittedRevision=self.revisions[side],
+                appliedRevision=self.applied[side],commandState=pending_state,finalizing=self.ended,
                 observedWallMs=None if self.first_open is None else max(0,round(((self.final_received if self.final_received is not None else self.clock())-self.first_open)*1000)),**self.meta)
     def command(self,side,ident,values):
         if type(side) is not int or side not in (0,1):raise ControlError("Takım yetkisi yok.",403)
@@ -129,6 +162,7 @@ class Session:
             if previous:
                 if previous[0]!=values:raise ControlError("Aynı istek kimliği farklı komut içeriyor.")
                 return previous[1]
+            if self.pending[side] is not None:raise ControlError("Önceki komutun motor onayı bekleniyor.")
             if not self.read(side)["canControl"]:raise ControlError("Motor şu anda komut kabul etmiyor.")
             if len(self.requests[side])>=120:raise ControlError("Maç komut sınırına ulaşıldı.",429)
             now=self.clock()
@@ -138,6 +172,7 @@ class Session:
             revision=self.revisions[side]+1
             reply=mailbox.publish(self.directory,side,revision,self.frame["matchMs"],*values)
             self.revisions[side]=revision
+            self.pending[side]={"revision":revision,"values":values,"earliest":self.frame["matchMs"],"elapsed":self.frame["elapsedMs"]}
             self.last_submit[side]=now
             self.requests[side][ident]=(values,reply)
             return reply

@@ -27,7 +27,34 @@ class LiveTest(unittest.TestCase):
         with self.assertRaises(n.ControlError):self.s.command(0,"request-1",(20,*self.values[1:]))
         self.assertEqual(self.s.read(0)["appliedRevision"],0)
         self.now+=3
+        with self.assertRaises(n.ControlError):self.s.command(0,"request-2",self.values)
+        f=frame(2);f["managerTactics"][0]=dict(team=0,revision=1,appliedMatchMs=2000,appliedElapsedMs=200,**dict(zip(n.FIELDS,self.values)))
+        self.s.ingest(f)
+        self.assertEqual(self.s.read(0)["appliedRevision"],1)
         self.assertEqual(self.s.command(0,"request-2",self.values)["revision"],2)
+    def test_stage106_ack_validates_values_and_both_teams_atomically(self):
+        self.s.ingest(frame())
+        for side in (0,1):self.s.command(side,"request-1",self.values)
+        f=frame(2)
+        for side in (0,1):f["managerTactics"][side]=dict(team=side,revision=1,appliedMatchMs=2000,appliedElapsedMs=200,**dict(zip(n.FIELDS,self.values)))
+        f["managerTactics"][1]["press"]=1
+        with self.assertRaises(ValueError):self.s.ingest(f)
+        self.assertEqual(self.s.read(0)["appliedRevision"],0)
+        self.assertEqual(self.s.read(0)["commandState"],"waiting-for-engine")
+        f["managerTactics"][1]["press"]=75
+        self.s.ingest(f)
+        self.assertEqual(self.s.read(0)["appliedRevision"],1)
+        self.assertEqual(self.s.read(1)["commandState"],"applied")
+        self.assertTrue(self.s.read(0)["canControl"])
+        with self.assertRaises(ValueError):self.s.ingest(frame(3))
+    def test_stage106_unapplied_at_end_and_idempotent_retry(self):
+        self.s.ingest(frame())
+        reply=self.s.command(0,"request-1",self.values)
+        self.assertFalse(self.s.read(0)["canControl"])
+        self.assertEqual(self.s.command(0,"request-1",self.values),reply)
+        self.s.ingest(frame(2,True))
+        self.assertEqual(self.s.read(0)["commandState"],"not-applied-at-end")
+        self.assertFalse(self.s.read(0)["canControl"])
     def test_tail_partial_and_final_hidden(self):
         path=self.root/"trace"
         tail=n.Tail(path,self.s)

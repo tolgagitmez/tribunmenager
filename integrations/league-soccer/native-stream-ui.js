@@ -43,9 +43,10 @@
     if(data.engine!=='league-soccer'||data.authoritative!==false)throw Error('Geçersiz pilot yanıtı.');
     if(data.frame&&!view.ingest(data,performance.now())){ $('sendTactics').disabled=true;throw Error('Eski veya çelişkili yayın karesi'); }
     $('controlPanel').hidden=data.source!=='interactive-native';
-    $('sendTactics').disabled=!data.frame||data.source!=='interactive-native'||!data.canControl||submitting||data.phase==='finished'||data.finalizing===true;
+    $('sendTactics').disabled=!data.frame||data.source!=='interactive-native'||!data.canControl||submitting||data.phase==='finished'||data.finalizing===true||data.commandState==='waiting-for-engine'||view.isStale(performance.now());
     if(data.source==='interactive-native'){
-     $('commandState').textContent='Gönderilen #'+(data.submittedRevision||0)+' · Motor onayı #'+(data.appliedRevision||0)+(data.finalizing?' · Sonuç doğrulanıyor':'');
+     const states={'waiting-for-engine':' · Motor onayı bekleniyor','not-applied-at-end':' · Komut maç sonuna kadar uygulanmadı','applied':' · Motor uyguladı'};
+     $('commandState').textContent='Gönderilen #'+(data.submittedRevision||0)+' · Motor onayı #'+(data.appliedRevision||0)+(states[data.commandState]||'')+(data.finalizing?' · Sonuç doğrulanıyor':'');
     }
     if(data.frame){
      const changed=!current||current.sequence!==data.sequence;
@@ -96,6 +97,7 @@
    const r=await fetch('/api/league/native-pilot/tactics',{method:'POST',headers:{Authorization:'Bearer '+requestToken,'Content-Type':'application/json'},body:JSON.stringify({round:requestRound,requestId,tactics})});
    const data=await r.json();if(g!==generation)return;
    if(!r.ok)throw Error(data.error||'Komut reddedildi');
+   if(!Number.isSafeInteger(data.revision)||data.revision<1||data.state!=='submitted-not-applied')throw Error('Komut yanıtı doğrulanamadı; motor durumunu bekle.');
    $('commandState').textContent='Komut #'+data.revision+' gönderildi, motor onayı bekleniyor.';
   }catch(err){if(g===generation)$('commandState').textContent=err.message;}
   finally{submitting=false;}

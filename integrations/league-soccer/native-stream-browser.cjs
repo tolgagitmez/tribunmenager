@@ -18,7 +18,7 @@ function packet(seq,score=[0,0],done=false){
    requests++;assert.equal(route.request().headers().authorization,'Bearer synthetic-test-token');
    await route.fulfill({json:response});
   });
-  await page.route('**/api/league/native-pilot/tactics',async route=>{commands++;await route.fulfill({json:{revision:1}});});
+  await page.route('**/api/league/native-pilot/tactics',async route=>{commands++;await route.fulfill({json:{revision:1,state:'submitted-not-applied'}});});
   await page.goto('http://127.0.0.1:'+server.address().port+'/native-match.html');
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_STREAM_TEST?.state()?.sequence===20);
   assert.equal(await page.evaluate(()=>window.TRIBUN_NATIVE_STREAM_TEST.webgl()),true);
@@ -35,7 +35,15 @@ function packet(seq,score=[0,0],done=false){
   response=packet(22,[1,0]);
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_STREAM_TEST.state()?.sequence===22);
   await page.waitForFunction(()=>!document.querySelector('#sendTactics').disabled);
-  response=packet(23,[2,0],true);
+  response={...packet(23,[1,0]),submittedRevision:1,appliedRevision:0,commandState:'waiting-for-engine',canControl:false};
+  await page.waitForFunction(()=>window.TRIBUN_NATIVE_STREAM_TEST.state()?.sequence===23);
+  assert.equal(await page.locator('#sendTactics').isDisabled(),true);
+  assert.match(await page.locator('#commandState').textContent(),/Motor onayı bekleniyor/);
+  response={...packet(24,[1,0]),submittedRevision:1,appliedRevision:1,commandState:'applied',canControl:true};
+  await page.waitForFunction(()=>window.TRIBUN_NATIVE_STREAM_TEST.state()?.sequence===24);
+  await page.waitForFunction(()=>!document.querySelector('#sendTactics').disabled);
+  assert.match(await page.locator('#commandState').textContent(),/Motor uyguladı/);
+  response=packet(25,[2,0],true);
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_STREAM_TEST.state()?.phase==='finished');
   assert.deepEqual(await page.evaluate(()=>window.TRIBUN_NATIVE_STREAM_TEST.state().score),[2,0]);
   assert.equal(await page.locator('#sendTactics').isDisabled(),true);
