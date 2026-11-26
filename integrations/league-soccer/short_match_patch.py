@@ -883,7 +883,7 @@ inline float ShotOddsThreshold() {
     # in a passable lane when a teammate has controlled possession.
     edit(root, "src/onthepitch/teamAIcontroller.cpp", [
         ("  float closestDistance = 10000.0f;\n  for (const auto& candidate : team->GetAllPlayers()) {", r'''  float closestDistance = 10000.0f;
-  const bool progressive = AITactics::ShortMatchAttackEnabled() &&
+  const bool progressive = (AITactics::ShortMatchAttackEnabled() || AITactics::Offball188Enabled()) &&
       possessionPlayer->HasUniquePossession() && team->GetHumanGamerCount()==0;
   const float forward = -team->GetSide();
   const float offside = progressive ? AI_GetOffsideLine(team->GetMatch(),team->GetMatch()->GetMentalImage(0),abs(team->GetID()-1))*forward : 0.0f;
@@ -897,7 +897,7 @@ inline float ShotOddsThreshold() {
       distance=AITactics::ProgressiveRunCost(distance,mindset,std::abs(delta.coords[1]));
     }
     if (distance < closestDistance) {'''),
-        ("    if (possPlayer) {\n      forwardSupportPlayer =\n          AI_GetClosestPlayer(team,", r'''    if (AITactics::ShortMatchAttackEnabled() && possPlayer && possPlayer->HasUniquePossession() &&
+        ("    if (possPlayer) {\n      forwardSupportPlayer =\n          AI_GetClosestPlayer(team,", r'''    if ((AITactics::ShortMatchAttackEnabled() || (AITactics::Offball188Enabled() && match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer())) && possPlayer && possPlayer->HasUniquePossession() &&
         team->GetHumanGamerCount()==0) {
       // Choose a second outlet, distinct from the committed runner. Keep centre backs
       // and holding midfielders in their ordinary support shape.
