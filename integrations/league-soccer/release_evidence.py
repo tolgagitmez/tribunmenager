@@ -24,6 +24,7 @@ FILES=(
  "integrations/league-soccer/null-capacity.py",
  "integrations/league-soccer/integrated-profile.py",
  "integrations/league-soccer/profile-repeatability.py",
+ "integrations/league-soccer/ordered-pose-benchmark.py",
  "integrations/league-soccer/position-skinning-benchmark.py",
  "integrations/league-soccer/runtime-layout.py",
  "integrations/league-soccer/verify-substitutions.py",

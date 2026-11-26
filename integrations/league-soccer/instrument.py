@@ -533,6 +533,8 @@ inline bool deterministicProbe() {
   return flag("TRIBUN_NATIVE_DETERMINISM") && flag("TRIBUN_NATIVE_FIXED_DURATION") &&
          flag("TRIBUN_NATIVE_NULL_RENDERER") && flag("TRIBUN_NATIVE_NO_DRAW") && flag("TRIBUN_NATIVE_NO_UPLOAD");
 }
+inline bool orderedPose() { return deterministicProbe() && flag("TRIBUN_NATIVE_ORDERED_POSE"); }
+inline bool poseDue(unsigned long iteration) { return iteration > 0 && iteration % 10UL == 0; }
 inline bool enabled() {
   return (flag("TRIBUN_NATIVE_VISUAL_RNG") || deterministicProbe()) && flag("TRIBUN_NATIVE_NULL_RENDERER") &&
          flag("TRIBUN_NATIVE_NO_DRAW") && flag("TRIBUN_NATIVE_NO_UPLOAD");
@@ -602,13 +604,13 @@ def visual_match_rng(source):
     if section.count("random(") != 6:raise SystemExit("Unexpected sunlight RNG sites")
     section = section.replace("random(", "sunRandom(")
     section = replace_once(section,anchor,anchor+"""
-  static thread_local tribun_visual::Stream sunlight(tribun_visual::seed(0x53554e31u));
+  static tribun_visual::Stream sunlight(tribun_visual::seed(0x53554e31u));
   auto sunRandom = [&](float lo,float hi) {
     return tribun_visual::enabled() ? sunlight.range(lo,hi) : random(lo,hi);
   };""")
     source=source[:start]+section+source[end:]
     source = replace_once(source, "  Vector3 shudder = Vector3(random(-0.1f, 0.1f), random(-0.1f, 0.1f), 0) *",
-        """  static thread_local tribun_visual::Stream cameraVisual(tribun_visual::seed(0x43414d31u));
+        """  static tribun_visual::Stream cameraVisual(tribun_visual::seed(0x43414d31u));
   auto cameraRandom = [&](float lo,float hi) {
     return tribun_visual::enabled() ? cameraVisual.range(lo,hi) : random(lo,hi);
   };
@@ -716,6 +718,77 @@ def optimize_skinning_channels(source):
   const bool uploadTangents = channels.tangents;
   const bool uploadBitangents = channels.bitangents;""")
 
+def ordered_pose_main(source):
+    source = replace_once(source, '#include "framework/scheduler.hpp"',
+        '#include "framework/scheduler.hpp"\n#include "onthepitch/tribun_visual_rng.hpp"')
+    source = replace_once(source, "  GetScheduler()->RegisterTaskSequence(gameSequence);",
+        """  const bool orderedPose = tribun_visual::orderedPose();
+  if (orderedPose) {
+    if (timeStep_ms != 10 || config->GetInt("graphics3d_frametime_ms",0) != 100)
+      throw std::runtime_error("Ordered pose requires 10 ms physics and 100 ms pose cadence");
+    gameSequence->AddUserTaskEntry(gameTask, e_TaskPhase_Put);
+    std::printf("[tribun-pose] schedule=ordered interval-ticks=10\\n");
+    std::fflush(stdout);
+  }
+  GetScheduler()->RegisterTaskSequence(gameSequence);""")
+    return replace_once(source, "  GetScheduler()->RegisterTaskSequence(graphicsSequence);",
+        "  if (!orderedPose) GetScheduler()->RegisterTaskSequence(graphicsSequence);")
+
+def ordered_pose_task(source):
+    source = replace_once(source, '#include "gametask.hpp"',
+        '#include "gametask.hpp"\n#include "onthepitch/tribun_visual_rng.hpp"')
+    # PutPhase only: do not change lifetime locking in Action().
+    start = source.index("void GameTask::PutPhase() {")
+    prefix,body=source[:start],source[start:]
+    body = replace_once(body, "  matchLifetimeMutex.lock();",
+        """  matchLifetimeMutex.lock();
+  if (tribun_visual::orderedPose() && match &&
+      !tribun_visual::poseDue(match->GetIterations())) {
+    matchLifetimeMutex.unlock();
+    return;
+  }""")
+    return prefix+body
+
+def ordered_pose_clock(source):
+    source = replace_once(source, """  previousPutTime_ms =
+      EnvironmentManager::GetInstance().GetTime_ms() - gameSequenceInfo.startTime_ms;""",
+        """  previousPutTime_ms = tribun_visual::orderedPose() ? 0UL :
+      EnvironmentManager::GetInstance().GetTime_ms() - gameSequenceInfo.startTime_ms;""")
+    start=source.index("void Match::FetchPutBuffers() {")
+    prefix,body=source[:start],source[start:]
+    body=replace_once(body, """  unsigned long time_ms =
+      EnvironmentManager::GetInstance().GetTime_ms() - gameSequenceInfo.startTime_ms;
+  timeSincePreviousPut_ms = time_ms - GetPreviousPutTime_ms();""",
+        """  unsigned long time_ms = tribun_visual::orderedPose() ?
+      static_cast<unsigned long>(gameSequenceInfo.timesRan) * gameSequenceInfo.sequenceTime_ms :
+      EnvironmentManager::GetInstance().GetTime_ms() - gameSequenceInfo.startTime_ms;
+  timeSincePreviousPut_ms = time_ms - GetPreviousPutTime_ms();""")
+    return prefix+body
+
+def ordered_pose_initial_samples(source):
+    source=replace_once(source, '#include "humanoid.hpp"',
+        '#include "humanoid.hpp"\n#include "../../tribun_visual_rng.hpp"')
+    start=source.index("void FillTemporalHumanoidNodes(")
+    end=source.index("HumanoidBase::HumanoidBase(",start)
+    body=source[start:end]
+    old="EnvironmentManager::GetInstance().GetTime_ms()"
+    if body.count(old)!=2:raise SystemExit("Unexpected humanoid temporal initialization")
+    body=body.replace(old,"(tribun_visual::orderedPose() ? 0UL : EnvironmentManager::GetInstance().GetTime_ms())")
+    return source[:start]+body+source[end:]
+
+def isolate_ball_audio_rng(source):
+    # Contact detection and impulse remain unchanged; only sound pitch varies.
+    source=replace_once(source, '#include "ball.hpp"',
+        '#include "ball.hpp"\n#include "tribun_visual_rng.hpp"')
+    return replace_once(source, "    sound->SetPitch(0.9f + random(0.0f, 0.2f));",
+        """    if (tribun_visual::deterministicProbe()) {
+      tribun_visual::Stream soundRng(tribun_visual::seed(0x42414c4cu) ^
+                                      static_cast<std::uint32_t>(match->GetActualTime_ms()));
+      sound->SetPitch(0.9f + soundRng.range(0.0f,0.2f));
+    } else {
+      sound->SetPitch(0.9f + random(0.0f, 0.2f));
+    }""")
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -762,6 +835,17 @@ def main():
         original = target.read_text(encoding="utf-8")
         if marker not in original:
             target.write_text(transform(original), encoding="utf-8")
+    for relative,marker,transform in (
+        ("main.cpp","[tribun-pose] schedule=ordered",ordered_pose_main),
+        ("gametask.cpp","tribun_visual::poseDue",ordered_pose_task),
+        ("onthepitch/match.cpp","previousPutTime_ms = tribun_visual::orderedPose()",ordered_pose_clock),
+        ("onthepitch/player/humanoid/humanoidbase.cpp","tribun_visual::orderedPose() ?",ordered_pose_initial_samples),
+        ("onthepitch/ball.cpp","tribun_visual::Stream soundRng",isolate_ball_audio_rng),
+    ):
+        target=src/relative
+        original=target.read_text(encoding="utf-8")
+        if marker not in original:
+            target.write_text(transform(original),encoding="utf-8")
     path = pathlib.Path(sys.argv[1]) / "src/onthepitch/match.cpp"
     text = path.read_text(encoding="utf-8")
     if "static bool TribunLeanScene()" not in text:
