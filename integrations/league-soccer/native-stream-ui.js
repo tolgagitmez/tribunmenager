@@ -1,7 +1,7 @@
 'use strict';
 (function(){
  const $=id=>document.getElementById(id),scene=new Stadium3D($('pitch')),view=window.TribunNativeStreamView.create(window.TribunHumanoidRig);
- scene.setPerformanceMode('balanced');scene.setStadiumStyle($('stadiumStyle').value);scene.enhancedPlayerAppearance=$('playerAppearance').value==='enhanced';$('mode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
+ scene.setPerformanceMode('balanced');scene.setStadiumStyle($('stadiumStyle').value);scene.setAtmosphere($('atmosphere').value);scene.enhancedPlayerAppearance=$('playerAppearance').value==='enhanced';$('mode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
  const advisor=window.TribunNativeAdvisor.create(),tv=window.TribunBroadcastDesign.create(document);
  const fields=['press','counter','support','width','tempo'];
  const labels=['Baskı','Kontra','Pas desteği','Genişlik','Tempo'];
@@ -105,8 +105,9 @@
  };
  $('adviceTeam').onchange=renderAdvice;
  $('connect').onclick=start;
- $('camera').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':'tv';$('camera').textContent='Kamera: '+({tv:'TV',close:'Yakın',tactical:'Taktik'}[scene.camera]);};
+ $('camera').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':scene.camera==='tactical'?'cinematic':'tv';scene.replayCameraSnap=true;$('camera').textContent='Kamera: '+({tv:'TV',close:'Yakın',tactical:'Taktik',cinematic:'Dinamik yayın'}[scene.camera]);};
  $('quality').onchange=graphics;
+ $('atmosphere').onchange=()=>{scene.setAtmosphere($('atmosphere').value);renderBudget.reset();};
  $('playerAppearance').onchange=()=>{scene.enhancedPlayerAppearance=$('playerAppearance').value==='enhanced';renderBudget.reset();};
  $('stadiumStyle').onchange=()=>{scene.setStadiumStyle($('stadiumStyle').value);renderBudget.reset();};
  document.addEventListener('visibilitychange',()=>renderBudget.reset());

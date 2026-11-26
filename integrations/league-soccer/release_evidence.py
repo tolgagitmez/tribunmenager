@@ -61,7 +61,7 @@ FILES=(
  "native_shadow.py","native_live.py","native_season.py","live_match.py","native_season_rehearsal.py","tests/test_native_season.py","tests/test_native_season_rehearsal.py",
  "season_state.py","server.py","football-sim.js","player-model.js","tactics.js",
  "integrations/league-soccer/native-stream-ui.js","integrations/league-soccer/native-stream-view.js","native-match.html","integrations/league-soccer/native-stream-view.test.cjs","tests/test_native_shadow.py","integrations/league-soccer/native-stream-browser.cjs","tests/test_native_live.py",
- "integrations/league-soccer/native-replay.js","scene3d.js","integrations/league-soccer/stadium-design.js","integrations/league-soccer/stadium-design.test.cjs","integrations/league-soccer/player-appearance.test.cjs",
+ "integrations/league-soccer/native-replay.js","scene3d.js","integrations/league-soccer/stadium-design.js","integrations/league-soccer/stadium-design.test.cjs","integrations/league-soccer/player-appearance.test.cjs","integrations/league-soccer/match-atmosphere.js","integrations/league-soccer/match-atmosphere.test.cjs",
  "humanoid-rig.js","player-renderer.js","player-skinning.js","character-palette-constraints.js",
  "match-animation-bridge.js","ball-visual.js","gltf-asset-loader.mjs",
  "assets/player/player-model-data.js","assets/player/SOURCE-LICENSE.md",

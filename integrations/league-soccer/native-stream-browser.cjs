@@ -33,6 +33,9 @@ function packet(seq,score=[0,0],done=false){
   await page.locator('#playerAppearance').selectOption('classic');
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_STREAM_TEST.presentation().graphics.players?.enhancedAppearance===false);
   await page.locator('#playerAppearance').selectOption('enhanced');
+  await page.locator('#atmosphere').selectOption('night');
+  assert.equal(await page.evaluate(()=>window.TRIBUN_NATIVE_STREAM_TEST.presentation().graphics.atmosphere),'night');
+  await page.locator('#atmosphere').selectOption('day');
   const initial=await page.evaluate(()=>window.TRIBUN_NATIVE_STREAM_TEST.presentation().graphics.stadium);
   assert.equal(initial.style,'broadcast');assert.ok(initial.triangles>0);
   await page.locator('#stadiumStyle').selectOption('classic');

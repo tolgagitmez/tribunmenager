@@ -2,7 +2,7 @@
 (function(){
 const $=id=>document.getElementById(id);
 const rig=window.TribunHumanoidRig,api=window.TribunNativeReplay,scene=new Stadium3D($('pitch'));
-scene.setPerformanceMode('balanced');scene.setStadiumStyle($('stadiumStyle').value);scene.enhancedPlayerAppearance=$('playerAppearance').value==='enhanced';
+scene.setPerformanceMode('balanced');scene.setStadiumStyle($('stadiumStyle').value);scene.setAtmosphere($('atmosphere').value);scene.enhancedPlayerAppearance=$('playerAppearance').value==='enhanced';
 const tv=window.TribunBroadcastDesign.create(document);
 $('renderMode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
 let replay=null,frames=null,manifest=null,position=0,playing=false,last=null,generation=0,current=null,broadcast=null,broadcastStart=0;
@@ -90,7 +90,7 @@ $('broadcast').onclick=()=>{
 };
 $('play').onclick=()=>{if(!replay)return;if(playing){stop();return;}if(position>=replay.duration){position=0;reset();}playing=true;last=null;tv.phase('OYNATILIYOR');$('play').textContent='Duraklat';};
 $('seek').oninput=()=>{stop();position=Number($('seek').value);reset();draw();};
-$('camera').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':'tv';$('camera').textContent='Kamera: '+({tv:'TV',close:'Yakın',tactical:'Taktik'}[scene.camera]);invalidate(performance.now(),1400);};
+$('camera').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':scene.camera==='tactical'?'cinematic':'tv';scene.replayCameraSnap=true;$('camera').textContent='Kamera: '+({tv:'TV',close:'Yakın',tactical:'Taktik',cinematic:'Dinamik yayın'}[scene.camera]);invalidate(performance.now(),1400);};
 function configureGraphics(){
  scene.setPerformanceMode($('quality').value);
  const mobile=matchMedia('(max-width: 760px)').matches;
@@ -100,6 +100,7 @@ function configureGraphics(){
  invalidate(performance.now(),300);
 }
 $('quality').onchange=configureGraphics;
+$('atmosphere').onchange=()=>{scene.setAtmosphere($('atmosphere').value);invalidate(performance.now(),200);};
 $('playerAppearance').onchange=()=>{scene.enhancedPlayerAppearance=$('playerAppearance').value==='enhanced';invalidate(performance.now(),200);};
 $('stadiumStyle').onchange=()=>{scene.setStadiumStyle($('stadiumStyle').value);invalidate(performance.now(),200);};
 $('renderOptimization').onchange=()=>{optimized=$('renderOptimization').checked;configureGraphics();reset();draw();};
