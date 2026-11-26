@@ -681,16 +681,24 @@ inline bool FixedDurationEnabled() {
   }();
   return enabled;
 }
+// Stage 216: opt-in extended CPU fixture only; no physics timestep change.
+inline bool ExtendedDuration216Enabled(){
+  const char* flag=std::getenv("TRIBUN_NATIVE_EXTENDED_MATCH");
+  return FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE") &&
+      flag && std::strcmp(flag,"1")==0;
+}
 struct FixedDurationClock {
   bool started=false,half=false,finished=false;
   unsigned long start=0;
+  const unsigned long durationMs;
+  explicit FixedDurationClock(bool extended=false):durationMs(extended?1800000UL:300000UL){}
   void Start(unsigned long now){if(!started){started=true;start=now;}}
   unsigned long Elapsed(unsigned long now) const {
-    return started && now>=start?std::min(300000UL,now-start):0UL;
+    return started && now>=start?std::min(durationMs,now-start):0UL;
   }
-  unsigned long Nominal(unsigned long now) const {return Elapsed(now)*18UL;}
-  bool HalfDue(unsigned long now) const {return started&&!half&&Elapsed(now)>=150000UL;}
-  bool FullDue(unsigned long now) const {return started&&!finished&&Elapsed(now)>=300000UL;}
+  unsigned long Nominal(unsigned long now) const {return Elapsed(now)*(5400000UL/durationMs);}
+  bool HalfDue(unsigned long now) const {return started&&!half&&Elapsed(now)>=durationMs/2;}
+  bool FullDue(unsigned long now) const {return started&&!finished&&Elapsed(now)>=durationMs;}
 };
 // Isolated comparison against the previous short-match decision policy.
 inline bool FinalThirdRetentionEnabled() {
@@ -1486,7 +1494,7 @@ void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool sh
         ('#include "AIsupport/mentalimage.hpp"', '#include "AIsupport/mentalimage.hpp"\n#include "aitactics.hpp"\n#include <stdexcept>'),
         ("  unsigned long GetMatchTime_ms() const { return matchTime_ms; }", r'''  unsigned long GetMatchTime_ms() const { return matchTime_ms; }
   const AITactics::FixedDurationClock& GetTribunFixedClock() const {return tribunFixedClock;}'''),
-        ("  float matchTimeScale;", "  float matchTimeScale;\n  AITactics::FixedDurationClock tribunFixedClock;"),
+        ("  float matchTimeScale;", "  float matchTimeScale;\n  AITactics::FixedDurationClock tribunFixedClock{AITactics::ExtendedDuration216Enabled()};"),
     ])
     edit(root, "src/onthepitch/referee.hpp", [
         ("  void Process();", "  void Process();\n  void TribunFixedBoundary(bool fullTime);"),
