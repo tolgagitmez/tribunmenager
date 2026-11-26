@@ -159,6 +159,19 @@ int main(){
  assert(!idle.Observe(true,2,2900,.6f,0,.6f,0)); // next half
  assert(!idle.Observe(true,2,5000,.6f,0,.6f,0)); // observation gap
  idle.Reset();assert(!idle.tracking);
+ RestartDecisionWatch restart;
+ assert(!restart.Observe(1,false)); // baseline before kickoff
+ assert(restart.Observe(1,true));  // kickoff, once
+ assert(!restart.Observe(1,true));
+ assert(restart.Observe(1,false)); // set piece
+ assert(!restart.Observe(1,false));
+ assert(restart.Observe(1,true));  // resumed play
+ assert(!restart.Observe(1,true));
+ assert(restart.Observe(2,false)); // halftime
+ assert(!restart.Observe(2,false));
+ assert(restart.Observe(2,true));
+ assert(!restart.Observe(2,true));
+ assert(restart.Observe(3,true));  // phase change even without stopped sample
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
