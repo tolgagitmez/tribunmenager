@@ -214,6 +214,10 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-hold] mode=%s attempts=%lu,%lu held=%lu,%lu released=%lu,%lu received=%lu,%lu lost=%lu,%lu cancelled=%lu,%lu\n",
       AITactics::HoldUpEnabled()?"hold":"off",ha.attempts,hb.attempts,ha.held,hb.held,ha.released,hb.released,
       ha.received,hb.received,ha.lost,hb.lost,ha.cancelled,hb.cancelled);
+    const auto& fa=match.tribunFinishProbes[0];const auto& fb=match.tribunFinishProbes[1];
+    std::printf("[tribun-finish] mode=%s decisions=%lu,%lu aims=%lu,%lu priorities=%lu,%lu contacts=%lu,%lu\n",
+      AITactics::FinishEnabled()?"finish":"off",fa.decisions,fb.decisions,fa.aimChanges,fb.aimChanges,
+      fa.priorities,fb.priorities,fa.contacts,fb.contacts);
     std::fflush(stdout);
   }
   if (done && tribun_visual::collisionOnly()) {

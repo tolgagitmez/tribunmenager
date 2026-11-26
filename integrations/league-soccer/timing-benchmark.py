@@ -96,8 +96,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False,run_lanes=False,triangle=False,creative_carry=False,duel=False,hold_up=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False,run_lanes=False,triangle=False,creative_carry=False,duel=False,hold_up=False,finish=False):
     name,scale,quick=profile
+    if type(finish) is not bool or (finish and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((hold_up,duel,creative_carry,triangle,line_break,run_lanes,retention,box_runs,timed_attack,collision_pose,determinism_probe)))):
+        raise ValueError("Finish requires isolated short-match attack comparison")
     if type(hold_up) is not bool or (hold_up and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((duel,creative_carry,triangle,line_break,run_lanes,retention,box_runs,timed_attack,collision_pose,determinism_probe)))):
         raise ValueError("Hold-up requires isolated short-match attack comparison")
     if type(duel) is not bool or (duel and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((creative_carry,triangle,line_break,run_lanes,retention,box_runs,timed_attack,collision_pose,determinism_probe)))):
@@ -183,6 +185,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_CREATIVE_CARRY"]="1" if creative_carry else "0"
     env["TRIBUN_NATIVE_DUEL"]="1" if duel else "0"
     env["TRIBUN_NATIVE_HOLD_UP"]="1" if hold_up else "0"
+    env["TRIBUN_NATIVE_FINISH"]="1" if finish else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -281,6 +284,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     report["creativeCarry"]=creative_carry
     report["duel"]=duel
     report["holdUp"]=hold_up
+    report["finish"]=finish
     if line_break or null_renderer:
         import re
         found=re.findall(r"\[tribun-linebreak\] mode=(linebreak|off) candidates=(\d+),(\d+) selected=(\d+),(\d+)",log_text)
@@ -313,6 +317,11 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
             raise ValueError("Missing hold-up evidence")
         values=list(map(int,holds[0][1:]))
         report["holdProbe"]={k:values[2*j:2*j+2] for j,k in enumerate(("attempts","held","released","received","lost","cancelled"))}
+        finishes=re.findall(r"\[tribun-finish\] mode=(finish|off) decisions=(\d+),(\d+) aims=(\d+),(\d+) priorities=(\d+),(\d+) contacts=(\d+),(\d+)",log_text)
+        if len(finishes)!=1 or finishes[0][0]!=("finish" if finish else "off"):
+            raise ValueError("Missing finish evidence")
+        values=list(map(int,finishes[0][1:]))
+        report["finishProbe"]={k:values[2*j:2*j+2] for j,k in enumerate(("decisions","aims","priorities","contacts"))}
     if collision_pose:
         import re
         matches=re.findall(r"\[tribun-contact\] interval-ms=(\d+) updates=(\d+) max-age-ticks=(\d+) missing=(\d+) ball-overlaps=(\d+) keeper-overlaps=(\d+) tackle-overlaps=(\d+) controlled-requests=(\d+)",log_text)

@@ -196,6 +196,35 @@ struct HoldTrial {
 };
 '''
 
+FINISH_RULES = r'''// A bounded aiming heuristic, not a calibrated expected-goals model.
+inline float FinishTargetScore(float odds,float fieldOdds,float keeperGap,float y,float skill){
+  if(!std::isfinite(odds)||!std::isfinite(fieldOdds)||!std::isfinite(keeperGap)||
+     std::abs(y)>3.0f)return -1000.0f;
+  return .48f*odds+.32f*fieldOdds+.20f*std::clamp(keeperGap/3.0f,0.0f,1.0f)-
+      .10f*(1.0f-skill)*std::abs(y)/3.0f;
+}
+inline bool FinishEligible(float distance,float angle,float skill,float odds){
+  return distance>=4.0f&&distance<=27.0f&&angle>=.48f&&skill>=.45f&&odds>=.30f;
+}
+inline bool FinishPreferShot(float distance,float angle,float skill,float odds,float fieldOdds,float passOdds){
+  return FinishEligible(distance,angle,skill,odds)&&distance<=19.0f&&angle>=.65f&&
+      odds>=.55f&&fieldOdds>=.62f&&odds+.13f>=passOdds;
+}
+struct FinishProbe {
+  int shooter=-1;
+  unsigned long issuedAt=0;
+  unsigned long decisions=0,aimChanges=0,priorities=0,contacts=0;
+  void Clear(){shooter=-1;issuedAt=0;}
+  void Issue(int id,unsigned long now,bool changed,bool priority){
+    shooter=id;issuedAt=now;++decisions;if(changed)++aimChanges;if(priority)++priorities;
+  }
+  bool Contact(int id,unsigned long now){
+    const bool ok=shooter==id&&now>=issuedAt&&now-issuedAt<=400;
+    if(ok)++contacts;Clear();return ok;
+  }
+};
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -2020,4 +2049,87 @@ Vector3 AI_GetForceFieldMovement'''),
         }else if(holdOutlet&&!(progressiveCandidate||supportCandidate||runningCandidate||
           deliveryCandidate||pressureOutlet||returnCandidate||retentionOutlet||timedCandidate||lineBreak||triangleCandidate))continue;
         float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+    ])
+
+    # Stage 69: keeper-aware target comparison. No changes to native shot physics or forced goals.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool FinishEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_FINISH");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + FINISH_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  AITactics::HoldTrial tribunHoldTrials[2];", "  AITactics::HoldTrial tribunHoldTrials[2];\n  AITactics::FinishProbe tribunFinishProbes[2];"),
+    ])
+    edit(root, "src/onthepitch/match.cpp", [
+        ("  for(auto& trial:tribunHoldTrials)trial.Cancel(GetActualTime_ms());",
+         "  for(auto& trial:tribunHoldTrials)trial.Cancel(GetActualTime_ms());\n  for(auto& probe:tribunFinishProbes)probe.Clear();"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  match->tribunHoldTrials[team->GetID()].Cancel(match->GetActualTime_ms());",
+         r'''  match->tribunHoldTrials[team->GetID()].Cancel(match->GetActualTime_ms());
+  if(AITactics::FinishEnabled()&&shooter)
+    match->tribunFinishProbes[team->GetID()].Contact(shooter->GetID(),match->GetActualTime_ms());'''),
+        ("  if(TribunTriangleContact(passer,receiver,shortPass))return;", r'''  if(AITactics::FinishEnabled())match->tribunFinishProbes[team->GetID()].Clear();
+  if(TribunTriangleContact(passer,receiver,shortPass))return;'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("    odds = std::pow(odds, 0.5f);", r'''    bool finishEvaluated=false,finishChanged=false,finishPriority=false;
+    if(AITactics::FinishEnabled()&&CastPlayer()->HasUniquePossession()&&match->IsInPlay()&&
+        !match->IsInSetPiece()&&!match->GetBallRetainer()&&!team->GetHumanGamerCount()&&
+        player->GetFormationEntry().role!=e_PlayerRole_GK){
+      const float skill=player->GetStat("technical_shot");
+      const auto from=player->GetPosition()+player->GetMovement()*.12f;
+      const float forward=-team->GetSide();
+      const auto* keeper=match->GetTeam(abs(team->GetID()-1))->GetGoalie();
+      if(keeper&&keeper->IsActive()&&AITactics::FinishEligible(shotDistance,shotAngle,skill,odds)){
+        std::vector<PlayerImage> outfield;
+        for(const auto& rival:opponentPlayerImages)
+          if(rival.dynamicFormationEntry.role!=e_PlayerRole_GK)outfield.push_back(rival);
+        const auto keeperPos=keeper->GetPosition()+keeper->GetMovement()*.20f;
+        const float goalX=(pitchHalfW+1.0f)*forward;
+        const float denom=(goalX-from.coords[0])*forward;
+        const float u=denom>.01f?clamp((keeperPos.coords[0]-from.coords[0])*forward/denom,0.0f,1.0f):1.0f;
+        auto keeperGap=[&](float targetY){
+          return std::abs(from.coords[1]+(targetY-from.coords[1])*u-keeperPos.coords[1]);
+        };
+        auto fieldOdds=[&](float targetY){
+          return _GetPassingOdds(Vector3(goalX,targetY,0),e_FunctionType_Shot,outfield,3.0f);
+        };
+        const float originalY=y,originalOdds=odds;
+        // Compare the baseline aim at its actual position (which may be near the post).
+        const float baselineField=fieldOdds(y);
+        float best=.48f*odds+.32f*baselineField+.20f*clamp(keeperGap(y)/3.0f,0.0f,1.0f)-
+            .10f*(1.0f-skill)*std::abs(y)/3.0f;
+        const float baseline=best;
+        float bestY=y,bestOdds=odds,bestField=baselineField;
+        for(float targetY:{-2.9f,-1.45f,0.0f,1.45f,2.9f}){
+          const float nativeOdds=_GetPassingOdds(Vector3(goalX,targetY,0),e_FunctionType_Shot,opponentPlayerImages,3.0f);
+          if(nativeOdds<originalOdds-.08f||!AITactics::FinishEligible(shotDistance,shotAngle,skill,nativeOdds))continue;
+          const float clear=fieldOdds(targetY);
+          const float score=AITactics::FinishTargetScore(nativeOdds,clear,keeperGap(targetY),targetY,skill);
+          if(score>best){best=score;bestY=targetY;bestOdds=nativeOdds;bestField=clear;}
+        }
+        if(best>baseline+.025f){y=bestY;odds=bestOdds;finishChanged=std::abs(y-originalY)>.10f;}
+        else bestField=baselineField;
+        finishEvaluated=true;
+        const float passOdds=bestMateRating.player?bestMateRating.passRating:0.0f;
+        finishPriority=AITactics::FinishPreferShot(shotDistance,shotAngle,skill,odds,bestField,passOdds);
+      }
+    }
+    odds = std::pow(odds, 0.5f);'''),
+        ("          AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()) ||", r'''          finishPriority ||
+          AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()) ||'''),
+        ("        commandQueue.push_back(command);\n    }\n  }\n\n  e_Velocity enumVelocity", r'''        commandQueue.push_back(command);
+      if(finishEvaluated)
+        match->tribunFinishProbes[team->GetID()].Issue(player->GetID(),match->GetActualTime_ms(),finishChanged,finishPriority);
+    }
+  }
+
+  e_Velocity enumVelocity'''),
     ])
