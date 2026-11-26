@@ -3714,6 +3714,72 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 181: smooth the native locomotion pose correction, not root
+    # motion, animation playback, touch radius or ball physics.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool LegBlendEnabled(){
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_AV_LEG_BLEND");
+    return value && std::strcmp(value,"1")==0 && IdleRecoveryEnabled();
+  }();
+  return enabled;
+}
+struct LegBlendWatch {
+  bool active=false;
+  int phase=-1;
+  unsigned long last=0;
+  float value=1.0f;
+  void Reset(){active=false;phase=-1;last=0;value=1.0f;}
+  float Observe(bool eligible,int period,unsigned long now,float native){
+    if(!eligible || !std::isfinite(native) || native<.1f || native>1.1f){
+      Reset();return native;
+    }
+    if(!active || phase!=period || now<last || now-last>100UL){
+      active=true;phase=period;last=now;value=native;return value;
+    }
+    if(now==last)return std::clamp(value,native-.12f,native+.12f);
+    const float dt=static_cast<float>(now-last);
+    last=now;
+    const float alpha=dt/(dt+60.0f);
+    value=std::clamp(value+(native-value)*alpha,native-.12f,native+.12f);
+    value=std::clamp(value,.1f,1.1f);
+    return value;
+  }
+};
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.hpp", [
+        ("  int tribunSelectedFoot=-1;", "  int tribunSelectedFoot=-1;\n  AITactics::LegBlendWatch tribunLegBlend;"),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ("  tribunContactTiming.Reset();\n  HumanoidBase::ResetSituation", "  tribunContactTiming.Reset();\n  tribunLegBlend.Reset();\n  HumanoidBase::ResetSituation"),
+        ("  bool adaptLegsToTrueVelocity = true;", r'''  const bool tribunBlendEligible=AITactics::LegBlendEnabled() &&
+      match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer() &&
+      !team->GetHumanGamerCount() && !CastPlayer()->GetExternalController() &&
+      CastPlayer()->IsActive() && CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK &&
+      currentAnim->functionType==e_FunctionType_Movement && currentAnim->touchFrame==-1 &&
+      currentAnim->anim->GetVariable("incoming_special_state").empty() &&
+      currentAnim->anim->GetVariable("outgoing_special_state").empty() &&
+      (match->GetBall()->Predict(0).Get2D()-spatialState.position.Get2D()).GetLength()>1.2f &&
+      spatialState.actualMovement.GetLength()>=1.0f && spatialState.animMovement.GetLength()>=1.0f;
+  if(!tribunBlendEligible)tribunLegBlend.Reset();
+  bool adaptLegsToTrueVelocity = true;'''),
+        ("        veloFactor = clamp(veloFactor, 0.1f, 1.0f + allowFasterFactor);", r'''        veloFactor = clamp(veloFactor, 0.1f, 1.0f + allowFasterFactor);
+        if(tribunBlendEligible){
+          const float original=veloFactor;
+          veloFactor=tribunLegBlend.Observe(true,static_cast<int>(match->GetMatchPhase()),
+              match->GetActualTime_ms(),original);
+          // Keep the native faster-stride limit (including ordinary speed).
+          veloFactor=clamp(veloFactor,0.1f,1.0f+allowFasterFactor);
+          if(match->GetActualTime_ms()%250UL==0 && std::abs(veloFactor-original)>.005f)
+            std::fprintf(stderr,"[tribun-leg-blend] phase=%d match_ms=%lu player=%d actual=%.4f anim=%.4f native=%.4f adjusted=%.4f\n",
+                static_cast<int>(match->GetMatchPhase()),static_cast<unsigned long>(match->GetMatchTime_ms()),
+                player->GetID(),actualVelo,animVelo,original,veloFactor);
+        }'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
