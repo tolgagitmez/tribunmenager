@@ -85,6 +85,10 @@ def validate_playlist(media):
     return {"segmentCount":len(segments),"durationSeconds":sum(durations),"playlistSha256":sha(p),
         "bytes":sum((media/s).stat().st_size for s in segments)+(media/"init.mp4").stat().st_size}
 def main():
+    import signal
+    def terminate(signum, frame):
+        raise KeyboardInterrupt("Native supervisor termination requested")
+    signal.signal(signal.SIGTERM, terminate)
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)
     p.add_argument("--linger",type=int,default=15);p.add_argument("--audio",action="store_true");p.add_argument("--interactive",action="store_true");p.add_argument("--halftime-plan",action="store_true")
