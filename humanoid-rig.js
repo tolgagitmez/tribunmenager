@@ -237,7 +237,15 @@ function nativeClipCue(p,phase,primary,duel){
   name='run';progress=((phase%1)+1)%1;weight=.45*smooth((p.speed-.45)/1.5);
  }else{name='idle';progress=.5;weight=.25*(1-smooth(p.speed/.45));}
  const arms=sampleClipArms(p.nativeClipLibrary,name,progress);
- return arms&&weight>0?{name,arms,weight}:null;
+ const source=p.nativeClipLibrary[name]?.source||'project-blender-baked';
+ // Imported raw locomotion is not a verified shot/contact animation.
+ if(source==='upstream-raw-retarget'){
+  if(primary)return null;
+  // Fade at stride seam rather than assume the raw sprint is a loop.
+  if(name==='run')weight*=smooth(Math.min(progress,1-progress)*8);
+  weight=Math.min(weight,.32);
+ }
+ return arms&&weight>0?{name,arms,weight,source}:null;
 }
 // Stage 93: improve contact proxies, never the simulated ball or player.
 const surfaceError=(point,center,radius=BALL_RADIUS)=>Math.abs(len(sub(point,center))-radius);
@@ -735,7 +743,7 @@ function pose(p,dt=1/60){
  if(keeper)result.nativeKeeper={kind:keeper.kind,profile:keeper.profile,hand:keeper.hand,weight:keeperW,held:keeper.held,targets:0,meanPalmError:null};
  if(aerial)result.nativeAerial={profile:aerial.profile,kind:aerial.kind,weight:aerialW,jump:aerialJump,landing:aerialLanding,contested:aerial.contested,headError:null};
  if(st.motionMatch)result.nativeMotionMatch={profile:st.motionMatch.profile.id,cost:st.motionMatch.cost,steps:st.feet.map(f=>f.nativeSwing?.profile?.id??null)};
- if(clipCue)result.nativeClip={name:clipCue.name,weight:clipCue.weight,source:'project-blender-baked'};
+ if(clipCue)result.nativeClip={name:clipCue.name,weight:clipCue.weight,source:clipCue.source};
  if(p.nativeAnatomy)result.nativeAnatomy={height:p.nativeAnatomy.height,scale:bodyScale,preferredFoot:p.nativeAnatomy.preferredFoot};
  if(identity)result.nativeMotionIdentity={...identity,strideMetres:stride,stanceRatio:duty,freshness:p.nativeMotionIdentity.freshness};
  if(blended)result.nativeBlend={gain,contactProtection:protect,primary:recorded?.kind||aerial?.kind||keeper?.kind||null,hipHeight,pitch,roll};

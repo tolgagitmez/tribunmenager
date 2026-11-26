@@ -1,7 +1,7 @@
 name: Pinned native animation conversion
 on:
   push:
-    branches: [experiment/native-animation-import-stage112]
+    branches: [experiment/native-animation-import-stage112, experiment/native-animation-retarget-stage113]
   workflow_dispatch:
 permissions:
   contents: read
@@ -43,8 +43,18 @@ jobs:
                   if width==4:
                       assert all(abs(sum(x*x for x in vals[i:i+4])-1)<1e-5 for i in range(0,len(vals),4))
           PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Retarget real native idle and sprint to bounded arm targets
+        run: |
+          python3 integrations/league-soccer/upstream-arm-retarget.py "$RUNNER_TEMP/native-animation-conversion/native-animation-skeleton.gltf" "$RUNNER_TEMP/native-animation-conversion"
+          TRIBUN_ARM_BANK="$RUNNER_TEMP/native-animation-conversion/native-arm-bank.json" node --test integrations/league-soccer/upstream-arm-bank.test.cjs
+          node --test integrations/league-soccer/native-clip-library.test.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: animation-conversion-report
-          path: ${{ runner.temp }}/native-animation-conversion/conversion-report.json
+          path: |
+            ${{ runner.temp }}/native-animation-conversion/conversion-report.json
+            ${{ runner.temp }}/native-animation-conversion/arm-retarget-report.json
           if-no-files-found: error
