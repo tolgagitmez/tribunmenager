@@ -4298,6 +4298,14 @@ inline bool LeadTimingSafe(float progress,float distance,float runSpeed,float ma
       runSpeed>=1.6f&&margin>=1.5f&&clearance>=2.0f&&corridor>=1.4f&&
       odds>=.76f&&odds<=1.0f&&reachError>=0&&reachError<=1.8f;
 }
+// Stage 214: a reserved runner can start level with the carrier.
+inline bool EarlyRunLead214(float progress){
+  return std::isfinite(progress)&&progress>=-2.0f&&progress<3.0f;
+}
+inline float ReachableRunProgress214(float targetProgress,float receiverProgress){
+  if(!std::isfinite(targetProgress)||!std::isfinite(receiverProgress))return -1000.0f;
+  return std::min(targetProgress,receiverProgress);
+}
 inline float LeadTimingBonus(float corridor,float clearance,float odds){
   return .18f+.12f*std::clamp((corridor-1.4f)/2.0f,0.0f,1.0f)+
       .10f*std::clamp((clearance-2.0f)/3.0f,0.0f,1.0f)+
@@ -4334,15 +4342,23 @@ struct FixedDurationClock {'''),
             }
           }
         }
-        if((standaloneTiming||runReservation) && AITactics::LeadTimingSafe(progress,distance,runSpeed,margin,100,100,1,0)){
+        const bool earlyRun214=!standaloneTiming && runReservation &&
+            AITactics::CoordinatedRuns189Enabled() && AITactics::EarlyRunLead214(progress);
+        const float preProgress214=earlyRun214?3.0f:progress;
+        if((standaloneTiming||runReservation) && AITactics::LeadTimingSafe(preProgress214,distance,runSpeed,margin,100,100,1,0)){
           const auto future=recipient+movement*AITactics::NativeLeadDelay(distance);
           // Match the native forced-target long pass's forward offset.
           const auto target=future+Vector3(attackForward*(future-origin).GetLength()*.2f,0,0);
           const float travel=.7f+(target-origin).GetLength()*.03f;
-          const float reachError=(target-(recipient+movement*travel)).GetLength();
+          const auto reachable=recipient+movement*travel;
+          const float reachError=(target-reachable).GetLength();
+          const float finalProgress214=earlyRun214?AITactics::ReachableRunProgress214(
+              (target-origin).coords[0]*attackForward,(reachable-origin).coords[0]*attackForward):progress;
+          const float targetDistance214=(target-origin).GetLength();
           const bool nearRunTarget=runReservation &&
               AITactics::RunPass206Target(*runReservation,target.coords[0],target.coords[1]);
-          if((standaloneTiming||nearRunTarget) && std::abs(target.coords[0])<pitchHalfW-1.0f && std::abs(target.coords[1])<pitchHalfH-1.0f){
+          if((standaloneTiming||nearRunTarget) && std::abs(target.coords[0])<pitchHalfW-1.0f && std::abs(target.coords[1])<pitchHalfH-1.0f &&
+              (!earlyRun214 || (targetDistance214>=7.0f && targetDistance214<=26.0f))){
             timingClearance=100;timingCorridor=100;
             for(const auto& opp:opponentPlayerImages){
               timingClearance=std::min(timingClearance,(target-opp.position-opp.movement*travel).Get2D().GetLength());
@@ -4353,7 +4369,7 @@ struct FixedDurationClock {'''),
             }
             timingOdds=std::min(_GetPassingOdds(mates.at(i),e_FunctionType_LongPass,opponentPlayerImages),
                 _GetPassingOdds(target,e_FunctionType_LongPass,opponentPlayerImages));
-            timing186=AITactics::LeadTimingSafe(progress,distance,runSpeed,margin,timingClearance,
+            timing186=AITactics::LeadTimingSafe(finalProgress214,distance,runSpeed,margin,timingClearance,
                 timingCorridor,timingOdds,reachError);
             runPass206=timing186 && nearRunTarget;
           }
