@@ -96,6 +96,8 @@ def run(runtime,root,port,delay,result_seconds=30,wsl_gpu=False):
                     report=q.run_match(runtime,root,job,database=server.DATA,wsl_gpu=wsl_gpu,idle_recovery=True)
                     if not q.finish(server.DATA,key,sha,attempt,report=report):raise RuntimeError('Completion rejected')
                     result={'passed':True,'score':report['score'],'coverage':report['coverage'],'commandHistory':report['commandHistory'],'productionQualified':False}
+                    result['configSha256']=report['configSha256']
+                    result['traceSha256']=report['traceSha256']
                 except BaseException as exc:
                     q.finish(server.DATA,key,sha,attempt,error=type(exc).__name__)
                     if not isinstance(exc,Exception):raise
