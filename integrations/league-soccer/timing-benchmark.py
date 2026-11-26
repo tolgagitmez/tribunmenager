@@ -96,8 +96,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False):
     name,scale,quick=profile
+    if type(determinism_probe) is not bool or (determinism_probe and not (null_renderer and fixed_duration and sample_pss)):
+        raise ValueError("Determinism probe requires fixed-clock sampled null mode")
     if type(position_skinning) is not bool or (position_skinning and not (null_renderer and sample_pss)):
         raise ValueError("Position-only skinning requires isolated null backend and sampling")
     if type(task_workers) is not int or task_workers not in (0,3,4) or (task_workers and not (null_renderer and sample_pss)):
@@ -132,6 +134,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_SKIP_PITCH_TEXTURE"]="1" if skip_pitch else "0"
     env["TRIBUN_NATIVE_TASK_WORKERS"]=str(task_workers)
     env["TRIBUN_NATIVE_POSITION_SKINNING"]="1" if position_skinning else "0"
+    env["TRIBUN_NATIVE_DETERMINISM"]="1" if determinism_probe else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -202,7 +205,10 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         marker="[tribun-visual] rng=isolated pitch-texture="+("off" if skip_pitch else "on")
         if marker not in Path(str(trace)+".log").read_text(errors="replace"):
             raise ValueError("Missing visual RNG evidence")
+    if determinism_probe and "[tribun-determinism] fixed-grid=100 visual-rng=isolated" not in Path(str(trace)+".log").read_text(errors="replace"):
+        raise ValueError("Missing deterministic probe evidence")
     report=stats.report()
+    report["determinismProbe"]=determinism_probe
     report["positionSkinning"]=position_skinning
     if null_renderer:
         skinning_marker="[tribun-skinning] runtime="+("position-only" if position_skinning else "full")+" bind-pose=full"

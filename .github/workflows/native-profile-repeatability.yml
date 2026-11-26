@@ -1,7 +1,7 @@
-name: Native integrated profile repeatability gate
+name: Native deterministic sampling and RNG probe
 on:
   push:
-    branches: [experiment/native-evidence-stage51]
+    branches: [experiment/native-determinism-stage52]
     paths:
       - 'integrations/league-soccer/**'
       - 'tests/test_native_profile_repeatability.py'
@@ -18,6 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: python3 -m py_compile integrations/league-soccer/profile-repeatability.py integrations/league-soccer/instrument.py integrations/league-soccer/timing-benchmark.py integrations/league-soccer/integrated-profile.py
       - run: python3 -m unittest discover -s tests -p test_native_profile_repeatability.py
       - run: python3 -m unittest discover -s tests -p test_native_release_evidence.py
       - name: Build pinned runtime

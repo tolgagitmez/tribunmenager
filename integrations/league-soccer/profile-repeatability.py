@@ -1,4 +1,4 @@
-"""Stage 51: same-build repeated reference/candidate traces; no automatic promotion."""
+"""Stage 52: repeated fixed-grid observations with visual RNG isolated in both modes."""
 import argparse
 import hashlib
 import importlib.util
@@ -32,8 +32,8 @@ def digest_frames(frames):
         state={**{k:frame[k] for k in FRAME_FIELDS},"players":players}
         rows[tick]=hashlib.sha256(json.dumps(state,sort_keys=True,separators=(",",":"),
                                             allow_nan=False).encode()).hexdigest()
-    if not {0,150000,300000}.issubset(rows) or len(rows)<100:
-        raise ValueError("Incomplete sampled trajectory")
+    if set(rows)!=set(range(0,300001,100)):
+        raise ValueError("Incomplete fixed 100 ms sampling grid")
     return rows
 
 def compare(a,b):
@@ -51,7 +51,7 @@ def evaluate_scenario(runs):
     for mode,rows in runs.items():
         candidate=mode=="candidate"
         for row in rows:
-            if not integrated.mode_ok(row["match"],candidate) or not integrated.stats_ok(row["match"]) or not integrated.resource_ok(row["match"]):
+            if row["match"].get("determinismProbe") is not True or not integrated.mode_ok(row["match"],candidate) or not integrated.stats_ok(row["match"]) or not integrated.resource_ok(row["match"]):
                 raise ValueError("Invalid mode or resource evidence")
     allrows=runs["reference"]+runs["candidate"]
     if len({x["runId"] for x in allrows})!=4 or len({x["match"]["hardwareThreads"] for x in allrows})!=1:
@@ -93,7 +93,7 @@ def main():
     identity=integrated.capacity.fingerprint(a.runtime,a.fixtures)
     report={"schema":1,"authoritative":False,"productionEnabled":False,"status":"incomplete",
             "identity":identity,"scenarios":{},"completedRuns":[],
-            "note":"Reference is full-scene null mode, not OpenGL. Exact equality of sampled observations is conservative evidence, not proof of deterministic physics. A differing sample grid is not physical divergence. No release authorization."}
+            "note":"Both modes isolate audited visual RNG consumers and use kickoff-relative samples. Full-scene null reference is not OpenGL. Remaining RNG consumers and task scheduling are not proven deterministic. No release authorization."}
     target=a.out/"profile-repeatability.json"
     def checkpoint():
         if integrated.capacity.fingerprint(a.runtime,a.fixtures)!=identity:raise ValueError("Frozen inputs changed")
@@ -105,7 +105,7 @@ def main():
         for idx,mode in enumerate(("reference","candidate","candidate","reference")):
             run_id=f"{scenario}-{idx}-{mode}"
             prefix=a.out/run_id
-            row=integrated.run(a.runtime,a.fixtures/(scenario+".json"),prefix,mode=="candidate")
+            row=integrated.run(a.runtime,a.fixtures/(scenario+".json"),prefix,mode=="candidate",determinism_probe=True)
             trace=Path(str(prefix)+"."+mode+".ndjson")
             with trace.open() as f:digests=digest_frames(json.loads(line) for line in f)
             runs[mode].append({"runId":run_id,"match":row,"digests":digests})
@@ -117,7 +117,7 @@ def main():
     report["status"]="manual-review-required" if all(x["observedParityGatePassed"] for x in report["scenarios"].values()) else "blocked"
     checkpoint()
     print(json.dumps({"status":report["status"],"productionEnabled":False,
-        "scenarios":{k:v["checks"] for k,v in report["scenarios"].items()}},flush=True)
+        "scenarios":{k:v["checks"] for k,v in report["scenarios"].items()}}),flush=True)
     # Collection success is distinct from passing a release gate.
     if report["status"]=="blocked":raise SystemExit(2)
 if __name__=="__main__":main()

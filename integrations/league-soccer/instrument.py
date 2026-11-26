@@ -179,7 +179,14 @@ void TribunTrace(Match& match, bool done) {
   const auto& fixed=match.GetTribunFixedClock();
   const bool boundary=AITactics::FixedDurationEnabled() && fixed.started &&
       (now==fixed.start || now-fixed.start==150000UL);
-  if (started && !done && !boundary && now < last + 100) return;
+  if (tribun_visual::deterministicProbe() && fixed.started) {
+    const auto tick = fixed.Elapsed(now);
+    if (!done && tick % 100UL != 0) return;
+    if (tick == 0) {
+      std::printf("[tribun-determinism] fixed-grid=100 visual-rng=isolated\n");
+      std::fflush(stdout);
+    }
+  } else if (started && !done && !boundary && now < last + 100) return;
   started = true;
   last = now;
   finished = done;
@@ -522,8 +529,12 @@ inline bool flag(const char* key) {
   const char* value=std::getenv(key);
   return value && std::strcmp(value,"1")==0;
 }
+inline bool deterministicProbe() {
+  return flag("TRIBUN_NATIVE_DETERMINISM") && flag("TRIBUN_NATIVE_FIXED_DURATION") &&
+         flag("TRIBUN_NATIVE_NULL_RENDERER") && flag("TRIBUN_NATIVE_NO_DRAW") && flag("TRIBUN_NATIVE_NO_UPLOAD");
+}
 inline bool enabled() {
-  return flag("TRIBUN_NATIVE_VISUAL_RNG") && flag("TRIBUN_NATIVE_NULL_RENDERER") &&
+  return (flag("TRIBUN_NATIVE_VISUAL_RNG") || deterministicProbe()) && flag("TRIBUN_NATIVE_NULL_RENDERER") &&
          flag("TRIBUN_NATIVE_NO_DRAW") && flag("TRIBUN_NATIVE_NO_UPLOAD");
 }
 inline bool skipPitch() { return enabled() && flag("TRIBUN_NATIVE_SKIP_PITCH_TEXTURE"); }
@@ -617,6 +628,9 @@ def visual_match_rng(source):
       GeneratePitch(1024, 512, 1024, 512, 2048, 1024);
     }
   }""")
+    source = replace_once(source, "  std::mt19937 adboardRandom(std::random_device{}());",
+        """  std::mt19937 adboardRandom(tribun_visual::deterministicProbe() ?
+      tribun_visual::seed(0x41444231u) : std::random_device{}());""")
     return source
 
 WORKER_LIMIT_HEADER = r'''#pragma once

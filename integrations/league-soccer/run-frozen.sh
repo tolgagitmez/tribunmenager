@@ -8,6 +8,11 @@ out="$(realpath -m "$3")"
 render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+case "${TRIBUN_NATIVE_DETERMINISM:-0}" in
+  0) ;;
+  1) [[ "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_NO_DRAW:-0}" == 1 && "${TRIBUN_NATIVE_NO_UPLOAD:-0}" == 1 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "$render_interval" == 100 ]] || { echo "Determinism probe requires isolated null mode" >&2; exit 2; } ;;
+  *) echo "Invalid determinism probe flag" >&2; exit 2;;
+esac
 case "${TRIBUN_NATIVE_POSITION_SKINNING:-0}" in
   0) ;;
   1) [[ "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_NO_DRAW:-0}" == 1 && "${TRIBUN_NATIVE_NO_UPLOAD:-0}" == 1 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "$render_interval" == 100 ]] || { echo "Position skinning requires isolated null mode" >&2; exit 2; } ;;

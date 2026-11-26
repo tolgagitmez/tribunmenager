@@ -7,7 +7,7 @@ sys.path.insert(0,str(ROOT))
 spec=importlib.util.spec_from_file_location("repeat",ROOT/"profile-repeatability.py")
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 def row(candidate):
-    return dict(nullRenderer=True,noDraw=True,noUpload=True,sharedAssets=False,configuredRenderIntervalMs=100,
+    return dict(determinismProbe=True,nullRenderer=True,noDraw=True,noUpload=True,sharedAssets=False,configuredRenderIntervalMs=100,
         softwareRenderThreads=1,attackProfile="short-match",exactNativeDuration=True,nativeElapsedMs=300000,
         halfMs=150000,scale=1.0,retention=False,boxRuns=False,timedAttack=False,quickRestarts=False,
         leanScene=candidate,visualRng=candidate,skipPitchTexture=candidate,positionSkinning=candidate,
@@ -44,8 +44,12 @@ class RepeatabilityTest(unittest.TestCase):
         def frame(t):
             return {**{k:0 for k in m.FRAME_FIELDS},"fixedClock":{"started":True,"elapsedMs":t},
                     "players":[],"elapsedMs":t+500}
-        a=[frame(t) for t in list(range(0,150000,1000))+[150000,300000]]
+        a=[frame(t) for t in range(0,300001,100)]
         b=[{**x,"elapsedMs":x["elapsedMs"]+20} for x in a]
         self.assertEqual(m.digest_frames(a),m.digest_frames(b))
         b[1]["ball"]=[1,2,3]
         self.assertNotEqual(m.digest_frames(a),m.digest_frames(b))
+        with self.assertRaises(ValueError):m.digest_frames(a[1:])
+    def test_probe_required(self):
+        r=runs();r["reference"][0]["match"]["determinismProbe"]=False
+        with self.assertRaises(ValueError):m.evaluate_scenario(r)
