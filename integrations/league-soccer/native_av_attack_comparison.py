@@ -27,7 +27,7 @@ def compare(rows):
         else:result['passed']=False
     return result
 
-def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None,vao_cache=None,texture_cache=None):
+def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None,vao_cache=None,texture_cache=None,render_suite=False):
     root.mkdir(mode=0o700)
     out=root/'run'
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_NATIVE_','TRIBUN_AV_','TRIBUN_GPU_','TRIBUN_LEAGUE_SOCCER_','TRIBUN_EXPECT_','TRIBUN_PLAYBACK_'))}
@@ -40,16 +40,20 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
         if type(shadow_size) is not int or shadow_size not in (1024,2048) or render_size not in ('1280x720','960x540') or (render_size=='960x540' and shadow_size!=2048):
             raise ValueError('Unsupported shadow experiment')
         env['TRIBUN_AV_SHADOW_SIZE']=str(shadow_size)
+    if render_suite:
+        if render_size!='1280x720' or shadow_size!=2048 or profile!='baseline' or any(type(m) is not int or m not in (0,1) for m in (skin_cache,vao_cache,texture_cache)):
+            raise ValueError('Invalid fixed-quality suite configuration')
+        env['TRIBUN_AV_RENDER_SUITE']='1'
     if skin_cache is not None:
         if type(skin_cache) is not int or skin_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048:
             raise ValueError('Unsupported skinning experiment')
         env['TRIBUN_AV_SKIN_CACHE']=str(skin_cache)
     if vao_cache is not None:
-        if type(vao_cache) is not int or vao_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048 or skin_cache is not None:
+        if type(vao_cache) is not int or vao_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048 or (not render_suite and skin_cache is not None):
             raise ValueError('Unsupported VAO experiment')
         env['TRIBUN_AV_VAO_CACHE']=str(vao_cache)
     if texture_cache is not None:
-        if type(texture_cache) is not int or texture_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048 or skin_cache is not None or vao_cache is not None:
+        if type(texture_cache) is not int or texture_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048 or (not render_suite and (skin_cache is not None or vao_cache is not None)):
             raise ValueError('Unsupported texture experiment')
         env['TRIBUN_AV_TEXTURE_CACHE']=str(texture_cache)
     children=[];error=None
@@ -85,7 +89,7 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,ski
             and n['mediaTimeline']['timelinePassed'] is True and quality['presentation']['checks']['fiveMinuteWall']
             and quality['presentation']['checks']['fullBrowserPlayback'] and b['videoWidth']==1280 and b['videoHeight']==720)
     except (OSError,ValueError,KeyError,TypeError):pass
-    result={'profile':profile,'fixtureSha256':fixture_sha,'passed':passed,'failureType':error,'quality':quality}
+    result={'profile':profile,'fixtureSha256':fixture_sha,'passed':passed,'failureType':error,'quality':quality,'renderSuite':render_suite}
     if render_size is not None:
         result.update(renderSize=render_size,windowGeometry=None,renderProbe=None)
         try:

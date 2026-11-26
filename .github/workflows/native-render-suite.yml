@@ -1,0 +1,75 @@
+name: Stage 162 native render profile suite
+on:
+  push:
+    branches: [experiment/native-render-suite-stage162]
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_render_suite.py
+          python3 -m unittest discover -s tests -p test_native_texture_cache.py
+          python3 -m unittest discover -s tests -p test_native_vao_cache.py
+          python3 -m unittest discover -s tests -p test_native_skinning_cache.py
+          python3 -m unittest discover -s tests -p test_native_shadow_resolution.py
+          python3 -m unittest discover -s tests -p test_native_render_resolution.py
+          bash -n integrations/league-soccer/run-frozen.sh
+          python3 -m unittest discover -s tests -p test_native_render_resolution_comparison.py
+          python3 -m unittest discover -s tests -p test_native_verification_lease.py
+          python3 -m unittest discover -s tests -p test_native_match_lifecycle.py
+          node --check league.js
+          python3 -m unittest discover -s tests -p test_native_match_quality.py
+          python3 -m unittest discover -s tests -p test_native_private_beta.py
+          python3 -m py_compile integrations/league-soccer/native_private_beta.py
+          node --check native-beta-login.js
+          python3 -m unittest discover -s tests -p test_native_release_gate.py
+          node --test integrations/league-soccer/native-live-video.test.cjs
+          python3 -m unittest discover -s tests -p test_native_only_league.py
+          python3 -m unittest discover -s tests -p test_native_private_media.py
+          node --check integrations/league-soccer/native-league-screen-browser.cjs
+          python3 -m py_compile integrations/league-soccer/native_league_e2e.py
+          python3 -m unittest discover -s tests -p test_native_league_command_verify.py
+          python3 -m unittest discover -s tests -p test_native_av_gateway.py
+          python3 -m unittest discover -s tests -p test_native_league_key.py
+          python3 -m unittest discover -s tests -p test_native_audio_ownership.py
+          python3 -m unittest discover -s tests -p test_native_motion_audit.py
+          python3 -m unittest discover -s tests -p test_native_audio_capture.py
+          python3 -m unittest discover -s tests -p test_native_av_isolation.py
+          python3 -m unittest discover -s tests -p test_native_admission.py
+          python3 -m unittest discover -s tests -p test_native_av_capacity.py
+          python3 -m py_compile integrations/league-soccer/native-video-pilot.py integrations/league-soccer/native-av-capacity.py
+      - name: Apply all patches to pinned upstream before costly setup
+        env:
+          TRIBUN_PATCH_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/patch-preflight.ndjson"
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth pulseaudio pulseaudio-utils libopenal-dev
+      - name: Verify simultaneous private Pulse servers
+        run: python3 integrations/league-soccer/native_audio_isolation_smoke.py
+      - name: Verify two real OpenAL sources with distinct tones
+        run: python3 integrations/league-soccer/native_openal_isolation_smoke.py
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - name: Build pinned engine
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/render-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Screen three native optimizations and bracket selected combination
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/render-fixtures"
+          python3 integrations/league-soccer/native_render_suite.py "$RUNNER_TEMP/render-runtime" "$RUNNER_TEMP/render-fixtures/balanced.json" "$RUNNER_TEMP/render-suite-report.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-render-suite
+          path: ${{ runner.temp }}/render-suite-report.json
+          if-no-files-found: ignore

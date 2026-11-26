@@ -13,6 +13,12 @@ git -C "$work/source" fetch --depth 1 origin "${upstream[1]}"
 git -C "$work/source" checkout --detach FETCH_HEAD
 test "$(git -C "$work/source" rev-parse HEAD)" = "${upstream[1]}"
 python3 "$here/instrument.py" "$work/source"
+if [[ "${TRIBUN_PATCH_ONLY:-0}" == 1 ]]; then
+  [[ -z "${TRIBUN_NATIVE_RUNTIME_OUT:-}" && "$#" == 1 ]] || exit 2
+  git -C "$work/source" diff --check
+  echo "Pinned upstream patch application passed (not C++ compilation)"
+  exit 0
+fi
 # Exercise the actual patched C++ decision predicates before building the full game.
 c++ -std=c++17 -I"$work/source/src/onthepitch" "$here/attack-policy-test.cpp" -o "$work/attack-policy-test"
 "$work/attack-policy-test"
