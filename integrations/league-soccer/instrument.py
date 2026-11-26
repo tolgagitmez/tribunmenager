@@ -206,6 +206,9 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-angular] mode=%s impacts=%lu changes=%lu before=%.6f after=%.6f max-delta=%.6f violations=%lu\n",
       tribun_visual::angularImpact()?"angular":"off",match.tribunAngularImpacts,match.tribunSpinChanges,
       match.tribunAngularEnergyBefore,match.tribunAngularEnergyAfter,match.tribunMaxSpinDelta,match.tribunAngularEnergyViolations);
+    std::printf("[tribun-sweep] mode=%s tests=%lu hits=%lu applied=%lu through=%lu max-lead-ms=%.6f\n",
+      tribun_visual::sweptImpact()?"swept":"off",match.tribunSweepTests,match.tribunSweepHits,
+      match.tribunSweepApplied,match.tribunSweepThrough,match.tribunSweepMaxLeadMs);
     std::fflush(stdout);
   }
   output.imbue(std::locale::classic());
@@ -556,6 +559,7 @@ inline bool collisionOnly() { return orderedPose() && flag("TRIBUN_NATIVE_COLLIS
 inline bool adaptiveContact() { return collisionOnly() && flag("TRIBUN_NATIVE_ADAPTIVE_CONTACT"); }
 inline bool surfaceImpact() { return collisionOnly() && flag("TRIBUN_NATIVE_SURFACE_IMPACT"); }
 inline bool angularImpact() { return surfaceImpact() && flag("TRIBUN_NATIVE_ANGULAR_IMPACT"); }
+inline bool sweptImpact() { return angularImpact() && flag("TRIBUN_NATIVE_SWEPT_IMPACT"); }
 inline unsigned adaptiveTicks(float predictedDistance,bool dangerousAction,bool closeOpponent) {
   if (dangerousAction || closeOpponent || predictedDistance <= 5.0f) return 1;
   if (predictedDistance <= 12.0f) return 2;
@@ -1027,6 +1031,63 @@ inline Vec normal(Vec p,Vec lo,Vec hi){
   int best=0;for(int j=1;j<6;++j)if(gap[j]<gap[best])best=j;
   return normals[best];
 }
+// Exact distance-to-box test along a linear segment in the translating body frame.
+// Split where a coordinate crosses a box face; squared distance is quadratic on each interval.
+struct Sweep {bool hit=false; float time=1; Vec point{0,0,0};};
+inline Sweep sweepSphere(Vec start,Vec end,Vec lo,Vec hi,float radius){
+  if(!finite(start)||!finite(end)||!finite(lo)||!finite(hi)||!std::isfinite(radius)||radius<0||
+     lo.x>hi.x||lo.y>hi.y||lo.z>hi.z)return {};
+  const double p[]={start.x,start.y,start.z}, d[]={double(end.x)-start.x,double(end.y)-start.y,double(end.z)-start.z};
+  const double l[]={lo.x,lo.y,lo.z}, h[]={hi.x,hi.y,hi.z};
+  const double rr=double(radius)*radius;
+  auto distance2=[&](double t){
+    double result=0;
+    for(int j=0;j<3;++j){
+      const double v=p[j]+d[j]*t;
+      const double gap=v-std::clamp(v,l[j],h[j]);
+      result+=gap*gap;
+    }
+    return result;
+  };
+  auto found=[&](double t){
+    const auto f=static_cast<float>(t);
+    return Sweep{true,f,add(start,mul(sub(end,start),f))};
+  };
+  if(distance2(0)<=rr)return found(0);
+  // Fast conservative rejection; rounded corners are checked below.
+  for(int j=0;j<3;++j)
+    if(std::max(p[j],p[j]+d[j])<l[j]-radius || std::min(p[j],p[j]+d[j])>h[j]+radius)return {};
+  double cuts[8]={0,1};int count=2;
+  for(int j=0;j<3;++j)if(std::abs(d[j])>1e-12){
+    for(double face:{l[j],h[j]}){
+      double t=(face-p[j])/d[j];
+      if(t>0&&t<1)cuts[count++]=t;
+    }
+  }
+  std::sort(cuts,cuts+count);
+  for(int j=0;j<count-1;++j){
+    const double a=cuts[j],b=cuts[j+1],mid=(a+b)*0.5;
+    if(distance2(a)<=rr)return found(a);
+    if(b<=a)continue;
+    double aa=0,bb=0;
+    for(int k=0;k<3;++k){
+      const double v=p[k]+d[k]*mid;
+      if(v>=l[k]&&v<=h[k])continue;
+      const double face=v<l[k]?l[k]:h[k];
+      aa+=d[k]*d[k];bb+=(p[k]-face)*d[k];
+    }
+    const double minimum=aa>0?std::clamp(-bb/aa,a,b):b;
+    if(distance2(minimum)>rr)continue;
+    double left=a,right=minimum;
+    for(int step=0;step<32;++step){
+      const double center=(left+right)*0.5;
+      if(distance2(center)<=rr)right=center;else left=center;
+    }
+    return found(right);
+  }
+  if(distance2(1)<=rr)return found(1);
+  return {};
+}
 struct Result {bool valid=false; Vec velocity{0,0,0}; float approach=0,relativeBefore=0,relativeAfter=0; Vec spin{0,0,0}; float energyBefore=0,energyAfter=0,spinDelta=0;};
 inline Result resolve(Vec p,Vec lo,Vec hi,Vec incoming,Vec body,Region r){
   if(!finite(p)||!finite(lo)||!finite(hi)||!finite(incoming)||!finite(body)||
@@ -1072,7 +1133,7 @@ def surface_impact_header(source):
   unsigned long tribunLegacyImpacts=0, tribunSurfaceImpacts=0, tribunSeparatingRejected=0;
   unsigned long tribunImpactRegions[6]={0,0,0,0,0,0};
   double tribunRelativeBefore=0, tribunRelativeAfter=0;
-  unsigned long tribunEnergyViolations=0;\n  unsigned long tribunAngularImpacts=0, tribunSpinChanges=0, tribunAngularEnergyViolations=0;\n  double tribunAngularEnergyBefore=0, tribunAngularEnergyAfter=0, tribunMaxSpinDelta=0;""")
+  unsigned long tribunEnergyViolations=0;\n  unsigned long tribunAngularImpacts=0, tribunSpinChanges=0, tribunAngularEnergyViolations=0;\n  double tribunAngularEnergyBefore=0, tribunAngularEnergyAfter=0, tribunMaxSpinDelta=0;\n  unsigned long tribunSweepTests=0, tribunSweepHits=0, tribunSweepApplied=0, tribunSweepThrough=0;\n  double tribunSweepMaxLeadMs=0;""")
 
 def surface_impact_match(source):
     source=replace_once(source,'#include "tribun_visual_rng.hpp"',
@@ -1082,6 +1143,15 @@ def surface_impact_match(source):
     section=source[start:end]
     section=replace_once(section,"  float tackleBallExcitement = 0.0f;", """  float tackleBallExcitement = 0.0f;
   const bool surfaceMode=tribun_visual::surfaceImpact();
+  const bool sweptMode=tribun_visual::sweptImpact();
+  const auto ballStart=ball->Predict(0);
+  const auto ballEnd=ball->Predict(10);
+  // Avoid predictive responses across touch/goal lines. Existing rules retain priority.
+  const bool sweepInside=sweptMode && std::abs(ballStart.coords[0])<pitchHalfW-0.3f &&
+      std::abs(ballEnd.coords[0])<pitchHalfW-0.3f && std::abs(ballStart.coords[1])<pitchHalfH-0.3f &&
+      std::abs(ballEnd.coords[1])<pitchHalfH-0.3f;
+  float bestTime=2.0f;
+  bool bestThrough=false;
   tribun_impact::Result bestImpact;
   tribun_impact::Region bestRegion=tribun_impact::Other;
   Player* impactPlayer=nullptr;
@@ -1089,17 +1159,47 @@ def surface_impact_match(source):
     section=replace_once(section,"          TribunObserveContactPose(players[i]);",
         """          TribunObserveContactPose(players[i]);
           if (surfaceMode) objectList.clear();""")
+    section=replace_once(section,"""        if (((players[i]->GetPosition() + Vector3(0, 0, 0.8f)) - ball->Predict(0)).GetLength() <
+            2.5f) {""","""        const float sweepMargin=sweepInside ? (ballEnd-ballStart).GetLength()+
+              players[i]->GetMovement().GetLength()*0.01f : 0.0f;
+        if (((players[i]->GetPosition() + Vector3(0, 0, 0.8f)) - ball->Predict(0)).GetLength() <
+            2.5f+sweepMargin) {""")
+    section=replace_once(section,"            if (objAABB.Intersects(ball->Predict(0), ballRadius)) {",
+        """            const bool instant=objAABB.Intersects(ball->Predict(0),ballRadius);
+            tribun_impact::Sweep swept;
+            bool through=false;
+            if(sweepInside && !instant) {
+              ++tribunSweepTests;
+              const auto relativeEnd=ballEnd-players[i]->GetMovement()*0.01f;
+              swept=tribun_impact::sweepSphere(asVec(ballStart),asVec(relativeEnd),
+                  asVec(objAABB.minxyz),asVec(objAABB.maxxyz),std::abs(ballRadius));
+              if(swept.hit) {
+                ++tribunSweepHits;
+                through=!objAABB.Intersects(relativeEnd,ballRadius);
+              }
+            }
+            if (instant || swept.hit) {""")
+    section=replace_once(section,"                players[i]->TriggerControlledBallCollision();",
+        """                // Intentional control remains an instantaneous native decision.
+                if (instant) players[i]->TriggerControlledBallCollision();""")
+    section=replace_once(section,"                if (tribun_visual::collisionOnly()) ++tribunControlledRequests;",
+        "                if (tribun_visual::collisionOnly() && instant) ++tribunControlledRequests;")
     section=replace_once(section,"                // todonow: average bouncevec and bias together per hit",
         """                if (surfaceMode) {
                   const auto region=tribun_impact::region((*objIter)->GetName());
+                  const float time=instant?0.0f:swept.time;
+                  const auto point=instant?asVec(ballStart):swept.point;
                   const auto result=tribun_visual::angularImpact()
-                      ? tribun_impact::resolveAngular(asVec(ball->Predict(0)),
+                      ? tribun_impact::resolveAngular(point,
                           asVec(objAABB.minxyz),asVec(objAABB.maxxyz),asVec(ball->GetMovement()),
                           asVec(players[i]->GetMovement()),region,asVec(ball->TribunAngularVelocity()))
-                      : tribun_impact::resolve(asVec(ball->Predict(0)),
+                      : tribun_impact::resolve(point,
                           asVec(objAABB.minxyz),asVec(objAABB.maxxyz),asVec(ball->GetMovement()),
                           asVec(players[i]->GetMovement()),region);
-                  if (result.valid && (!bestImpact.valid || result.approach>bestImpact.approach)) {
+                  if (result.valid && (!bestImpact.valid || time<bestTime-1e-6f ||
+                      (std::abs(time-bestTime)<=1e-6f && result.approach>bestImpact.approach))) {
+                    bestTime=time;
+                    bestThrough=through;
                     bestImpact=result;
                     bestRegion=region;
                     impactPlayer=players[i];
@@ -1112,13 +1212,17 @@ def surface_impact_match(source):
                 // todonow: average bouncevec and bias together per hit""")
     section=replace_once(section,"  if (bias > 0.0f) {", """  if (surfaceMode && bestImpact.valid && impactPlayer) {
     ++tribunSurfaceImpacts;
+    if(sweptMode && bestTime>0.0f) {
+      ++tribunSweepApplied;
+      if(bestThrough) ++tribunSweepThrough;
+      tribunSweepMaxLeadMs=std::max(tribunSweepMaxLeadMs,static_cast<double>(bestTime)*10.0);
+    }
     ++tribunImpactRegions[bestRegion];
     tribunRelativeBefore+=bestImpact.relativeBefore;
     tribunRelativeAfter+=bestImpact.relativeAfter;
     if (!tribun_visual::angularImpact() && bestImpact.relativeAfter>bestImpact.relativeBefore+0.0001f) ++tribunEnergyViolations;
     impactPlayer->GetTeam()->SetLastTouchPlayer(impactPlayer,e_TouchType_Accidental);
     Vector3 resultVector(bestImpact.velocity.x,bestImpact.velocity.y,bestImpact.velocity.z);
-    ball->Touch(resultVector);
     if (tribun_visual::angularImpact()) {
       ++tribunAngularImpacts;
       if (bestImpact.spinDelta>0.0001f) ++tribunSpinChanges;
@@ -1129,6 +1233,7 @@ def surface_impact_match(source):
         ++tribunAngularEnergyViolations;
       ball->TribunSetAngularVelocity(Vector3(bestImpact.spin.x,bestImpact.spin.y,bestImpact.spin.z));
     } // Otherwise retain pre-contact spin.
+    ball->Touch(resultVector); // refresh prediction and mental images using final spin
     ball->TriggerBallTouchSound(pow(NormalizedClamp(resultVector.GetLength(),4.0f,40.0f),0.7f));
     if (impactPlayer->GetCurrentFunctionType()==e_FunctionType_Sliding)
       AddExcitementBoost(0.35f,1400);

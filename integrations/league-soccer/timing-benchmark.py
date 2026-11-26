@@ -96,8 +96,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False):
     name,scale,quick=profile
+    if type(swept_impact) is not bool or (swept_impact and not angular_impact):
+        raise ValueError("Swept impact requires angular impact diagnostic")
     if type(angular_impact) is not bool or (angular_impact and not surface_impact):
         raise ValueError("Angular impact requires surface impact diagnostic")
     if type(surface_impact) is not bool or (surface_impact and (not collision_pose or contact_interval_ms!=10 or adaptive_contact)):
@@ -153,6 +155,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_ADAPTIVE_CONTACT"]="1" if adaptive_contact else "0"
     env["TRIBUN_NATIVE_SURFACE_IMPACT"]="1" if surface_impact else "0"
     env["TRIBUN_NATIVE_ANGULAR_IMPACT"]="1" if angular_impact else "0"
+    env["TRIBUN_NATIVE_SWEPT_IMPACT"]="1" if swept_impact else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -241,6 +244,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     report["adaptiveContact"]=adaptive_contact
     report["surfaceImpact"]=surface_impact
     report["angularImpact"]=angular_impact
+    report["sweptImpact"]=swept_impact
     if collision_pose:
         import re
         matches=re.findall(r"\[tribun-contact\] interval-ms=(\d+) updates=(\d+) max-age-ticks=(\d+) missing=(\d+) ball-overlaps=(\d+) keeper-overlaps=(\d+) tackle-overlaps=(\d+) controlled-requests=(\d+)",log_text)
@@ -269,6 +273,12 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         report["angularProbe"]={"impacts":int(count),"spinChanges":int(changes),
             "energyBeforePerMassSum":float(before),"energyAfterPerMassSum":float(after),
             "maxSpinDeltaRadPerSec":float(delta),"energyViolations":int(violations)}
+        swept=re.findall(r"\[tribun-sweep\] mode=(swept|off) tests=(\d+) hits=(\d+) applied=(\d+) through=(\d+) max-lead-ms=(\d+\.\d+)",log_text)
+        if len(swept)!=1 or swept[0][0]!=("swept" if swept_impact else "off"):
+            raise ValueError("Missing swept contact evidence")
+        _,tests,hits,applied,through,lead=swept[0]
+        report["sweptProbe"]={"tests":int(tests),"hits":int(hits),"applied":int(applied),
+                             "through":int(through),"maxLeadMs":float(lead)}
     if collision_pose and "[tribun-skinning] runtime=" in log_text:
         raise ValueError("Unexpected runtime skinning in collision-only mode")
     if null_renderer and not collision_pose:
