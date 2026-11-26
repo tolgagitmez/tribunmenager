@@ -225,6 +225,8 @@ def main():
         if args.render_probe:
             report['renderEvidenceComplete'] = all(isinstance(m.get('renderProbe'),dict) and m['renderProbe'].get('observed') is True for m in matches)
             report['passed'] = report['passed'] and report['renderEvidenceComplete']
+        from native_release_gate import stamp
+        report=stamp(report,runtime,'capacity')
         (out / 'capacity-report.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps({k: v for k, v in report.items() if k != 'samples'}, indent=2))
         return 0 if report['passed'] else 1

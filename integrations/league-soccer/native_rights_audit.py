@@ -59,6 +59,9 @@ def main():
     p.add_argument('--require-commercial',action='store_true')
     a=p.parse_args()
     result=audit(json.loads((HERE/'upstream-asset-inventory.json').read_text()),json.loads((HERE/'upstream.json').read_text()),a.runtime)
+    if a.runtime is not None:
+        from native_release_gate import stamp
+        result=stamp(result,a.runtime.resolve(),'rights')
     data=json.dumps(result,indent=2)+'\n'
     if a.output:a.output.write_text(data)
     else:print(data,end='')

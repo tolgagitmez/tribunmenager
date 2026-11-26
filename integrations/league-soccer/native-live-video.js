@@ -34,7 +34,8 @@
   if(!done&&end-time>10)return {start:false,seek:Math.max(start+.03,end-3)};
   return {start:false,seek:null};
  }
- if(typeof module!=='undefined'&&module.exports){module.exports={playlist,codec,bufferDecision};return;}
+ function retryStartup(error){return ['HTTP 404','HTTP 409','HTTP 503','Failed to fetch','The operation was aborted.'].includes(error?.message)||error?.name==='AbortError';}
+ if(typeof module!=='undefined'&&module.exports){module.exports={playlist,codec,bufferDecision,retryStartup};return;}
  const leagueTransport=root.TRIBUN_LEAGUE_AV;
  const request=(name,options)=>leagueTransport?leagueTransport.request(name,options):fetch(name,options);
  const v=document.querySelector('#video'),button=document.querySelector('#start'),status=document.querySelector('#status'),sound=document.querySelector('#sound');
@@ -125,7 +126,7 @@
  }
  // Current engine state is separate from buffered video time.
  const panel=document.querySelector('#manager'),send=document.querySelector('#sendTactics'),form=document.querySelector('#tacticsForm'),commandStatus=document.querySelector('#commandStatus');
- let controlState=null,submitting=false,pollGeneration=0,polling=false,managerSide=null,pendingRequest=null,rosterKey='';
+ let controlState=null,submitting=false,pollGeneration=0,polling=false,managerSide=null,pendingRequest=null,rosterKey='',controlStopped=false;
  function renderRoster(roster){
   const key=JSON.stringify(roster);if(key===rosterKey)return;rosterKey=key;
   const rows=document.querySelector('#rosterRows'),plans=document.querySelector('#plannedChanges'),status=document.querySelector('#rosterStatus');
@@ -161,8 +162,13 @@
  }
  async function startControl(){
   try{
-   const state=JSON.parse(await get('status.json'));
-   if(![0,1].includes(state.managerSide))return;
+   let state;
+   const deadline=Date.now()+120000;
+   while(!controlStopped){
+    try{state=JSON.parse(await get('status.json'));break;}
+    catch(e){if(!leagueTransport||!retryStartup(e)||Date.now()>=deadline)throw e;await sleep(500);}
+   }
+   if(controlStopped||!state||![0,1].includes(state.managerSide))return;
    managerSide=state.managerSide;panel.hidden=false;document.querySelector('#teamSide').textContent=managerSide===0?'Ev sahibi takım':'Deplasman takımı';
    if(polling)return;polling=true;
    while(polling){await controlPoll();await sleep(500);}
@@ -186,5 +192,5 @@
  });
  startControl();
  button.addEventListener('click',play);
- root.addEventListener('pagehide',()=>{polling=false;pollGeneration++;playGeneration++;if(objectUrl)URL.revokeObjectURL(objectUrl);});
+ root.addEventListener('pagehide',()=>{controlStopped=true;polling=false;pollGeneration++;playGeneration++;if(objectUrl)URL.revokeObjectURL(objectUrl);});
 })(typeof window!=='undefined'?window:globalThis);

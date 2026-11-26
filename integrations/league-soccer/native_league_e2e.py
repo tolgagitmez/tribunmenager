@@ -92,6 +92,8 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix='tribun-native-e2e-') as t:result=run(a.runtime.resolve(),Path(t)/'private')
     except Exception as exc:result={'passed':False,'productionQualified':False,'failureType':type(exc).__name__}
+    from native_release_gate import stamp
+    result=stamp(result,a.runtime.resolve(),'league-e2e')
     a.report.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2))
     return 0 if result['passed'] else 1
 if __name__=='__main__':raise SystemExit(main())

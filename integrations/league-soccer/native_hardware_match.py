@@ -74,6 +74,8 @@ def main():
                 if i:os.killpg(c.pid,signal.SIGKILL)
                 else:c.kill()
                 c.wait()
+        from native_release_gate import stamp
+        result=stamp(result,a.runtime.resolve(),'hardware')
         (out/'hardware-match-report.json').write_text(json.dumps(result,indent=2)+'\n')
     return 0 if result['passed'] else 1
 

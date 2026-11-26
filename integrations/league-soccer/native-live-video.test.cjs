@@ -26,3 +26,8 @@ test('live edge does not jump backwards; completed stream is not fast-forwarded'
  assert.equal(L.bufferDecision([[0,20]],2,true,false).seek,17);
  assert.ok(L.bufferDecision([[0,2],[5,6]],3,true,true).seek>=5);
 });
+
+test('retry only transient league startup errors',()=>{
+ for(const code of [404,409,503])assert.equal(L.retryStartup(Error('HTTP '+code)),true);
+ for(const code of [400,401,403])assert.equal(L.retryStartup(Error('HTTP '+code)),false);
+});
