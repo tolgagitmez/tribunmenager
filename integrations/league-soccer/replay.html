@@ -6,7 +6,7 @@
 </style></head><body>
 <a href="match.html">Normal maç ekranı</a>
 <h1>League-Soccer · 3D maç kaydı</h1>
-<p>Yeni motorun gerçek konum ve skor kayıtlarını Tribün Manager'ın mevcut 3D stadyumunda izle. Bu ayrı bir test ekranıdır; lig sonucu kaydetmez. Koşu animasyonları hareket verisinden üretilir; özel vuruş animasyonları henüz aktarılmaz.</p>
+<p>Yeni motorun gerçek konum ve skor kayıtlarını Tribün Manager'ın mevcut 3D stadyumunda izle. Bu ayrı bir test ekranıdır; lig sonucu kaydetmez. Deneysel animasyon seçenekleri motorun kayıtlı temasları ve mevcut proje klipleriyle çalışır.</p>
 <label>Motor kaydı (.ndjson) <input type="file" id="file" accept=".ndjson,.jsonl"></label>
 <label>İsteğe bağlı kadro eşleştirmesi (.fixture.json) <input type="file" id="manifest" accept=".json"></label>
 <div class="row"><div id="score" aria-live="polite">Kayıt seçin</div><span id="renderMode">3D hazırlanıyor</span></div>
@@ -25,7 +25,9 @@
 <label><input type="checkbox" id="motionMatching"> Deneysel hareket eşleştirme (89. aşama; birleşik profil dahil)</label>
 <label><input type="checkbox" id="playerMotionIdentity"> Deneysel futbolcuya özgü hareket karakteri (90. aşama)</label>
 <label><input type="checkbox" id="playerAnatomy"> Deneysel bireysel boy ve iskelet (91. aşama)</label>
+<label><input type="checkbox" id="nativeClips"> Deneysel proje animasyon klipleri (92. aşama)</label><p id="clipStatus" aria-live="polite"></p>
 <input type="range" id="seek" min="0" max="0" value="0" disabled aria-label="Kayıt zamanı">
 <p id="status" role="status"></p><div id="stats">İstatistik kaydı yok.</div><div data-player-asset-diagnostics></div>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <script src="humanoid-rig.js"></script><script src="player-asset-status.js"></script><script src="assets/player/player-model-data.js"></script><script src="player-skinning.js"></script><script src="character-palette-constraints.js"></script><script src="player-renderer.js"></script><script src="match-animation-bridge.js"></script><script src="pitch-laws.js"></script><script src="ball-visual.js"></script><script src="scene3d.js"></script><script src="integrations/league-soccer/native-replay.js"></script><script src="integrations/league-soccer/broadcast-clock.js"></script><script src="integrations/league-soccer/replay-ui.js"></script>
 </body></html>

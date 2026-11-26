@@ -215,6 +215,30 @@ function nativeStep(p,st,i,hip,neutral,arc,duty,speed,locomoting,dt){
  }
  return f.stance;
 }
+// Stage 92: shared sampled clip library, upper-arm targets only. All
+// targets still enter the same anatomical solver; no palette override.
+function sampleClipArms(bank,name,phase){
+ const clip=bank?.[name];
+ if(!clip||!Array.isArray(clip.samples)||clip.samples.length<2)return null;
+ const n=clip.samples.length-1,u=clamp(phase,0,1)*n,i=Math.min(n-1,Math.floor(u));
+ return [0,1].map(side=>blend(clip.samples[i][side],clip.samples[i+1][side],u-i));
+}
+function nativeClipCue(p,phase,primary,duel){
+ if(!p.nativeClipLibrary||!p.nativeBlend||p.role==='GK'||duel?.weight>.12)return null;
+ let name,progress,weight;
+ if(primary){
+  if(primary.kind!=='shot'||!primary.strike)return null;
+  name='shoot';
+  const d=primary.deltaMs;
+  progress=clamp((.38+d/1000)/1.3,0,1);
+  // Exact ball contact and its near window keep procedural priority.
+  weight=.30*primary.weight*smooth((Math.abs(d)-60)/110);
+ }else if(p.speed>.45){
+  name='run';progress=((phase%1)+1)%1;weight=.45*smooth((p.speed-.45)/1.5);
+ }else{name='idle';progress=.5;weight=.25*(1-smooth(p.speed/.45));}
+ const arms=sampleClipArms(p.nativeClipLibrary,name,progress);
+ return arms&&weight>0?{name,arms,weight}:null;
+}
 function pose(p,dt=1/60){
  const anatomy=anatomyFor(p),bodyScale=anatomy.height/ANATOMY.height,ground=GROUND*bodyScale;
  const st=getState(p);dt=clamp(Number(dt)||0,0,.1);
@@ -347,6 +371,7 @@ function pose(p,dt=1/60){
  const blended=p.nativeBlend===true&&!special;
  if(!blended)st.nativeBlend=null;
  const primary=recorded||aerial||keeper;
+ const clipCue=!special?nativeClipCue(p,st.phase,primary,duel):null;
  const protect=primary?clamp(primary.weight,0,1):0;
  const gain=1-Math.exp(-dt*18);
  if(blended){
@@ -564,6 +589,11 @@ function pose(p,dt=1/60){
    wrist=blend(wrist,target,shieldWeight*.92);
   }
   if(act==='throw'&&p.actionClock>0){const u=smooth((p.actionElapsed||0)/Math.max(.1,p.contactTime||.55));wrist=blend(wrist,world(p,mix(-.06,.4,u),side*.12,1.95),action);}
+  if(clipCue){
+   const [f,u,s]=clipCue.arms[i];
+   const desired=add(shoulder,add(add(mul(bodyForward,f*bodyScale),mul(up,u*bodyScale)),mul(bodyRight,s*bodyScale)));
+   wrist=blend(wrist,desired,clipCue.weight);
+  }
   wrist=filterTarget('arms',i,wrist,!!keeper&&keeperW>.75);
   arms.push({shoulder,target:wrist});
  }
@@ -576,6 +606,7 @@ function pose(p,dt=1/60){
  if(keeper)result.nativeKeeper={kind:keeper.kind,profile:keeper.profile,hand:keeper.hand,weight:keeperW,held:keeper.held,targets:0,meanPalmError:null};
  if(aerial)result.nativeAerial={profile:aerial.profile,kind:aerial.kind,weight:aerialW,jump:aerialJump,landing:aerialLanding,contested:aerial.contested,headError:null};
  if(st.motionMatch)result.nativeMotionMatch={profile:st.motionMatch.profile.id,cost:st.motionMatch.cost,steps:st.feet.map(f=>f.nativeSwing?.profile?.id??null)};
+ if(clipCue)result.nativeClip={name:clipCue.name,weight:clipCue.weight,source:'project-blender-baked'};
  if(p.nativeAnatomy)result.nativeAnatomy={height:p.nativeAnatomy.height,scale:bodyScale,preferredFoot:p.nativeAnatomy.preferredFoot};
  if(identity)result.nativeMotionIdentity={...identity,strideMetres:stride,stanceRatio:duty,freshness:p.nativeMotionIdentity.freshness};
  if(blended)result.nativeBlend={gain,contactProtection:protect,primary:recorded?.kind||aerial?.kind||keeper?.kind||null,hipHeight,pitch,roll};
@@ -677,7 +708,7 @@ function boneFrames(pose){
  Object.freeze(frames);frameCache.set(pose,frames);return frames;
 }
 function reset(p){rigs.delete(p);}
-const API={anatomyFor,bodyScaleFor,motionIdentityFactors,matchNativeStep,pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
+const API={sampleClipArms,nativeClipCue,anatomyFor,bodyScaleFor,motionIdentityFactors,matchNativeStep,pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 global.TribunHumanoidRig=API;
 })(typeof window!=='undefined'?window:globalThis);
