@@ -406,6 +406,16 @@ int main(){
  sustained.BeginMove(2700);
  assert(!sustained.Observe(false,1,2800,.6f,0,.6f,0));
  assert(!sustained.ContinueMove(2800));
+ assert(RecoveryMoveCandidate202(true,false,2.5f,1.0f));
+ assert(RecoveryMoveCandidate202(true,false,1.2f,.85f));
+ assert(!RecoveryMoveCandidate202(false,false,2.5f,1.0f));
+ assert(!RecoveryMoveCandidate202(true,true,2.5f,1.0f));
+ assert(!RecoveryMoveCandidate202(true,false,1.19f,1.0f));
+ assert(!RecoveryMoveCandidate202(true,false,3.51f,1.0f));
+ assert(!RecoveryMoveCandidate202(true,false,2.5f,.84f));
+ assert(!RecoveryMoveCandidate202(true,false,2.5f,1.01f));
+ assert(!RecoveryMoveCandidate202(true,false,NAN,1.0f));
+ assert(!RecoveryMoveCandidate202(true,false,2.5f,NAN));
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
