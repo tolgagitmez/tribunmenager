@@ -15,6 +15,7 @@ import math
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 import native_av_season
+import native_worker_lease as lease
 
 HERE=Path(__file__).resolve().parent
 SCHEMA="""
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS native_av_jobs(
  PRIMARY KEY(league,round,home,away)
 );
 CREATE INDEX IF NOT EXISTS native_av_due ON native_av_jobs(state,kickoff);
-""" + native_av_season.SCHEMA
+""" + native_av_season.SCHEMA + lease.SCHEMA
 KEY="league=? AND round=? AND home=? AND away=?"
 
 def canonical(raw):
@@ -47,12 +48,13 @@ def sync(db, now):
             (league,round_,home,away,kickoff,digest(raw))).rowcount
     return count
 
-def claim(path, slots, now=None):
+def claim(path, slots, now=None, *, managed=False):
     if type(slots) is not int or not 1<=slots<=16:return None
     now=time.time() if now is None else now
     with closing(sqlite3.connect(path,timeout=20)) as db,db:
         db.execute('BEGIN IMMEDIATE')
-        if db.execute("SELECT count(*) FROM native_av_jobs WHERE state='running'").fetchone()[0]>=slots:return None
+        lease.expire(db,now)
+        if db.execute("SELECT count(*) FROM native_av_jobs WHERE state='running'").fetchone()[0]+lease.held(db)>=slots:return None
         row=db.execute("""SELECT n.league,n.round,n.home,n.away,n.config_sha,l.config
             FROM native_av_jobs n JOIN live_matches l USING(league,round,home,away)
             WHERE n.state='queued' AND n.kickoff<=? ORDER BY n.kickoff,n.league,n.round,n.home,n.away LIMIT 1""",(now,)).fetchone()
@@ -63,6 +65,7 @@ def claim(path, slots, now=None):
             return None
         attempt=uuid.uuid4().hex
         db.execute("UPDATE native_av_jobs SET state='running',attempt=?,started=? WHERE "+KEY,(attempt,now,*key))
+        if managed:lease.reserve(db,attempt,now)
         return key,sha,json.loads(raw),attempt
 
 def finish(path,key,sha,attempt,report=None,error=None):
@@ -73,6 +76,8 @@ def finish(path,key,sha,attempt,report=None,error=None):
     with closing(sqlite3.connect(path,timeout=20)) as db,db:
         db.row_factory=sqlite3.Row
         db.execute('BEGIN IMMEDIATE')
+        lease.expire(db,time.time())
+        if not lease.live(db,attempt,time.time()):return False
         row=db.execute("SELECT config FROM live_matches WHERE "+KEY,key).fetchone()
         if not row or digest(row[0])!=sha:return False
         updated=db.execute("""UPDATE native_av_jobs SET state=?,finished=?,report=?,error=? WHERE """+KEY+
@@ -130,7 +135,12 @@ def verify_recording(fixture_path,directory,sha,*,control_source='local-diagnost
     return {'authoritative':False,'verified':True,'configSha256':sha,'score':score,'season':season,
             'traceSha256':native['traceSha256'],'coverage':browser['coverageFraction'],'audioOwnershipVerified':True,'controlSource':control_source,'commandHistory':command_history,'engine':'league-soccer'}
 
-def run_match(runtime, root, job):
+def heartbeat(path,attempt):
+    with closing(sqlite3.connect(path,timeout=5)) as db,db:
+        db.execute('BEGIN IMMEDIATE')
+        return lease.renew(db,attempt,time.time())
+
+def run_match(runtime, root, job, *, database=None):
     key,sha,config,attempt=job
     out=root/attempt;out.mkdir(mode=0o700)
     (out/'fixture.json').write_text(canonical(config))
@@ -142,7 +152,11 @@ def run_match(runtime, root, job):
         try:
             browser=subprocess.Popen(['node',str(HERE/'native-live-video-browser.cjs'),str(out/'run/local-url.txt')],env=env,stdout=b,stderr=subprocess.STDOUT,start_new_session=True)
             deadline=time.monotonic()+1200
+            next_heartbeat=0.0
             while native.poll() is None or browser.poll() is None:
+                if database is not None and time.monotonic()>=next_heartbeat:
+                    if not heartbeat(database,attempt):raise RuntimeError('Worker lease lost')
+                    next_heartbeat=time.monotonic()+5
                 if time.monotonic()>deadline:raise TimeoutError('AV job timed out')
                 if (native.poll() not in (None,0)) or (browser.poll() not in (None,0)):raise RuntimeError('AV child failed')
                 time.sleep(.5)
@@ -158,6 +172,7 @@ def run_match(runtime, root, job):
                     if p is browser:os.killpg(p.pid,signal.SIGKILL)
                     else:p.kill()
                     p.wait()
+    if database is not None and not heartbeat(database,attempt):raise RuntimeError('Worker lease lost before verification')
     return verify_output(out,sha)
 
 def main():
@@ -172,11 +187,11 @@ def main():
     slots=verified_slots(json.loads(a.evidence.read_text()),identity(runtime))
     if not slots or not pressure_ok(sample_host(out)):p.error('No verified local capacity or insufficient resources')
     # One execution per invocation; atomic reservation coordinates other workers.
-    job=claim(db,slots)
+    job=claim(db,slots,managed=True)
     if not job:return
     key,sha,_,attempt=job
     try:
-        report=run_match(runtime,out,job)
+        report=run_match(runtime,out,job,database=db)
         if not finish(db,key,sha,attempt,report=report):raise RuntimeError('AV reservation lost')
     except BaseException as exc:
         finish(db,key,sha,attempt,error=type(exc).__name__)

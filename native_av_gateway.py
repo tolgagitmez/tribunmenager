@@ -31,6 +31,12 @@ def resolve(db,token,round_number,now):
     league,r,h,a,kickoff,attempt,state=rows[0]
     if now<kickoff or state!='running' or not isinstance(attempt,str) or not re.fullmatch('[0-9a-f]{32}',attempt):
         raise GatewayError('Native maç şu anda erişilebilir değil.')
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='native_av_leases'").fetchone():
+        row=db.execute('SELECT boot,expires,quarantined FROM native_av_leases WHERE attempt=?',(attempt,)).fetchone()
+        if row:
+            import hashlib
+            boot=hashlib.sha256(Path('/proc/sys/kernel/random/boot_id').read_bytes()).hexdigest()
+            if row[0]!=boot or row[1]<=now or row[2]:raise GatewayError('Motor bağlantısı sona erdi.')
     return attempt,0 if person[1]==h else 1
 
 def private_url(root,attempt,side):

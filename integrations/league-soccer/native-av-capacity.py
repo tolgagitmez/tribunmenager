@@ -63,10 +63,16 @@ def match_result(directory, native_rc, browser_rc):
             and all(a['formationTargetsVerified'] for a in evidence['acknowledgements']))
     except (OSError, ValueError, KeyError, TypeError) as error:
         result['evidenceErrorType'] = type(error).__name__
+        if isinstance(error,KeyError) and error.args and error.args[0] in ('coverageFraction','droppedFrames','decodedFrames','control','traceEvidence','nativeClock','nativeElapsedMs','audio','nonSilentWindows','checks','observedWallSeconds','audioOwnership','verified','kickoffObserved','finalObserved','fixtureSha256','acknowledgements','videoWidth','videoHeight'):
+            result['missingEvidenceField']=error.args[0]
         for filename, field in [('live-report.json','nativeFailureType'),('browser-playback-report.json','browserReportStatus')]:
             try:
                 item=read(directory / filename)
                 result[field]=item.get('failureType',item.get('status','present'))
+                if filename=='browser-playback-report.json':
+                    result['browserPassed']=item.get('passed')
+                    msg=str(item.get('error','')).lower()
+                    result['browserFailureCategory']='stalled-playback' if 'stopped progressing' in msg else 'playback-deadline' if 'ended event' in msg else 'assertion-or-other' if msg else None
                 if filename=='live-report.json':
                     result['captureFailure']=item.get('captureFailure')
                     result['runnerExit']=item.get('runnerExit')
