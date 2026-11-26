@@ -45,7 +45,7 @@ def match_result(directory, native_rc, browser_rc):
             observedWallSeconds=native['checks']['observedWallSeconds'],
             coverage=browser['coverageFraction'], droppedFrames=browser['droppedFrames'],
             decodedFrames=browser['decodedFrames'], fixtureSha256=native['fixtureSha256'],
-            audioWindows=native['audio']['nonSilentWindows'],
+            audioWindows=native['audio']['nonSilentWindows'], audioOwnershipVerified=native.get('audioOwnership',{}).get('verified'),
             encodedVideoMaxGapSeconds=native.get('mediaTimeline',{}).get('tracks',{}).get('video',{}).get('maxGapSeconds'),
             browserLongestProgressIntervalMs=browser.get('longestObservedProgressIntervalMs'),
             motionAudit=native.get('motionAudit'), acknowledgements=len(evidence['acknowledgements']), renderProbe=native.get('renderProbe'), softwareGLWorkers=native.get('softwareGLWorkers',2))
@@ -53,7 +53,7 @@ def match_result(directory, native_rc, browser_rc):
             native_rc == browser_rc == 0 and native['status'] == 'local-live-evidence'
             and result['nativeClockMs'] == 300000 and 295 <= result['observedWallSeconds'] <= 305
             and finish > start and native['mediaTimeline']['timelinePassed']
-            and native['audio']['nonSilentCoveragePassed'] and browser['passed']
+            and native['audio']['nonSilentCoveragePassed'] and native['audioOwnership']['verified'] is True and browser['passed']
             and browser['ended'] and browser['playlistComplete']
             and browser['videoWidth'] == 1280 and browser['videoHeight'] == 720
             and control['submitted'] == control['applied'] == [1, 1]

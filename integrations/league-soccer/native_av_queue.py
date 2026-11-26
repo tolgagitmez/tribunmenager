@@ -10,6 +10,8 @@ import sqlite3
 import subprocess
 import time
 import uuid
+import tempfile
+import math
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 import native_av_season
@@ -82,18 +84,23 @@ def finish(path,key,sha,attempt,report=None,error=None):
         return updated
 
 def verify_output(out,sha):
-    fixture=json.loads((out/'fixture.json').read_text())
+    return verify_recording(out/'fixture.json',out/'run',sha)
+
+def verify_recording(fixture_path,directory,sha):
+    fixture=json.loads(fixture_path.read_text())
     if digest(fixture)!=sha:raise ValueError('Fixture mismatch')
-    native=json.loads((out/'run/live-report.json').read_text())
-    browser=json.loads((out/'run/browser-playback-report.json').read_text())
-    trace=out/'run/match.ndjson'
+    native=json.loads((directory/'live-report.json').read_text())
+    browser=json.loads((directory/'browser-playback-report.json').read_text())
+    trace=directory/'match.ndjson'
     if trace.stat().st_size>100*1024*1024:raise ValueError('Trace too large')
     raw=trace.read_bytes()
     final=json.loads(raw.splitlines()[-1])
     score=final.get('score')
     if not (native.get('status')=='local-live-evidence' and native.get('authoritative') is False
             and native['nativeClock']['nativeElapsedMs']==300000 and native['mediaTimeline']['timelinePassed'] is True
-            and native['audio']['nonSilentCoveragePassed'] is True and native['fixtureSha256']==hashlib.sha256((out/'fixture.json').read_bytes()).hexdigest()
+            and native['audio']['nonSilentCoveragePassed'] is True and native['audioOwnership']['verified'] is True
+            and type(native['checks']['observedWallSeconds']) in (int,float) and 295<=native['checks']['observedWallSeconds']<=305
+            and native['fixtureSha256']==hashlib.sha256(fixture_path.read_bytes()).hexdigest()
             and native['traceSha256']==hashlib.sha256(raw).hexdigest() and browser.get('passed') is True
             and browser.get('ended') is True and browser.get('playlistComplete') is True
             and browser['coverageFraction']>=.95 and browser['videoWidth']==1280 and browser['videoHeight']==720
@@ -101,15 +108,21 @@ def verify_output(out,sha):
             and isinstance(score,list) and len(score)==2 and all(type(x) is int and x>=0 for x in score)):
         raise ValueError('Incomplete AV evidence')
     control=native['control']; evidence=control['traceEvidence']
-    if not (control['submitted']==control['applied']==[1,1] and control['pending']==[False,False]
+    if not (control['submitted']==control['applied']==[1,1] and control['pending']==[False,False] and control['formations']==[442,4231]
             and evidence['consistent'] is True and evidence['allSubmittedObserved'] is True
             and len(evidence['acknowledgements'])==2 and all(a['formationTargetsVerified'] is True for a in evidence['acknowledgements'])):
         raise ValueError('Incomplete command evidence')
     manifest=json.loads(Path(str(trace)+'.fixture.json').read_text())
+    # Rebuild the roster manifest from the actual frozen fixture; no substituted IDs.
+    with tempfile.TemporaryDirectory(prefix='tribun-verify-') as tmp:
+        dest=Path(tmp)/'fixture.txt'
+        subprocess.run(['node',str(HERE/'fixture-adapter.cjs'),str(fixture_path),str(dest)],check=True,timeout=30,capture_output=True)
+        expected=json.loads(Path(str(dest)+'.json').read_text())
+    if manifest!=expected:raise ValueError('Native manifest differs from frozen fixture')
     sidecar=json.loads(Path(str(trace)+'.season.json').read_text())
     season=native_av_season.verify_candidate(final,manifest,sidecar)
     return {'authoritative':False,'verified':True,'configSha256':sha,'score':score,'season':season,
-            'traceSha256':native['traceSha256'],'coverage':browser['coverageFraction'],'engine':'league-soccer'}
+            'traceSha256':native['traceSha256'],'coverage':browser['coverageFraction'],'audioOwnershipVerified':True,'engine':'league-soccer'}
 
 def run_match(runtime, root, job):
     key,sha,config,attempt=job
