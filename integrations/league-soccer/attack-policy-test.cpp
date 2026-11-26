@@ -296,6 +296,18 @@ int main(){
  assert(DribbleControlScale(9,-1,.5f,3,.9f,.1f)==1);
  assert(DribbleControlScale(9,2,std::numeric_limits<float>::quiet_NaN(),3,.9f,.1f)==1);
  assert(DribbleControlScale(9,2,.5f,3,1.02f,.1f)==1);
+ assert(DuelReachTime(0,.5f)==0);
+ assert(DuelReachTime(.15f,.5f)>0 && DuelReachTime(.15f,.5f)<.15f);
+ assert(DuelReachTime(.6f,1)>DuelReachTime(.6f,0));
+ assert(DuelReachTime(.6f,.5f)>DuelReachTime(.3f,.5f));
+ assert(DuelReachScore(.24f,3,4,3,.7f,.5f)==-1000);
+ assert(DuelReachScore(2,1.29f,4,3,.7f,.5f)==-1000);
+ assert(DuelReachScore(2,3,4,3,-.11f,.5f)==-1000);
+ assert(DuelReachScore(2,3,4,3,.7f,.5f)>DuelReachScore(2,3,2,3,.7f,.5f));
+ assert(DuelReachScore(2,3,4,3,.7f,.5f)>DuelReachScore(2,2,4,3,.7f,.5f));
+ assert(DuelReachScore(2,3,9,3,.7f,.5f)==DuelReachScore(2,3,5,3,.7f,.5f));
+ assert(DuelReachScore(2,3,4,3,.7f,std::numeric_limits<float>::quiet_NaN())==-1000);
+ assert(DuelReachScore(2,3,4,3,.7f,.5f)>-999);
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
