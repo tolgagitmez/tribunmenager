@@ -3429,14 +3429,23 @@ inline bool RecoveryMoveCandidate202(bool useMovement,bool shotQueued,float spee
       std::isfinite(alignment) && speed>=1.2f && speed<=3.5f &&
       alignment>=.85f && alignment<=1.001f;
 }
+inline float RecoveryDirectionScore203(float clearance,float forwardDot,bool continuing,float priorDot){
+  if(!std::isfinite(clearance)||!std::isfinite(forwardDot)||
+      clearance<=1.65f||forwardDot<.20f||forwardDot>1.001f||
+      (continuing&&(!std::isfinite(priorDot)||priorDot < -1.001f||priorDot>1.001f)))
+    return -1000.0f;
+  return std::min(clearance,5.0f)+.65f*forwardDot+
+      (continuing?.8f*std::clamp(priorDot,-1.0f,1.0f):0.0f);
+}
 struct IdleRecoveryWatch {
   bool tracking=false;
   int phase=-1;
   unsigned long since=0,last=0,next=0,moveUntil=0;
-  float px=0,py=0,bx=0,by=0;
-  void Reset(){tracking=false;phase=-1;since=last=next=moveUntil=0;}
+  float px=0,py=0,bx=0,by=0,moveX=0,moveY=0;
+  void Reset(){tracking=false;phase=-1;since=last=next=moveUntil=0;moveX=moveY=0;}
   void BeginMove(unsigned long now){if(tracking && last==now)moveUntil=now+300UL;}
-  void StopMove(){moveUntil=0;}
+  void StopMove(){moveUntil=0;moveX=moveY=0;}
+  void SetMoveDirection(float x,float y){moveX=x;moveY=y;}
   bool ContinueMove(unsigned long now)const{
     return tracking && now==last && now<moveUntil;
   }
@@ -3446,7 +3455,7 @@ struct IdleRecoveryWatch {
     const float dx=x-px,dy=y-py,dbx=ballX-bx,dby=ballY-by;
     if(!tracking || phase!=period || now<last || now-last>250UL ||
        dx*dx+dy*dy>.45f*.45f || dbx*dbx+dby*dby>.55f*.55f){
-      tracking=true;phase=period;since=last=now;next=now+1200UL;moveUntil=0;
+      tracking=true;phase=period;since=last=now;next=now+1200UL;StopMove();
       px=x;py=y;bx=ballX;by=ballY;return false;
     }
     last=now;
@@ -3526,7 +3535,7 @@ struct FixedDurationClock {'''),
     }else{
       // If a short pass is not safe, look for a nearby forward/lateral
       // opening; retain native movement and touch animation selection.
-      float clearanceBest=1.65f;
+      float directionBest=-1000.0f;
       Vector3 direction=Vector3(forward,0,0);
       bool found=false;
       for(float angle:{0.0f,-.7f,.7f,-1.35f,1.35f}){
@@ -3539,7 +3548,9 @@ struct FixedDurationClock {'''),
           const auto future=rival.position+rival.movement*.3f;
           clearance=std::min(clearance,std::min((mid-future).GetLength(),(end-future).GetLength()));
         }
-        if(clearance>clearanceBest){clearanceBest=clearance;direction=dir;found=true;}
+        const float priorDot=dir.coords[0]*tribunIdleRecovery.moveX+dir.coords[1]*tribunIdleRecovery.moveY;
+        const float score=AITactics::RecoveryDirectionScore203(clearance,dir.coords[0]*forward,continueIdleMove,priorDot);
+        if(score>directionBest){directionBest=score;direction=dir;found=true;}
       }
       float nearest=100.0f;
       for(const auto& rival:rivals)nearest=std::min(nearest,(p-rival.position).GetLength());
@@ -3547,6 +3558,7 @@ struct FixedDurationClock {'''),
         rawInputDirection=direction;rawInputVelocityFloat=2.5f;
         tribunRecoveryMove202=true;
         if(recoverIdle)tribunIdleRecovery.BeginMove(recoveryNow);
+        tribunIdleRecovery.SetMoveDirection(direction.coords[0],direction.coords[1]);
         action="safe-move";
       }else{
         tribunIdleRecovery.StopMove();
