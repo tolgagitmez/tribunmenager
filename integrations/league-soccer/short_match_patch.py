@@ -3587,6 +3587,73 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 179: pair accepted native attack animations with their own contact
+    # frame. Foot metadata is not a measurement of planted foot geometry.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''struct ContactTimingWatch {
+  bool active=false;
+  int phase=-1,kind=-1,animation=-1,frame=-1;
+  unsigned long selected=0;
+  void Reset(){active=false;phase=kind=animation=frame=-1;selected=0;}
+  void Begin(int period,int type,int id,int touchFrame,unsigned long now){
+    Reset();if(id<0 || touchFrame<0)return;
+    active=true;phase=period;kind=type;animation=id;frame=touchFrame;selected=now;
+  }
+  bool Matches(int period,int type,int id,int touchFrame,unsigned long now)const{
+    return active && phase==period && kind==type && animation==id &&
+        frame==touchFrame && now>=selected && now-selected<=2000UL;
+  }
+  bool Finish(int period,int type,int id,int touchFrame,unsigned long now,unsigned long& elapsed){
+    if(!Matches(period,type,id,touchFrame,now)){Reset();return false;}
+    elapsed=now-selected;Reset();return true;
+  }
+};
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.hpp", [
+        ("  AITactics::MissedTouchWatch tribunMissedTouch;", "  AITactics::MissedTouchWatch tribunMissedTouch;\n  AITactics::ContactTimingWatch tribunContactTiming;\n  int tribunSelectedFoot=-1;"),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ("  tribunMissedTouch.Reset();\n  HumanoidBase::ResetSituation", "  tribunMissedTouch.Reset();\n  tribunContactTiming.Reset();\n  HumanoidBase::ResetSituation"),
+        ("  const auto tribunAttackCandidate=[]", r'''  if(!tribunAudit || (tribunContactTiming.active &&
+      !tribunContactTiming.Matches(static_cast<int>(match->GetMatchPhase()),
+          static_cast<int>(currentAnim->functionType),currentAnim->id,currentAnim->touchFrame,tribunNow)))
+    tribunContactTiming.Reset();
+  const auto tribunAttackCandidate=[]'''),
+        ("      const bool auditCandidate=tribunAudit && CastPlayer()->HasUniquePossession();", r'''      const bool auditCandidate=tribunAudit && CastPlayer()->HasUniquePossession();
+      const int tribunFootBefore=static_cast<int>(spatialState.foot);'''),
+        ("      if(auditCandidate)\n        tribunActionLog", r'''      if(found){
+        tribunContactTiming.Reset();
+        if(auditCandidate && tribunAttackCandidate(currentAnim->functionType)){
+          tribunContactTiming.Begin(static_cast<int>(match->GetMatchPhase()),
+              static_cast<int>(currentAnim->functionType),currentAnim->id,currentAnim->touchFrame,tribunNow);
+          tribunSelectedFoot=tribunFootBefore;
+        }
+      }
+      if(auditCandidate)
+        tribunActionLog'''),
+        ("    if(tribunTouchControlled && tribunAttackCandidate(currentAnim->functionType) &&", r'''    unsigned long tribunContactElapsed=0;
+    if(tribunAudit && tribunAttackCandidate(currentAnim->functionType) &&
+        tribunContactTiming.Finish(static_cast<int>(match->GetMatchPhase()),
+            static_cast<int>(currentAnim->functionType),currentAnim->id,currentAnim->touchFrame,
+            tribunNow,tribunContactElapsed)){
+      const auto part=currentAnim->anim->GetVariable("touch_bodypart");
+      const char* contactSide=(part.find("left_foot")!=std::string::npos || part.find("left_leg")!=std::string::npos)?"left":
+          (part.find("right_foot")!=std::string::npos || part.find("right_leg")!=std::string::npos)?"right":"other";
+      const bool geometryOk=fullBallDistance < touchableDistance &&
+          fabs(desiredBallHeight-match->GetBall()->Predict(0).coords[2])<1.0f;
+      std::fprintf(stderr,"[tribun-foot-timing] phase=%d match_ms=%lu team=%d player=%d action=%s anim=%d frame=%d elapsed_ms=%lu state_foot=%d anim_foot=%d outgoing_foot=%d contact_side=%s geometry=%s\n",
+          static_cast<int>(match->GetMatchPhase()),static_cast<unsigned long>(match->GetMatchTime_ms()),
+          team->GetID(),CastPlayer()->GetID(),tribunActionName(currentAnim->functionType),
+          currentAnim->id,currentAnim->touchFrame,tribunContactElapsed,tribunSelectedFoot,
+          static_cast<int>(currentAnim->anim->GetCurrentFoot()),static_cast<int>(currentAnim->anim->GetOutgoingFoot()),
+          contactSide,geometryOk?"pass":"miss");
+    }
+    if(tribunTouchControlled && tribunAttackCandidate(currentAnim->functionType) &&'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
