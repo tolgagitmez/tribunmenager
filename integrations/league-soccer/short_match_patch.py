@@ -3427,16 +3427,21 @@ void OpenGLRenderer3D::RenderAABB'''),
 struct IdleRecoveryWatch {
   bool tracking=false;
   int phase=-1;
-  unsigned long since=0,last=0,next=0;
+  unsigned long since=0,last=0,next=0,moveUntil=0;
   float px=0,py=0,bx=0,by=0;
-  void Reset(){tracking=false;phase=-1;since=last=next=0;}
+  void Reset(){tracking=false;phase=-1;since=last=next=moveUntil=0;}
+  void BeginMove(unsigned long now){if(tracking && last==now)moveUntil=now+300UL;}
+  void StopMove(){moveUntil=0;}
+  bool ContinueMove(unsigned long now)const{
+    return tracking && now==last && now<moveUntil;
+  }
   bool Observe(bool eligible,int period,unsigned long now,
       float x,float y,float ballX,float ballY){
     if(!eligible){Reset();return false;}
     const float dx=x-px,dy=y-py,dbx=ballX-bx,dby=ballY-by;
     if(!tracking || phase!=period || now<last || now-last>250UL ||
        dx*dx+dy*dy>.45f*.45f || dbx*dbx+dby*dby>.55f*.55f){
-      tracking=true;phase=period;since=last=now;next=now+1200UL;
+      tracking=true;phase=period;since=last=now;next=now+1200UL;moveUntil=0;
       px=x;py=y;bx=ballX;by=ballY;return false;
     }
     last=now;
@@ -3472,7 +3477,10 @@ struct FixedDurationClock {'''),
         ("  _SetInput(rawInputDirection, rawInputVelocityFloat);", r'''  // Only a settled, repeatedly stationary AI-controlled carrier reaches
   // this branch. Ordinary ball protection, running, keeper and set pieces
   // retain the native decisions. No forced ball touch or animation reset.
-  if(recoverIdle && !manualMovement){
+  const auto recoveryNow=match->GetActualTime_ms();
+  const bool continueIdleMove=AITactics::IdleRecoveryEnabled() && tribunIdleRecovery.ContinueMove(recoveryNow);
+  if(manualMovement)tribunIdleRecovery.StopMove();
+  if((recoverIdle || continueIdleMove) && !manualMovement){
     const auto p=player->GetPosition();
     const float forward=-team->GetSide();
     std::vector<PlayerImage> rivals;
@@ -3483,7 +3491,7 @@ struct FixedDurationClock {'''),
         AI_GetOffsideLine(match,_mentalImage,abs(team->GetID()-1))*forward);
     Player* outlet=nullptr;
     float best=-1.0f;
-    for(auto* mate:mates){
+    if(recoverIdle)for(auto* mate:mates){
       if(mate==player || !mate->IsActive())continue;
       const auto target=mate->GetPosition();
       const auto delta=target-p;
@@ -3504,6 +3512,7 @@ struct FixedDurationClock {'''),
     }
     const char* action="no-safe-option";
     if(outlet){
+      tribunIdleRecovery.StopMove();
       PlayerCommandQueue recovery;
       _AddPass(recovery,outlet,e_FunctionType_ShortPass);
       commandQueue.insert(commandQueue.begin(),recovery.begin(),recovery.end());
@@ -3530,15 +3539,19 @@ struct FixedDurationClock {'''),
       for(const auto& rival:rivals)nearest=std::min(nearest,(p-rival.position).GetLength());
       if(found){
         rawInputDirection=direction;rawInputVelocityFloat=2.5f;
+        if(recoverIdle)tribunIdleRecovery.BeginMove(recoveryNow);
         action="safe-move";
-      }else if(pitchHalfW+p.coords[0]*forward<20.0f && nearest<2.4f){
+      }else{
+        tribunIdleRecovery.StopMove();
+      }
+      if(!found && recoverIdle && pitchHalfW+p.coords[0]*forward<20.0f && nearest<2.4f){
         PlayerCommandQueue recovery;
         _AddPanicPass(recovery);
         commandQueue.insert(commandQueue.begin(),recovery.begin(),recovery.end());
         action="defensive-clearance";
       }
     }
-    std::fprintf(stderr,"[tribun-idle-recovery] phase=%d match_ms=%lu player=%d action=%s\n",
+    if(recoverIdle)std::fprintf(stderr,"[tribun-idle-recovery] phase=%d match_ms=%lu player=%d action=%s\n",
         static_cast<int>(match->GetMatchPhase()),static_cast<unsigned long>(match->GetMatchTime_ms()),
         player->GetID(),action);
   }
