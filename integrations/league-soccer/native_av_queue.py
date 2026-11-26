@@ -178,11 +178,14 @@ def worker_lease_guard(database, attempt, *, interval=5):
     check()
     if not heartbeat(database,attempt):raise RuntimeError('Worker lease lost after verification')
 
-def run_match(runtime, root, job, *, database=None, league_browser_descriptor=None, wsl_gpu=False):
+def run_match(runtime, root, job, *, database=None, league_browser_descriptor=None, wsl_gpu=False, idle_recovery=False):
     with worker_lease_guard(database,job[3]) as check:
-        return _run_match(runtime,root,job,check=check,league_browser_descriptor=league_browser_descriptor,wsl_gpu=wsl_gpu)
+        options={}
+        if wsl_gpu:options['wsl_gpu']=True
+        if idle_recovery:options['idle_recovery']=True
+        return _run_match(runtime,root,job,check=check,league_browser_descriptor=league_browser_descriptor,**options)
 
-def _run_match(runtime, root, job, *, check, league_browser_descriptor=None, wsl_gpu=False):
+def _run_match(runtime, root, job, *, check, league_browser_descriptor=None, wsl_gpu=False, idle_recovery=False):
     check()
     key,sha,config,attempt=job
     out=root/attempt;out.mkdir(mode=0o700)
@@ -196,6 +199,10 @@ def _run_match(runtime, root, job, *, check, league_browser_descriptor=None, wsl
         from native_gpu_display import wsl_environment
         gpu=wsl_environment(env)
         env.update(gpu,TRIBUN_GPU_DISPLAY=gpu['DISPLAY'],TRIBUN_GPU_WSL_LOCAL='1')
+    if idle_recovery:
+        if not league_mode_run or os.environ.get('TRIBUN_NATIVE_PRIVATE_SCREEN')!='1':
+            raise ValueError('Idle recovery requires private native alpha')
+        env['TRIBUN_AV_IDLE_RECOVERY']='1'
     env.update(TRIBUN_EXPECT_AUDIO='1',TRIBUN_EXPECT_CONTROL='0' if league_mode_run else '1',TRIBUN_EXPECT_FULL_PLAYBACK='1',TRIBUN_PLAYBACK_MIN_SECONDS='300')
     with (out/'native.log').open('wb') as n,(out/'browser.log').open('wb') as b:
         native=subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(out/'fixture.json'),str(out/'run'),'--audio','--interactive','--linger','60',*(['--league-control'] if league_mode_run else [])],env=env,stdout=n,stderr=subprocess.STDOUT)

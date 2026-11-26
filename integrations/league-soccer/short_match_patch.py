@@ -3100,6 +3100,138 @@ void OpenGLRenderer3D::RenderAABB'''),
     ])
 
 
+    # Stage 172: sustained controlled stagnation, not animation-state surgery.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool IdleRecoveryEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_AV_IDLE_RECOVERY");
+    return value && std::strcmp(value,"1")==0 && FixedDurationEnabled() &&
+        std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+struct IdleRecoveryWatch {
+  bool tracking=false;
+  int phase=-1;
+  unsigned long since=0,last=0,next=0;
+  float px=0,py=0,bx=0,by=0;
+  void Reset(){tracking=false;phase=-1;since=last=next=0;}
+  bool Observe(bool eligible,int period,unsigned long now,
+      float x,float y,float ballX,float ballY){
+    if(!eligible){Reset();return false;}
+    const float dx=x-px,dy=y-py,dbx=ballX-bx,dby=ballY-by;
+    if(!tracking || phase!=period || now<last || now-last>250UL ||
+       dx*dx+dy*dy>.45f*.45f || dbx*dbx+dby*dby>.55f*.55f){
+      tracking=true;phase=period;since=last=now;next=now+1200UL;
+      px=x;py=y;bx=ballX;by=ballY;return false;
+    }
+    last=now;
+    if(now<next)return false;
+    next=now+400UL;
+    return true;
+  }
+};
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.hpp", [
+        ('#include "playercontroller.hpp"', '#include "playercontroller.hpp"\n#include "../../aitactics.hpp"'),
+        ("  float lastDesiredVelocity;", "  float lastDesiredVelocity;\n  AITactics::IdleRecoveryWatch tribunIdleRecovery;"),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("void ElizaController::Reset() {", "void ElizaController::Reset() {\n  tribunIdleRecovery.Reset();"),
+        ("  _Preprocess();  // calculate some variables", r'''  _Preprocess();  // calculate some variables
+  bool recoverIdle=false;
+  if(AITactics::IdleRecoveryEnabled()){
+    const auto p=player->GetPosition();
+    const auto ball=match->GetBall()->Predict(0);
+    const auto phase=match->GetMatchPhase();
+    const bool eligible=(phase==e_MatchPhase_1stHalf || phase==e_MatchPhase_2ndHalf) &&
+        match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer() &&
+        team->GetHumanGamerCount()==0 && CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK &&
+        CastPlayer()->IsActive() && match->GetDesignatedPossessionPlayer()==player &&
+        CastPlayer()->HasUniquePossession() && match->GetLastTouchPlayer()==player &&
+        (ball.Get2D()-p.Get2D()).GetLength()<=1.25f && ball.coords[2]<.8f &&
+        player->GetMovement().GetLength()<.75f && match->GetBall()->GetMovement().GetLength()<1.0f;
+    recoverIdle=tribunIdleRecovery.Observe(eligible,static_cast<int>(phase),
+        match->GetActualTime_ms(),p.coords[0],p.coords[1],ball.coords[0],ball.coords[1]);
+  }'''),
+        ("  _SetInput(rawInputDirection, rawInputVelocityFloat);", r'''  // Only a settled, repeatedly stationary AI-controlled carrier reaches
+  // this branch. Ordinary ball protection, running, keeper and set pieces
+  // retain the native decisions. No forced ball touch or animation reset.
+  if(recoverIdle && !manualMovement){
+    const auto p=player->GetPosition();
+    const float forward=-team->GetSide();
+    std::vector<PlayerImage> rivals;
+    _mentalImage->GetTeamPlayerImages(abs(team->GetID()-1),-1,rivals);
+    std::vector<Player*> mates;
+    team->GetActivePlayers(mates);
+    const float offside=std::max(match->GetBall()->Predict(0).coords[0]*forward,
+        AI_GetOffsideLine(match,_mentalImage,abs(team->GetID()-1))*forward);
+    Player* outlet=nullptr;
+    float best=-1.0f;
+    for(auto* mate:mates){
+      if(mate==player || !mate->IsActive())continue;
+      const auto target=mate->GetPosition();
+      const auto delta=target-p;
+      const float distance=delta.GetLength();
+      const float advance=delta.coords[0]*forward;
+      if(distance<3.0f || distance>23.0f ||
+         (target.coords[0]*forward>0.0f && target.coords[0]*forward>offside-.5f))continue;
+      float space=100.0f;
+      for(const auto& rival:rivals)
+        space=std::min(space,(target-rival.position).GetLength());
+      if(space<1.4f)continue;
+      const float odds=_GetPassingOdds(mate,e_FunctionType_ShortPass,rivals);
+      if(!std::isfinite(odds)||odds<.55f)continue;
+      const float score=odds+.07f*std::clamp(advance/10.0f,-1.0f,1.0f)+
+          .03f*std::min(space,5.0f)/5.0f-
+          (mate->GetFormationEntry().role==e_PlayerRole_GK?.10f:0.0f);
+      if(score>best){best=score;outlet=mate;}
+    }
+    const char* action="no-safe-option";
+    if(outlet){
+      PlayerCommandQueue recovery;
+      _AddPass(recovery,outlet,e_FunctionType_ShortPass);
+      commandQueue.insert(commandQueue.begin(),recovery.begin(),recovery.end());
+      action="safe-pass";
+    }else{
+      // If a short pass is not safe, look for a nearby forward/lateral
+      // opening; retain native movement and touch animation selection.
+      float clearanceBest=1.65f;
+      Vector3 direction=Vector3(forward,0,0);
+      bool found=false;
+      for(float angle:{0.0f,-.7f,.7f,-1.35f,1.35f}){
+        const auto dir=Vector3(forward,0,0).GetRotated2D(angle);
+        const auto mid=p+dir*1.1f,end=p+dir*2.2f;
+        if(std::abs(end.coords[0])>pitchHalfW-1.0f ||
+           std::abs(end.coords[1])>pitchHalfH-1.0f)continue;
+        float clearance=100.0f;
+        for(const auto& rival:rivals){
+          const auto future=rival.position+rival.movement*.3f;
+          clearance=std::min(clearance,std::min((mid-future).GetLength(),(end-future).GetLength()));
+        }
+        if(clearance>clearanceBest){clearanceBest=clearance;direction=dir;found=true;}
+      }
+      float nearest=100.0f;
+      for(const auto& rival:rivals)nearest=std::min(nearest,(p-rival.position).GetLength());
+      if(found){
+        rawInputDirection=direction;rawInputVelocityFloat=2.5f;
+        action="safe-move";
+      }else if(pitchHalfW+p.coords[0]*forward<20.0f && nearest<2.4f){
+        PlayerCommandQueue recovery;
+        _AddPanicPass(recovery);
+        commandQueue.insert(commandQueue.begin(),recovery.begin(),recovery.end());
+        action="defensive-clearance";
+      }
+    }
+    std::fprintf(stderr,"[tribun-idle-recovery] phase=%d match_ms=%lu player=%d action=%s\n",
+        static_cast<int>(match->GetMatchPhase()),static_cast<unsigned long>(match->GetMatchTime_ms()),
+        player->GetID(),action);
+  }
+  _SetInput(rawInputDirection, rawInputVelocityFloat);'''),
+    ])
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.

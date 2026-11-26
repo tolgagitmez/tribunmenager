@@ -145,6 +145,20 @@ int main(){
  attack.Begin(7,3000);attack.Observe(7,3100,true,3100);assert(attack.stage==0);
  attack.Begin(7,4000);attack.Observe(7,4100,false,4100);attack.Observe(-1,0,false,4200);
  assert(!attack.Ready(7,4200));
+ IdleRecoveryWatch idle;
+ assert(!idle.Observe(true,1,1000,0,0,0,0));
+ for(unsigned long now=1100;now<2200;now+=100)
+   assert(!idle.Observe(true,1,now,0,0,0,0));
+ assert(idle.Observe(true,1,2200,0,0,0,0));
+ assert(!idle.Observe(true,1,2300,0,0,0,0));
+ assert(!idle.Observe(true,1,2400,0,0,0,0));
+ assert(!idle.Observe(true,1,2500,0,0,0,0));
+ assert(idle.Observe(true,1,2600,0,0,0,0));
+ assert(!idle.Observe(true,1,2700,.6f,0,.6f,0)); // movement resets
+ assert(!idle.Observe(false,1,2800,.6f,0,.6f,0)); // possession loss/stoppage
+ assert(!idle.Observe(true,2,2900,.6f,0,.6f,0)); // next half
+ assert(!idle.Observe(true,2,5000,.6f,0,.6f,0)); // observation gap
+ idle.Reset();assert(!idle.tracking);
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);

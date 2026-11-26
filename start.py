@@ -38,13 +38,13 @@ class LocalHandler(SimpleHTTPRequestHandler):
         self.reply(503, {'error': 'Yerel maç modu açık. Lig hesabı için --mode league, transfer hesabı için --mode full kullan.'})
 
 
-NATIVE_BRANCH = 'experiment/native-wsl-gpu-stage171'
+NATIVE_BRANCH = 'experiment/native-idle-recovery-stage172'
 WSL_BOOTSTRAP = r'''
 set -eu
 cd ~
-repo=tribun-manager-native-alpha-stage171
+repo=tribun-manager-native-alpha-stage172
 url=https://github.com/tolgagitmez/tribunmenager.git
-branch=experiment/native-wsl-gpu-stage171
+branch=experiment/native-idle-recovery-stage172
 command -v git >/dev/null || { echo 'Ubuntu icinde sudo apt-get install git komutunu calistir.' >&2; exit 2; }
 if [ ! -e "$repo" ]; then
     git clone --single-branch --branch "$branch" "$url" "$repo"
@@ -74,7 +74,7 @@ def native_command(args, platform=None):
     if platform=='win32':
         if not shutil.which('wsl.exe'):raise ValueError('Windows icin WSL2 Ubuntu gerekli. wsl --install -d Ubuntu')
         return ['wsl.exe','--distribution','Ubuntu','--cd','~','--exec','python3',
-                'tribun-manager-native-alpha-stage171/integrations/league-soccer/native_alpha.py',
+                'tribun-manager-native-alpha-stage172/integrations/league-soccer/native_alpha.py',
                 '--private-diagnostic',*options]
     raise ValueError('Native alfa su anda Linux veya WSL2 Ubuntu yolu ile calisir.')
 

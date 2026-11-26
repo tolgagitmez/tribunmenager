@@ -93,7 +93,7 @@ def run(runtime,root,port,delay,result_seconds=30,wsl_gpu=False):
                 key,sha,_,attempt=job
                 if key[0]!=account['code'] or key[2]!=0:raise RuntimeError('Wrong fixture')
                 try:
-                    report=q.run_match(runtime,root,job,database=server.DATA,wsl_gpu=wsl_gpu)
+                    report=q.run_match(runtime,root,job,database=server.DATA,wsl_gpu=wsl_gpu,idle_recovery=True)
                     if not q.finish(server.DATA,key,sha,attempt,report=report):raise RuntimeError('Completion rejected')
                     result={'passed':True,'score':report['score'],'coverage':report['coverage'],'commandHistory':report['commandHistory'],'productionQualified':False}
                 except BaseException as exc:
@@ -101,6 +101,17 @@ def run(runtime,root,port,delay,result_seconds=30,wsl_gpu=False):
                     if not isinstance(exc,Exception):raise
                     result={'passed':False,'failureType':type(exc).__name__,'productionQualified':False}
                 result['quality']=inspect_quality(root/attempt/'run')
+                result['requestedIdleRecovery']=True
+                result['idleRecoveryRequests']={}
+                game_log=root/attempt/'run/native-match.game.log'
+                if game_log.is_file() and game_log.stat().st_size<=16*1024*1024:
+                    import re
+                    for line in game_log.read_text(errors='replace').splitlines():
+                        m=re.fullmatch(r'\[tribun-idle-recovery\] phase=(-?\d+) match_ms=(\d+) player=(-?\d+) action=(safe-pass|safe-move|defensive-clearance|no-safe-option)',line)
+                        if m:
+                            action=m.group(4)
+                            result['idleRecoveryRequests'][action]=result['idleRecoveryRequests'].get(action,0)+1
+                result['idleRecoveryScope']='Issued decisions only; no claim of completed pass or actual recovery.'
                 result['requestedWslGpu']=wsl_gpu
                 context=root/attempt/'run/native-gl-context.json'
                 result['hardwareContext']=json.loads(context.read_text()) if context.is_file() else None
