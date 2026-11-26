@@ -1,7 +1,7 @@
 name: Native goalkeeper positioning diagnostic
 on:
   push:
-    branches: [experiment/native-keeper-ai-stage70]
+    branches: [experiment/native-keeper-ai-stage70, experiment/native-keeper-completion-stage95]
     paths:
       - 'integrations/league-soccer/**'
       - 'tests/test_native_keeper_ai.py'

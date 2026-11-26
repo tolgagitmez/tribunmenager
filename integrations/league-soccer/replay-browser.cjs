@@ -36,6 +36,7 @@ const {createServer}=require('../../tools/serve-character-viewer.cjs');
   await page.locator('#playerAnatomy').check();
   await page.locator('#contactPrecision').check();
   await page.locator('#groundRecovery').check();
+  await page.locator('#keeperCompletion').check();
   await page.locator('#nativeClips').check();
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.clipStatus()==='ready',{},{timeout:30000});
   assert.equal(await page.evaluate(()=>window.TRIBUN_NATIVE_REPLAY_TEST.clipCount()),4);

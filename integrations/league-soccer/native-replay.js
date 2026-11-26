@@ -57,6 +57,7 @@
    for(const p of f.players){
     requireValue(p&&[0,1].includes(p.team)&&nonneg(p.id)&&!seen.has(p.id)&&vec(p.position)&&vec(p.velocity)&&vec(p.direction),'Geçersiz oyuncu verisi.');
     requireValue(p.databaseId===undefined||nonneg(p.databaseId),'Geçersiz kadro kimliği.');
+    if(p.keeperAction!==undefined)requireValue(['deflect','other'].includes(p.keeperAction),'Geçersiz kaleci hareketi.');
     if(p.groundAction!==undefined)requireValue(['trip','slide','other'].includes(p.groundAction),'Geçersiz motor yer hareketi.');
     if(p.heightMetres!==undefined)requireValue(finite(p.heightMetres)&&p.heightMetres>0,'Geçersiz motor boyu.');
     if(p.motionIdentity!==undefined)requireValue(p.motionIdentity&&
@@ -142,10 +143,11 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false,motionMatching=false,playerMotionIdentity=false,playerAnatomy=false,clipLibrary=null,contactPrecision=false,groundRecovery=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false,motionMatching=false,playerMotionIdentity=false,playerAnatomy=false,clipLibrary=null,contactPrecision=false,groundRecovery=false,keeperCompletion=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   // The combined profile enables all prior opt-in layers, but remains a
   // presentation experiment; the recorded match is still authoritative.
+  if(keeperCompletion)groundRecovery=true;
   if(groundRecovery)contactPrecision=true;
   if(clipLibrary||contactPrecision)playerAnatomy=true;
   if(playerAnatomy)playerMotionIdentity=true;
@@ -393,6 +395,11 @@
      }else if(eligible&&action==='slide'&&c?.tackle?.sliding&&speed<3.8){
       actor.nativeGroundRecovery={kind:'slide',deltaMs:c.deltaMs,foot:c.foot,weight:c.weight,timeMs:c.timeMs};
      }
+    }
+    if(keeperCompletion){
+     const k=actor.nativeKeeper;
+     actor.nativeKeeperDive=actor.nativeBlend&&actor.role==='GK'&&source.keeperAction==='deflect'&&
+       k&&!k.held&&k.kind!=='hold'&&(k.kind==='catch'||k.hand>=0)&&Math.abs(k.lateral)>.65&&speed<3.5?k:null;
     }
     active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion||keeperMotion||aerialMotion?step:clamp(dt,0,.1));return actor;
    });

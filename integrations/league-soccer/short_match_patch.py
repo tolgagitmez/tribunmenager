@@ -243,6 +243,26 @@ inline bool KeeperIntercept(float depth,float y,float height,float distance,int 
   return depth>=.6f&&depth<=7.0f&&std::abs(y)<=5.0f&&height>=.11f&&height<=1.65f&&
       distance>=.35f&&distance<=5.0f&&eta>=0&&arrival>=100&&arrival<=850&&eta+reaction<=arrival;
 }
+// Prefer an earlier reachable interception with a reaction-time reserve.
+inline float KeeperInterceptScore(float depth,float lateral,float height,int eta,int arrival,float skill){
+  if(!std::isfinite(depth)||!std::isfinite(lateral)||!std::isfinite(height)||!std::isfinite(skill)||
+      eta<0||arrival<eta)return -1.0f;
+  const float reserve=static_cast<float>(arrival-eta);
+  return .42f*std::clamp(reserve/350.0f,0.0f,1.0f)+
+         .28f*std::clamp(depth/7.0f,0.0f,1.0f)+
+         .20f*(1.0f-std::clamp(std::abs(lateral)/5.0f,0.0f,1.0f))+
+         .10f*(1.0f-std::clamp(height/2.0f,0.0f,1.0f));
+}
+// Score only targets that remain safely separated from the attacker.
+inline float KeeperChallengeScore(float depth,float lateralError,float carrierGap,int eta,float skill){
+  if(!std::isfinite(depth)||!std::isfinite(lateralError)||!std::isfinite(carrierGap)||!std::isfinite(skill)||
+     depth<1.4f||depth>7.0f||carrierGap<2.0f||eta<0||eta>850)return -1.0f;
+  const float minGap=2.4f-.4f*std::clamp(skill,0.0f,1.0f);
+  if(carrierGap<minGap)return -1.0f;
+  return .46f*depth/7.0f+.28f*(1.0f-std::clamp(static_cast<float>(eta)/850.0f,0.0f,1.0f))+
+    .16f*std::clamp((carrierGap-minGap)/3.0f,0.0f,1.0f)+
+    .10f*(1.0f-std::clamp(std::abs(lateralError)/2.0f,0.0f,1.0f));
+}
 struct KeeperProbe {
   int keeper=-1,kind=0;unsigned long start=0,expires=0,cooldown=0;
   unsigned long narrows=0,intercepts=0,controls=0,touches=0,closed=0;
@@ -2390,6 +2410,7 @@ Vector3 AI_GetForceFieldMovement'''),
       // Select an earlier reachable low trajectory point only before goal-line crossing.
       const auto current=mentalImage->GetBallPrediction(0);
       if(pitchHalfW-current.coords[0]*side>0.6f&&pitchHalfW-current.coords[0]*side<30.0f){
+        float bestScore=-1.0f;Vector3 bestTarget=targetPos;
         for(unsigned int ms=100;ms<=850;ms+=50){
           const auto predicted=mentalImage->GetBallPrediction(ms);
           const float depth=pitchHalfW-predicted.coords[0]*side;
@@ -2398,11 +2419,12 @@ Vector3 AI_GetForceFieldMovement'''),
           const float distance=(ground-player->GetPosition()).GetLength();
           if(!AITactics::KeeperIntercept(depth,predicted.coords[1],predicted.coords[2],distance,0,ms,skill))continue;
           if(depth<=pitchHalfW-targetPos.coords[0]*side+.35f)continue;
-          if(!AITactics::KeeperIntercept(depth,predicted.coords[1],predicted.coords[2],distance,eta(ground),ms,skill))continue;
-          targetPos=ground;maxVelocity=sprintVelocity;
-          probe.Begin(CastPlayer()->GetID(),2,now);
-          break;
+          const int arrival=eta(ground);
+          if(!AITactics::KeeperIntercept(depth,predicted.coords[1],predicted.coords[2],distance,arrival,ms,skill))continue;
+          const float score=AITactics::KeeperInterceptScore(depth,predicted.coords[1],predicted.coords[2],arrival,ms,skill);
+          if(score>bestScore){bestScore=score;bestTarget=ground;}
         }
+        if(bestScore>=0.0f){targetPos=bestTarget;maxVelocity=sprintVelocity;probe.Begin(CastPlayer()->GetID(),2,now);}
       }
     }else{
       auto* opp=controller->GetOppTeam()->GetDesignatedTeamPossessionPlayer();
@@ -2425,13 +2447,20 @@ Vector3 AI_GetForceFieldMovement'''),
             helper=std::min(helper,(rival->GetPosition()-carrier).Get2D().GetLength());
           if(AITactics::NarrowEligible(depth,lateral,gap,opp->GetMovement().coords[0]*side,cover,helper,skill)){
             const float d=AITactics::NarrowDepth(depth,lateral,skill);
-            // Position on the ball-to-goal-center ray, bounded away from the attacker.
-            const Vector3 candidate((pitchHalfW-d)*side,clamp(predicted.coords[1]*d/depth,-3.3f,3.3f),0);
             const float currentDepth=pitchHalfW-targetPos.coords[0]*side;
-            if(d>currentDepth+.35f&&(candidate-carrier).GetLength()>=2.0f&&eta(candidate)<=850){
-              targetPos=candidate;maxVelocity=sprintVelocity;
-              probe.Begin(CastPlayer()->GetID(),1,now);
+            float bestScore=-1.0f;Vector3 bestTarget=targetPos;
+            // Evaluate three depths on the goal ray, including a shorter
+            // option if the original target is too far to reach safely.
+            for(float fraction:{.65f,.82f,1.0f}){
+              const float trial=std::clamp(d*fraction,1.4f,d);
+              if(trial<=currentDepth+.35f)continue;
+              const float rayY=predicted.coords[1]*trial/depth;
+              const Vector3 candidate((pitchHalfW-trial)*side,clamp(rayY,-3.3f,3.3f),0);
+              const float score=AITactics::KeeperChallengeScore(trial,candidate.coords[1]-rayY,
+                (candidate-carrier).GetLength(),eta(candidate),skill);
+              if(score>bestScore){bestScore=score;bestTarget=candidate;}
             }
+            if(bestScore>=0.0f){targetPos=bestTarget;maxVelocity=sprintVelocity;probe.Begin(CastPlayer()->GetID(),1,now);}
           }
         }
       }

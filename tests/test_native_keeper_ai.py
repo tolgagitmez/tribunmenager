@@ -29,6 +29,12 @@ int main(){
   assert(KeeperIntercept(2,1,1,2,200,350,.8f));
   assert(!KeeperIntercept(2,1,2.5f,2,200,350,.8f));
   assert(!KeeperIntercept(2,1,1,2,340,350,.8f));
+  assert(KeeperInterceptScore(4,1,1,150,450,.8f)>KeeperInterceptScore(4,1,1,350,450,.8f));
+  assert(KeeperInterceptScore(4,1,1,500,450,.8f)<0);
+  assert(KeeperChallengeScore(5,0,4,400,.8f)>0);
+  assert(KeeperChallengeScore(5,0,1,400,.8f)<0);
+  assert(KeeperChallengeScore(5,0,4,900,.8f)<0);
+  assert(KeeperChallengeScore(5,0,4,200,.8f)>KeeperChallengeScore(5,0,4,700,.8f));
   KeeperProbe p;
   assert(p.Begin(1,1,100));assert(!p.Begin(1,2,110));
   p.Observe(true,true,false,100,200);assert(p.touches==0);

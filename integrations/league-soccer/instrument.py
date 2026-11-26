@@ -425,6 +425,8 @@ void TribunTrace(Match& match, bool done) {
       const auto motionFunction=player->GetCurrentFunctionType();
       output << ",\"groundAction\":\"" << (motionFunction==e_FunctionType_Trip?"trip":
         motionFunction==e_FunctionType_Sliding?"slide":"other") << '"';
+      if(base.role==e_PlayerRole_GK)
+        output << ",\"keeperAction\":\"" << (motionFunction==e_FunctionType_Deflect?"deflect":"other") << '"';
       // Raw traits and current fatigue are separate; effective attributes
       // already include fatigue and must not be multiplied by it twice.
       output << ",\"motionIdentity\":{\"agility\":" << player->GetPlayerData()->GetStat("physical_agility")

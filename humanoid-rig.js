@@ -327,6 +327,16 @@ function groundEnvelope(c,speed){
  }
  return null;
 }
+// Stage 95: native-deflect-confirmed lateral save posture; hand targets
+// remain world-space and are solved by the normal anatomical IK.
+function keeperDiveProfile(c,scale=1){
+ if(!c||!Number.isFinite(c.lateral)||!Number.isFinite(c.weight))return null;
+ const side=Math.sign(c.lateral),weight=clamp(c.weight,0,1)*smooth((Math.abs(c.lateral)-.65)/.65);
+ const high=clamp((c.ball.y-1.15)/1.1,0,1);
+ return {side,weight,tilt:side*weight*(.95-.38*high),shift:side*weight*.36*scale,
+  drop:weight*.22*(1-high)*scale,lift:weight*.15*high*scale,
+  phase:c.deltaMs<0?'launch':c.deltaMs<85?'reach':'recover'};
+}
 function pose(p,dt=1/60){
  const anatomy=anatomyFor(p),bodyScale=anatomy.height/ANATOMY.height,ground=GROUND*bodyScale;
  const st=getState(p);dt=clamp(Number(dt)||0,0,.1);
@@ -378,6 +388,7 @@ function pose(p,dt=1/60){
  const keeperLow=keeper?clamp((1.1-keeper.ball.y)/1.1,0,1)*keeperW:0;
  const keeperSide=keeper?clamp(keeper.lateral/1.2,-1,1)*keeperW:0;
  const keeperHigh=keeper?clamp((keeper.ball.y-1.5)/.9,0,1)*keeperW:0;
+ const keeperDive=keeper?keeperDiveProfile(p.nativeKeeperDive,bodyScale):null;
  // Stage 87: a recorded head contact, never a guessed header from height.
  const aerial=!special&&!gesture&&!control&&!tackleCue&&!keeper&&p.nativeAerial?.weight>0?p.nativeAerial:null;
  const aerialW=aerial?clamp(aerial.weight,0,1):0;
@@ -485,10 +496,14 @@ function pose(p,dt=1/60){
  const downDir=groundFall>0?unit(add(mul(facing,Math.abs(duelForward)+Math.abs(duelLateral)<.05?1:duelForward),mul(right,duelLateral))):mul(facing,-1);
  const upright=unit(add(add(mul(facing,Math.sin(pitch)),[0,Math.cos(pitch)*Math.cos(roll),0]),mul(right,Math.sin(roll))));
  const groundAngle=groundFall*1.22+groundSlide*.70;
- const up=groundW>0?unit(blend(upright,add(mul([0,1,0],Math.cos(groundAngle)),mul(downDir,Math.sin(groundAngle))),clamp(groundW*1.5,0,1))):upright;
+ let up=groundW>0?unit(blend(upright,add(mul([0,1,0],Math.cos(groundAngle)),mul(downDir,Math.sin(groundAngle))),clamp(groundW*1.5,0,1))):upright;
+ if(keeperDive?.weight>0){
+  up=unit(add(mul(up,Math.cos(keeperDive.tilt)),mul(right,Math.sin(keeperDive.tilt))));
+  hipHeight+=keeperDive.lift-keeperDive.drop;
+ }
  if(groundW>0)hipHeight=mix(hipHeight,(groundFall>0?.30:.36)*bodyScale,groundW);
  const bodyForward=unit(sub(facing,mul(up,dot(facing,up)))),bodyRight=unit(cross(bodyForward,up)),bodyFrame={forward:bodyForward,up,right:bodyRight};
- const pelvis=world(p,strike*.04,0,hipHeight),torsoBase=add(pelvis,mul(up,anatomy.pelvis));
+ const pelvis=world(p,strike*.04,keeperDive?.shift??0,hipHeight),torsoBase=add(pelvis,mul(up,anatomy.pelvis));
  const torsoMid=add(torsoBase,mul(up,anatomy.spine)),torsoUpper=add(torsoMid,mul(up,anatomy.chest));
  const neck=add(torsoUpper,mul(up,anatomy.neck)),headTop=add(neck,mul(up,anatomy.head)),head=blend(neck,headTop,.5);
  const legs=[],arms=[];
@@ -620,6 +635,12 @@ function pose(p,dt=1/60){
   if(fallW>0&&!nativeContact){
    const recovery=world(p,.08+(i?1:-1)*duelForward*.14,side*(.15+.13*fallW),ground);
    foot=blend(foot,recovery,fallW*.7);stance=false;
+  }
+  if(keeperDive?.weight>0){
+   // Keep a low support target during lateral reach; no simulated leap.
+   const lateral=keeperDive.shift*.7+side*.19*bodyScale;
+   const target=world(p,-.09,lateral,ground+keeperDive.lift);
+   foot=blend(foot,target,keeperDive.weight);stance=false;
   }
   if(groundW>0&&!nativeContact){
    const crouch=groundFall>0?world(p,-.18*duelForward,side*.22*bodyScale-.20*duelLateral,ground):
@@ -800,6 +821,7 @@ function pose(p,dt=1/60){
   for(const arm of arms)for(const key of ['shoulder','elbow','wrist','hand','palm','target'])arm[key][1]+=jump;
  }
  if(p.nativeContactPrecision===true&&!special)refineNativeContact(result,p,frame,anatomy,bodyScale);
+ if(keeperDive?.weight>0)result.nativeKeeperDive={...keeperDive,lowestToe:Math.min(...legs.map(l=>l.toe[1]))};
  if(groundCue){
   result.nativeGroundRecovery={...groundCue,pelvisHeight:result.pelvis[1],
    supportPalmHeight:Math.min(...result.arms.map(a=>a.palm[1])),
@@ -822,7 +844,7 @@ function boneFrames(pose){
  Object.freeze(frames);frameCache.set(pose,frames);return frames;
 }
 function reset(p){rigs.delete(p);}
-const API={groundEnvelope,surfaceError,sphereSurface,refineNativeContact,sampleClipArms,nativeClipCue,anatomyFor,bodyScaleFor,motionIdentityFactors,matchNativeStep,pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
+const API={keeperDiveProfile,groundEnvelope,surfaceError,sphereSurface,refineNativeContact,sampleClipArms,nativeClipCue,anatomyFor,bodyScaleFor,motionIdentityFactors,matchNativeStep,pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 global.TribunHumanoidRig=API;
 })(typeof window!=='undefined'?window:globalThis);
