@@ -1906,6 +1906,7 @@ struct RunReservation189 {
   unsigned long at=0;
   float sx=0,sy=0,tx=0,ty=0;
   void Clear(){player=carrier=phase=-1;at=0;}
+  void ClearForPlayer(int p){if(player==p)Clear();}
   void Save(int p,int c,int period,unsigned long now,float x,float y,float endX,float endY){
     player=p;carrier=c;phase=period;at=now;sx=x;sy=y;tx=endX;ty=endY;
   }
@@ -1955,6 +1956,10 @@ inline float CoordinatedRunScore189(float sx,float sy,float tx,float ty,const Ru
   if(pathGap<2.5f)return -1000.0f;
   return .18f*std::min(endGap,10.0f)+.20f*std::min(pathGap,6.0f)+
       .12f*std::min(std::abs(ty-other.ty),8.0f);
+}
+// Retain original capped targets, then try shorter/longer local runs only if none qualify.
+inline float LocalRunX213(float start,float lead,float advance){
+  return std::min(lead,start+advance);
 }
 inline float OffballArrival188(float distance,float speed){
   return std::clamp(distance/std::clamp(speed+1.5f,3.0f,6.5f),.35f,1.5f);
@@ -2028,10 +2033,17 @@ inline bool RunLanesEnabled() {
       auto& reservation=match->tribunRunReservations[team->GetID()][laneIndex];
       auto& other=match->tribunRunReservations[team->GetID()][1-laneIndex];
       const bool pair=coordinated && other.Valid(CastPlayer()->GetID(),carrierId,period,now);
-      if(AITactics::Offball188Enabled())reservation.Clear();
-      for(float setback:{0.0f,3.0f,6.0f}){
+      if(AITactics::Offball188Enabled()){
+        if(coordinated)reservation.ClearForPlayer(CastPlayer()->GetID());
+        else reservation.Clear();
+      }
+      // First preserve the existing search; only if it fails, coordinated mode tries local depth offsets.
+      for(int option213=0;option213<(coordinated?6:3);++option213){
+        if(option213==3 && best>-9999.0f)break;
+        const float setback=3.0f*option213;
         for(float width:{4.5f,10.0f,15.5f}){
-          const float x=AITactics::Offball188Enabled()?std::min(leadX-setback,currentPos.coords[0]*forward+6.0f):leadX-setback;
+          const float x=option213>=3?AITactics::LocalRunX213(currentPos.coords[0]*forward,leadX,option213==3?3.0f:option213==4?4.5f:8.0f):
+              AITactics::Offball188Enabled()?std::min(leadX-setback,currentPos.coords[0]*forward+6.0f):leadX-setback;
           const float y=AITactics::Offball188Enabled()?clamp(currentPos.coords[1]+clamp(AITactics::RunLaneY(mainManPos.coords[1],primaryLane,width)-currentPos.coords[1],-5.0f,5.0f),-24.0f,24.0f):AITactics::RunLaneY(mainManPos.coords[1],primaryLane,width);
           const Vector3 candidate(x*forward,y,0);
           const auto delta=candidate-mainManPos;
