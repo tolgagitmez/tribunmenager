@@ -308,7 +308,14 @@ void TribunTrace(Match& match, bool done) {
            << ",\"databaseId\":" << c.databaseId << ",\"team\":" << c.team
            << ",\"kind\":\"" << c.kind << "\",\"technique\":\"" << c.technique << "\",\"foot\":" << c.foot << ",\"ball\":";
     vec(c.ball);
-    output << ",\"impulseVelocity\":";vec(c.velocity);output << '}';
+    output << ",\"impulseVelocity\":";vec(c.velocity);
+    output << ",\"controlContext\":{\"incomingVelocity\":";vec(c.incoming);
+    output << ",\"playerVelocity\":";vec(c.playerMovement);
+    output << ",\"direction\":";vec(c.facing);
+    output << ",\"opponentDistance\":" << c.opponentDistance
+           << ",\"dribbleSkill\":" << c.dribbleSkill << ",\"controlSkill\":" << c.controlSkill
+           << ",\"knockOn\":" << (c.knockOn?"true":"false")
+           << ",\"uniquePossession\":" << (c.uniquePossession?"true":"false") << "}}";
   }
   output << ']';
   match.tribunContactEvents.clear();
@@ -1674,7 +1681,9 @@ def contact_event_header(source):
     int playerId,databaseId,team,foot;
     const char* kind;
     const char* technique;
-    Vector3 ball,velocity;
+    Vector3 ball,velocity,incoming,playerMovement,facing;
+    float opponentDistance,dribbleSkill,controlSkill;
+    bool knockOn,uniquePossession;
   };
   std::vector<TribunContactEvent> tribunContactEvents;''')
 
@@ -1696,9 +1705,15 @@ def contact_event_source(source):
             currentAnim->functionType==e_FunctionType_LongPass?"long-pass":
             currentAnim->functionType==e_FunctionType_HighPass?"high-pass":
             currentAnim->functionType==e_FunctionType_Shot?"shot":"none";
+          const float opponentDistance=CastPlayer()->GetClosestOpponentDistance();
           match->tribunContactEvents.push_back({match->GetActualTime_ms(),CastPlayer()->GetID(),
             CastPlayer()->GetPlayerData()->GetDatabaseID(),team->GetID(),foot,"KIND",technique,
-            match->GetBall()->Predict(0),touchVec});
+            match->GetBall()->Predict(0),touchVec,match->GetBall()->GetMovement(),
+            CastPlayer()->GetMovement(),CastPlayer()->GetDirectionVec(),
+            std::isfinite(opponentDistance)?std::max(0.0f,opponentDistance):100.0f,
+            CastPlayer()->GetStat("technical_dribble"),CastPlayer()->GetStat("technical_ballcontrol"),
+            (currentAnim->originatingCommand.modifier&e_PlayerCommandModifier_KnockOn)!=0,
+            CastPlayer()->HasUniquePossession()});
         }
         '''.replace("KIND",kind)
         source=replace_once(source,anchor,capture+anchor)
