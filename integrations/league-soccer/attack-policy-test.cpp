@@ -382,7 +382,18 @@ int main(){
  assert(CoordinatedRunScore189(0,7,6,7,rr)>CoordinatedRunScore189(0,5,6,5,rr));
  assert(CoordinatedRunScore189(0,4,6,4,rr)>0);
  assert(CoordinatedRunScore189(0,5,std::numeric_limits<float>::quiet_NaN(),5,rr)==-1000);
+ rr.ClearForPlayer(9); assert(rr.Valid(9,2,1,100));
+ rr.ClearForPlayer(8); assert(!rr.Valid(9,2,1,100));
+ rr.Save(8,2,1,100,0,0,6,0);
  rr.Clear(); assert(!rr.Valid(9,2,1,100));
+ // Stage 213: local alternatives retain the offside/goal depth cap.
+ assert(LocalRunX213(10,30,3)==13);
+ assert(LocalRunX213(10,30,4.5f)==14.5f);
+ assert(LocalRunX213(10,30,8)==18);
+ assert(LocalRunX213(10,15,8)==15);
+ assert(LocalRunX213(-10,-4,8)==-4);
+ assert(LocalRunX213(10,9,8)==9);
+ assert(!OffballLane188(LocalRunX213(10,9,8)-10,3,1.5f,3,2,4,2));
  RunReservation189 run206;
  run206.Save(8,3,1,1000,0,0,6,0);
  assert(RunPass206Eligible(run206,8,3,1,1000,0,0,2,0));
