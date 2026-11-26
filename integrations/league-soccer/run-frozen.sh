@@ -8,6 +8,11 @@ out="$(realpath -m "$3")"
 render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+case "${TRIBUN_NATIVE_COLLISION_POSE:-0}" in
+  0) ;;
+  1) [[ "${TRIBUN_NATIVE_ORDERED_POSE:-0}" == 1 && "${TRIBUN_NATIVE_DETERMINISM:-0}" == 1 ]] || { echo "Collision pose requires ordered deterministic mode" >&2; exit 2; } ;;
+  *) echo "Invalid collision pose flag" >&2; exit 2;;
+esac
 case "${TRIBUN_NATIVE_ORDERED_POSE:-0}" in
   0) ;;
   1) [[ "${TRIBUN_NATIVE_DETERMINISM:-0}" == 1 ]] || { echo "Ordered pose requires deterministic null diagnostic" >&2; exit 2; } ;;

@@ -65,10 +65,10 @@ def read_gameplay(trace):
         raise ValueError("Mismatched season evidence")
     return {**{k:attack[k] for k in ("score","shots","onTarget","passes","completed","fouls")},
             "cards":season["cards"],"reds":season["reds"],"controlledBoxCrossings":attack["sampled"]["controlledBoxCrossings"]}
-def run(runtime,fixture,prefix,candidate,determinism_probe=False,ordered_pose=False):
+def run(runtime,fixture,prefix,candidate,determinism_probe=False,ordered_pose=False,collision_pose=False):
     name="candidate" if candidate else "reference"
     row=fixed.timing.run(str(runtime),str(fixture),str(prefix),(name,"1.0","0"),"short-match",True,
-                         determinism_probe=determinism_probe,ordered_pose=ordered_pose,**COMMON,**(CANDIDATE if candidate else {}))
+                         determinism_probe=determinism_probe,ordered_pose=ordered_pose,collision_pose=collision_pose,**COMMON,**(CANDIDATE if candidate else {}))
     trace=Path(str(prefix)+"."+name+".ndjson")
     with trace.open() as f:row.update(fixed.verify(json.loads(line) for line in f))
     row["gameplay"]=read_gameplay(trace)

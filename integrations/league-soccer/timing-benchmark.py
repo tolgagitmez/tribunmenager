@@ -96,8 +96,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False):
     name,scale,quick=profile
+    if type(collision_pose) is not bool or (collision_pose and not ordered_pose):
+        raise ValueError("Collision-only pose requires ordered deterministic null diagnostic")
     if type(ordered_pose) is not bool or (ordered_pose and not determinism_probe):
         raise ValueError("Ordered pose requires deterministic null diagnostic")
     if type(determinism_probe) is not bool or (determinism_probe and not (null_renderer and fixed_duration and sample_pss)):
@@ -138,6 +140,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_POSITION_SKINNING"]="1" if position_skinning else "0"
     env["TRIBUN_NATIVE_DETERMINISM"]="1" if determinism_probe else "0"
     env["TRIBUN_NATIVE_ORDERED_POSE"]="1" if ordered_pose else "0"
+    env["TRIBUN_NATIVE_COLLISION_POSE"]="1" if collision_pose else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -217,7 +220,14 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     if (marker in Path(str(trace)+".log").read_text(errors="replace")) != ordered_pose:
         raise ValueError("Ordered pose marker mismatch")
     report["positionSkinning"]=position_skinning
-    if null_renderer:
+    report["collisionPose"]=collision_pose
+    log_text=Path(str(trace)+".log").read_text(errors="replace")
+    collision_marker="[tribun-collision] pose=simulation visual-mesh=off local-hud=off"
+    if (collision_marker in log_text)!=collision_pose:
+        raise ValueError("Collision pose marker mismatch")
+    if collision_pose and "[tribun-skinning] runtime=" in log_text:
+        raise ValueError("Unexpected runtime skinning in collision-only mode")
+    if null_renderer and not collision_pose:
         skinning_marker="[tribun-skinning] runtime="+("position-only" if position_skinning else "full")+" bind-pose=full"
         if skinning_marker not in Path(str(trace)+".log").read_text(errors="replace"):
             raise ValueError("Missing runtime skinning evidence")

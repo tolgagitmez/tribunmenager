@@ -534,6 +534,7 @@ inline bool deterministicProbe() {
          flag("TRIBUN_NATIVE_NULL_RENDERER") && flag("TRIBUN_NATIVE_NO_DRAW") && flag("TRIBUN_NATIVE_NO_UPLOAD");
 }
 inline bool orderedPose() { return deterministicProbe() && flag("TRIBUN_NATIVE_ORDERED_POSE"); }
+inline bool collisionOnly() { return orderedPose() && flag("TRIBUN_NATIVE_COLLISION_POSE"); }
 inline bool poseDue(unsigned long iteration) { return iteration > 0 && iteration % 10UL == 0; }
 inline bool enabled() {
   return (flag("TRIBUN_NATIVE_VISUAL_RNG") || deterministicProbe()) && flag("TRIBUN_NATIVE_NULL_RENDERER") &&
@@ -789,6 +790,44 @@ def isolate_ball_audio_rng(source):
       sound->SetPitch(0.9f + random(0.0f, 0.2f));
     }""")
 
+def collision_pose_header(source):
+    return replace_once(source,"  void Put();","  void Put();\n  void TribunUpdateCollisionPose();")
+
+def collision_pose_match(source):
+    return replace_once(source,"void Match::Put() {","""// Simulation-owned collision geometry, using the original humanoid animation path.
+void Match::TribunUpdateCollisionPose() {
+  if (GetIterations() < 2 || GetPause()) return;
+  static const bool reported = [] {
+    std::printf("[tribun-collision] pose=simulation visual-mesh=off local-hud=off\\n");
+    std::fflush(stdout);
+    return true;
+  }();
+  (void)reported;
+  ball->Put();
+  teams[0]->Put();
+  teams[1]->Put();
+  officials->Put();
+  GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
+}
+
+void Match::Put() {""")
+
+def collision_pose_task(source):
+    source=replace_once(source,"""    match->PreparePutBuffers();
+    matchPutBufferMutex.unlock();""","""    match->PreparePutBuffers();
+    if (tribun_visual::collisionOnly() &&
+        tribun_visual::poseDue(match->GetIterations()) && !match->GetPause()) {
+      match->FetchPutBuffers();
+      match->TribunUpdateCollisionPose();
+    }
+    matchPutBufferMutex.unlock();""")
+    start=source.index("void GameTask::PutPhase() {")
+    prefix,body=source[:start],source[start:]
+    body=replace_once(body,"""  if (match) {
+    matchPutBufferMutex.lock();""","""  if (match && !tribun_visual::collisionOnly()) {
+    matchPutBufferMutex.lock();""")
+    return prefix+body
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -841,6 +880,9 @@ def main():
         ("onthepitch/match.cpp","previousPutTime_ms = tribun_visual::orderedPose()",ordered_pose_clock),
         ("onthepitch/player/humanoid/humanoidbase.cpp","tribun_visual::orderedPose() ?",ordered_pose_initial_samples),
         ("onthepitch/ball.cpp","tribun_visual::Stream soundRng",isolate_ball_audio_rng),
+        ("onthepitch/match.hpp","void TribunUpdateCollisionPose();",collision_pose_header),
+        ("onthepitch/match.cpp","void Match::TribunUpdateCollisionPose()",collision_pose_match),
+        ("gametask.cpp","match->TribunUpdateCollisionPose();",collision_pose_task),
     ):
         target=src/relative
         original=target.read_text(encoding="utf-8")
