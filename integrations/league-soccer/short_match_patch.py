@@ -3780,6 +3780,60 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 182: reuse the native planner's longitudinal/lateral traction
+    # limiter in a separately opted-in rendered fixture. Keep endpoint
+    # quantization and all non-locomotion physics native.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool TurnBrakeEnabled(){
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_AV_TURN_BRAKE");
+    return value && std::strcmp(value,"1")==0 && IdleRecoveryEnabled() && !LegBlendEnabled();
+  }();
+  return enabled;
+}
+inline MotionDelta TurnBrakeDelta(float vx,float vy,float dx,float dy,
+    float agility,float acceleration,float balance,float dt){
+  if(!std::isfinite(vx)||!std::isfinite(vy)||!std::isfinite(dx)||!std::isfinite(dy)||
+      !std::isfinite(agility)||!std::isfinite(acceleration)||!std::isfinite(balance)||
+      !std::isfinite(dt)||dt<=0||dt>.05f)return {dx,dy};
+  const auto limited=LimitMotion(vx,vy,dx,dy,agility,acceleration,balance,dt);
+  // Partial correction to avoid fighting the native clip's trajectory.
+  // Stronger on lateral/reverse requests, gentler on straight acceleration.
+  const float speed=std::hypot(vx,vy);
+  float weight=.35f;
+  if(speed>.5f){
+    const float along=(dx*vx+dy*vy)/speed;
+    const float across=std::abs((dy*vx-dx*vy)/speed);
+    const float magnitude=std::hypot(dx,dy);
+    if(magnitude>.0001f)
+      weight=.35f+.35f*std::clamp((across+std::max(0.0f,-along))/magnitude,0.0f,1.0f);
+  }
+  return {dx+(limited.x-dx)*weight,dy+(limited.y-dy)*weight};
+}
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoidbase.cpp", [
+        ('#include "../playerbase.hpp"', '#include "../playerbase.hpp"\n#include "../player.hpp"\n#include "../../team.hpp"'),
+        ("    Vector3 tmpTemporalMovement = temporalMovement + toDesired;", r'''    if(AITactics::TurnBrakeEnabled() && !smoothMotion && animType=="movement" &&
+        !touch && match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer() &&
+        !player->GetExternalController() && player->IsActive() &&
+        anim->GetVariable("incoming_special_state").empty() &&
+        anim->GetVariable("outgoing_special_state").empty() &&
+        (match->GetBall()->Predict(0).Get2D()-spatialState.position.Get2D()).GetLength()>2.0f){
+      auto* footballer=dynamic_cast<Player*>(player);
+      if(footballer && !footballer->GetTeam()->GetHumanGamerCount() &&
+          footballer->GetFormationEntry().role!=e_PlayerRole_GK){
+        const auto delta=AITactics::TurnBrakeDelta(temporalMovement.coords[0],temporalMovement.coords[1],
+            toDesired.coords[0],toDesired.coords[1],stat_agility,stat_acceleration,
+            player->GetStat("physical_balance"),timeStep_ms*.001f);
+        toDesired=Vector3(delta.x,delta.y,toDesired.coords[2]);
+      }
+    }
+    Vector3 tmpTemporalMovement = temporalMovement + toDesired;'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
