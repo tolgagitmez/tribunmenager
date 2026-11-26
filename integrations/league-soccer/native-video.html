@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="../../"><title>Tribün Manager | Orijinal motor</title><link rel="stylesheet" href="integrations/league-soccer/broadcast-design.css"></head>
+<body><header class="tm-header"><a class="tm-brand" href="league.html"><span class="tm-mark">TM</span>TRİBÜN MANAGER</a><a class="tm-back" href="integrations/league-soccer/replay.html">WebGL tanılama ekranı</a></header>
+<main class="tm-main"><div class="tm-title"><h1>Orijinal motor görüntüsü</h1><span class="tm-tag">YEREL VİDEO · PİLOT</span></div>
+<p>League-Soccer'ın kendi OpenGL çizicisinden kaydedilmiş yerel MP4 dosyasını aç. Bu sayfa futbolcuları, stadyumu, topu, kamerayı veya skoru yeniden üretmez; yalnızca videoyu oynatır. Canlı yayın, resmî lig sonucu ve ses henüz yok.</p>
+<section class="tm-panel"><label>Native maç videosu (.mp4)<input type="file" id="nativeVideo" accept=".mp4,video/mp4"></label>
+<p id="nativeVideoStatus" role="status">Yerel dosya seçilmedi. Dosya sunucuya gönderilmez.</p>
+<video id="nativeVideoPlayer" controls playsinline preload="metadata" style="display:block;width:100%;max-height:75vh;background:#000;border-radius:10px" aria-label="Orijinal motor maç videosu"></video></section></main>
+<script src="integrations/league-soccer/native-video.js"></script></body></html>

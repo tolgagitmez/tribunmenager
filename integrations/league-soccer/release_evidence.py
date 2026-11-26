@@ -12,7 +12,7 @@ FILES=(
  "integrations/league-soccer/fixture_patch.py",
  "integrations/league-soccer/short_match_patch.py",
  "integrations/league-soccer/run-pilot.sh",
- "integrations/league-soccer/run-frozen.sh",
+ "integrations/league-soccer/run-frozen.sh","integrations/league-soccer/native-video-pilot.py","integrations/league-soccer/native-video.html","integrations/league-soccer/native-video.js","tests/test_native_video_pilot.py",".github/workflows/native-video-pilot.yml",
  "integrations/league-soccer/fixture-adapter.cjs",
  "integrations/league-soccer/attack-report.cjs",
  "integrations/league-soccer/timing-benchmark.py",
