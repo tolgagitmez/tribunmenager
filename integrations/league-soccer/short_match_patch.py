@@ -3232,6 +3232,65 @@ struct FixedDurationClock {'''),
     ])
 
 
+    # Stage 174: discard transient decisions at observed restart boundaries.
+    # The referee and native animations still own the actual restart.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''struct RestartDecisionWatch {
+  bool seen=false,open=false;
+  int phase=-1;
+  bool Observe(int period,bool playing){
+    const bool changed=seen && (phase!=period || open!=playing);
+    seen=true;phase=period;open=playing;
+    return changed;
+  }
+};
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.hpp", [
+        ("  AITactics::TransitionState tribunTransition;", "  AITactics::TransitionState tribunTransition;\n  AITactics::RestartDecisionWatch tribunRestartDecision;"),
+    ])
+    edit(root, "src/onthepitch/teamAIcontroller.cpp", [
+        ("  CalculateSituation();\n  if(AITactics::TransitionEnabled()", r'''  if(AITactics::IdleRecoveryEnabled() && !team->GetHumanGamerCount()){
+    const bool open=match->IsInPlay() && !match->IsInSetPiece();
+    const int phase=static_cast<int>(match->GetMatchPhase());
+    if(tribunRestartDecision.Observe(phase,open)){
+      const auto now=match->GetActualTime_ms();
+      // Clear only transient open-play plans, never the referee's taker,
+      // formation, score, stamina, ball state, or animation state.
+      tribunCombination.Clear(now);
+      tribunTriangle.Clear(now);
+      tribunTimedAttack.Clear();
+      tribunRebound.Clear();
+      tribunReboundSupportID=-1;
+      tribunTransition.Reset();
+      zonePressureActive=false;
+      endApplyTeamPressure_ms=now;
+      teamPressurePlayer=nullptr;
+      endApplyAttackingRun_ms=now;
+      attackingRunPlayer=nullptr;
+      forwardSupportPlayer=nullptr;
+      std::fprintf(stderr,"[tribun-restart-decisions] phase=%d team=%d open=%d match_ms=%lu\n",
+          phase,team->GetID(),open?1:0,static_cast<unsigned long>(match->GetMatchTime_ms()));
+    }
+  }
+  CalculateSituation();
+  if(AITactics::TransitionEnabled()'''),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.hpp", [
+        ("  AITactics::IdleRecoveryWatch tribunIdleRecovery;", "  AITactics::IdleRecoveryWatch tribunIdleRecovery;\n  AITactics::RestartDecisionWatch tribunRestartDecision;"),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  _Preprocess();  // calculate some variables\n  bool recoverIdle=false;", r'''  if(AITactics::IdleRecoveryEnabled() && !team->GetHumanGamerCount() &&
+      tribunRestartDecision.Observe(static_cast<int>(match->GetMatchPhase()),
+          match->IsInPlay() && !match->IsInSetPiece())){
+    tribunIdleRecovery.Reset();
+  }
+  _Preprocess();  // calculate some variables
+  bool recoverIdle=false;'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
