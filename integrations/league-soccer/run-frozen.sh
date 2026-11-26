@@ -8,6 +8,11 @@ out="$(realpath -m "$3")"
 render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+case "${TRIBUN_NATIVE_ADAPTIVE_CONTACT:-0}" in
+  0) ;;
+  1) [[ "${TRIBUN_NATIVE_COLLISION_POSE:-0}" == 1 && "${TRIBUN_NATIVE_CONTACT_INTERVAL_MS:-100}" == 10 ]] || { echo "Adaptive contact requires collision-only 10 ms reference" >&2; exit 2; } ;;
+  *) echo "Invalid adaptive contact flag" >&2; exit 2;;
+esac
 case "${TRIBUN_NATIVE_CONTACT_INTERVAL_MS:-100}" in
   100) ;;
   50|20|10) [[ "${TRIBUN_NATIVE_COLLISION_POSE:-0}" == 1 ]] || { echo "Contact cadence requires collision-only mode" >&2; exit 2; } ;;

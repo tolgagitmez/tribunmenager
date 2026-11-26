@@ -96,8 +96,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False):
     name,scale,quick=profile
+    if type(adaptive_contact) is not bool or (adaptive_contact and (not collision_pose or contact_interval_ms!=10)):
+        raise ValueError("Adaptive contact requires collision-only 10 ms reference cadence")
     if type(contact_interval_ms) is not int or contact_interval_ms not in (100,50,20,10) or (contact_interval_ms!=100 and not collision_pose):
         raise ValueError("Contact interval requires collision-only mode; allowed 100,50,20,10 ms")
     if type(collision_pose) is not bool or (collision_pose and not ordered_pose):
@@ -144,6 +146,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_ORDERED_POSE"]="1" if ordered_pose else "0"
     env["TRIBUN_NATIVE_COLLISION_POSE"]="1" if collision_pose else "0"
     env["TRIBUN_NATIVE_CONTACT_INTERVAL_MS"]=str(contact_interval_ms)
+    env["TRIBUN_NATIVE_ADAPTIVE_CONTACT"]="1" if adaptive_contact else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -229,6 +232,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     if (collision_marker in log_text)!=collision_pose:
         raise ValueError("Collision pose marker mismatch")
     report["contactIntervalMs"]=contact_interval_ms
+    report["adaptiveContact"]=adaptive_contact
     if collision_pose:
         import re
         matches=re.findall(r"\[tribun-contact\] interval-ms=(\d+) updates=(\d+) max-age-ticks=(\d+) missing=(\d+) ball-overlaps=(\d+) keeper-overlaps=(\d+) tackle-overlaps=(\d+) controlled-requests=(\d+)",log_text)
@@ -238,6 +242,11 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         if contact["intervalMs"]!=contact_interval_ms or contact["poseUpdates"]<=0:
             raise ValueError("Invalid collision cadence evidence")
         report["contactProbe"]=contact
+        evidence=re.findall(r"\[tribun-adaptive\] mode=(uniform|adaptive) player-updates=(\d+) high=(\d+) medium=(\d+) low=(\d+) queries=(\d+) missing=(\d+) stale=(\d+) max-age=(\d+)",log_text)
+        if len(evidence)!=1 or evidence[0][0]!=("adaptive" if adaptive_contact else "uniform"):
+            raise ValueError("Missing adaptive contact evidence")
+        keys=("playerUpdates","highUpdates","mediumUpdates","lowUpdates","queries","missingQueries","staleQueries","maxQueryAgeTicks")
+        report["adaptiveContactProbe"]=dict(zip(keys,map(int,evidence[0][1:])))
     if collision_pose and "[tribun-skinning] runtime=" in log_text:
         raise ValueError("Unexpected runtime skinning in collision-only mode")
     if null_renderer and not collision_pose:

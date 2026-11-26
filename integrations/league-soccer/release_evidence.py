@@ -27,6 +27,7 @@ FILES=(
  "integrations/league-soccer/ordered-pose-benchmark.py",
  "integrations/league-soccer/collision-pose-benchmark.py",
  "integrations/league-soccer/contact-cadence-benchmark.py",
+ "integrations/league-soccer/adaptive-contact-benchmark.py",
  "integrations/league-soccer/position-skinning-benchmark.py",
  "integrations/league-soccer/runtime-layout.py",
  "integrations/league-soccer/verify-substitutions.py",

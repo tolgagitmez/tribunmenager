@@ -195,6 +195,10 @@ void TribunTrace(Match& match, bool done) {
       tribun_visual::contactIntervalTicks()*10,match.tribunPoseUpdates,match.tribunMaxPoseAgeTicks,
       match.tribunMissingPoseChecks,match.tribunBallOverlaps,match.tribunKeeperOverlaps,
       match.tribunTackleOverlaps,match.tribunControlledRequests);
+    std::printf("[tribun-adaptive] mode=%s player-updates=%lu high=%lu medium=%lu low=%lu queries=%lu missing=%lu stale=%lu max-age=%lu\n",
+      tribun_visual::adaptiveContact()?"adaptive":"uniform",match.tribunPlayerPoseUpdates,
+      match.tribunHighPoseUpdates,match.tribunMediumPoseUpdates,match.tribunLowPoseUpdates,
+      match.tribunContactQueries,match.tribunContactMissing,match.tribunContactStale,match.tribunContactMaxAge);
     std::fflush(stdout);
   }
   output.imbue(std::locale::classic());
@@ -542,6 +546,15 @@ inline bool deterministicProbe() {
 }
 inline bool orderedPose() { return deterministicProbe() && flag("TRIBUN_NATIVE_ORDERED_POSE"); }
 inline bool collisionOnly() { return orderedPose() && flag("TRIBUN_NATIVE_COLLISION_POSE"); }
+inline bool adaptiveContact() { return collisionOnly() && flag("TRIBUN_NATIVE_ADAPTIVE_CONTACT"); }
+inline unsigned adaptiveTicks(float predictedDistance,bool dangerousAction,bool closeOpponent) {
+  if (dangerousAction || closeOpponent || predictedDistance <= 5.0f) return 1;
+  if (predictedDistance <= 12.0f) return 2;
+  return 10;
+}
+inline bool adaptiveDue(unsigned long now,unsigned long previous,unsigned interval) {
+  return previous==0 || now<previous || now-previous>=interval;
+}
 inline unsigned collisionTicks(const char* raw) {
   if (!raw || std::strcmp(raw,"100")==0) return 10;
   if (std::strcmp(raw,"50")==0) return 5;
@@ -555,7 +568,7 @@ inline unsigned contactIntervalTicks() {
 }
 inline bool collisionPoseDue(unsigned long iteration) {
   const unsigned ticks=contactIntervalTicks();
-  return ticks && iteration>=2 && iteration%ticks==0;
+  return ticks && iteration>=2 && (adaptiveContact() || iteration%ticks==0);
 }
 inline bool poseDue(unsigned long iteration) { return iteration > 0 && iteration % 10UL == 0; }
 inline bool enabled() {
@@ -873,6 +886,91 @@ def contact_probe(source):
         """                if (tribun_visual::collisionOnly()) ++tribunControlledRequests;
                 players[i]->TriggerControlledBallCollision();""")
 
+def adaptive_contact_header(source):
+    source=replace_once(source,"#include <memory>","#include <memory>\n#include <map>")
+    return replace_once(source,"  void TribunUpdateCollisionPose();",
+        """  void TribunUpdateCollisionPose();
+  void TribunObserveContactPose(Player* player);
+  std::map<int,unsigned long> tribunPlayerPoseTick;
+  unsigned long tribunPlayerPoseUpdates=0, tribunHighPoseUpdates=0, tribunMediumPoseUpdates=0, tribunLowPoseUpdates=0;
+  unsigned long tribunContactQueries=0, tribunContactMissing=0, tribunContactStale=0, tribunContactMaxAge=0;""")
+
+def adaptive_contact_match(source):
+    source=replace_once(source,"void Match::TribunUpdateCollisionPose() {",
+        """void Match::TribunObserveContactPose(Player* player) {
+  if (!tribun_visual::collisionOnly()) return;
+  ++tribunContactQueries;
+  auto found=tribunPlayerPoseTick.find(player->GetID());
+  if (found==tribunPlayerPoseTick.end() || found->second>GetIterations()) {
+    ++tribunContactMissing;
+    return;
+  }
+  const auto age=GetIterations()-found->second;
+  tribunContactMaxAge=std::max(tribunContactMaxAge,age);
+  if(age>1) ++tribunContactStale;
+}
+
+void Match::TribunUpdateCollisionPose() {""")
+    start=source.index("void Match::TribunUpdateCollisionPose() {")
+    end=source.index("void Match::Put() {",start)
+    section=source[start:end]
+    section=replace_once(section,"""  teams[0]->Put();
+  teams[1]->Put();""","""  std::vector<Player*> active;
+  GetActiveTeamPlayers(0,active);
+  GetActiveTeamPlayers(1,active);
+  const auto tick=GetIterations();
+  // Query both teams in native order; no physics coefficients or RNG are changed.
+  if (tribun_visual::adaptiveContact()) {
+    std::map<int,unsigned long> next;
+    const auto risky=[](Player* p) {
+      const auto action=p->GetCurrentFunctionType();
+      return action==e_FunctionType_Sliding || action==e_FunctionType_Interfere ||
+             action==e_FunctionType_Deflect;
+    };
+    for (auto* player:active) {
+      float nearest=1000.0f;
+      for (int horizon=0;horizon<=200;horizon+=50) {
+        const auto projected=player->GetPosition()+player->GetMovement()*(horizon*0.001f);
+        nearest=std::min(nearest,(projected.Get2D()-ball->Predict(horizon).Get2D()).GetLength());
+      }
+      bool closeOpponent=false;
+      for(auto* other:active) {
+        if(other->GetTeam()!=player->GetTeam() &&
+           (other->GetPosition()-player->GetPosition()).GetLength()<=3.5f) {
+          closeOpponent=true;break;
+        }
+      }
+      const unsigned interval=tribun_visual::adaptiveTicks(nearest,risky(player),closeOpponent);
+      auto found=tribunPlayerPoseTick.find(player->GetID());
+      const auto previous=found==tribunPlayerPoseTick.end()?0UL:found->second;
+      if(tribun_visual::adaptiveDue(tick,previous,interval)) {
+        player->Put();
+        next[player->GetID()]=tick;
+        ++tribunPlayerPoseUpdates;
+        if(interval==1) ++tribunHighPoseUpdates;
+        else if(interval==2) ++tribunMediumPoseUpdates;
+        else ++tribunLowPoseUpdates;
+      } else next[player->GetID()]=previous;
+    }
+    tribunPlayerPoseTick.swap(next);
+  } else {
+    teams[0]->Put();
+    teams[1]->Put();
+    tribunPlayerPoseTick.clear();
+    for(auto* player:active) {
+      tribunPlayerPoseTick[player->GetID()]=tick;
+      ++tribunPlayerPoseUpdates;
+    }
+  }""")
+    source=source[:start]+section+source[end:]
+    source=replace_once(source,"    // iterate through all body parts of tackler",
+        """    TribunObserveContactPose(p1);
+    TribunObserveContactPose(p2);
+    // iterate through all body parts of tackler""")
+    return replace_once(source,"          players[i]->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry, objectList);",
+        """          TribunObserveContactPose(players[i]);
+          players[i]->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry, objectList);""")
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -929,6 +1027,8 @@ def main():
         ("onthepitch/match.cpp","void Match::TribunUpdateCollisionPose()",collision_pose_match),
         ("gametask.cpp","match->TribunUpdateCollisionPose();",collision_pose_task),
         ("onthepitch/match.cpp","++tribunBallOverlaps",contact_probe),
+        ("onthepitch/match.hpp","tribunPlayerPoseTick",adaptive_contact_header),
+        ("onthepitch/match.cpp","void Match::TribunObserveContactPose",adaptive_contact_match),
     ):
         target=src/relative
         original=target.read_text(encoding="utf-8")
