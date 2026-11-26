@@ -48,7 +48,7 @@ def match_result(directory, native_rc, browser_rc):
             audioWindows=native['audio']['nonSilentWindows'],
             encodedVideoMaxGapSeconds=native.get('mediaTimeline',{}).get('tracks',{}).get('video',{}).get('maxGapSeconds'),
             browserLongestProgressIntervalMs=browser.get('longestObservedProgressIntervalMs'),
-            acknowledgements=len(evidence['acknowledgements']), renderProbe=native.get('renderProbe'), softwareGLWorkers=native.get('softwareGLWorkers',2))
+            motionAudit=native.get('motionAudit'), acknowledgements=len(evidence['acknowledgements']), renderProbe=native.get('renderProbe'), softwareGLWorkers=native.get('softwareGLWorkers',2))
         result['passed'] = bool(
             native_rc == browser_rc == 0 and native['status'] == 'local-live-evidence'
             and result['nativeClockMs'] == 300000 and 295 <= result['observedWallSeconds'] <= 305
@@ -135,6 +135,7 @@ def main():
     p.add_argument('--cpu-partition', action='store_true')
     p.add_argument('--render-probe', action='store_true')
     p.add_argument('--gl-workers', type=int, choices=(1,2), default=2)
+    p.add_argument('--motion-audit', action='store_true')
     args = p.parse_args()
     groups = partition(os.sched_getaffinity(0), args.count) if args.cpu_partition else [[] for _ in range(args.count)]
     if os.environ.get('TRIBUN_AV_ENCODER','x264') != 'x264':
@@ -152,6 +153,7 @@ def main():
     env['TRIBUN_AV_FILTER_THREADS'] = str(args.filter_threads)
     env['TRIBUN_AV_SWAP_PROBE'] = '1' if args.render_probe else '0'
     env['TRIBUN_AV_GL_WORKERS'] = str(args.gl_workers)
+    env['TRIBUN_AV_MOTION_AUDIT'] = '1' if args.motion_audit else '0'
     meter = ProcessProfile()
     jobs = []
     logs = []
@@ -190,6 +192,9 @@ def main():
         report = {**summarize(matches), 'trialId': trial_id, 'matches': matches, 'hostLogicalCpus': os.cpu_count(),
                   'samples': samples, 'processProfile': meter.report(), 'filterThreads': args.filter_threads, 'resourceSummary': resource_summary(samples), 'requestedMatches': args.count, 'wallSeconds': round(time.monotonic() - started, 2),
                   'renderProbeRequested': args.render_probe, 'glWorkers': args.gl_workers, 'cpuPartition': args.cpu_partition, 'cpuGroups': groups, 'cgroupTotalDelta': delta(group_start,counters(group_path)), 'hostIdentity': host_identity, 'profile': PROFILE, 'productionQualified': False, 'scope': 'concurrent audio+video matches on this host only'}
+        if args.motion_audit:
+            report['motionAuditRequested']=True
+            report['passed']=report['passed'] and all(isinstance(m.get('motionAudit'),dict) for m in matches)
         if args.render_probe:
             report['renderEvidenceComplete'] = all(isinstance(m.get('renderProbe'),dict) and m['renderProbe'].get('observed') is True for m in matches)
             report['passed'] = report['passed'] and report['renderEvidenceComplete']

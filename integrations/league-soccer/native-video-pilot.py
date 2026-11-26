@@ -128,7 +128,8 @@ def _capture_window(config,limit,audio_env):
     logs=game_log.read_text(errors="replace");print(logs)
     require("[menu-smoke] Full match complete:" in logs and "[menu-smoke] Full-match verification succeeded, quitting test run" in logs,"Missing native completion markers")
     if audio_env is not None:
-        require(sink_input and "falling back to silent audio" not in logs and "using silent audio" not in logs,"Native OpenAL audio unavailable")
+        require("falling back to silent audio" not in logs and "using silent audio" not in logs,"Native OpenAL fallback to silent audio")
+        require(sink_input,"Native OpenAL sink input never observed")
     swap_report=None
     if swap_enabled=="1":
         from native_swap_probe import summarize

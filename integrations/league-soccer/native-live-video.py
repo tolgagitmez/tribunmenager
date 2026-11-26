@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from release_evidence import stamp,sha
 from native_audio_capture import audit_audio
 from native_media_audit import audit_media
+from native_motion_audit import audit as audit_motion
 from native_capture_failure import summarize as capture_failure
 from native_video_control import ControlBridge
 from native_roster import plan_from_config,verify_halftime
@@ -160,9 +161,13 @@ def main():
         control_report=control.report() if control else None
         if control_report:
             complete=complete and control_report["traceEvidence"]["consistent"]
+        motion=None
+        if os.environ.get("TRIBUN_AV_MOTION_AUDIT")=="1":
+            motion=audit_motion(media/"live.m3u8")
+            write_json(out/"native-motion-report.json",motion)
         report.update(status="local-live-evidence" if complete else "coverage-inconclusive",nativeClock=clock,audio=audio,
           gpuPreflight=json.loads((out/"gpu-preflight.json").read_text()) if (out/"gpu-preflight.json").is_file() else None,
-          renderProbe=capture.get("renderProbe"),softwareGLWorkers=capture.get("softwareGLWorkers",2),
+          motionAudit=motion,renderProbe=capture.get("renderProbe"),softwareGLWorkers=capture.get("softwareGLWorkers",2),
           videoEncoder=capture.get("videoEncoder","x264"),encoderPreflight=json.loads((out/"encoder-preflight.json").read_text()) if (out/"encoder-preflight.json").is_file() else None,
           playlist=playlist,mediaTimeline=media_audit,checks=checks,traceSha256=sha(trace),control=control_report,roster=roster,
           note="Loopback only, 2-second HLS segments. Audio when requested is native OpenAL mix, not synthetic effects. Encoded A/V timestamp continuity checked; event-by-event sound and perceptual A/V alignment not verified. Browser latency, actual renderer FPS, asset clearance, league authorization and capacity not qualified. Manager status is current engine time, not synchronized video time.")

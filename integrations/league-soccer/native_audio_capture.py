@@ -14,28 +14,34 @@ def private_audio(out):
     # Private directory and Unix socket, no TCP, no host microphone or default sink.
     with tempfile.TemporaryDirectory(prefix="tribun-pulse-") as d:
         root=Path(d);sock=root/"native"
+        runtime=root/"runtime";runtime.mkdir(mode=0o700)
+        config=root/"config";config.mkdir(mode=0o700)
+        state=root/"state";state.mkdir(mode=0o700)
         client=root/"client.conf"
         client.write_text("autospawn = no\n")
         env=os.environ.copy()
-        for key in ("PULSE_SERVER","PULSE_SINK","PULSE_SOURCE","PULSE_COOKIE","PULSE_CLIENTCONFIG","ALSOFT_CONF","ALSOFT_LOGFILE"):
+        for key in ("PULSE_SERVER","PULSE_SINK","PULSE_SOURCE","PULSE_COOKIE","PULSE_CLIENTCONFIG","PULSE_CONFIG_PATH","ALSOFT_CONF","ALSOFT_LOGFILE"):
             env.pop(key,None)
-        env.update(PULSE_SERVER="unix:"+str(sock),PULSE_RUNTIME_PATH=str(root),PULSE_STATE_PATH=str(root),
+        env.update(PULSE_SERVER="unix:"+str(sock),PULSE_RUNTIME_PATH=str(runtime),PULSE_STATE_PATH=str(state),
                    PULSE_SINK="tribun_match",PULSE_SOURCE="tribun_match.monitor",ALSOFT_DRIVERS="pulse",
-                   PULSE_CLIENTCONFIG=str(client))
+                   PULSE_CLIENTCONFIG=str(client),PULSE_CONFIG_PATH=str(config))
+        daemon_env=dict(env,XDG_RUNTIME_DIR=str(runtime),XDG_CONFIG_HOME=str(config),XDG_STATE_HOME=str(state))
         with (out/"native-audio.log").open("wb") as log:
             proc=subprocess.Popen(["pulseaudio","-n","--daemonize=no","--use-pid-file=no","--exit-idle-time=-1",
                 "--disable-shm=true","--log-target=stderr",
-                "--load=module-native-protocol-unix socket="+str(sock)+" auth-anonymous=1",
-                "--load=module-null-sink sink_name=tribun_match rate=48000 channels=2"],env=env,stdout=log,stderr=subprocess.STDOUT)
+                "--load=module-null-sink sink_name=tribun_match rate=48000 channels=2",
+                "--load=module-native-protocol-unix socket="+str(sock)+" auth-anonymous=1"],env=daemon_env,stdout=log,stderr=subprocess.STDOUT)
             try:
                 for _ in range(100):
-                    if proc.poll() is not None:raise RuntimeError("Private audio server exited")
+                    if proc.poll() is not None:raise RuntimeError("Private audio server exited before ready")
                     if sock.exists():
-                        p=subprocess.run(["pactl","list","short","sources"],env=env,capture_output=True,text=True,timeout=3)
-                        if p.returncode==0 and "tribun_match.monitor" in p.stdout:break
+                        try:p=subprocess.run(["pactl","list","short","sources"],env=env,capture_output=True,text=True,timeout=3)
+                        except subprocess.TimeoutExpired:p=None
+                        if p is not None and p.returncode==0 and "tribun_match.monitor" in p.stdout:break
                     time.sleep(.1)
                 else:raise RuntimeError("Private audio monitor unavailable")
-                subprocess.run(["pactl","set-default-sink","tribun_match"],env=env,check=True,timeout=3)
+                subprocess.run(["pactl","set-default-sink","tribun_match"],env=env,check=True,timeout=5)
+                (out/"native-audio-ready.json").write_text(json.dumps({"privateServerReady":True,"socketIsolated":True}))
                 yield env
             finally:
                 if proc.poll() is None:

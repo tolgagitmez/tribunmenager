@@ -38,7 +38,7 @@ def verified_slots(report, host):
         return 0
     if not number(report.get('overlapSeconds'),285,310):
         return 0
-    if report.get('filterThreads')!=0 or report.get('cpuPartition',False) is not False or report.get('renderProbeRequested',False) is not False or report.get('glWorkers',2)!=2:
+    if report.get('motionAuditRequested',False) is not False or report.get('filterThreads')!=0 or report.get('cpuPartition',False) is not False or report.get('renderProbeRequested',False) is not False or report.get('glWorkers',2)!=2:
         return 0
     resources=report.get('resourceSummary',{})
     if not isinstance(resources,dict) or not report.get('samples'):
