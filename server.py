@@ -14,6 +14,7 @@ from economy import TransferService, EconomyError, SET_PIECE_ATTRIBUTES
 from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_control
 import season_state
 import league_standings
+import native_league_mode as mode
 import native_shadow
 import native_live
 import native_av_gateway
@@ -56,7 +57,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS fixtures(
         league TEXT NOT NULL,round INT NOT NULL,home INT NOT NULL,away INT NOT NULL,
         kickoff REAL NOT NULL,home_score INT,away_score INT,home_yellows INT,away_yellows INT,
-        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA + season_state.SCHEMA + native_shadow.SCHEMA + native_av_queue.SCHEMA)
+        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA + season_state.SCHEMA + native_shadow.SCHEMA + native_av_queue.SCHEMA + mode.SCHEMA)
 
 def rounds():
     # 6-team double round robin: 5 rounds each leg, 3 matches per day.
@@ -85,7 +86,8 @@ def serialize_tactics(raw):
                 t[k]=v
     return json.dumps(t,ensure_ascii=False,separators=(',',':'))
 
-def new_league(manager):
+def new_league(manager,*,native=False):
+    if native and os.environ.get('TRIBUN_NATIVE_ONLY_LEAGUE')!='1':raise ValueError('Native-only development league disabled')
     manager=str(manager or 'Menajer')[:35]
     with LOCK,db() as c:
         while True:
@@ -93,13 +95,14 @@ def new_league(manager):
             if not c.execute('SELECT 1 FROM leagues WHERE code=?',(code,)).fetchone():break
         created=time.time();kickoff=created+86400
         c.execute('INSERT INTO leagues VALUES(?,?,?)',(code,created,kickoff))
+        if native:c.execute('INSERT INTO native_only_leagues VALUES(?,?)',(code,created))
         token=secrets.token_urlsafe(26)
         for i,name in enumerate(TEAMS):
             c.execute('INSERT INTO teams VALUES(?,?,?,?,?,?,?,?)',
                 (code,i,name,manager if i==0 else 'Bilgisayar',token if i==0 else None,DEFAULT['formation'],serialize_tactics(DEFAULT),round(78+i*1.9,1)))
         for r,pairs in enumerate(rounds()):
             for a,b in pairs:c.execute('INSERT INTO fixtures(league,round,home,away,kickoff) VALUES(?,?,?,?,?)',(code,r,a,b,kickoff+r*86400))
-    return {'code':code,'token':token,'club':TEAMS[0]}
+    return {'code':code,'token':token,'club':TEAMS[0],**({'matchBackend':'native-only','authoritative':False} if native else {})}
 
 def join_league(code,manager):
     code=str(code or '').strip().upper()
@@ -121,6 +124,8 @@ def update_tactics(token, tactics, formation=None):
     with LOCK,db() as c:
         person=identified(c,token)
         active=c.execute('SELECT 1 FROM fixtures WHERE league=? AND kickoff<=? AND home_score IS NULL LIMIT 1',(person['league'],time.time())).fetchone()
+        if mode.is_native(c,person['league']):
+            active=mode.unfinished(c,person['league'],due=time.time())
         if active:raise ValueError('Maç oynanırken taktikler kilitlidir; maç bitince değiştirebilirsin.')
         formation=formation if formation in ('4-3-3','4-2-3-1','4-4-2','3-5-2','5-3-2','4-5-1') else person['formation']
         c.execute('UPDATE teams SET formation=?,tactics=? WHERE token=?',(formation,serialize_tactics(tactics),token))
@@ -157,19 +162,21 @@ def settle_due(now=None):
                 prior=c.execute('''SELECT 1 FROM fixtures WHERE league=?
                     AND round<? AND home_score IS NULL LIMIT 1''',
                     (fixture['league'],fixture['round'])).fetchone()
-                if prior:continue
+                is_native=mode.is_native(c,fixture['league'])
+                if (mode.unfinished(c,fixture['league'],before=fixture['round']) if is_native else prior):continue
                 key=tuple(fixture[field] for field in ('league','round','home','away'))
                 kickoff=fixture['kickoff']
                 config=live_config(c,key,now,kickoff)
+                if is_native:config['matchBackend']='native-only'
                 c.execute('''INSERT INTO live_matches
                     (league,round,home,away,kickoff,config) VALUES(?,?,?,?,?,?)''',
                     (*key,kickoff,json.dumps(config,ensure_ascii=False)))
-                native_shadow.enqueue(c,key,config)
+                if not is_native:native_shadow.enqueue(c,key,config)
                 created.append((key,kickoff,config))
-            if os.environ.get('TRIBUN_NATIVE_AV_QUEUE')=='1':
-                native_av_queue.sync(c,now)
+            native_av_queue.sync(c,now,native_only=os.environ.get('TRIBUN_NATIVE_AV_QUEUE')!='1')
             pending=c.execute('''SELECT league,round,home,away,kickoff,config
                 FROM live_matches WHERE final_state IS NULL AND kickoff<=?
+                AND NOT EXISTS(SELECT 1 FROM native_only_leagues n WHERE n.league=live_matches.league)
                 ORDER BY kickoff,league,round,home,away''',(now,)).fetchall()
         # Register only after the committed kickoff snapshots exist. Reconcile
         # already provisioned matches as well, so a process failure between
@@ -186,7 +193,7 @@ def status(token, now=None):
     with db() as c:
         person=identified(c,token)
         code=person['league'];teams=[dict(t) for t in c.execute('SELECT * FROM teams WHERE league=? ORDER BY slot',(code,))]
-        fix=[dict(f) for f in c.execute('SELECT * FROM fixtures WHERE league=? ORDER BY round,home',(code,))]
+        fix=mode.fixtures(c,code)
         current_round=max(0,min(9,int((now-fix[0]['kickoff'])//86400))) if now>=fix[0]['kickoff'] else 0
         next_time=min((f['kickoff'] for f in fix if f['kickoff']>now),default=None)
         active=[f for f in fix if f['kickoff']<=now and f['home_score'] is None]
@@ -195,14 +202,14 @@ def status(token, now=None):
         # benched players, not stale or other-manager wallet data.
         roster=football_team_snapshot(c,person,current_round)
         own_players=roster['players'] if roster['players'] else [
-            season_state.status(c,code,person['slot'],p,current_round)
+            season_state.status(mode.season_db(c,code),code,person['slot'],p,current_round)
             for p in season_state.demo_roster(person['formation'])]
         rotation=[{'name':p.get('name','Oyuncu'),'position':p.get('subposition') or p.get('pos'),
                    'rating':p.get('rating',80),'fitness':p.get('fitness',95),
                    **p.get('season',{})} for p in own_players]
         match=next((f for f in fix if f['round']==current_round and person['slot'] in (f['home'],f['away'])),None)
         if not match:match=next((f for f in fix if f['round']==9 and person['slot'] in (f['home'],f['away'])),None)
-        return {'server_time':now,'code':code,'manager':person['manager'],'my_slot':person['slot'],'my_club':person['name'],'my_formation':person['formation'],'my_tactics':json.loads(person['tactics']),
+        return {'server_time':now,'code':code,**({'matchBackend':'native-only','authoritative':False} if mode.is_native(c,code) else {}),'manager':person['manager'],'my_slot':person['slot'],'my_club':person['name'],'my_formation':person['formation'],'my_tactics':json.loads(person['tactics']),
             'next_kickoff':next_time,'first_kickoff':fix[0]['kickoff'],'day':min(10,current_round+1),'active':active,'my_match':match,'standings':standings,
             'my_rotation':rotation,'my_rotation_source':roster['source'],
             'teams':[{'slot':t['slot'],'name':t['name'],'manager':t['manager'],'claimed':bool(t['token'])} for t in teams],
@@ -245,7 +252,7 @@ def eligible_team_snapshot(c,team,result,round_number,fixture_ready):
         result={**result,'players':season_state.demo_roster(team['formation']),
                 'starters':list(range(11)),'source':'league-demo'}
     if not result['players']:return result
-    projected=[season_state.status(c,team['league'],team['slot'],p,round_number) for p in result['players']]
+    projected=[season_state.status(mode.season_db(c,team['league']),team['league'],team['slot'],p,round_number) for p in result['players']]
     result={**result,'players':projected}
     try:
         result['starters'],replacements=season_state.check_lineup(projected,result['starters'])
@@ -263,6 +270,7 @@ def local_match(token, now=None):
     with db() as c:
         c.execute('BEGIN')
         person=identified(c,token)
+        if mode.is_native(c,person['league']):raise LiveMatchError('Bu lig yalnızca native maç motorunu kullanır.',409)
         fixtures=c.execute('''SELECT f.*, EXISTS(SELECT 1 FROM live_matches l WHERE l.league=f.league
             AND l.round=f.round AND l.home=f.home AND l.away=f.away) AS watched
             FROM fixtures f WHERE league=? AND (home=? OR away=?)
@@ -339,6 +347,7 @@ def live_session(token, round_number, *, watch, now=None):
             person = identified(c,token)
         except ValueError as exc:
             raise LiveMatchError(str(exc),403) from exc
+        if mode.is_native(c,person['league']):raise LiveMatchError('Bu lig yalnızca native maç motorunu kullanır.',409)
         fixture = c.execute('SELECT * FROM fixtures WHERE league=? AND round=? AND (home=? OR away=?)',
                             (person['league'],round_number,person['slot'],person['slot'])).fetchone()
         if fixture is None:

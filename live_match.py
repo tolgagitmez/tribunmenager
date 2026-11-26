@@ -9,6 +9,7 @@ from queue import Empty, Queue
 import shutil
 import sqlite3
 import season_state
+import native_league_mode as league_mode
 import subprocess
 import threading
 import time
@@ -126,6 +127,7 @@ class LiveMatch:
         if self.state is not None:
             return
         with closing(connect(self.path)) as database:
+            if league_mode.is_native(database,self.key[0]):raise LiveMatchError('Native-only league cannot start legacy worker.',409)
             final, = database.execute(
                 f"SELECT final_state FROM live_matches WHERE {FIXTURE_KEY}", self.key
             ).fetchone()
@@ -341,6 +343,8 @@ class Registry:
             rows = database.execute("""SELECT league,round,home,away,kickoff,config
                                        FROM live_matches WHERE final_state IS NULL""").fetchall()
         for *key, kickoff, config in rows:
+            with closing(connect(path)) as database:
+                if league_mode.is_native(database,key[0]):continue
             self.get(path, tuple(key), kickoff, json.loads(config))
 
     def tick(self):

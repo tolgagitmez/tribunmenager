@@ -16,6 +16,7 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import native_av_season
+import native_league_mode as league_mode
 import native_worker_lease as lease
 
 HERE=Path(__file__).resolve().parent
@@ -37,13 +38,15 @@ def canonical(raw):
 def digest(raw):
     return hashlib.sha256(canonical(raw).encode()).hexdigest()
 
-def sync(db, now):
+def sync(db, now, *, native_only=False):
     # Only frozen server-owned fixtures, already due. No schedule is generated here.
     rows=db.execute("""SELECT l.league,l.round,l.home,l.away,l.kickoff,l.config
         FROM live_matches l JOIN fixtures f USING(league,round,home,away)
         WHERE l.kickoff<=? AND f.home_score IS NULL ORDER BY l.kickoff,l.league,l.round,l.home""",(now,)).fetchall()
     count=0
     for league,round_,home,away,kickoff,raw in rows:
+        if native_only and not league_mode.is_native(db,league):continue
+        if league_mode.is_native(db,league) and json.loads(raw).get('matchBackend')!='native-only':raise ValueError('Native-only fixture has wrong backend')
         count+=db.execute("""INSERT OR IGNORE INTO native_av_jobs
             (league,round,home,away,kickoff,config_sha) VALUES(?,?,?,?,?,?)""",
             (league,round_,home,away,kickoff,digest(raw))).rowcount
@@ -86,6 +89,7 @@ def finish(path,key,sha,attempt,report=None,error=None):
             ('ready' if report is not None else 'failed',time.time(),canonical(report) if report is not None else None,
              error,*key,sha,attempt)).rowcount==1
         if updated and report is not None:
+            if league_mode.is_native(db,key[0]) and (report.get('controlSource')!='league-gateway' or report.get('engine')!='league-soccer' or report.get('audioOwnershipVerified') is not True):raise ValueError('Native-only league requires league-controlled AV evidence')
             native_av_season.apply(db,key,report)
         return updated
 
@@ -146,9 +150,10 @@ def run_match(runtime, root, job, *, database=None):
     out=root/attempt;out.mkdir(mode=0o700)
     (out/'fixture.json').write_text(canonical(config))
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_GPU_','TRIBUN_AV_','TRIBUN_EXPECT_'))}
-    env.update(TRIBUN_EXPECT_AUDIO='1',TRIBUN_EXPECT_CONTROL='1',TRIBUN_EXPECT_FULL_PLAYBACK='1',TRIBUN_PLAYBACK_MIN_SECONDS='300')
+    league_mode_run=config.get('matchBackend')=='native-only'
+    env.update(TRIBUN_EXPECT_AUDIO='1',TRIBUN_EXPECT_CONTROL='0' if league_mode_run else '1',TRIBUN_EXPECT_FULL_PLAYBACK='1',TRIBUN_PLAYBACK_MIN_SECONDS='300')
     with (out/'native.log').open('wb') as n,(out/'browser.log').open('wb') as b:
-        native=subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(out/'fixture.json'),str(out/'run'),'--audio','--interactive','--linger','60'],env=env,stdout=n,stderr=subprocess.STDOUT)
+        native=subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(out/'fixture.json'),str(out/'run'),'--audio','--interactive','--linger','60',*(['--league-control'] if league_mode_run else [])],env=env,stdout=n,stderr=subprocess.STDOUT)
         browser=None
         try:
             browser=subprocess.Popen(['node',str(HERE/'native-live-video-browser.cjs'),str(out/'run/local-url.txt')],env=env,stdout=b,stderr=subprocess.STDOUT,start_new_session=True)
@@ -174,7 +179,7 @@ def run_match(runtime, root, job, *, database=None):
                     else:p.kill()
                     p.wait()
     if database is not None and not heartbeat(database,attempt):raise RuntimeError('Worker lease lost before verification')
-    return verify_output(out,sha)
+    return verify_recording(out/'fixture.json',out/'run',sha,control_source='league-gateway' if league_mode_run else 'local-diagnostic')
 
 def main():
     from native_scheduler_policy import fingerprint,admitted_slots,pressure_ok,sample

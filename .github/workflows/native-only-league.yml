@@ -1,0 +1,19 @@
+name: Stage 147 isolated native-only league
+on:
+  push:
+    branches: [experiment/native-only-league-stage147]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_only_league.py
+          python3 -m unittest discover -s tests -p test_native_av_queue.py
+          python3 -m unittest discover -s tests -p test_native_season_cutover.py
+          python3 -m py_compile server.py live_match.py native_league_mode.py create_native_league.py
