@@ -284,6 +284,18 @@ int main(){
  assert(turnAgile.y>turnSide.y);
  const auto turnMixed=TurnBrakeDelta(6,0,-.7f,.8f,.5f,.5f,.5f,.01f);
  assert(turnMixed.x<0 && turnMixed.x>-.7f && turnMixed.y>0 && turnMixed.y<.8f);
+ assert(DribbleControlScale(3,3,.5f,3,.9f,.1f)==1);
+ assert(DribbleControlScale(10,0,.5f,3,.9f,.1f)==.8f);
+ assert(DribbleControlScale(5,2,.5f,3,.9f,.1f)>.8f && DribbleControlScale(5,2,.5f,3,.9f,.1f)<1);
+ assert(DribbleControlScale(5,2,1,3,.9f,.1f)>DribbleControlScale(5,2,0,3,.9f,.1f));
+ assert(DribbleControlScale(6,3,.5f,4.5f,.9f,.1f)>DribbleControlScale(6,3,.5f,1.5f,.9f,.1f));
+ assert(DribbleControlScale(9,2,.5f,1.49f,.9f,.1f)==1);
+ assert(DribbleControlScale(9,2,.5f,3,.29f,.1f)==1);
+ assert(DribbleControlScale(9,2,.5f,3,.9f,.251f)==1);
+ assert(DribbleControlScale(0,2,.5f,3,.9f,.1f)==1);
+ assert(DribbleControlScale(9,-1,.5f,3,.9f,.1f)==1);
+ assert(DribbleControlScale(9,2,std::numeric_limits<float>::quiet_NaN(),3,.9f,.1f)==1);
+ assert(DribbleControlScale(9,2,.5f,3,1.02f,.1f)==1);
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
