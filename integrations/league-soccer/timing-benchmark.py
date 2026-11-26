@@ -96,8 +96,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False):
     name,scale,quick=profile
+    if type(line_break) is not bool or (line_break and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((retention,box_runs,timed_attack,collision_pose,determinism_probe)))):
+        raise ValueError("Line break requires isolated short-match attack comparison")
     if type(limb_impact) is not bool or (limb_impact and not chain_impact):
         raise ValueError("Limb impact requires chain impact diagnostic")
     if type(chain_impact) is not bool or (chain_impact and not split_impact):
@@ -165,6 +167,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_SPLIT_IMPACT"]="1" if split_impact else "0"
     env["TRIBUN_NATIVE_CHAIN_IMPACT"]="1" if chain_impact else "0"
     env["TRIBUN_NATIVE_LIMB_IMPACT"]="1" if limb_impact else "0"
+    env["TRIBUN_NATIVE_LINE_BREAK"]="1" if line_break else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -257,6 +260,14 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     report["splitImpact"]=split_impact
     report["chainImpact"]=chain_impact
     report["limbImpact"]=limb_impact
+    report["lineBreak"]=line_break
+    if line_break or null_renderer:
+        import re
+        found=re.findall(r"\[tribun-linebreak\] mode=(linebreak|off) candidates=(\d+),(\d+) selected=(\d+),(\d+)",log_text)
+        if len(found)!=1 or found[0][0]!=("linebreak" if line_break else "off"):
+            raise ValueError("Missing line break policy evidence")
+        _,a,b,c,d=found[0]
+        report["lineBreakProbe"]={"candidates":[int(a),int(b)],"selected":[int(c),int(d)]}
     if collision_pose:
         import re
         matches=re.findall(r"\[tribun-contact\] interval-ms=(\d+) updates=(\d+) max-age-ticks=(\d+) missing=(\d+) ball-overlaps=(\d+) keeper-overlaps=(\d+) tackle-overlaps=(\d+) controlled-requests=(\d+)",log_text)

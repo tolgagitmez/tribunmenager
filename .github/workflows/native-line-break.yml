@@ -1,0 +1,40 @@
+name: Native line-breaking pass diagnostic
+on:
+  push:
+    branches: [experiment/native-line-break-stage63]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_line_break.py'
+      - '.github/workflows/native-line-break.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contact-cadence:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m py_compile integrations/league-soccer/short_match_patch.py integrations/league-soccer/instrument.py integrations/league-soccer/line-break-benchmark.py integrations/league-soccer/timing-benchmark.py
+      - run: python3 -m unittest discover -s tests -p test_native_line_break.py
+      - run: python3 -m unittest discover -s tests -p test_native_collision_pose.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/line-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare line-breaking pass policy in three tactical fixtures
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/line-fixtures"
+          python3 integrations/league-soccer/line-break-benchmark.py "$RUNNER_TEMP/line-runtime" "$RUNNER_TEMP/line-fixtures" "$RUNNER_TEMP/line-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-line-break
+          path: ${{ runner.temp }}/line-results/
+          if-no-files-found: ignore

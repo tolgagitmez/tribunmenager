@@ -9,6 +9,22 @@ def edit(root, name, replacements):
         text = replace_once(text, old, new)
     p.write_text(text, encoding="utf-8")
 
+LINE_BREAK_RULES = r'''// Safe progressive pass into the final third; crossing a defender's depth is a proxy, not an xG model.
+inline bool LineBreakGeometry(float depth,float targetDepth,float progress,float distance,
+    float margin,float receiverClearance,int defenders) {
+  return depth>=12.0f && depth<=42.0f && targetDepth>=2.0f && targetDepth<=24.0f &&
+      progress>=5.0f && distance>=6.0f && distance<=28.0f && margin>=1.2f &&
+      receiverClearance>=2.0f && defenders>=1;
+}
+inline bool LineBreakPreferred(float odds,float nativeOdds) {
+  return odds>=0.72f && odds>=nativeOdds-0.03f;
+}
+inline float LineBreakBonus(int defenders,float progress) {
+  return 0.18f+std::min(3,std::max(0,defenders))*0.05f+
+      std::min(20.0f,std::max(0.0f,progress))*0.005f;
+}
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -1239,4 +1255,77 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
     // the fixed-duration native simulation on an extended replay overlay.
     if (goalScoredTimer == 6000 && !AITactics::FixedDurationEnabled()) {
       pause = true;'''),
+    ])
+
+    # Stage 63: isolated safe line-breaking pass preference; no forced touch or ball speed.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool LineBreakEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_LINE_BREAK");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + LINE_BREAK_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  void Put();", """  void Put();
+  unsigned long tribunLineBreakCandidates[2]={0,0};
+  unsigned long tribunLineBreakSelections[2]={0,0};"""),
+    ])
+    edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
+        ("  float bestTotalRating = 0.0f;\n  MateRating bestMateRating;", r'''  const bool lineBreakEnabled=AITactics::LineBreakEnabled() && runningPassEnabled &&
+      match->IsInPlay() && !match->IsInSetPiece();
+  bool bestLineBreak=false;
+  float bestTotalRating = 0.0f;
+  MateRating bestMateRating;'''),
+        ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate) {", r'''      bool lineBreak=false;
+      float lineOdds=0.0f,lineProgress=0.0f;
+      int crossed=0;
+      e_FunctionType lineType=e_FunctionType_ShortPass;
+      if(lineBreakEnabled && mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
+        const auto from=player->GetPosition();
+        const auto to=mates.at(i)->GetPosition();
+        const auto delta=to-from;
+        lineProgress=delta.coords[0]*attackForward;
+        const float depth=pitchHalfW-from.coords[0]*attackForward;
+        const float targetDepth=pitchHalfW-to.coords[0]*attackForward;
+        const float margin=passOffside-to.coords[0]*attackForward;
+        if(std::abs(to.coords[1])<=18.0f &&
+            AITactics::LineBreakGeometry(depth,targetDepth,lineProgress,delta.GetLength(),margin,100.0f,1)){
+          float clearance=100.0f;
+          for(const auto& rival:opponentPlayerImages){
+            const auto predicted=rival.position+rival.movement*.25f;
+            const float progress=(predicted.coords[0]-from.coords[0])*attackForward;
+            clearance=std::min(clearance,(predicted-to).Get2D().GetLength());
+            if(progress>1.0f && progress<lineProgress-1.0f){
+              const float y=from.coords[1]+delta.coords[1]*progress/lineProgress;
+              if(std::abs(predicted.coords[1]-y)<=7.0f)++crossed;
+            }
+          }
+          if(AITactics::LineBreakGeometry(depth,targetDepth,lineProgress,delta.GetLength(),margin,clearance,crossed)){
+            const float shortOdds=_GetPassingOdds(mates.at(i),e_FunctionType_ShortPass,opponentPlayerImages);
+            const float longOdds=_GetPassingOdds(mates.at(i),e_FunctionType_LongPass,opponentPlayerImages);
+            lineType=shortOdds>=longOdds?e_FunctionType_ShortPass:e_FunctionType_LongPass;
+            lineOdds=std::max(shortOdds,longOdds);
+            lineBreak=AITactics::LineBreakPreferred(lineOdds,0.0f);
+            if(lineBreak)++match->tribunLineBreakCandidates[team->GetID()];
+          }
+        }
+      }
+      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak) {'''),
+        ("        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +", r'''        const bool useLineBreak=lineBreak && AITactics::LineBreakPreferred(lineOdds,mateRating.passRating);
+        if(useLineBreak){
+          mateRating.passType=lineType;
+          mateRating.passRating=lineOdds;
+          mateRating.supportRating+=AITactics::LineBreakBonus(crossed,lineProgress);
+        }
+        // A candidate admitted only by this experiment must still use a safe pass.
+        if(lineBreak && !useLineBreak && !(progressiveCandidate || supportCandidate || runningCandidate ||
+            deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate))continue;
+        float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+        ("          bestMateRating = mateRating;\n          bestMateSit = mateSit;", "          bestMateRating = mateRating;\n          bestMateSit = mateSit;\n          bestLineBreak=useLineBreak;"),
+        ("    _AddPass(commandQueue, bestMateRating.player, bestMateRating.passType);", r'''    if(bestLineBreak)++match->tribunLineBreakSelections[team->GetID()];
+    _AddPass(commandQueue, bestMateRating.player, bestMateRating.passType);'''),
     ])

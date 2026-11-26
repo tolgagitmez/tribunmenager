@@ -190,6 +190,13 @@ void TribunTrace(Match& match, bool done) {
   started = true;
   last = now;
   finished = done;
+  if(done) {
+    std::printf("[tribun-linebreak] mode=%s candidates=%lu,%lu selected=%lu,%lu\n",
+        AITactics::LineBreakEnabled()?"linebreak":"off",
+        match.tribunLineBreakCandidates[0],match.tribunLineBreakCandidates[1],
+        match.tribunLineBreakSelections[0],match.tribunLineBreakSelections[1]);
+    std::fflush(stdout);
+  }
   if (done && tribun_visual::collisionOnly()) {
     std::printf("[tribun-contact] interval-ms=%u updates=%lu max-age-ticks=%lu missing=%lu ball-overlaps=%lu keeper-overlaps=%lu tackle-overlaps=%lu controlled-requests=%lu\n",
       tribun_visual::contactIntervalTicks()*10,match.tribunPoseUpdates,match.tribunMaxPoseAgeTicks,
