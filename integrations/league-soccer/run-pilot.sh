@@ -13,15 +13,19 @@ git -C "$work/source" fetch --depth 1 origin "${upstream[1]}"
 git -C "$work/source" checkout --detach FETCH_HEAD
 test "$(git -C "$work/source" rev-parse HEAD)" = "${upstream[1]}"
 python3 "$here/instrument.py" "$work/source"
-if [[ "${TRIBUN_PATCH_ONLY:-0}" == 1 ]]; then
+policy_only="${TRIBUN_POLICY_ONLY:-0}"
+case "$policy_only" in 0|1) ;; *) echo "Invalid TRIBUN_POLICY_ONLY" >&2; exit 2;; esac
+if [[ "${TRIBUN_PATCH_ONLY:-0}" == 1 || "$policy_only" == 1 ]]; then
   [[ -z "${TRIBUN_NATIVE_RUNTIME_OUT:-}" && "$#" == 1 ]] || exit 2
   git -C "$work/source" diff --check
   echo "Pinned upstream patch application passed (not C++ compilation)"
-  exit 0
+  if [[ "$policy_only" == 0 ]]; then exit 0; fi
 fi
 # Exercise the actual patched C++ decision predicates before building the full game.
 c++ -std=c++17 -I"$work/source/src/onthepitch" "$here/attack-policy-test.cpp" -o "$work/attack-policy-test"
 "$work/attack-policy-test"
+echo "Full patched attack-policy assertions passed (not full engine build)"
+if [[ "$policy_only" == 1 ]]; then exit 0; fi
 if [[ $# -ge 2 ]]; then
   node "$here/fixture-adapter.cjs" "$2" "$work/fixture.txt"
   cp "$work/fixture.txt.json" "$out.fixture.json"
