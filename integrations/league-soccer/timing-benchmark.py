@@ -77,8 +77,26 @@ class Timing:
                     deadBallMs=self.dead_ms,transitionMs=self.transition_ms,gapMs=self.gap_ms,
                     frames=self.frames,maxObservedGapMs=self.max_observed_gap_ms,withinFiveSeconds=abs(wall-300000)<=5000)
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False):
+def sample_native_pss(group,proc=Path("/proc")):
+    """Linux native process PSS, not RSS of shell or full process tree."""
+    for path in proc.iterdir():
+        if not path.name.isdigit():continue
+        try:
+            stat=(path/"stat").read_text().rsplit(")",1)[1].split()
+            if int(stat[2])!=group:continue
+            if Path(os.readlink(path/"exe")).name!="gameplayfootball":continue
+            values={}
+            for line in (path/"smaps_rollup").read_text().splitlines():
+                key,_,value=line.partition(":")
+                if key in ("Pss","Private_Dirty"):values[key]=int(value.split()[0])
+            if set(values)=={"Pss","Private_Dirty"}:return values
+        except (OSError,ValueError,IndexError):continue
+    return None
+
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False):
     name,scale,quick=profile
+    if type(shared_assets) is not bool or type(sample_pss) is not bool or ((shared_assets or sample_pss) and not null_renderer):
+        raise ValueError("Shared asset/PSS diagnostic requires null backend")
     if type(null_renderer) is not bool or (null_renderer and not (no_draw and no_upload)):
         raise ValueError("Null renderer requires isolated no-draw/no-upload")
     if type(no_upload) is not bool or (no_upload and not no_draw):
@@ -97,6 +115,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_NO_DRAW"]="1" if no_draw else "0"
     env["TRIBUN_NATIVE_NO_UPLOAD"]="1" if no_upload else "0"
     env["TRIBUN_NATIVE_NULL_RENDERER"]="1" if null_renderer else "0"
+    env["TRIBUN_NATIVE_SHARED_ASSETS"]="1" if shared_assets else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -108,6 +127,10 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     for k in ("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR","TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"):
         env.pop(k,None)
     stats=Timing()
+    pss_samples=[]
+    next_pss=0.0
+    layout=Path(str(trace)+".layout.json")
+    layout.unlink(missing_ok=True)
     offset=0
     def drain():
         nonlocal offset
@@ -135,6 +158,11 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         try:
             while process.poll() is None:
                 drain()
+                now=time.monotonic()
+                if sample_pss and now>=next_pss:
+                    sample=sample_native_pss(process.pid)
+                    if sample is not None:pss_samples.append({"monotonic":now,**sample})
+                    next_pss=now+1.0
                 if time.monotonic()>deadline:raise TimeoutError("Timing pilot timeout")
                 time.sleep(.1)
             drain()
@@ -151,6 +179,16 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     if null_renderer and "[tribun-render] null-context=dummy-no-gl" not in Path(str(trace)+".log").read_text(errors="replace"):
         raise ValueError("Missing null renderer context marker")
     report=stats.report()
+    report["sharedAssets"]=shared_assets
+    if shared_assets:
+        if not layout.is_file():raise ValueError("Missing shared asset layout evidence")
+        report["layout"]=json.loads(layout.read_text())
+    if sample_pss:
+        if not pss_samples:raise ValueError("No native PSS samples collected")
+        report["nativeMemory"]={"sampleCount":len(pss_samples),
+            "peakPssKiB":max(x["Pss"] for x in pss_samples),
+            "peakPrivateDirtyKiB":max(x["Private_Dirty"] for x in pss_samples),
+            "samples":pss_samples}
     report.update(processWallMs=round((time.monotonic()-launch)*1000),
                   firstObservedMonotonic=stats.first_wall,finalObservedMonotonic=stats.final_wall,
                   traceBytes=trace.stat().st_size,resources=None)

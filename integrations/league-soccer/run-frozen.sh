@@ -25,7 +25,12 @@ PY
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 # Copy, not shared writable assets or database. Native executable changes cwd.
-cp -a --reflink=auto "$runtime/." "$work/"
+if [[ "${TRIBUN_NATIVE_SHARED_ASSETS:-0}" == 1 ]]; then
+  [[ "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_NO_DRAW:-0}" == 1 && "${TRIBUN_NATIVE_NO_UPLOAD:-0}" == 1 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "$render_interval" == 100 ]] || exit 2
+  python3 "$here/runtime-layout.py" "$runtime" "$work" "$out.layout.json"
+else
+  cp -a --reflink=auto "$runtime/." "$work/"
+fi
 node "$here/fixture-adapter.cjs" "$fixture" "$work/fixture.txt"
 cp "$work/fixture.txt.json" "$out.fixture.json"
 # Mid-match activation currently crashes upstream; isolate the experimental diagnostic.
@@ -64,7 +69,7 @@ if [[ "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 ]]; then
   # No Xvfb, no DISPLAY, no Wayland, no OpenGL window. SDL dummy is for CPU surfaces/events.
   log="$work/null-renderer.log"
   if ! env -u DISPLAY -u WAYLAND_DISPLAY SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
-      timeout --kill-after=10s "${limit}s" ./gameplayfootball "$config" >"$log" 2>&1; then
+      timeout --foreground --kill-after=10s "${limit}s" ./gameplayfootball "$config" >"$log" 2>&1; then
     cat "$log"; exit 1
   fi
   cat "$log"
