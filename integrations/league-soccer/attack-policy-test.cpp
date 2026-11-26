@@ -172,6 +172,32 @@ int main(){
  assert(restart.Observe(2,true));
  assert(!restart.Observe(2,true));
  assert(restart.Observe(3,true));  // phase change even without stopped sample
+ ActionAlternativeWatch alternative;
+ alternative.Observe(true,1,100);
+ alternative.Rejected(4,100);
+ alternative.Rejected(4,100); // same queue time is not a separate rejection
+ alternative.Rejected(4,180);
+ assert(!alternative.Ready(4,260));
+ alternative.Rejected(4,260);
+ assert(alternative.Ready(4,260));
+ assert(!alternative.Ready(5,260));
+ alternative.Promoted(260);
+ assert(!alternative.Ready(4,759));
+ assert(alternative.Ready(4,760));
+ alternative.Accepted(5);
+ assert(alternative.Ready(4,760));
+ alternative.Accepted(4);
+ assert(!alternative.Ready(4,760));
+ alternative.Rejected(4,800);alternative.Rejected(4,880);alternative.Rejected(4,960);
+ assert(!alternative.Ready(4,1561)); // stale
+ alternative.Observe(true,2,970);assert(!alternative.Ready(4,970));
+ alternative.Rejected(4,1000);alternative.Rejected(4,1080);alternative.Rejected(4,1160);
+ assert(alternative.Ready(4,1160));
+ alternative.Observe(false,2,1170);assert(!alternative.Ready(4,1170));
+ alternative.Observe(true,2,1200);alternative.Rejected(4,1200);
+ alternative.Rejected(5,1280);alternative.Rejected(5,1360);
+ assert(!alternative.Ready(5,1360)); // different first candidate starts a new streak
+ alternative.Reset();assert(!alternative.Ready(5,1360));
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
