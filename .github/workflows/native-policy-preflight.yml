@@ -1,0 +1,28 @@
+name: Stage 192 offline native policy preflight
+on:
+  push:
+    branches: [experiment/native-policy-preflight-stage192]
+  pull_request:
+    branches: [experiment/native-build-validation-stage191]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test exact-edit replay
+        run: python3 -m unittest discover -s tests -p test_native_policy_preflight.py -v
+      - name: Compile and execute actual patched native policy tests
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 integrations/league-soccer/native_policy_preflight.py 2>&1 | tee "$RUNNER_TEMP/policy-preflight.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-policy-preflight
+          path: ${{ runner.temp }}/policy-preflight.log
+          if-no-files-found: warn
