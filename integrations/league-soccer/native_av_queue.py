@@ -213,6 +213,11 @@ def _run_match(runtime, root, job, *, check, league_browser_descriptor=None, wsl
             raise ValueError('Invalid or combined private motion experiment')
         if turn_brake=='1':
             env['TRIBUN_AV_TURN_BRAKE']='1'
+        dribble_control=os.environ.get('TRIBUN_AV_DRIBBLE_CONTROL','0')
+        if dribble_control not in ('0','1') or (dribble_control=='1' and (leg_blend=='1' or turn_brake=='1')):
+            raise ValueError('Invalid or combined private dribble experiment')
+        if dribble_control=='1':
+            env['TRIBUN_AV_DRIBBLE_CONTROL']='1'
     env.update(TRIBUN_EXPECT_AUDIO='1',TRIBUN_EXPECT_CONTROL='0' if league_mode_run else '1',TRIBUN_EXPECT_FULL_PLAYBACK='1',TRIBUN_PLAYBACK_MIN_SECONDS='300')
     with (out/'native.log').open('wb') as n,(out/'browser.log').open('wb') as b:
         native=subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(out/'fixture.json'),str(out/'run'),'--audio','--interactive','--linger','60',*(['--league-control'] if league_mode_run else [])],env=env,stdout=n,stderr=subprocess.STDOUT)
