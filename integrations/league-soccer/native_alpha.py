@@ -67,6 +67,7 @@ def main():
     p.add_argument('--install-deps',action='store_true',help='Explicitly allow Ubuntu apt/npm/Chrome dependency installation')
     p.add_argument('--prepare-only',action='store_true',help='Prepare runtime, then exit without starting match')
     p.add_argument('--private-diagnostic',action='store_true')
+    p.add_argument('--wsl-gpu',action='store_true',help='Local WSLg GPU trial; keep game window visible')
     a=p.parse_args()
     if not a.private_diagnostic:p.error('Yerel özel test için --private-diagnostic gerekli.')
     if not sys.platform.startswith('linux'):p.error('Şimdilik yalnızca Linux destekleniyor.')
@@ -86,6 +87,10 @@ def main():
         else:
             # Check the actual Chrome executable can start; package presence alone is insufficient.
             execute(['node','-e',"const {chromium}=require('playwright');(async()=>{const b=await chromium.launch({headless:true,channel:'chrome'});await b.close()})().catch(()=>process.exit(1))"],env)
+        if a.wsl_gpu:
+            from native_gpu_display import wsl_environment,probe
+            gpu=probe(wsl_environment(env))
+            print('WSLg GPU preflight: '+gpu['renderer'],flush=True)
         session=Path(tempfile.mkdtemp(prefix='alpha-',dir=base))
         runtime=validate_runtime(a.runtime) if a.runtime else find_runtime(base)
         if runtime is not None:
@@ -103,6 +108,7 @@ def main():
         print('Tek maç; deneysel özellikler kapalı. Giriş bağlantısı ve anahtar yolu aşağıda görünecek.',flush=True)
         cmd=[sys.executable,str(HERE/'native_private_beta.py'),str(runtime),str(session/'match'),
             '--port',str(a.port),'--delay',str(a.delay),'--private-diagnostic','--result-seconds','120']
+        if a.wsl_gpu:cmd.append('--wsl-gpu')
         return subprocess.call(cmd,cwd=ROOT,env=env)
     except (OSError,ValueError,subprocess.CalledProcessError) as exc:
         print('Alfa başlatılamadı: '+str(exc),file=sys.stderr)

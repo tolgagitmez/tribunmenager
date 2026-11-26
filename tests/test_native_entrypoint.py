@@ -27,10 +27,12 @@ class EntrypointTest(unittest.TestCase):
         a=self.args()
         c=start.native_command(a,'linux')
         self.assertIn('native_alpha.py',c[1]);self.assertIn('--private-diagnostic',c)
+        a.native_wsl_gpu=True
+        self.assertIn('--wsl-gpu',start.native_command(a,'linux'))
         with patch('start.shutil.which',return_value='wsl.exe'):
             c=start.native_command(a,'win32')
             self.assertEqual(c[:7],['wsl.exe','--distribution','Ubuntu','--cd','~','--exec','python3'])
-            self.assertIn('stage170',c[7])
+            self.assertIn('stage171',c[7])
             self.assertNotIn(start.WSL_BOOTSTRAP,c)
         with patch('start.subprocess.run') as run:
             run.return_value.returncode=0

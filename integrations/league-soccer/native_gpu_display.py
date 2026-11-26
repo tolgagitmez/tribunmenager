@@ -42,6 +42,17 @@ def hardware_env(source, display):
     env.update(DISPLAY=local_display(display), SDL_VIDEODRIVER='x11')
     return env
 
+def wsl_environment(source):
+    # WSLg's shared Xwayland display is not a dedicated GPU X server.
+    # Only an explicitly requested private local alpha may use it.
+    if 'microsoft' not in Path('/proc/sys/kernel/osrelease').read_text().lower() or not Path('/dev/dxg').exists() or not Path('/mnt/wslg').is_dir():
+        raise ValueError('WSLg GPU not available')
+    display=local_display(source.get('DISPLAY',''))
+    if display!=':0':raise ValueError('WSLg local display :0 required')
+    env=hardware_env(source,display)
+    env['GALLIUM_DRIVER']='d3d12'
+    return env
+
 def probe(env):
     result = subprocess.run(['glxinfo','-B'], env=env, text=True, capture_output=True, timeout=15, check=True)
     report = parse_glx(result.stdout)
@@ -67,24 +78,27 @@ def exclusive_display(display):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--display', required=True)
+    p.add_argument('--wsl-local',action='store_true')
     p.add_argument('--capture', nargs=2, metavar=('CONFIG','LIMIT'))
     args=p.parse_args()
     display=local_display(args.display)
-    env=hardware_env(os.environ,display)
+    env=wsl_environment(os.environ) if args.wsl_local else hardware_env(os.environ,display)
+    if env['DISPLAY']!=display:raise ValueError('GPU display mismatch')
     if not args.capture:
         print(json.dumps(probe(env),indent=2))
         return
-    if env.get('TRIBUN_GPU_DEDICATED')!='1' or not env.get('TRIBUN_NATIVE_HLS_DIR'):
+    if (not args.wsl_local and env.get('TRIBUN_GPU_DEDICATED')!='1') or (args.wsl_local and env.get('TRIBUN_GPU_WSL_LOCAL')!='1') or not env.get('TRIBUN_NATIVE_HLS_DIR'):
         raise ValueError('Explicit dedicated-display opt-in and local HLS required')
     lock=exclusive_display(display)
     try:
         evidence=probe(env)
+        if args.wsl_local and not evidence['renderer'].lower().startswith('d3d12'):raise ValueError('Expected D3D12 GPU renderer')
         check=subprocess.run(['xdotool','search','--onlyvisible','--name','^League Soccer$'],
                              env=env,capture_output=True,text=True,timeout=10)
         if check.returncode!=1 or check.stdout.strip():
             raise ValueError('Display is occupied or cannot be checked')
         out=Path(env['TRIBUN_NATIVE_VIDEO_OUT']).parent / 'gpu-preflight.json'
-        out.write_text(json.dumps({**evidence,'scope':'GLX preflight on dedicated display; not proof of engine context or capacity',
+        out.write_text(json.dumps({**evidence,'scope':'WSLg private local shared display; keep match visible' if args.wsl_local else 'GLX preflight on dedicated display; not proof of engine context or capacity',
                                    'productionQualified':False},indent=2)+'\n')
         subprocess.run([sys.executable,str(HERE/'native-video-pilot.py'),'--capture-window',*args.capture],
                        env=env,check=True)

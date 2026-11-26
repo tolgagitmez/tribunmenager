@@ -301,8 +301,13 @@ elif [[ -n "${TRIBUN_NATIVE_VIDEO_OUT:-}" ]]; then
     *) exit 2 ;;
   esac
   if [[ -n "${TRIBUN_GPU_DISPLAY:-}" ]]; then
-    [[ "${TRIBUN_GPU_DEDICATED:-0}" == 1 && -n "${TRIBUN_NATIVE_HLS_DIR:-}" ]] || { echo "Dedicated GPU HLS diagnostic required" >&2; exit 2; }
-    python3 "$here/native_gpu_display.py" --display "$TRIBUN_GPU_DISPLAY" --capture "$config" "$limit"
+    if [[ "${TRIBUN_GPU_WSL_LOCAL:-0}" == 1 ]]; then
+      [[ "${TRIBUN_NATIVE_VIDEO_CONTROL:-0}" == 1 && "${TRIBUN_NATIVE_AUDIO_CAPTURE:-0}" == 1 && -n "${TRIBUN_NATIVE_HLS_DIR:-}" && "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" == baseline && "${TRIBUN_AV_ENCODER:-x264}" == x264 ]] || exit 2
+      python3 "$here/native_gpu_display.py" --display "$TRIBUN_GPU_DISPLAY" --wsl-local --capture "$config" "$limit"
+    else
+      [[ "${TRIBUN_GPU_DEDICATED:-0}" == 1 && -n "${TRIBUN_NATIVE_HLS_DIR:-}" ]] || { echo "Dedicated GPU HLS diagnostic required" >&2; exit 2; }
+      python3 "$here/native_gpu_display.py" --display "$TRIBUN_GPU_DISPLAY" --capture "$config" "$limit"
+    fi
   else
     python3 "$here/native_display_reservation.py" python3 "$here/native-video-pilot.py" --capture-window "$config" "$limit"
   fi

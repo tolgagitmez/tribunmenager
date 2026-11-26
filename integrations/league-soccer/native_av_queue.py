@@ -178,11 +178,11 @@ def worker_lease_guard(database, attempt, *, interval=5):
     check()
     if not heartbeat(database,attempt):raise RuntimeError('Worker lease lost after verification')
 
-def run_match(runtime, root, job, *, database=None, league_browser_descriptor=None):
+def run_match(runtime, root, job, *, database=None, league_browser_descriptor=None, wsl_gpu=False):
     with worker_lease_guard(database,job[3]) as check:
-        return _run_match(runtime,root,job,check=check,league_browser_descriptor=league_browser_descriptor)
+        return _run_match(runtime,root,job,check=check,league_browser_descriptor=league_browser_descriptor,wsl_gpu=wsl_gpu)
 
-def _run_match(runtime, root, job, *, check, league_browser_descriptor=None):
+def _run_match(runtime, root, job, *, check, league_browser_descriptor=None, wsl_gpu=False):
     check()
     key,sha,config,attempt=job
     out=root/attempt;out.mkdir(mode=0o700)
@@ -190,6 +190,12 @@ def _run_match(runtime, root, job, *, check, league_browser_descriptor=None):
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_GPU_','TRIBUN_AV_','TRIBUN_EXPECT_'))}
     league_mode_run=config.get('matchBackend')=='native-only'
     if league_browser_descriptor is not None and not league_mode_run:raise ValueError('League screen diagnostic requires native-only fixture')
+    if wsl_gpu:
+        if not league_mode_run or league_browser_descriptor is not None or os.environ.get('TRIBUN_NATIVE_PRIVATE_SCREEN')!='1':
+            raise ValueError('WSLg GPU only in explicit private local alpha')
+        from native_gpu_display import wsl_environment
+        gpu=wsl_environment(env)
+        env.update(gpu,TRIBUN_GPU_DISPLAY=gpu['DISPLAY'],TRIBUN_GPU_WSL_LOCAL='1')
     env.update(TRIBUN_EXPECT_AUDIO='1',TRIBUN_EXPECT_CONTROL='0' if league_mode_run else '1',TRIBUN_EXPECT_FULL_PLAYBACK='1',TRIBUN_PLAYBACK_MIN_SECONDS='300')
     with (out/'native.log').open('wb') as n,(out/'browser.log').open('wb') as b:
         native=subprocess.Popen(['python3',str(HERE/'native-live-video.py'),str(runtime),str(out/'fixture.json'),str(out/'run'),'--audio','--interactive','--linger','60',*(['--league-control'] if league_mode_run else [])],env=env,stdout=n,stderr=subprocess.STDOUT)

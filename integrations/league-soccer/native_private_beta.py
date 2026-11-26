@@ -58,7 +58,10 @@ class AlphaHandler(server.Handler):
             return self.json_response({'error':'Bu alfa yalnizca baslaticinin olusturdugu tek ozel maca ayrilmistir.'},403)
         return super().do_POST()
 
-def run(runtime,root,port,delay,result_seconds=30):
+def run(runtime,root,port,delay,result_seconds=30,wsl_gpu=False):
+    if wsl_gpu:
+        from native_gpu_display import wsl_environment,probe
+        print('WSLg GPU: '+probe(wsl_environment(os.environ))['renderer']+'; keep game window visible.',flush=True)
     root=prepare(runtime,root)
     lock=lock_host()
     try:
@@ -90,7 +93,7 @@ def run(runtime,root,port,delay,result_seconds=30):
                 key,sha,_,attempt=job
                 if key[0]!=account['code'] or key[2]!=0:raise RuntimeError('Wrong fixture')
                 try:
-                    report=q.run_match(runtime,root,job,database=server.DATA)
+                    report=q.run_match(runtime,root,job,database=server.DATA,wsl_gpu=wsl_gpu)
                     if not q.finish(server.DATA,key,sha,attempt,report=report):raise RuntimeError('Completion rejected')
                     result={'passed':True,'score':report['score'],'coverage':report['coverage'],'commandHistory':report['commandHistory'],'productionQualified':False}
                 except BaseException as exc:
@@ -98,6 +101,9 @@ def run(runtime,root,port,delay,result_seconds=30):
                     if not isinstance(exc,Exception):raise
                     result={'passed':False,'failureType':type(exc).__name__,'productionQualified':False}
                 result['quality']=inspect_quality(root/attempt/'run')
+                result['requestedWslGpu']=wsl_gpu
+                context=root/attempt/'run/native-gl-context.json'
+                result['hardwareContext']=json.loads(context.read_text()) if context.is_file() else None
                 (root/'private-beta-report.json').write_text(json.dumps(result,indent=2)+'\n')
                 print(json.dumps(result,ensure_ascii=False),flush=True)
                 print('Lig ekranını kontrol et. Sunucu '+str(result_seconds)+' saniye sonra kapanır.',flush=True)
@@ -112,9 +118,10 @@ def main():
     p.add_argument('--port',type=int,default=8000);p.add_argument('--delay',type=int,default=60)
     p.add_argument('--result-seconds',type=int,default=30,help='Local result review window')
     p.add_argument('--private-diagnostic',action='store_true')
+    p.add_argument('--wsl-gpu',action='store_true')
     a=p.parse_args()
     if not a.private_diagnostic:p.error('Explicit private diagnostic opt-in required')
     if not 1<=a.port<=65535 or not 30<=a.delay<=300:p.error('Invalid port or delay')
     if not 0<=a.result_seconds<=600:p.error('Invalid result review duration')
-    return run(a.runtime.resolve(),a.new_private_directory,a.port,a.delay,a.result_seconds)
+    return run(a.runtime.resolve(),a.new_private_directory,a.port,a.delay,a.result_seconds,a.wsl_gpu)
 if __name__=='__main__':raise SystemExit(main())

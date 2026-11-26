@@ -94,9 +94,27 @@ def _capture_window(config,limit,audio_env):
             while time.monotonic()<deadline and game.poll() is None:
                 found=subprocess.run(["xdotool","search","--onlyvisible","--name","^League Soccer$"],capture_output=True,text=True)
                 if found.returncode==0 and found.stdout.strip():
-                    window=found.stdout.splitlines()[0].strip();break
+                    if os.environ.get('TRIBUN_GPU_WSL_LOCAL')=='1':
+                        from native_audio_ownership import descendants
+                        owned=[]
+                        for candidate in found.stdout.splitlines():
+                            if not candidate.strip().isdigit():continue
+                            pid=subprocess.run(['xdotool','getwindowpid',candidate.strip()],capture_output=True,text=True,timeout=5)
+                            if pid.returncode==0 and pid.stdout.strip().isdigit() and int(pid.stdout.strip()) in descendants(game.pid):
+                                owned.append(candidate.strip())
+                        if len(owned)==1:window=owned[0];break
+                    else:
+                        window=found.stdout.splitlines()[0].strip();break
                 time.sleep(.1)
             require(window is not None and window.isdigit(),"Native SDL window not found")
+            if os.environ.get('TRIBUN_GPU_WSL_LOCAL')=='1':
+                # Refuse a software game context before starting capture.
+                from native_gl_context import verify
+                context_path=video.parent/'native-gl-context.log'
+                until=time.monotonic()+10
+                while not context_path.is_file() and game.poll() is None and time.monotonic()<until:time.sleep(.05)
+                context=verify(context_path,json.loads((video.parent/'gpu-preflight.json').read_text()))
+                save(video.parent/'native-gl-context.json',context)
             window_geometry=None
             requested_size=os.environ.get("TRIBUN_AV_RENDER_SIZE")
             if requested_size:
