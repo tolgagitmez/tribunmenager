@@ -28,3 +28,26 @@ test('render budget avoids hidden work and caps idle/performance without capping
  assert.equal(r.next(130,{hidden:true}),null);
  assert.equal(r.next(10000,{playing:true}).dt,0);
 });
+
+test('stage100 optional stream stature and gait use only received validated frames',()=>{
+ const old=create(),v=create(null,{advancedPresentation:true});
+ const a=packet(20,10),b=packet(21,10.2,[1,0]);
+ for(const p of [a,b]){
+  p.frame.inPlay=true;p.frame.setPiece=false;
+  p.frame.players[0].heightMetres=1.72;
+  p.frame.players[0].motionIdentity={agility:.8,velocity:.7,acceleration:.6,balance:.8,dribble:.7,control:.7,fatigueFactor:.9};
+ }
+ for(const [p,t] of [[a,100],[b,200]]){
+  assert(old.ingest(p,t));assert(v.ingest(p,t));
+  const x=old.sample(t+100,.02),y=v.sample(t+100,.02);
+  assert.deepEqual(x.ball,y.ball);assert.deepEqual(x.score,y.score);
+  assert.equal(x.players[0].x,y.players[0].x);assert.equal(y.players[0].nativeAnatomy.height,1.72);
+ }
+ const p=v.sample(300,.02).players[0];assert.equal(p.nativeMotionMatch,true);assert.equal(p.nativeMotionIdentity.agility,.8);
+ assert.equal(p.nativeContact,undefined);
+ assert.equal(v.sample(300,0).players[1].nativeAnatomy.height,null);
+ const c=packet(22,10.4);c.frame.inPlay=false;c.frame.setPiece=true;
+ assert(v.ingest(c,300));assert.equal(v.sample(300,0).players[0].nativeMotionMatch,false);
+ v.setPresentation(false);assert.equal(v.sample(310,0).players[0].nativeAnatomy,undefined);
+ assert.equal(v.ingest(a,400),false);
+});

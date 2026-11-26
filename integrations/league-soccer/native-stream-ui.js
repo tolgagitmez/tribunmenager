@@ -10,6 +10,16 @@
  let requestRound=null,requestToken=null,submitting=false;
  let generation=0,timer=null,controller=null,active=false,current=null;
  const renderBudget=window.TribunNativeStreamView.createRenderBudget();
+ const performanceApi=window.TribunReplayPerformance;
+ function graphics(){
+  const enabled=$('advancedPresentation').checked,mode=$('quality').value;
+  view.setPresentation(enabled);scene.setPerformanceMode(mode);
+  scene.replayCameraSmooth=enabled;scene.replayCameraSnap=enabled;
+  scene.replayRenderBudget=enabled?performanceApi.pixelBudget(mode,matchMedia('(max-width: 760px)').matches):null;
+  scene.instancingEnabled=enabled&&mode==='performance';renderBudget.reset();
+ }
+ $('advancedPresentation').onchange=graphics;
+ window.addEventListener('resize',graphics);
  for(let i=0;i<10;i++)$('round').add(new Option(String(i+1),String(i)));
  const round=new URLSearchParams(location.search).get('round');if(round!==null&&/^[0-9]$/.test(round))$('round').value=round;
  function stop(){$('sendTactics').disabled=true;active=false;generation++;clearTimeout(timer);controller?.abort();controller=null;}
@@ -92,7 +102,7 @@
  $('adviceTeam').onchange=renderAdvice;
  $('connect').onclick=start;
  $('camera').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':'tv';$('camera').textContent='Kamera: '+({tv:'TV',close:'Yakın',tactical:'Taktik'}[scene.camera]);};
- $('quality').onchange=()=>{scene.setPerformanceMode($('quality').value);renderBudget.reset();};
+ $('quality').onchange=graphics;
  document.addEventListener('visibilitychange',()=>renderBudget.reset());
  function loop(now){
   requestAnimationFrame(loop);
@@ -105,6 +115,6 @@
   if(frame)scene.render(frame.players,frame.ball,[frame.ball.x,frame.ball.z],{},dt);
   else scene.render([],{x:0,y:.11,z:0,vx:0,vy:0,vz:0},[0,0],{},dt);
  }
- window.TRIBUN_NATIVE_STREAM_TEST={state:()=>current&&({sequence:current.sequence,score:current.frame.score,phase:current.phase}),webgl:()=>!!scene.gl};
+ window.TRIBUN_NATIVE_STREAM_TEST={state:()=>current&&({sequence:current.sequence,score:current.frame.score,phase:current.phase}),webgl:()=>!!scene.gl,presentation:()=>({enabled:$('advancedPresentation').checked,graphics:scene.performanceMode()})};
  requestAnimationFrame(loop);start();
 })();

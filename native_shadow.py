@@ -93,6 +93,19 @@ def claim(path):
             started=?,error=NULL WHERE {KEY}""", (time.time(), *key))
         return key, sha, profile, config, row[7]+1
 
+def isolated_native_environment(source,profile):
+    """Only ordinary native shadow configuration, never diagnostic flags."""
+    env=dict(source)
+    # All present/future experimental TRIBUN_NATIVE_* settings are excluded
+    # from child processes. Runtime and worker selection are server-owned.
+    for key in tuple(env):
+        if key.startswith("TRIBUN_NATIVE_"):
+            env.pop(key)
+    for key in ("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR","TRIBUN_LEAGUE_SOCCER_FIXTURE"):
+        env.pop(key,None)
+    env["TRIBUN_LEAGUE_SOCCER_ATTACK"]=profile
+    return env
+
 def execute_native(config, profile, stop=None, interactive_key=None):
     runtime = os.environ.get("TRIBUN_NATIVE_RUNTIME")
     if not runtime:
@@ -103,20 +116,7 @@ def execute_native(config, profile, stop=None, interactive_key=None):
         config_path = root / "config.json"
         config_path.write_text(canonical(config), encoding="utf-8")
         trace = root / "match.ndjson"
-        env = {**os.environ, "TRIBUN_LEAGUE_SOCCER_ATTACK": profile}
-        # A trusted local command mailbox must not leak into frozen league shadow jobs.
-        env.pop("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR", None)
-        env.pop("TRIBUN_NATIVE_REALTIME",None)
-        env.pop("TRIBUN_NATIVE_CLOCK_SCALE",None)
-        env.pop("TRIBUN_NATIVE_QUICK_RESTARTS",None)
-        env.pop("TRIBUN_NATIVE_FIXED_DURATION",None)
-        env.pop("TRIBUN_NATIVE_FINAL_THIRD_RETENTION",None)
-        env.pop("TRIBUN_NATIVE_BOX_LANE_RUNS",None)
-        env.pop("TRIBUN_NATIVE_TIMED_ATTACK",None)
-        env.pop("TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS",None)
-        # Diagnostic renderer flags must never leak into ordinary/interactive matches.
-        for flag in ("TRIBUN_NATIVE_NO_DRAW","TRIBUN_NATIVE_NO_UPLOAD","TRIBUN_NATIVE_NULL_RENDERER","TRIBUN_NATIVE_SHARED_ASSETS","TRIBUN_NATIVE_LEAN_SCENE","TRIBUN_NATIVE_VISUAL_RNG","TRIBUN_NATIVE_SKIP_PITCH_TEXTURE","TRIBUN_NATIVE_TASK_WORKERS","TRIBUN_NATIVE_POSITION_SKINNING","TRIBUN_NATIVE_DETERMINISM","TRIBUN_NATIVE_ORDERED_POSE","TRIBUN_NATIVE_COLLISION_POSE","TRIBUN_NATIVE_CONTACT_INTERVAL_MS","TRIBUN_NATIVE_ADAPTIVE_CONTACT","TRIBUN_NATIVE_SURFACE_IMPACT","TRIBUN_NATIVE_ANGULAR_IMPACT","TRIBUN_NATIVE_SWEPT_IMPACT","TRIBUN_NATIVE_SPLIT_IMPACT","TRIBUN_NATIVE_CHAIN_IMPACT","TRIBUN_NATIVE_LIMB_IMPACT","TRIBUN_NATIVE_LINE_BREAK","TRIBUN_NATIVE_RUN_LANES","TRIBUN_NATIVE_TRIANGLE","TRIBUN_NATIVE_CREATIVE_CARRY","TRIBUN_NATIVE_DUEL","TRIBUN_NATIVE_HOLD_UP","TRIBUN_NATIVE_FINISH","TRIBUN_NATIVE_KEEPER_AI","TRIBUN_NATIVE_DEFENSE_SHAPE","TRIBUN_NATIVE_TRANSITION","TRIBUN_NATIVE_ROLE_PROFILE","TRIBUN_NATIVE_CLOSE_TOUCH","TRIBUN_NATIVE_MOTION_SMOOTH"):
-            env.pop(flag,None)
+        env = isolated_native_environment(os.environ,profile)
         env.setdefault("LP_NUM_THREADS","2")
         env.setdefault("OMP_NUM_THREADS","1")
         tail=None

@@ -6,9 +6,34 @@ const clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),mix=(a,b,t)=>a+(b-a)*t;
 const yaw=(a,b,t)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
 const point=v=>({x:v[0]*52/55,y:v[2],z:-v[1]*34/36});
 const velocity=v=>({vx:v[0]*52/55,vy:v[2],vz:-v[1]*34/36});
-function create(rig){
- let actors=new Map(),players=[],ball=null,ballFrom=null,ballTo=null,received=0,sequence=-1,metadata=null,blendMs=0;
- function reset(){for(const a of actors.values())rig?.reset(a.actor);actors.clear();players=[];ball=null;ballFrom=null;ballTo=null;sequence=-1;metadata=null;}
+function applyPresentation(actor,source,priorFrame,frame,priorTarget,target,enabled,rig){
+ const span=priorFrame?frame.elapsedMs-priorFrame.elapsedMs:0;
+ const valid=!!(enabled&&priorFrame&&priorTarget&&span>=50&&span<=250&&
+  !priorFrame.done&&!frame.done&&priorFrame.inPlay===true&&frame.inPlay===true&&!priorFrame.setPiece&&!frame.setPiece&&
+  source.goalkeeper!==true&&Math.hypot(target.x-priorTarget.x,target.z-priorTarget.z)<=2);
+ const height=source.heightMetres,hasHeight=Number.isFinite(height)&&height>=1.45&&height<=2.15;
+ const oldScale=actor.nativeAnatomy?.scale??1,scale=enabled&&hasHeight?height/1.88:1;
+ if(oldScale!==scale||(actor.nativeFootPlant===true)!==valid)rig?.reset(actor);
+ if(!enabled){
+  for(const key of ['nativeAnatomy','nativeBodyBalance','nativeFootPlant','nativeMotionMatch','nativeMotionIdentity','nativeGait','nativeBlend'])delete actor[key];
+  return;
+ }
+ actor.nativeAnatomy={height:hasHeight?height:null,scale,preferredFoot:'unknown'};
+ let ax=0,az=0;
+ if(valid){ax=(target.vx-priorTarget.vx)/(span/1000);az=(target.vz-priorTarget.vz)/(span/1000);const mag=Math.hypot(ax,az),factor=mag>15?15/mag:1;ax*=factor;az*=factor;}
+ actor.nativeBodyBalance={ax,az,valid};actor.nativeFootPlant=valid;actor.nativeMotionMatch=valid;actor.nativeBlend=valid;
+ const c=source.motionIdentity;
+ actor.nativeMotionIdentity=valid&&c?{agility:clamp(c.agility,0,1),velocity:clamp(c.velocity,0,1),
+  acceleration:clamp(c.acceleration,0,1),balance:clamp(c.balance,0,1),dribble:clamp(c.dribble,0,1),
+  control:clamp(c.control,0,1),freshness:clamp(c.fatigueFactor,0,1)}:null;
+ const speed=actor.speed,prior=actor.nativeGait||'idle';
+ actor.nativeGait=speed<(prior==='idle'?.35:.20)?'idle':speed>(prior==='sprint'?5.3:5.8)?'sprint':
+  speed>(['run','sprint'].includes(prior)?2.4:2.8)?'run':speed>(['jog','run','sprint'].includes(prior)?1.1:1.4)?'jog':'walk';
+ if(valid)actor.action=actor.nativeGait;
+}
+function create(rig,{advancedPresentation=false}={}){
+ let actors=new Map(),players=[],ball=null,ballFrom=null,ballTo=null,received=0,sequence=-1,metadata=null,blendMs=0,lastFrame=null;
+ function reset(){for(const a of actors.values())rig?.reset(a.actor);actors.clear();players=[];ball=null;ballFrom=null;ballTo=null;sequence=-1;metadata=null;lastFrame=null;}
  function ingest(data,now){
   if(data?.engine!=='league-soccer'||data.authoritative!==false||!data.frame||!Number.isSafeInteger(data.sequence)||data.sequence<0)return false;
   if(data.sequence<sequence)return false;
@@ -30,14 +55,17 @@ function create(rig){
    const target={...pos,...v,face};
    const prior=a.target?{x:a.actor.x,z:a.actor.z,face:a.actor.face}:target;
    a.from=Math.hypot(prior.x-target.x,prior.z-target.z)<=5?prior:target;
+   const previousTarget=a.target;
    a.target=target;
    Object.assign(a.actor,{active:true,index:name?.slot??i%11,num:name?.number??i%11+1,name:name?.name||'Oyuncu '+p.id,role:p.goalkeeper?'GK':'FIELD',speed:Math.hypot(v.vx,v.vz),action:Math.hypot(v.vx,v.vz)>.25?'run':'idle',actionClock:0,selected:p.uniquePossession===true});
+   a.source=p;
+   applyPresentation(a.actor,p,lastFrame,f,previousTarget,target,advancedPresentation,rig);
    next.add(p.id);return a.actor;
   });
   for(const [id,a] of actors)if(!next.has(id)){rig?.reset(a.actor);actors.delete(id);}
   ballTo={...point(f.ball),...velocity(f.ballVelocity)};
   ballFrom=ball&&Math.hypot(ball.x-ballTo.x,ball.y-ballTo.y,ball.z-ballTo.z)<=12?{...ball}:ballTo;
-  ball=ball||{...ballTo};sample(now,0);return true;
+  lastFrame=f;ball=ball||{...ballTo};sample(now,0);return true;
  }
  function sample(now,dt){
   if(!metadata)return null;
@@ -51,7 +79,15 @@ function create(rig){
   for(const k of ['vx','vy','vz'])ball[k]=ballTo[k];
   return {players,ball,score:metadata.frame.score.slice(),matchMs:metadata.frame.matchMs,done:metadata.frame.done,stats:metadata.frame.stats||null,sequence};
  }
- return {ingest,sample,reset};
+ function setPresentation(enabled){
+  if(advancedPresentation===!!enabled)return;
+  advancedPresentation=!!enabled;
+  for(const a of actors.values()){
+   rig?.reset(a.actor);
+   applyPresentation(a.actor,a.source,null,lastFrame,null,a.target,advancedPresentation,rig);
+  }
+ }
+ return {ingest,sample,reset,setPresentation};
 }
 // Only render at the chosen budget. Polling and authoritative frames are independent.
 function createRenderBudget(){

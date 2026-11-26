@@ -32,6 +32,15 @@ class ShadowTest(unittest.TestCase):
                   {"engine":"league-soccer","done":True,"elapsedMs":200,"matchMs":5400000,"score":[3,1]}]
         return ("\n".join(map(json.dumps,frames))+"\n").encode(), {"engine":"league-soccer","score":[3,1]}
 
+    def test_stage100_diagnostic_flags_never_leak_to_league_child(self):
+        source={"PATH":"/bin","TRIBUN_NATIVE_RUNTIME":"/tmp/runtime","TRIBUN_NATIVE_MATCH_PACE":"1",
+                "TRIBUN_NATIVE_COLLECTIVE_AI":"1","TRIBUN_NATIVE_KEEPER_AI":"1",
+                "TRIBUN_NATIVE_FUTURE_EXPERIMENT":"1","TRIBUN_NATIVE_FIXED_DURATION":"1",
+                "TRIBUN_LEAGUE_SOCCER_COMMAND_DIR":"/tmp/untrusted","TRIBUN_LEAGUE_SOCCER_FIXTURE":"/tmp/other"}
+        env=n.isolated_native_environment(source,"baseline")
+        self.assertEqual(env,{"PATH":"/bin","TRIBUN_LEAGUE_SOCCER_ATTACK":"baseline"})
+        self.assertEqual(source["TRIBUN_NATIVE_MATCH_PACE"],"1")
+
     def test_exactly_one_job_and_no_authoritative_change(self):
         with patch.object(n.time,'time',return_value=1000):
             self.assertTrue(n.process_one(self.path, self.runner))
