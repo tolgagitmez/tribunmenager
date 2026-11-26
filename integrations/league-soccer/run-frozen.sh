@@ -238,7 +238,12 @@ if [[ "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 ]]; then
   grep -Fq '[menu-smoke] Full-match verification succeeded, quitting test run' "$log"
 elif [[ -n "${TRIBUN_NATIVE_VIDEO_OUT:-}" ]]; then
   # Separate full renderer diagnostic (MP4 or local HLS). Never use this in the official shadow queue.
-  [[ "${TRIBUN_NATIVE_NO_DRAW:-0}" == 0 && "${TRIBUN_NATIVE_NO_UPLOAD:-0}" == 0 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_REALTIME:-0}" == 1 && "$render_interval" == 0 && "$active_policies" == 0 && -z "${TRIBUN_LEAGUE_SOCCER_COMMAND_DIR:-}" ]] || { echo "Isolated native video capture required" >&2; exit 2; }
+  [[ "${TRIBUN_NATIVE_NO_DRAW:-0}" == 0 && "${TRIBUN_NATIVE_NO_UPLOAD:-0}" == 0 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_REALTIME:-0}" == 1 && "$render_interval" == 0 && "$active_policies" == 0 ]] || { echo "Isolated native video capture required" >&2; exit 2; }
+  case "${TRIBUN_NATIVE_VIDEO_CONTROL:-0}" in
+    0) [[ -z "${TRIBUN_LEAGUE_SOCCER_COMMAND_DIR:-}" ]] || exit 2 ;;
+    1) [[ -n "${TRIBUN_NATIVE_HLS_DIR:-}" && "${TRIBUN_LEAGUE_SOCCER_COMMAND_DIR:-}" = /* && -d "$TRIBUN_LEAGUE_SOCCER_COMMAND_DIR" ]] || { echo "Private HLS command directory required" >&2; exit 2; } ;;
+    *) exit 2 ;;
+  esac
   xvfb-run -a -s '-screen 0 1920x1080x24 -nolisten tcp' python3 "$here/native-video-pilot.py" --capture-window "$config" "$limit"
 else
   bash ./run_menu_smoke.sh ./gameplayfootball "$config" "$limit" \

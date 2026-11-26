@@ -1,0 +1,55 @@
+name: Original native interactive video pilot
+on:
+  push:
+    branches: [experiment/native-interactive-video-stage117]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  interactive:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_video_control.py
+      - run: python3 -m unittest discover -s tests -p test_native_live_video.py
+      - run: node --test integrations/league-soccer/native-live-video.test.cjs
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build pinned native runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/interactive-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Two native manager acknowledgements while original video plays
+        env:
+          TRIBUN_EXPECT_CONTROL: '1'
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/interactive-fixtures"
+          out="$RUNNER_TEMP/interactive-video-result"
+          python3 integrations/league-soccer/native-live-video.py "$RUNNER_TEMP/interactive-runtime" "$RUNNER_TEMP/interactive-fixtures/balanced.json" "$out" --interactive &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt"
+          wait "$pid"
+          trap - EXIT
+          python3 - "$out/live-report.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1]))
+          assert r["control"]["submitted"]==[1,1] and r["control"]["applied"]==[1,1]
+          assert r["control"]["formations"]==[442,4231] and r["control"]["pending"]==[False,False]
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-interactive-measurement-only
+          path: |
+            ${{ runner.temp }}/interactive-video-result/live-report.json
+            ${{ runner.temp }}/interactive-video-result/runner.log
+          if-no-files-found: ignore

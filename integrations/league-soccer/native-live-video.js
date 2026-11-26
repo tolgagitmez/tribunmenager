@@ -67,6 +67,52 @@
    }
   }catch(e){status.textContent='Yayın açılamadı: '+e.message;running=false;button.disabled=false;sound.disabled=true;v.pause();v.removeAttribute('src');v.load();if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=null;}
  }
+ // Current engine state is separate from buffered video time.
+ const panel=document.querySelector('#manager'),send=document.querySelector('#sendTactics'),form=document.querySelector('#tacticsForm'),commandStatus=document.querySelector('#commandStatus');
+ let controlState=null,submitting=false,pollGeneration=0,polling=false,managerSide=null,pendingRequest=null;
+ async function controlPoll(){
+  const generation=++pollGeneration;
+  try{
+   const state=JSON.parse(await get('tactics.json'));
+   if(generation!==pollGeneration)return;
+   if(state.side!==managerSide)throw Error('Takım uyuşmuyor.');
+   controlState=state;
+   if(!submitting){
+    if(state.commandState==='waiting-for-engine')commandStatus.textContent='Komut '+state.submittedRevision+' · motor onayı bekleniyor.';
+    else if(state.commandState==='applied')commandStatus.textContent='Motor onayladı · komut '+state.appliedRevision;
+    else if(state.commandState==='not-applied-at-end')commandStatus.textContent='Maç bitti; son komut uygulanmadı.';
+    else commandStatus.textContent=state.canControl?'Motor hazır.':'Motor komut beklemiyor.';
+   }
+   if(state.appliedRevision>0&&pendingRequest&&state.appliedRevision>=pendingRequest.revision)pendingRequest=null;
+   send.disabled=submitting||!state.canControl;
+  }catch(e){if(generation===pollGeneration){controlState=null;send.disabled=true;commandStatus.textContent='Motor bağlantısı yok.';}}
+ }
+ async function startControl(){
+  try{
+   const state=JSON.parse(await get('status.json'));
+   if(![0,1].includes(state.managerSide))return;
+   managerSide=state.managerSide;panel.hidden=false;document.querySelector('#teamSide').textContent=managerSide===0?'Ev sahibi takım':'Deplasman takımı';
+   if(polling)return;polling=true;
+   while(polling){await controlPoll();await sleep(500);}
+  }catch(e){send.disabled=true;}
+ }
+ form.addEventListener('submit',async e=>{
+  e.preventDefault();if(submitting||!controlState?.canControl)return;
+  const tactics=Object.fromEntries(['press','counter','support','width','tempo','formation'].map(k=>[k,Number(document.querySelector('#'+k).value)]));
+  // Reuse identical request after a lost HTTP response; never assume acknowledgement.
+  const key=JSON.stringify(tactics);
+  if(!pendingRequest||pendingRequest.key!==key)pendingRequest={key,id:crypto.randomUUID(),revision:controlState.submittedRevision+1};
+  submitting=true;send.disabled=true;commandStatus.textContent='Motora gönderiliyor…';
+  try{
+   const response=await fetch('tactics.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({round:0,requestId:pendingRequest.id,tactics})});
+   const result=await response.json();
+   if(!response.ok){if(response.status===400||response.status===403)pendingRequest=null;throw Error(result.error||'Komut reddedildi.');}
+   if(result.team!==managerSide||result.state!=='submitted-not-applied')throw Error('Geçersiz motor cevabı.');
+   pendingRequest.revision=result.revision;commandStatus.textContent='Gönderildi · motor onayı bekleniyor.';
+  }catch(e){commandStatus.textContent=e.message;}
+  finally{submitting=false;await controlPoll();}
+ });
+ startControl();
  button.addEventListener('click',play);
- root.addEventListener('pagehide',()=>{if(objectUrl)URL.revokeObjectURL(objectUrl);});
+ root.addEventListener('pagehide',()=>{polling=false;pollGeneration++;if(objectUrl)URL.revokeObjectURL(objectUrl);});
 })(typeof window!=='undefined'?window:globalThis);
