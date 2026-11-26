@@ -18,6 +18,7 @@ sys.path.insert(0,str(HERE.parents[1]))
 import server
 import native_av_queue as q
 from live_match import Registry
+from native_match_quality import inspect as inspect_quality
 
 def require(ok,msg):
     if not ok:raise ValueError(msg)
@@ -69,15 +70,16 @@ def run(runtime,root):
             count=db.execute('SELECT count(*) FROM native_av_season_fixture_appearances WHERE league=?',(key[0],)).fetchone()[0]
             require(count==sum(x['minutes']>0 for x in report['season']['appearances']),'Appearance count mismatch')
             require(db.execute("SELECT count(*) FROM native_av_jobs WHERE state='queued' AND league=?",(key[0],)).fetchone()[0]==2,'Other fixtures not isolated')
-        return {'passed':True,'authoritative':False,'productionQualified':False,'nativeOnly':True,'fixtureCount':1,
+        quality=inspect_quality(root/attempt/'run')
+        return {'quality':quality,'passed':True,'authoritative':False,'productionQualified':False,'nativeOnly':True,'fixtureCount':1,
                 'score':report['score'],'coverage':report['coverage'],'commandHistory':report['commandHistory'],
                 'appearanceCount':count,'officialTablesUnchanged':True,'duplicateRejected':True,'leagueScreenVerified':True}
     except Exception as exc:
         q.finish(server.DATA,key,sha,attempt,error=type(exc).__name__)
-        result={'passed':False,'productionQualified':False,'failureType':type(exc).__name__}
+        result={'passed':False,'productionQualified':False,'failureType':type(exc).__name__,'quality':inspect_quality(root/attempt/'run')}
         p=root/attempt/'run/browser-playback-report.json'
         if p.is_file():
-            b=json.loads(p.read_text());result['browser']={k:b[k] for k in ('passed','stage','failureType','coverageFraction') if k in b}
+            b=json.loads(p.read_text());result['browser']={k:b[k] for k in ('passed','stage','failureType','coverageFraction','accessStatuses') if k in b}
         p=root/attempt/'run/live-report.json'
         if p.is_file():
             n=json.loads(p.read_text());result['native']={k:n[k] for k in ('status','failureType','checks','nativeClock','captureFailure') if k in n}

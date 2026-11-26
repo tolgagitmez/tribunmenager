@@ -17,6 +17,7 @@ import native_av_queue as q
 from native_av_scheduler import lock_host
 from native_scheduler_policy import sample,pressure_ok
 from live_match import Registry
+from native_match_quality import inspect as inspect_quality
 
 def private_new(root):
     root=root.resolve()
@@ -73,6 +74,7 @@ def run(runtime,root,port,delay):
                     q.finish(server.DATA,key,sha,attempt,error=type(exc).__name__)
                     if not isinstance(exc,Exception):raise
                     result={'passed':False,'failureType':type(exc).__name__,'productionQualified':False}
+                result['quality']=inspect_quality(root/attempt/'run')
                 (root/'private-beta-report.json').write_text(json.dumps(result,indent=2)+'\n')
                 print(json.dumps(result,ensure_ascii=False),flush=True)
                 print('Lig ekranını kontrol et. Sunucu 30 saniye sonra kapanır.',flush=True)

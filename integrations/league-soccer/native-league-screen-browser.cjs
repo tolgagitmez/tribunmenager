@@ -6,7 +6,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const cfg=JSON.parse(fs.readFileSync(process.argv[2],'utf8')),reportPath=process.argv[3];
  assert.match(cfg.base,/^http:\/\/127\.0\.0\.1:\d+$/);assert.equal(cfg.round,0);
  const browser=await chromium.launch({headless:true,channel:process.env.TRIBUN_BROWSER_CHANNEL||'chrome',args:['--autoplay-policy=no-user-gesture-required']});
- let stage='league-screen',page;
+ let stage='league-screen',page;const accessStatuses={};
  try{
   page=await browser.newPage({viewport:{width:390,height:844}});
   await page.addInitScript(token=>localStorage.setItem('tribun-league-token',token),cfg.homeToken);
@@ -20,9 +20,9 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   stage='media-authorization';
   const denied=await page.request.get(cfg.base+'/api/league/native-av/media?round=0&file=status.json',{headers:{Authorization:'Bearer '+cfg.foreignToken}});
   // Foreign native account resolves its own not-yet-due fixture, never ours.
-  assert.equal(denied.status(),409);
+  accessStatuses.foreign=denied.status();assert.equal(denied.status(),409);
   const deniedBody=await denied.json();assert.ok(deniedBody.error);assert.equal(deniedBody.managerSide,undefined);
-  const noAuth=await page.request.get(cfg.base+'/api/league/native-av/media?round=0&file=status.json');assert.equal(noAuth.status(),403);
+  const noAuth=await page.request.get(cfg.base+'/api/league/native-av/media?round=0&file=status.json');accessStatuses.anonymous=noAuth.status();assert.equal(noAuth.status(),403);
   await page.locator('#start').click();
   stage='native-playback';
   await page.waitForFunction(()=>{const d=window.TRIBUN_VIDEO_DIAGNOSTIC?.();return d?.phase==='error'||(d?.currentTime>2&&!d?.paused&&d.videoWidth>0);},{},{timeout:120000});
@@ -62,7 +62,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
    if(last===null||state.currentTime>last+.05){longest=Math.max(longest,Date.now()-stagnantSince);stagnantSince=Date.now();last=state.currentTime;}
    else if(Date.now()-stagnantSince>15000&&!state.ended)throw Error('Playback stalled');
    if(state.ended){
-    const result={...coverage(state,300),samples,longestObservedProgressIntervalMs:longest,leagueScreenVerified:true,homeUICommandVerified:true,awayCommandVerified:true,foreignMediaRejected:true,foreignMediaStatus:409,unauthenticatedMediaRejected:true,audioDecodedBytes:audioBytes};
+    const result={...coverage(state,300),samples,longestObservedProgressIntervalMs:longest,leagueScreenVerified:true,homeUICommandVerified:true,awayCommandVerified:true,foreignMediaRejected:true,foreignMediaStatus:409,accessStatuses,unauthenticatedMediaRejected:true,audioDecodedBytes:audioBytes};
     assert.deepEqual(errors,[]);assert.equal(result.passed,true);
     fs.writeFileSync(reportPath,JSON.stringify(result,null,2)+'\n');return;
    }
@@ -72,7 +72,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  }catch(e){
   let diagnostic=null;try{diagnostic=await page.evaluate(()=>window.TRIBUN_VIDEO_DIAGNOSTIC?.()||null);}catch{}
   fs.mkdirSync(require('node:path').dirname(reportPath),{recursive:true});
-  fs.writeFileSync(reportPath,JSON.stringify({passed:false,stage,failureType:e.name,diagnostic},null,2)+'\n');
+  fs.writeFileSync(reportPath,JSON.stringify({passed:false,stage,failureType:e.name,accessStatuses,diagnostic},null,2)+'\n');
   console.error('Native league screen failure at '+stage);process.exitCode=1;
  }finally{await browser.close();}
 })().catch(()=>{console.error('Native league screen setup failed');process.exitCode=1;});
