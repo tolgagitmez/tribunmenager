@@ -1,0 +1,46 @@
+name: Native attack activation redesign
+on:
+  push:
+    branches: [experiment/native-activation-stage75]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_activation_redesign.py'
+      - '.github/workflows/native-activation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualification:
+    strategy:
+      fail-fast: false
+      matrix:
+        diagnostic: [triangle-benchmark, duel-benchmark, hold-up-benchmark]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m py_compile integrations/league-soccer/triangle-benchmark.py integrations/league-soccer/timing-benchmark.py
+      - run: python3 -m unittest discover -s tests -p 'test_native_*.py'
+      - run: bash -n integrations/league-soccer/run-frozen.sh
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/activation-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Run isolated activation diagnostic
+        env:
+          DIAGNOSTIC: ${{ matrix.diagnostic }}
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/activation-fixtures"
+          python3 "integrations/league-soccer/$DIAGNOSTIC.py" "$RUNNER_TEMP/activation-runtime" "$RUNNER_TEMP/activation-fixtures" "$RUNNER_TEMP/activation-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-activation-${{ matrix.diagnostic }}
+          path: ${{ runner.temp }}/activation-results/
+          if-no-files-found: ignore

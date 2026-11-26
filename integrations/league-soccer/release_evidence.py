@@ -47,6 +47,7 @@ FILES=(
  "integrations/league-soccer/role-profile-benchmark.py",
  "integrations/league-soccer/quality-qualification.py",
  "integrations/league-soccer/quality-audit.json",
+ "integrations/league-soccer/activation-redesign.md",
  "integrations/league-soccer/position-skinning-benchmark.py",
  "integrations/league-soccer/runtime-layout.py",
  "integrations/league-soccer/verify-substitutions.py",

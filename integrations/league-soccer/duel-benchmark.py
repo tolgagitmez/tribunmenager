@@ -33,6 +33,7 @@ def evaluate(rows):
     return {"deliveryPassed":all(integrated.wall_ok(r) for r in rows.values()),
         "policySelected":sum(b["duelProbe"]["attempts"])>0,
         "beatenDefenders":sum(b["duelProbe"]["beaten"]),"decisionProbe":b["duelProbe"],
+        "activationFunnel":b["attackFunnels"]["duel"],
         "gameplayDelta":delta,"passAccuracyDelta":accuracy(n)-accuracy(m),
         "cpuSecondsDelta":integrated.cpu(b)-integrated.cpu(a),
         "boxCrossingsDelta":sum(delta["controlledBoxCrossings"]),"shotsDelta":sum(delta["shots"]),

@@ -214,6 +214,17 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-hold] mode=%s attempts=%lu,%lu held=%lu,%lu released=%lu,%lu received=%lu,%lu lost=%lu,%lu cancelled=%lu,%lu\n",
       AITactics::HoldUpEnabled()?"hold":"off",ha.attempts,hb.attempts,ha.held,hb.held,ha.released,hb.released,
       ha.received,hb.received,ha.lost,hb.lost,ha.cancelled,hb.cancelled);
+    const auto funnel=[](const char* name,int teamID,unsigned long inspected,unsigned long context,
+        unsigned long geometry,unsigned long available,unsigned long started){
+      std::printf("[tribun-funnel] policy=%s team=%d inspected=%lu context=%lu geometry=%lu available=%lu started=%lu\n",
+          name,teamID,inspected,context,geometry,available,started);
+    };
+    funnel("triangle",0,ta.inspected,ta.context,ta.geometry,ta.available,ta.startedCount);
+    funnel("triangle",1,tb.inspected,tb.context,tb.geometry,tb.available,tb.startedCount);
+    funnel("duel",0,da.inspected,da.context,da.geometry,da.available,da.attempts);
+    funnel("duel",1,db.inspected,db.context,db.geometry,db.available,db.attempts);
+    funnel("hold",0,ha.inspected,ha.context,ha.geometry,ha.available,ha.attempts);
+    funnel("hold",1,hb.inspected,hb.context,hb.geometry,hb.available,hb.attempts);
     const auto& fa=match.tribunFinishProbes[0];const auto& fb=match.tribunFinishProbes[1];
     std::printf("[tribun-finish] mode=%s decisions=%lu,%lu aims=%lu,%lu priorities=%lu,%lu contacts=%lu,%lu\n",
       AITactics::FinishEnabled()?"finish":"off",fa.decisions,fb.decisions,fa.aimChanges,fb.aimChanges,

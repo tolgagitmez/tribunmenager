@@ -336,6 +336,17 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
             raise ValueError("Missing hold-up evidence")
         values=list(map(int,holds[0][1:]))
         report["holdProbe"]={k:values[2*j:2*j+2] for j,k in enumerate(("attempts","held","released","received","lost","cancelled"))}
+        funnels=re.findall(r"\[tribun-funnel\] policy=(triangle|duel|hold) team=([01]) inspected=(\d+) context=(\d+) geometry=(\d+) available=(\d+) started=(\d+)",log_text)
+        if len(funnels)!=6 or {(v[0],int(v[1])) for v in funnels}!={(k,t) for k in ("triangle","duel","hold") for t in range(2)}:
+            raise ValueError("Missing policy funnel evidence")
+        report["attackFunnels"]={}
+        for key,team,*counts in funnels:
+            counts=list(map(int,counts))
+            if not all(a>=b for a,b in zip(counts,counts[1:])):
+                raise ValueError("Inconsistent policy funnel")
+            if not {"triangle":triangle,"duel":duel,"hold":hold_up}[key] and any(counts):
+                raise ValueError("Inactive policy recorded decisions")
+            report["attackFunnels"].setdefault(key,{})[team]=dict(zip(("inspected","context","geometry","available","started"),counts))
         finishes=re.findall(r"\[tribun-finish\] mode=(finish|off) decisions=(\d+),(\d+) aims=(\d+),(\d+) priorities=(\d+),(\d+) contacts=(\d+),(\d+)",log_text)
         if len(finishes)!=1 or finishes[0][0]!=("finish" if finish else "off"):
             raise ValueError("Missing finish evidence")

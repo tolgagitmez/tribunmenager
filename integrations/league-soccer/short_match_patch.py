@@ -48,6 +48,7 @@ struct TriangleState {
   int a=-1,b=-1,c=-1,stage=0;
   unsigned long started=0,lastPass=0,expires=0,cooldown=0;
   unsigned long startedCount=0,firstReceipts=0,secondPasses=0,completed=0;
+  unsigned long inspected=0,context=0,geometry=0,available=0;
   void Clear(unsigned long now){if(stage)cooldown=now+1200;a=b=c=-1;stage=0;started=lastPass=expires=0;}
   bool Begin(int first,int middle,int third,unsigned long now){
     if(stage||now<cooldown||first<0||middle<0||third<0||first==middle||first==third||middle==third)return false;
@@ -115,7 +116,7 @@ struct CarryTrial {
 
 DUEL_RULES = r'''// Relative to attacking direction. A duel starts with a defender ahead and closing.
 inline bool DuelEligible(float ahead,float distance,float closing,float gap,float skill){
-  return ahead>=.45f&&ahead<=4.0f&&distance>=1.4f&&distance<=4.5f&&closing>=.5f&&gap<=1.1f&&skill>=.58f;
+  return ahead>=.35f&&ahead<=4.8f&&distance>=1.4f&&distance<=5.5f&&closing>=.25f&&gap<=1.25f&&skill>=.48f;
 }
 inline float DuelEscapeScore(float advance,float clearance,float turn,float speed,float skill,float wrongFoot){
   if(advance<.3f||clearance<1.25f||turn<-.15f)return -1000.0f;
@@ -126,6 +127,7 @@ struct DuelTrial {
   int carrier=-1,defender=-1;float initialX=0,forward=1;
   unsigned long start=0,lastControl=0,cooldown=0,expires=0;
   unsigned long attempts=0,beaten=0,lost=0,cancelled=0;
+  unsigned long inspected=0,context=0,geometry=0,available=0;
   void End(unsigned long now){carrier=defender=-1;cooldown=now+650;}
   void Cancel(unsigned long now){if(carrier>=0){++cancelled;End(now);}}
   bool Begin(int a,int b,float x,float dir,unsigned long now){
@@ -152,7 +154,7 @@ HOLD_UP_RULES = r'''inline float HoldSkill(float balance,float control,float cal
   return .45f*std::clamp(balance,0.0f,1.0f)+.35f*std::clamp(control,0.0f,1.0f)+.20f*std::clamp(calm,0.0f,1.0f);
 }
 inline bool HoldEligible(float depth,float facingForward,float nearest,float gap,float skill){
-  return depth>=9&&depth<=38&&facingForward<=.30f&&nearest>=.8f&&nearest<=3.2f&&gap<=1.15f&&skill>=.58f;
+  return depth>=9&&depth<=48&&facingForward<=.45f&&nearest>=.8f&&nearest<=4.0f&&gap<=1.25f&&skill>=.48f;
 }
 inline float ShieldScore(float clearance,float alignment,float screen,float progress){
   if(clearance<.95f||alignment<.0f||progress<-1.3f)return -1000.0f;
@@ -165,6 +167,7 @@ struct HoldTrial {
   int carrier=-1,receiver=-1,stage=0;
   unsigned long start=0,expires=0,lastControl=0,passAt=0,cooldown=0;
   unsigned long attempts=0,held=0,released=0,received=0,lost=0,cancelled=0;
+  unsigned long inspected=0,context=0,geometry=0,available=0;
   void End(unsigned long now){carrier=receiver=-1;stage=0;cooldown=now+700;}
   void Cancel(unsigned long now){if(stage){++cancelled;End(now);}}
   bool Begin(int id,unsigned long now){
@@ -1790,6 +1793,7 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
         ("void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool shortPass) {", r'''bool TeamAIController::TribunTriangleContact(Player* passer,Player* receiver,bool shortPass){
   if(!AITactics::TriangleEnabled()||team->GetHumanGamerCount())return false;
   const auto now=match->GetActualTime_ms();
+  ++tribunTriangle.inspected;
   const bool valid=shortPass&&passer&&receiver&&passer!=receiver&&receiver->GetTeam()==team&&
     passer->IsActive()&&receiver->IsActive()&&match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer();
   if(tribunTriangle.stage){
@@ -1798,14 +1802,16 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
   }
   if(!valid||tribunCombination.stage||passer->GetFormationEntry().role==e_PlayerRole_GK||
     receiver->GetFormationEntry().role==e_PlayerRole_GK||now<tribunTriangle.cooldown)return false;
+  ++tribunTriangle.context;
   const float forward=-team->GetSide();
   const auto from=passer->GetPosition(),middle=receiver->GetPosition();
   const auto first=middle-from;
   const float depth=pitchHalfW-from.coords[0]*forward;
-  if(depth<14.0f||depth>42.0f||first.GetLength()<4.0f||first.GetLength()>16.0f||
-      std::abs(first.coords[1])<2.0f||receiver->GetStat("technical_shortpass")<.55f)return false;
+  if(depth<12.0f||depth>58.0f||first.GetLength()<3.0f||first.GetLength()>23.0f||
+      std::abs(first.coords[1])<1.0f||receiver->GetStat("technical_shortpass")<.45f)return false;
   const float line=AI_GetOffsideLine(match,match->GetMentalImage(0),abs(team->GetID()-1))*forward;
   if(line-middle.coords[0]*forward<1.0f)return false;
+  ++tribunTriangle.geometry;
   std::vector<PlayerImage> rivals;
   match->GetMentalImage(0)->GetTeamPlayerImages(abs(team->GetID()-1),-1,rivals);
   Player* third=nullptr;float best=-1000.0f;
@@ -1822,6 +1828,7 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
     const float score=std::min(clearance,8.0f)+delta.coords[0]*forward*.15f-delta.GetLength()*.08f;
     if(score>best){best=score;third=mate.get();}
   }
+  if(third)++tribunTriangle.available;
   return third&&tribunTriangle.Begin(passer->GetID(),receiver->GetID(),third->GetID(),now);
 }
 Player* TeamAIController::TribunTriangleTarget(Player* receiver){
@@ -2015,7 +2022,10 @@ Vector3 AI_GetForceFieldMovement'''),
     const float gap=(mentalImage->GetBallPrediction(0).Get2D()-myPos).GetLength();
     const float depth=pitchHalfW+side*myPos.coords[0];
     auto& trial=match->tribunDuelTrials[team->GetID()];
-    if(depth>=8.0f&&depth<=55.0f&&(trial.carrier<0||trial.carrier==player->GetID())){
+    ++trial.inspected;
+    if(depth>=8.0f&&depth<=65.0f&&(trial.carrier<0||trial.carrier==player->GetID())){
+      ++trial.context;
+      bool geometry=false;
       Player* defender=nullptr;
       float closest=100.0f;
       for(auto* rival:opponents){
@@ -2026,11 +2036,14 @@ Vector3 AI_GetForceFieldMovement'''),
         if(distance<.01f)continue;
         const auto relative=rival->GetMovement()-myMov;
         const float closing=-(relative.coords[0]*delta.coords[0]+relative.coords[1]*delta.coords[1])/distance;
+        if(AITactics::DuelEligible(delta.coords[0]*-side,distance,closing,gap,1.0f))geometry=true;
         if(AITactics::DuelEligible(delta.coords[0]*-side,distance,closing,gap,skill)&&distance<closest){
           closest=distance;defender=rival;
         }
       }
+      if(geometry)++trial.geometry;
       if(defender){
+        ++trial.available;
         const Vector3 forward(-side,0,0);
         const auto facing=player->GetDirectionVec().Get2D().GetNormalized(forward);
         const auto current=desiredDirection.Get2D().GetNormalized(facing);
@@ -2120,7 +2133,7 @@ Vector3 AI_GetForceFieldMovement'''),
     edit(root, "src/onthepitch/AIsupport/AIfunctions.cpp", [
         ("  desiredVelocity = RangeVelocity(desiredVelocity);\n}\n\nVector3 AI_GetForceFieldMovement", r'''  if(AITactics::HoldUpEnabled()&&player->HasUniquePossession()&&match->IsInPlay()&&
       !match->IsInSetPiece()&&!match->GetBallRetainer()&&!team->GetHumanGamerCount()&&
-      AI_GetMindSet(player->GetDynamicFormationEntry().role)>=.55f&&player->GetFormationEntry().role!=e_PlayerRole_GK){
+      player->GetFormationEntry().role!=e_PlayerRole_GK){
     const auto facing=player->GetDirectionVec().Get2D().GetNormalized(Vector3(-side,0,0));
     const float depth=pitchHalfW+side*myPos.coords[0];
     const float gap=(mentalImage->GetBallPrediction(0).Get2D()-myPos).GetLength();
@@ -2133,8 +2146,13 @@ Vector3 AI_GetForceFieldMovement'''),
     }
     auto& trial=match->tribunHoldTrials[team->GetID()];
     const auto now=match->GetActualTime_ms();
+    ++trial.inspected;
     if((!trial.stage||((trial.stage==1||trial.stage==2)&&trial.carrier==player->GetID()))&&
-        AITactics::HoldEligible(depth,facing.coords[0]*-side,nearest,gap,skill)){
+        AI_GetMindSet(player->GetDynamicFormationEntry().role)>=.45f){
+      ++trial.context;
+      if(AITactics::HoldEligible(depth,facing.coords[0]*-side,nearest,gap,1.0f))++trial.geometry;
+      if(AITactics::HoldEligible(depth,facing.coords[0]*-side,nearest,gap,skill)){
+      ++trial.available;
       auto rate=[&](const Vector3& dir){
         const auto end=myPos+dir*1.1f;
         if(std::abs(end.coords[0])>pitchHalfW-1.5f||std::abs(end.coords[1])>pitchHalfH-1.5f)return -1000.0f;
@@ -2155,6 +2173,7 @@ Vector3 AI_GetForceFieldMovement'''),
       if(best>-999.0f&&(trial.stage||trial.Begin(player->GetID(),now))){
         desiredDirection=chosen;
         desiredVelocity=std::min(desiredVelocity,sprintVelocity*(.30f+.10f*skill));
+      }
       }
     }
   }
