@@ -2036,13 +2036,21 @@ void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool sh
 
     # Stage 66: multi-speed dribbling search using native movement limits and actual control outcomes.
     edit(root, "src/onthepitch/aitactics.hpp", [
-        ("struct FixedDurationClock {", r'''inline bool CreativeCarryEnabled() {
+        ("struct FixedDurationClock {", r'''inline bool RenderedCarryEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_AV_CONTROLLED_CARRY");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+inline bool CreativeCarryEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_CREATIVE_CARRY");
     return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
-  return enabled;
+  return enabled || RenderedCarryEnabled();
 }
 ''' + CREATIVE_CARRY_RULES + "struct FixedDurationClock {"),
     ])
@@ -2078,7 +2086,9 @@ void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool sh
     const float gap=(mentalImage->GetBallPrediction(0).Get2D()-myPos).GetLength();
     float nearest=100.0f;
     for(const auto& opp:opponentPlayerImages)nearest=std::min(nearest,(opp.position-myPos).Get2D().GetLength());
-    if(depth>=8.0f && depth<=65.0f && nearest>=1.0f && nearest<=6.0f && gap<=1.35f){
+    const bool renderedCarry=AITactics::RenderedCarryEnabled();
+    if(depth>=(renderedCarry?4.0f:8.0f) && depth<=(renderedCarry?38.0f:65.0f) &&
+       nearest>=1.0f && nearest<=(renderedCarry?8.0f:6.0f) && gap<=1.35f){
       const Vector3 forward(-side,0,0);
       const auto facing=player->GetDirectionVec().Get2D().GetNormalized(forward);
       const auto current=desiredDirection.Get2D().GetNormalized(facing);
@@ -2094,7 +2104,14 @@ void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool sh
           const auto rival=opp.position+opp.movement*time;
           clearance=std::min(clearance,(point-rival).Get2D().GetLength());
         }
-        return AITactics::CarryOption(dir.coords[0]*-side*distance,clearance,alignment,fraction,skill,attack);
+        const float base=AITactics::CarryOption(dir.coords[0]*-side*distance,clearance,alignment,fraction,skill,attack);
+        // Reward a safe predicted entry into the actual penalty area.
+        // Never rescue a rejected direction or change native touch physics.
+        if(renderedCarry && base>-999.0f && depth>16.5f &&
+           pitchHalfW+side*endpoint.coords[0]<=16.5f && std::abs(endpoint.coords[1])<=20.16f &&
+           clearance>=1.8f && dir.coords[0]*-side>0.0f)
+          return base+.35f;
+        return base;
       };
       const float currentSpeed=clamp(desiredVelocity/sprintVelocity,0.0f,1.0f);
       float best=score(current,currentSpeed);
