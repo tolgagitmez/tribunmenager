@@ -2198,9 +2198,15 @@ inline bool DuelEnabled() {
         const bool invalid=!IsInPlay()||IsInSetPiece()||GetBallRetainer()||
             !carrier||!defender||!carrier->IsActive()||!defender->IsActive();
         const bool confirmed=own&&own->HasUniquePossession()&&GetLastTouchPlayer()==own;
+        const auto oldBeaten=trial.beaten,oldLost=trial.lost;
+        const int oldCarrier=trial.carrier,oldDefender=trial.defender;
         trial.Observe(confirmed?own->GetID():-1,teams[1-t]->HasUniquePossession(),invalid,
             carrier?carrier->GetPosition().coords[0]:0.0f,defender?defender->GetPosition().coords[0]:0.0f,
             carrier&&defender?(carrier->GetPosition()-defender->GetPosition()).Get2D().GetLength():0.0f,actualTime_ms);
+        if(AITactics::DuelEscape184Enabled() && trial.carrier<0){
+          printf("[tribun-duel-escape] team=%d carrier=%d defender=%d event=%s\n",
+              t,oldCarrier,oldDefender,trial.beaten>oldBeaten?"progressed":trial.lost>oldLost?"lost":"cancelled");
+        }
       }
     }
     if(AITactics::CreativeCarryEnabled()){'''),
@@ -2302,6 +2308,9 @@ inline bool DuelEnabled() {
         if(best>baseline+(AITactics::DuelEscape184Enabled()?.45f:.25f)&&best>-999.0f&&
             (trial.carrier==player->GetID()||trial.Begin(player->GetID(),defender->GetID(),myPos.coords[0],-side,match->GetActualTime_ms()))){
           desiredDirection=chosen;desiredVelocity=sprintVelocity*chosenSpeed;
+          if(AITactics::DuelEscape184Enabled() && trial.start==match->GetActualTime_ms())
+            printf("[tribun-duel-escape] team=%d carrier=%d defender=%d event=started\n",
+                team->GetID(),player->GetID(),defender->GetID());
         }
       }
     }
