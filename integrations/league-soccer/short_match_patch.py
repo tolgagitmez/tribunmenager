@@ -2914,3 +2914,25 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
     Vector3 tmpTemporalMovement = temporalMovement + toDesired;'''),
         ("      bool hardQuantize = true;", "      bool hardQuantize = !smoothMotion;"),
     ])
+
+    # Stage 158: explicitly isolated lower-resolution shadow depth texture.
+    edit(root, "src/systems/graphics/objects/graphics_light.cpp", [
+        ('#include "graphics_light.hpp"', '#include "graphics_light.hpp"\n#include <cstdlib>\n#include <cstring>'),
+        ('''      map.texture->GetResource()->CreateTexture(e_InternalPixelFormat_DepthComponent16,
+                                                e_PixelFormat_DepthComponent, 2048, 2048, false,''',
+         '''      const char* shadowSize = std::getenv("TRIBUN_AV_SHADOW_SIZE");
+      const int shadowEdge = shadowSize && std::strcmp(shadowSize, "1024") == 0 ? 1024 : 2048;
+      map.texture->GetResource()->CreateTexture(e_InternalPixelFormat_DepthComponent16,
+                                                e_PixelFormat_DepthComponent, shadowEdge, shadowEdge, false,'''),
+    ])
+    edit(root, "src/systems/graphics/rendering/r3d_messages.cpp", [
+        ('''  map.texture->GetResource()->GetSize(shadowW, shadowH);
+  renderer->SetViewport(0, 0, shadowW, shadowH);''',
+         '''  map.texture->GetResource()->GetSize(shadowW, shadowH);
+  static bool tribunShadowLogged = false;
+  if (!tribunShadowLogged) {
+    printf("[tribun-render] shadow-viewport=%dx%d\\n", shadowW, shadowH);
+    tribunShadowLogged = true;
+  }
+  renderer->SetViewport(0, 0, shadowW, shadowH);'''),
+    ])

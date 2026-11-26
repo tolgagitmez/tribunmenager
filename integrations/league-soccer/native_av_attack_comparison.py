@@ -27,7 +27,7 @@ def compare(rows):
         else:result['passed']=False
     return result
 
-def run_one(runtime,fixture,root,profile,*,render_size=None):
+def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None):
     root.mkdir(mode=0o700)
     out=root/'run'
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_NATIVE_','TRIBUN_AV_','TRIBUN_GPU_','TRIBUN_LEAGUE_SOCCER_','TRIBUN_EXPECT_','TRIBUN_PLAYBACK_'))}
@@ -36,6 +36,10 @@ def run_one(runtime,fixture,root,profile,*,render_size=None):
         from native_render_resolution import SIZES
         if render_size not in SIZES or profile!='baseline':raise ValueError('Unsupported resolution experiment')
         env.update(TRIBUN_AV_RENDER_SIZE=render_size,TRIBUN_AV_SWAP_PROBE='1')
+    if shadow_size is not None:
+        if type(shadow_size) is not int or shadow_size not in (1024,2048) or render_size not in ('1280x720','960x540') or (render_size=='960x540' and shadow_size!=2048):
+            raise ValueError('Unsupported shadow experiment')
+        env['TRIBUN_AV_SHADOW_SIZE']=str(shadow_size)
     children=[];error=None
     fixture_sha=hashlib.sha256(fixture.read_bytes()).hexdigest()
     try:
@@ -81,6 +85,14 @@ def run_one(runtime,fixture,root,profile,*,render_size=None):
             result['passed']=bool(passed and geometry['verified'] is True and geometry['requested']==render_size
                 and (geometry['width'],geometry['height'])==(width,height) and result['renderProbe']['observed'] is True)
         except (OSError,ValueError,KeyError,TypeError):result['passed']=False
+    if shadow_size is not None:
+        from native_shadow_resolution_comparison import shadow_evidence
+        result.update(shadowSize=shadow_size,shadowEvidence=None)
+        try:
+            log=out/'native-match.game.log'
+            if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
+            result['shadowEvidence']=shadow_evidence(log.read_text(errors='replace'),shadow_size)
+        except (OSError,ValueError):result['passed']=False
     return result
 
 def main():
