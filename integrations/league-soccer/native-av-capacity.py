@@ -8,7 +8,6 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
-from native_process_profile import ProcessProfile, snapshot
 
 HERE = Path(__file__).resolve().parent
 
@@ -112,6 +111,7 @@ def stop_jobs(jobs):
                 proc.wait()
 
 def main():
+    from native_process_profile import ProcessProfile, snapshot
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('runtime', type=Path)
     p.add_argument('fixtures', type=Path)
