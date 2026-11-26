@@ -2152,13 +2152,35 @@ Vector3 AI_GetForceFieldMovement'''),
   }();
   return enabled;
 }
+inline bool DuelEscape184Enabled(){
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_AV_DUEL_ESCAPE");
+    const char* idle=std::getenv("TRIBUN_AV_IDLE_RECOVERY");
+    return value && std::strcmp(value,"1")==0 && idle && std::strcmp(idle,"1")==0 &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+inline float DuelReachTime(float time,float agility){
+  // Integrate an exponential transition from incoming to desired velocity.
+  const float tau=.30f-.16f*std::clamp(agility,0.0f,1.0f);
+  return time-tau*(1.0f-std::exp(-time/tau));
+}
+inline float DuelReachScore(float progress,float clearance,float endGap,float baselineGap,float turn,float skill){
+  if(!std::isfinite(progress)||!std::isfinite(clearance)||!std::isfinite(endGap)||
+      !std::isfinite(baselineGap)||!std::isfinite(turn)||!std::isfinite(skill)||
+      progress<.25f||clearance<1.3f||turn<-.10f)return -1000.0f;
+  return .75f*progress+1.15f*std::min(clearance,4.0f)+
+      .5f*std::clamp(endGap-baselineGap,-2.0f,2.0f)+
+      (.55f-.2f*std::clamp(skill,0.0f,1.0f))*turn;
+}
 inline bool DuelEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_DUEL");
     return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
-  return enabled || RenderedDuelEnabled();
+  return enabled || RenderedDuelEnabled() || DuelEscape184Enabled();
 }
 ''' + DUEL_RULES + "struct FixedDurationClock {"),
     ])
@@ -2222,6 +2244,24 @@ inline bool DuelEnabled() {
         const auto rivalMotion=defender->GetMovement().Get2D();
         auto rate=[&](const Vector3& dir,float speed){
           const float turn=dir.coords[0]*facing.coords[0]+dir.coords[1]*facing.coords[1];
+          if(AITactics::DuelEscape184Enabled()){
+            const auto desired=dir*(sprintVelocity*speed);
+            const auto incoming=myMov.Get2D();
+            const float agility=player->GetStat("physical_agility");
+            float clearance=100.0f;
+            Vector3 endpoint=myPos;
+            for(float time:{.15f,.30f,.45f,.60f}){
+              const float reach=AITactics::DuelReachTime(time,agility);
+              endpoint=myPos+incoming*time+(desired-incoming)*reach;
+              if(std::abs(endpoint.coords[0])>pitchHalfW-1.5f ||
+                  std::abs(endpoint.coords[1])>pitchHalfH-1.5f)return -1000.0f;
+              for(const auto& opp:opponentPlayerImages)
+                clearance=std::min(clearance,(endpoint-opp.position-opp.movement*time).Get2D().GetLength());
+            }
+            const float futureGap=(endpoint-defender->GetPosition()-rivalMotion*.60f).Get2D().GetLength();
+            return AITactics::DuelReachScore((endpoint-myPos).coords[0]*-side,clearance,
+                futureGap,closest,turn,skill);
+          }
           const float advance=sprintVelocity*speed*.55f;
           const auto end=myPos+dir*advance;
           if(std::abs(end.coords[0])>pitchHalfW-1.5f||std::abs(end.coords[1])>pitchHalfH-1.5f)return -1000.0f;
@@ -2247,17 +2287,19 @@ inline bool DuelEnabled() {
         const float baseline=rate(current,clamp(desiredVelocity/sprintVelocity,0.0f,1.0f));
         float best=baseline,chosenSpeed=0.0f;Vector3 chosen=current;
         for(float angle:{-1.20f,-.95f,-.60f,-.30f,.30f,.60f,.95f,1.20f}){
-          if(!AITactics::RenderedDuelEnabled() && std::abs(angle)>1.0f)continue;
+          if(!AITactics::RenderedDuelEnabled() && !AITactics::DuelEscape184Enabled() && std::abs(angle)>1.0f)continue;
           const auto dir=forward.GetRotated2D(angle);
           const float turn=dir.coords[0]*facing.coords[0]+dir.coords[1]*facing.coords[1];
           const float cap=AITactics::CarrySpeedLimit(skill,closest,gap,turn);
           for(float fraction:{.45f,.62f,.78f,.90f}){
             if(fraction>cap+.0001f)continue;
-            const float score=rate(dir,fraction);
-            if(score>best){best=score;chosen=dir;chosenSpeed=fraction;}
+            const float actualFraction=AITactics::DuelEscape184Enabled()?clamp(RangeVelocity(sprintVelocity*fraction)/sprintVelocity,0.0f,1.0f):fraction;
+            if(actualFraction>cap+.0001f)continue;
+            const float score=rate(dir,actualFraction);
+            if(score>best){best=score;chosen=dir;chosenSpeed=actualFraction;}
           }
         }
-        if(best>baseline+.25f&&best>-999.0f&&
+        if(best>baseline+(AITactics::DuelEscape184Enabled()?.45f:.25f)&&best>-999.0f&&
             (trial.carrier==player->GetID()||trial.Begin(player->GetID(),defender->GetID(),myPos.coords[0],-side,match->GetActualTime_ms()))){
           desiredDirection=chosen;desiredVelocity=sprintVelocity*chosenSpeed;
         }
