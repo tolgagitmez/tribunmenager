@@ -3291,6 +3291,54 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 175: observe the real animation selector and touch geometry.
+    # Diagnostic only; no changes to queue priority, selection, or physics.
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ('#include "humanoid.hpp"', '#include "humanoid.hpp"\n#include <cstdio>'),
+        ("  if (interruptAnim != e_InterruptAnim_None) {", r'''  const bool tribunAudit=AITactics::IdleRecoveryEnabled() &&
+      match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer() &&
+      !team->GetHumanGamerCount() && !CastPlayer()->GetExternalController() &&
+      CastPlayer()->GetFormationEntry().role!=e_PlayerRole_GK;
+  const auto tribunActionName=[](e_FunctionType type)->const char*{
+    switch(type){
+      case e_FunctionType_ShortPass:return "short-pass";
+      case e_FunctionType_LongPass:return "long-pass";
+      case e_FunctionType_HighPass:return "high-pass";
+      case e_FunctionType_Shot:return "shot";
+      case e_FunctionType_BallControl:return "ball-control";
+      case e_FunctionType_Movement:return "movement";
+      default:return nullptr;
+    }
+  };
+  const auto tribunActionLog=[&](const char* event,const char* action){
+    if(tribunAudit && action)
+      std::fprintf(stderr,"[tribun-action] phase=%d actual_ms=%lu match_ms=%lu team=%d player=%d event=%s action=%s\n",
+          static_cast<int>(match->GetMatchPhase()),
+          static_cast<unsigned long>(match->GetActualTime_ms()),
+          static_cast<unsigned long>(match->GetMatchTime_ms()),team->GetID(),
+          CastPlayer()->GetID(),event,action);
+  };
+  if (interruptAnim != e_InterruptAnim_None) {'''),
+        ("      found = SelectAnim(command, interruptAnim, preferPassAndShot);", r'''      const bool auditCandidate=tribunAudit && CastPlayer()->HasUniquePossession();
+      found = SelectAnim(command, interruptAnim, preferPassAndShot);
+      if(auditCandidate)
+        tribunActionLog(found?"accepted":"rejected",tribunActionName(command.desiredFunctionType));'''),
+        ("    if (fullBallDistance < touchableDistance &&\n        fabs(desiredBallHeight - match->GetBall()->Predict(0).coords[2]) < 1.0f) {", r'''    if(tribunAudit && !(fullBallDistance < touchableDistance &&
+        fabs(desiredBallHeight - match->GetBall()->Predict(0).coords[2]) < 1.0f) &&
+        currentAnim->functionType!=e_FunctionType_Movement)
+      tribunActionLog("missed-touch",tribunActionName(currentAnim->functionType));
+    if (fullBallDistance < touchableDistance &&
+        fabs(desiredBallHeight - match->GetBall()->Predict(0).coords[2]) < 1.0f) {'''),
+        ("        match->GetMatchData()->AddPassAttempt(team->GetID());", r'''        tribunActionLog("contact",tribunActionName(currentAnim->functionType));
+        match->GetMatchData()->AddPassAttempt(team->GetID());'''),
+        ("        match->GetMatchData()->AddShot(team->GetID());", r'''        tribunActionLog("contact","shot");
+        match->GetMatchData()->AddShot(team->GetID());'''),
+        ("          printf(\"bumpyridebias (ballcontrol): %f\\n\", bumpyRideBias);", r'''          printf("bumpyridebias (ballcontrol): %f\n", bumpyRideBias);
+        tribunActionLog("contact","ball-control");'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
