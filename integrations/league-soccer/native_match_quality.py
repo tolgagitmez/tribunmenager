@@ -121,4 +121,9 @@ def inspect(directory):
         from native_pass_timing_diagnostics import inspect_pass_timing
         result['passTiming']=inspect_pass_timing(directory/'native-match.game.log')
     except (OSError,ValueError,TypeError) as exc:result['errors']['passTiming']=type(exc).__name__
+    result['combinations']=None
+    try:
+        from native_combination_diagnostics import inspect_combinations
+        result['combinations']=inspect_combinations(directory/'native-match.game.log')
+    except (OSError,ValueError,TypeError) as exc:result['errors']['combinations']=type(exc).__name__
     return result
