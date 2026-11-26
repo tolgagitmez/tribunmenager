@@ -1757,10 +1757,20 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
 
     # Stage 64: choose separated, passable targets for the existing two attacking outlets.
     edit(root, "src/onthepitch/aitactics.hpp", [
-        ("struct FixedDurationClock {", r'''inline bool CollectiveEnabled() {
+        ("struct FixedDurationClock {", r'''inline bool CombinedAIEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_COMBINED_AI");
+    const char* nullMode=std::getenv("TRIBUN_NATIVE_NULL_RENDERER");
+    return value && std::strcmp(value,"1")==0 && nullMode && std::strcmp(nullMode,"1")==0 &&
+      ShortMatchAttackEnabled() && FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE") &&
+      !std::getenv("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR");
+  }();
+  return enabled;
+}
+inline bool CollectiveEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_COLLECTIVE_AI");
-    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+    return (CombinedAIEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
   return enabled;
@@ -2393,7 +2403,7 @@ Vector3 AI_GetForceFieldMovement'''),
         ("struct FixedDurationClock {", r'''inline bool KeeperAIEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_KEEPER_AI");
-    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+    return (CombinedAIEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
   return enabled;
@@ -2818,7 +2828,7 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
         ("struct FixedDurationClock {", r'''inline bool PaceEnabled() {
   static const bool enabled=[]{
     const char* value=std::getenv("TRIBUN_NATIVE_MATCH_PACE");
-    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+    return (CombinedAIEnabled() || (value && std::strcmp(value,"1")==0)) && ShortMatchAttackEnabled() &&
         FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
   }();
   return enabled;
@@ -2832,6 +2842,7 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
         ("      if (progressiveCandidate || supportCandidate || runningCandidate || deliveryCandidate || pressureOutlet || returnCandidate || retentionOutlet || timedCandidate || lineBreak || triangleCandidate || holdOutlet || counterCandidate) {", r'''      bool paceCandidate=false;
       float paceOdds=0.0f,paceProgress=0.0f,paceDepth=0.0f;
       if(AITactics::PaceEnabled()&&runningPassEnabled&&match->IsInPlay()&&!match->IsInSetPiece()&&
+          (!AITactics::CombinedAIEnabled()||(!triangleCandidate&&!counterCandidate))&&
           !match->GetBallRetainer()&&mates.at(i)->GetFormationEntry().role!=e_PlayerRole_GK){
         const auto delta=mates.at(i)->GetPosition()-player->GetPosition();
         paceProgress=delta.coords[0]*attackForward;
@@ -2862,7 +2873,11 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
         ('      if (quickRestarts && std::strcmp(quickRestarts, "1") == 0 &&', r'''      const char* pace=std::getenv("TRIBUN_NATIVE_MATCH_PACE");
       const char* fixed=std::getenv("TRIBUN_NATIVE_FIXED_DURATION");
       const char* attack=std::getenv("TRIBUN_LEAGUE_SOCCER_ATTACK");
-      const bool paceRestart=pace&&std::strcmp(pace,"1")==0&&fixed&&std::strcmp(fixed,"1")==0&&
+      const char* combined=std::getenv("TRIBUN_NATIVE_COMBINED_AI");
+      const char* nullMode=std::getenv("TRIBUN_NATIVE_NULL_RENDERER");
+      const bool combinedRestart=combined&&std::strcmp(combined,"1")==0&&nullMode&&std::strcmp(nullMode,"1")==0&&
+        !std::getenv("TRIBUN_LEAGUE_SOCCER_COMMAND_DIR");
+      const bool paceRestart=((pace&&std::strcmp(pace,"1")==0)||combinedRestart)&&fixed&&std::strcmp(fixed,"1")==0&&
           attack&&std::strcmp(attack,"short-match")==0&&std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
       if (((quickRestarts && std::strcmp(quickRestarts, "1") == 0)||paceRestart) &&'''),
     ])
