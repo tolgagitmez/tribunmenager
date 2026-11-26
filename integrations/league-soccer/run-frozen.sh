@@ -8,6 +8,9 @@ out="$(realpath -m "$3")"
 render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+if [[ "${TRIBUN_NATIVE_VISUAL_RNG:-0}" == 1 || "${TRIBUN_NATIVE_SKIP_PITCH_TEXTURE:-0}" == 1 ]]; then
+  [[ "${TRIBUN_NATIVE_VISUAL_RNG:-0}" == 1 && "${TRIBUN_NATIVE_LEAN_SCENE:-0}" == 1 && "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 ]] || { echo "Visual RNG requires isolated lean null mode" >&2; exit 2; }
+fi
 if [[ "${TRIBUN_NATIVE_LEAN_SCENE:-0}" == 1 ]]; then
   [[ "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_NO_DRAW:-0}" == 1 && "${TRIBUN_NATIVE_NO_UPLOAD:-0}" == 1 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_SHARED_ASSETS:-0}" != 1 && "$render_interval" == 100 ]] || { echo "Lean scene requires isolated null mode" >&2; exit 2; }
 fi

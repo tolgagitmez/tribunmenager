@@ -93,8 +93,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False):
     name,scale,quick=profile
+    if type(visual_rng) is not bool or type(skip_pitch) is not bool or (visual_rng and not (null_renderer and lean_scene)) or (skip_pitch and not visual_rng):
+        raise ValueError("Pitch diagnostic requires isolated visual RNG and lean null scene")
     if type(lean_scene) is not bool or (lean_scene and (not null_renderer or shared_assets)):
         raise ValueError("Lean scene requires isolated null backend and full-copy runtime")
     if type(shared_assets) is not bool or type(sample_pss) is not bool or ((shared_assets or sample_pss) and not null_renderer):
@@ -119,6 +121,8 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_NULL_RENDERER"]="1" if null_renderer else "0"
     env["TRIBUN_NATIVE_SHARED_ASSETS"]="1" if shared_assets else "0"
     env["TRIBUN_NATIVE_LEAN_SCENE"]="1" if lean_scene else "0"
+    env["TRIBUN_NATIVE_VISUAL_RNG"]="1" if visual_rng else "0"
+    env["TRIBUN_NATIVE_SKIP_PITCH_TEXTURE"]="1" if skip_pitch else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -185,7 +189,13 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         log_text=Path(str(trace)+".log").read_text(errors="replace")
         if any(marker not in log_text for marker in ("[tribun-lean] pitch-only=1 crowd-audio=0","[tribun-lean] audio-backend=null")):
             raise ValueError("Missing lean scene evidence")
+    if visual_rng:
+        marker="[tribun-visual] rng=isolated pitch-texture="+("off" if skip_pitch else "on")
+        if marker not in Path(str(trace)+".log").read_text(errors="replace"):
+            raise ValueError("Missing visual RNG evidence")
     report=stats.report()
+    report["visualRng"]=visual_rng
+    report["skipPitchTexture"]=skip_pitch
     report["leanScene"]=lean_scene
     report["launchToKickoffMs"]=round((stats.first_wall-launch)*1000)
     report["sharedAssets"]=shared_assets

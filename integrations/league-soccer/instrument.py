@@ -512,6 +512,113 @@ def lightweight_audio(source):
 #ifdef GF_USE_OPENAL
   if (requestedRenderer == "openal") {''')
 
+VISUAL_RNG_HEADER = r'''#pragma once
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+
+namespace tribun_visual {
+inline bool flag(const char* key) {
+  const char* value=std::getenv(key);
+  return value && std::strcmp(value,"1")==0;
+}
+inline bool enabled() {
+  return flag("TRIBUN_NATIVE_VISUAL_RNG") && flag("TRIBUN_NATIVE_NULL_RENDERER") &&
+         flag("TRIBUN_NATIVE_NO_DRAW") && flag("TRIBUN_NATIVE_NO_UPLOAD");
+}
+inline bool skipPitch() { return enabled() && flag("TRIBUN_NATIVE_SKIP_PITCH_TEXTURE"); }
+inline std::uint32_t seed(std::uint32_t domain) {
+  const char* raw=std::getenv("TRIBUN_LEAGUE_SOCCER_SEED");
+  const auto base=raw ? static_cast<std::uint32_t>(std::strtoul(raw,nullptr,10)) : 2026u;
+  std::uint32_t v=base ^ domain;
+  v ^= v >> 16; v *= 0x7feb352du; v ^= v >> 15; v *= 0x846ca68bu; v ^= v >> 16;
+  return v;
+}
+class Stream {
+  std::uint32_t state_;
+public:
+  explicit Stream(std::uint32_t value):state_(value){}
+  void reset(std::uint32_t value){state_=value;}
+  std::uint32_t next(){state_=state_*1664525u+1013904223u; return state_;}
+  float range(float lo,float hi){return lo+(hi-lo)*static_cast<float>(next()>>8)*(1.0f/16777216.0f);}
+};
+}
+'''
+
+def visual_pitch_rng(source):
+    source = replace_once(source, '#include "proceduralpitch.hpp"',
+                          '#include "proceduralpitch.hpp"\n#include "tribun_visual_rng.hpp"')
+    source = replace_once(source, "float* perlinTex;",
+        """static thread_local tribun_visual::Stream pitchVisual(0);
+static float TribunPitchFast(float lo, float hi) {
+  return tribun_visual::enabled() ? pitchVisual.range(lo,hi) : fastrandom(lo,hi);
+}
+float* perlinTex;""")
+    # All fast-random consumers in this translation unit are visual pixel generation.
+    old = "fastrandom(-1, 1)"
+    if source.count(old) != 7: raise SystemExit("Unexpected pitch fast RNG sites")
+    source = source.replace(old, "TribunPitchFast(-1, 1)")
+    source = replace_once(source, "  signed int offsetW, offsetH;",
+                          "  if (tribun_visual::enabled()) pitchVisual.reset(tribun_visual::seed(0x50495400u + i));\n  signed int offsetW, offsetH;")
+    source = replace_once(source, "  int seed = static_cast<int>(time(nullptr));",
+                          "  int seed = tribun_visual::enabled() ? static_cast<int>(tribun_visual::seed(0x5045524cu) & 0x3fffffffu) : static_cast<int>(time(nullptr));")
+    source = replace_once(source, "  float grassNormalRepeatMultiplier = (random(0, 1) > 0.5f) ? 1.0f : 0.5f;",
+        """  tribun_visual::Stream grassVisual(tribun_visual::seed(0x47524153u));
+  float grassNormalRepeatMultiplier = ((tribun_visual::enabled() ? grassVisual.range(0,1) : random(0, 1)) > 0.5f) ? 1.0f : 0.5f;""")
+    return source
+
+def visual_perlin_header(source):
+    source = replace_once(source, "#include <stdlib.h>",
+                          '#include <stdlib.h>\n#include "../onthepitch/tribun_visual_rng.hpp"')
+    return replace_once(source, "    int   mSeed;",
+                          "    int   mSeed;\n    tribun_visual::Stream visualRng{0};")
+
+def visual_perlin_source(source):
+    if source.count("    srand(mSeed);") != 3 or source.count("rand() %") != 4:
+        raise SystemExit("Unexpected Perlin RNG sites")
+    source = source.replace("    srand(mSeed);",
+        "    if (tribun_visual::enabled()) visualRng.reset(static_cast<std::uint32_t>(mSeed));\n    else srand(mSeed);")
+    # Keep signed arithmetic in the noise table and leave legacy path untouched.
+    return source.replace("rand() %", "(tribun_visual::enabled() ? static_cast<int>(visualRng.next() & 0x7fffffffu) : rand()) %")
+
+def visual_match_rng(source):
+    source = replace_once(source, '#include "match.hpp"',
+                          '#include "match.hpp"\n#include "tribun_visual_rng.hpp"')
+    anchor = "void Match::SetRandomSunParams() {"
+    start = source.index(anchor)
+    end = source.index("void Match::RandomizeAdboards(",start)
+    section = source[start:end]
+    if section.count("random(") != 6:raise SystemExit("Unexpected sunlight RNG sites")
+    section = section.replace("random(", "sunRandom(")
+    section = replace_once(section,anchor,anchor+"""
+  static thread_local tribun_visual::Stream sunlight(tribun_visual::seed(0x53554e31u));
+  auto sunRandom = [&](float lo,float hi) {
+    return tribun_visual::enabled() ? sunlight.range(lo,hi) : random(lo,hi);
+  };""")
+    source=source[:start]+section+source[end:]
+    source = replace_once(source, "  Vector3 shudder = Vector3(random(-0.1f, 0.1f), random(-0.1f, 0.1f), 0) *",
+        """  static thread_local tribun_visual::Stream cameraVisual(tribun_visual::seed(0x43414d31u));
+  auto cameraRandom = [&](float lo,float hi) {
+    return tribun_visual::enabled() ? cameraVisual.range(lo,hi) : random(lo,hi);
+  };
+  Vector3 shudder = Vector3(cameraRandom(-0.1f, 0.1f), cameraRandom(-0.1f, 0.1f), 0) *""")
+    source = replace_once(source, """  if (IsReleaseVersion()) {
+    GeneratePitch(2048, 1024, 1024, 512, 2048, 1024);
+  } else {
+    GeneratePitch(1024, 512, 1024, 512, 2048, 1024);
+  }""", """  if (tribun_visual::enabled()) {
+    std::printf("[tribun-visual] rng=isolated pitch-texture=%s\\n", tribun_visual::skipPitch() ? "off" : "on");
+    std::fflush(stdout);
+  }
+  if (!tribun_visual::skipPitch()) {
+    if (IsReleaseVersion()) {
+      GeneratePitch(2048, 1024, 1024, 512, 2048, 1024);
+    } else {
+      GeneratePitch(1024, 512, 1024, 512, 2048, 1024);
+    }
+  }""")
+    return source
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -535,6 +642,18 @@ def main():
     audio_source = audio_path.read_text(encoding="utf-8")
     if "[tribun-lean] audio-backend=null" not in audio_source:
         audio_path.write_text(lightweight_audio(audio_source), encoding="utf-8")
+    src = pathlib.Path(sys.argv[1]) / "src"
+    (src / "onthepitch/tribun_visual_rng.hpp").write_text(VISUAL_RNG_HEADER, encoding="utf-8")
+    for relative,marker,transform in (
+        ("onthepitch/proceduralpitch.cpp","TribunPitchFast",visual_pitch_rng),
+        ("misc/perlin.h","visualRng{0}",visual_perlin_header),
+        ("misc/perlin.cpp","visualRng.reset",visual_perlin_source),
+        ("onthepitch/match.cpp","[tribun-visual] rng=isolated",visual_match_rng),
+    ):
+        target = src / relative
+        original = target.read_text(encoding="utf-8")
+        if marker not in original:
+            target.write_text(transform(original), encoding="utf-8")
     path = pathlib.Path(sys.argv[1]) / "src/onthepitch/match.cpp"
     text = path.read_text(encoding="utf-8")
     if "static bool TribunLeanScene()" not in text:

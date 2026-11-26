@@ -1,0 +1,39 @@
+name: Native visual RNG diagnostic
+on:
+  push:
+    branches: [experiment/native-visual-rng-stage47]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_visual_rng.py'
+      - '.github/workflows/native-visual-rng.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual-rng:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_visual_rng.py
+      - run: python3 -m unittest discover -s tests -p test_native_lean_scene.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/visual-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare procedural pitch texture on and off
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/visual-fixtures"
+          python3 integrations/league-soccer/visual-rng-benchmark.py "$RUNNER_TEMP/visual-runtime" "$RUNNER_TEMP/visual-fixtures/balanced.json" "$RUNNER_TEMP/visual-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-rng-diagnostic
+          path: ${{ runner.temp }}/visual-results/
+          if-no-files-found: ignore
