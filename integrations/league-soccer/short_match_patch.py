@@ -4105,6 +4105,18 @@ struct FixedDurationClock {'''),
 
 
 
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ("        team->GetController()->TribunTimedPassContact(CastPlayer(),targetPlayer,\n            currentAnim->functionType==e_FunctionType_LongPass);", r'''        team->GetController()->TribunTimedPassContact(CastPlayer(),targetPlayer,
+            currentAnim->functionType==e_FunctionType_LongPass);
+        if(AITactics::PassTiming186Enabled() && tribunAudit && targetPlayer &&
+            currentAnim->functionType==e_FunctionType_LongPass)
+          std::fprintf(stderr,"[tribun-pass-timing-contact] team=%d passer=%d receiver=%d match_ms=%lu\n",
+              team->GetID(),player->GetID(),targetPlayer->GetID(),
+              static_cast<unsigned long>(match->GetMatchTime_ms()));'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
