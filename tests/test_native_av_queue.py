@@ -3,6 +3,8 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+import native_season
+from test_native_season import fixture
 from concurrent.futures import ThreadPoolExecutor
 
 spec=importlib.util.spec_from_file_location('avqueue',Path(__file__).resolve().parents[1]/'integrations/league-soccer/native_av_queue.py')
@@ -26,7 +28,9 @@ class QueueTest(unittest.TestCase):
             jobs=list(pool.map(lambda _:q.claim(self.path,1,100),range(2)))
         self.assertEqual(sum(j is not None for j in jobs),1)
         key,sha,config,attempt=next(j for j in jobs if j)
-        result=dict(authoritative=False,verified=True,configSha256=sha,score=[1,0])
+        f,m=fixture()
+        result=dict(authoritative=False,verified=True,configSha256=sha,score=f['score'],season=native_season.candidate(f,m))
+        with self.assertRaises(ValueError):q.finish(self.path,key,sha,attempt,report={k:v for k,v in result.items() if k!='season'})
         self.assertFalse(q.finish(self.path,key,sha,'wrong',report=result))
         self.assertTrue(q.finish(self.path,key,sha,attempt,report=result))
         self.assertFalse(q.finish(self.path,key,sha,attempt,report=result))

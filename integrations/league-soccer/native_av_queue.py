@@ -66,7 +66,7 @@ def claim(path, slots, now=None):
 def finish(path,key,sha,attempt,report=None,error=None):
     if (report is None)==(error is None):raise ValueError('Exactly one completion required')
     if report is not None:
-        if report.get('authoritative') is not False or report.get('configSha256')!=sha or report.get('verified') is not True:
+        if report.get('authoritative') is not False or report.get('configSha256')!=sha or report.get('verified') is not True or not isinstance(report.get('season'),dict):
             raise ValueError('Unverified or authoritative AV result')
     with closing(sqlite3.connect(path,timeout=20)) as db,db:
         db.row_factory=sqlite3.Row
@@ -77,7 +77,7 @@ def finish(path,key,sha,attempt,report=None,error=None):
             " AND state='running' AND config_sha=? AND attempt=?",
             ('ready' if report is not None else 'failed',time.time(),canonical(report) if report is not None else None,
              error,*key,sha,attempt)).rowcount==1
-        if updated and report is not None and "season" in report:
+        if updated and report is not None:
             native_av_season.apply(db,key,report)
         return updated
 
