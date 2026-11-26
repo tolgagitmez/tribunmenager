@@ -26,3 +26,24 @@ class MediaAuditTest(unittest.TestCase):
         d=fixture();d["packets"]=track(0)+track(1,3,.02,500)
         self.assertFalse(analyze(d,True,10)["timelinePassed"])
         with self.assertRaises(ValueError):timeline([dict(pts_time="nan",dts_time=0,duration_time=.04)])
+
+    def test_missing_durations_use_bounded_cadence(self):
+        d=fixture()
+        for p in d["packets"]:
+            if p["stream_index"]==0:p.pop("duration_time")
+        d["packets"][-1]["duration_time"]="N/A"
+        result=analyze(d,True,10)
+        self.assertTrue(result["timelinePassed"])
+        self.assertEqual(result["tracks"]["video"]["durationEstimatedPackets"],250)
+        self.assertEqual(result["tracks"]["audio"]["durationEstimatedPackets"],1)
+        # Missing durations cannot absorb a gap between actual timestamps.
+        d["packets"]=d["packets"][:100]+d["packets"][130:]
+        result=analyze(d,True,8)
+        self.assertFalse(result["timelinePassed"])
+        self.assertGreater(result["tracks"]["video"]["maxGapSeconds"],1)
+    def test_missing_without_cadence_and_invalid_reported_duration(self):
+        with self.assertRaises(ValueError):timeline([dict(pts_time=0,dts_time=0)])
+        d=fixture(False);d["packets"][0]["duration_time"]="0"
+        with self.assertRaises(ValueError):analyze(d,False,10)
+        del d["packets"][0]["pts_time"]
+        with self.assertRaises(KeyError):analyze(d,False,10)

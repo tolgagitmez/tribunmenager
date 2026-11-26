@@ -1,7 +1,7 @@
 name: Native stream full audiovisual and manager validation
 on:
   push:
-    branches: [experiment/native-stream-validation-stage120]
+    branches: [experiment/native-stream-validation-stage120, experiment/native-timeline-repair-stage121]
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,6 +23,7 @@ jobs:
       - run: npx playwright install --with-deps chrome
       - name: Verify real FFmpeg packet timing and Chrome playback on diagnostic input
         run: |
+          result=0
           for audio in silent audio; do
             out="$RUNNER_TEMP/transport-$audio"
             flags=()
@@ -30,10 +31,15 @@ jobs:
             python3 integrations/league-soccer/stream-transport-smoke.py "$out" "${flags[@]}" &
             pid=$!
             trap 'kill "$pid" 2>/dev/null || true' EXIT
-            node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt"
-            wait "$pid"
+            browser_status=0
+            node integrations/league-soccer/native-live-video-browser.cjs "$out/local-url.txt" || browser_status=$?
+            producer_status=0
+            wait "$pid" || producer_status=$?
             trap - EXIT
+            echo "mode=$audio browser=$browser_status producer=$producer_status"
+            if [[ "$browser_status" != 0 || "$producer_status" != 0 ]]; then result=1; fi
           done
+          exit "$result"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

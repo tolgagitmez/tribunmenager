@@ -21,6 +21,7 @@ def main():
         result=L.validate_playlist(media)
         from native_media_audit import audit_media
         audit=audit_media(media/"live.m3u8",a.audio,15)
+        print(json.dumps({"syntheticOnly":True,"audio":a.audio,"timeline":audit}),flush=True)
         (out/"transport-report.json").write_text(json.dumps({"syntheticOnly":True,"audio":a.audio,**result,"mediaTimeline":audit},indent=2))
         if not audit["timelinePassed"]:raise RuntimeError("Synthetic transport timestamp audit failed")
         time.sleep(10)

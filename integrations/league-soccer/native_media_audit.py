@@ -7,11 +7,20 @@ def finite(v):
     n=float(v)
     require(math.isfinite(n),"Nonfinite timestamp")
     return n
-def timeline(packets):
+def timeline(packets,nominal_duration=None):
     require(isinstance(packets,list) and 0<len(packets)<=100000,"Missing or excessive packets")
-    spans=[];last_dts=None;regressions=0
+    spans=[];last_dts=None;regressions=0;estimated=0
+    # Some FFprobe versions omit packet duration for fragmented MP4, even
+    # with valid PTS/DTS. Do not treat a large interval as one long sample.
+    # The only supported fallback is the known encoder cadence.
     for p in packets:
-        pts=finite(p["pts_time"]);dts=finite(p["dts_time"]);duration=finite(p["duration_time"])
+        pts=finite(p["pts_time"]);dts=finite(p["dts_time"])
+        raw=p.get("duration_time")
+        if raw is None or raw=="N/A":
+            require(nominal_duration is not None and 0<nominal_duration<=.1,"Missing duration without known encoder cadence")
+            duration=nominal_duration;estimated+=1
+        else:
+            duration=finite(raw)
         require(0<duration<=1 and abs(pts)<=1200 and abs(dts)<=1200,"Invalid packet timing")
         if last_dts is not None and dts<last_dts-1e-6:regressions+=1
         last_dts=dts;spans.append((pts,pts+duration))
@@ -25,7 +34,10 @@ def timeline(packets):
         end=max(end,b)
     return {"packets":len(spans),"startSeconds":start,"endSeconds":end,
        "spanSeconds":end-start,"coveredSeconds":covered,"maxGapSeconds":gap,
-       "gapsOver120ms":gap_count,"dtsRegressions":regressions}
+       "gapsOver120ms":gap_count,"dtsRegressions":regressions,
+       "durationEstimatedPackets":estimated,"durationReportedPackets":len(spans)-estimated,
+       "estimatedDurationUpperSeconds":estimated*(nominal_duration or 0),
+       "nominalDurationSeconds":nominal_duration}
 def analyze(data,audio_requested,expected_seconds):
     require(type(expected_seconds) in (float,int) and math.isfinite(expected_seconds) and 0<expected_seconds<=900,"Missing expected capture duration")
     streams=data["streams"];packets=data["packets"]
@@ -42,7 +54,11 @@ def analyze(data,audio_requested,expected_seconds):
     for p in packets:
         require(p["stream_index"] in rows,"Unexpected packet stream")
         rows[p["stream_index"]].append(p)
-    tracks={kind:timeline(rows[s["index"]]) for kind,s in by_kind.items()}
+    # This isolated pipeline encodes CFR 25fps AVC and AAC-LC at 48kHz.
+    # Missing durations use one sample period only; measured PTS/DTS are
+    # still required for every packet and remain the basis of gap detection.
+    periods={"video":1/25,"audio":1024/48000}
+    tracks={kind:timeline(rows[s["index"]],periods[kind]) for kind,s in by_kind.items()}
     checks={kind:row["dtsRegressions"]==0 and row["maxGapSeconds"]<=.5 and row["coveredSeconds"]>=expected_seconds-1 for kind,row in tracks.items()}
     skew=None
     if audio_requested:
@@ -51,7 +67,7 @@ def analyze(data,audio_requested,expected_seconds):
               "endDifferenceSeconds":abs(a["endSeconds"]-b["endSeconds"])}
         checks["avEnvelope"]=max(skew.values())<=2
     return {"timelinePassed":all(checks.values()),"checks":checks,"tracks":tracks,"avEnvelope":skew,
-        "note":"Encoded packet timing and coverage only; not unique rendered FPS, end-to-end latency or perceptual sound synchronization."}
+        "note":"Encoded packet timestamps and coverage; absent durations estimated from fixed encoder cadence and counted explicitly. Not unique rendered FPS, end-to-end latency or perceptual sound synchronization."}
 def audit_media(playlist,audio_requested,expected_seconds):
     playlist=Path(playlist).resolve()
     data=json.loads(subprocess.check_output(["ffprobe","-v","error","-protocol_whitelist","file,crypto,data","-allowed_extensions","ALL",
