@@ -1,0 +1,40 @@
+name: Native surface impact physics diagnostic
+on:
+  push:
+    branches: [experiment/native-surface-impact-stage57]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_surface_impact.py'
+      - '.github/workflows/native-surface-impact.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contact-cadence:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m py_compile integrations/league-soccer/instrument.py integrations/league-soccer/surface-impact-benchmark.py integrations/league-soccer/timing-benchmark.py
+      - run: python3 -m unittest discover -s tests -p test_native_surface_impact.py
+      - run: python3 -m unittest discover -s tests -p test_native_collision_pose.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/impact-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare legacy and surface impact in two tactical fixtures
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/impact-fixtures"
+          python3 integrations/league-soccer/surface-impact-benchmark.py "$RUNNER_TEMP/impact-runtime" "$RUNNER_TEMP/impact-fixtures" "$RUNNER_TEMP/impact-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-surface-impact
+          path: ${{ runner.temp }}/impact-results/
+          if-no-files-found: ignore

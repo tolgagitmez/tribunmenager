@@ -199,6 +199,10 @@ void TribunTrace(Match& match, bool done) {
       tribun_visual::adaptiveContact()?"adaptive":"uniform",match.tribunPlayerPoseUpdates,
       match.tribunHighPoseUpdates,match.tribunMediumPoseUpdates,match.tribunLowPoseUpdates,
       match.tribunContactQueries,match.tribunContactMissing,match.tribunContactStale,match.tribunContactMaxAge);
+    std::printf("[tribun-impact] mode=%s legacy=%lu surface=%lu rejected=%lu regions=%lu,%lu,%lu,%lu,%lu,%lu before=%.6f after=%.6f energy-violations=%lu\n",
+      tribun_visual::surfaceImpact()?"surface":"legacy",match.tribunLegacyImpacts,match.tribunSurfaceImpacts,match.tribunSeparatingRejected,
+      match.tribunImpactRegions[0],match.tribunImpactRegions[1],match.tribunImpactRegions[2],match.tribunImpactRegions[3],match.tribunImpactRegions[4],match.tribunImpactRegions[5],
+      match.tribunRelativeBefore,match.tribunRelativeAfter,match.tribunEnergyViolations);
     std::fflush(stdout);
   }
   output.imbue(std::locale::classic());
@@ -547,6 +551,7 @@ inline bool deterministicProbe() {
 inline bool orderedPose() { return deterministicProbe() && flag("TRIBUN_NATIVE_ORDERED_POSE"); }
 inline bool collisionOnly() { return orderedPose() && flag("TRIBUN_NATIVE_COLLISION_POSE"); }
 inline bool adaptiveContact() { return collisionOnly() && flag("TRIBUN_NATIVE_ADAPTIVE_CONTACT"); }
+inline bool surfaceImpact() { return collisionOnly() && flag("TRIBUN_NATIVE_SURFACE_IMPACT"); }
 inline unsigned adaptiveTicks(float predictedDistance,bool dangerousAction,bool closeOpponent) {
   if (dangerousAction || closeOpponent || predictedDistance <= 5.0f) return 1;
   if (predictedDistance <= 12.0f) return 2;
@@ -971,6 +976,130 @@ void Match::TribunUpdateCollisionPose() {""")
         """          TribunObserveContactPose(players[i]);
           players[i]->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry, objectList);""")
 
+IMPACT_HEADER = r'''#pragma once
+#include <algorithm>
+#include <cmath>
+#include <string>
+namespace tribun_impact {
+struct Vec { float x,y,z; };
+inline Vec add(Vec a,Vec b){return {a.x+b.x,a.y+b.y,a.z+b.z};}
+inline Vec sub(Vec a,Vec b){return {a.x-b.x,a.y-b.y,a.z-b.z};}
+inline Vec mul(Vec a,float s){return {a.x*s,a.y*s,a.z*s};}
+inline float dot(Vec a,Vec b){return a.x*b.x+a.y*b.y+a.z*b.z;}
+inline float length(Vec a){return std::sqrt(dot(a,a));}
+inline bool finite(Vec a){return std::isfinite(a.x)&&std::isfinite(a.y)&&std::isfinite(a.z);}
+enum Region { Foot, Leg, Torso, Head, Arm, Other, RegionCount };
+inline Region region(const std::string& name) {
+  if(name.find("foot")!=std::string::npos || name.find("toe")!=std::string::npos)return Foot;
+  if(name.find("leg")!=std::string::npos)return Leg;
+  if(name.find("head")!=std::string::npos)return Head;
+  if(name.find("arm")!=std::string::npos || name.find("hand")!=std::string::npos ||
+     name.find("elbow")!=std::string::npos || name.find("shoulder")!=std::string::npos)return Arm;
+  if(name.find("body")!=std::string::npos || name.find("middle")!=std::string::npos ||
+     name.find("torso")!=std::string::npos || name.find("chest")!=std::string::npos)return Torso;
+  return Other;
+}
+struct Material {float restitution,tangentRetention;};
+inline Material material(Region r){
+  switch(r){
+    case Foot:return {0.48f,0.78f};
+    case Leg:return {0.38f,0.80f};
+    case Torso:return {0.25f,0.72f};
+    case Head:return {0.42f,0.85f};
+    case Arm:return {0.30f,0.72f};
+    default:return {0.30f,0.75f};
+  }
+}
+// Approximate normal of the original axis-aligned body-part bounds.
+// If the center is inside, use the nearest face with stable tie order.
+inline Vec normal(Vec p,Vec lo,Vec hi){
+  Vec closest{std::clamp(p.x,lo.x,hi.x),std::clamp(p.y,lo.y,hi.y),std::clamp(p.z,lo.z,hi.z)};
+  Vec delta=sub(p,closest);
+  const float d=length(delta);
+  if(d>1e-6f)return mul(delta,1/d);
+  const float gap[]={p.x-lo.x,hi.x-p.x,p.y-lo.y,hi.y-p.y,p.z-lo.z,hi.z-p.z};
+  const Vec normals[]={{-1,0,0},{1,0,0},{0,-1,0},{0,1,0},{0,0,-1},{0,0,1}};
+  int best=0;for(int j=1;j<6;++j)if(gap[j]<gap[best])best=j;
+  return normals[best];
+}
+struct Result {bool valid=false; Vec velocity{0,0,0}; float approach=0,relativeBefore=0,relativeAfter=0;};
+inline Result resolve(Vec p,Vec lo,Vec hi,Vec incoming,Vec body,Region r){
+  if(!finite(p)||!finite(lo)||!finite(hi)||!finite(incoming)||!finite(body)||
+     lo.x>hi.x||lo.y>hi.y||lo.z>hi.z)return {};
+  const Vec n=normal(p,lo,hi), rel=sub(incoming,body);
+  const float vn=dot(rel,n);
+  if(vn>=-0.02f)return {}; // already separating / nearly tangent
+  const auto m=material(r);
+  const Vec tangent=sub(rel,mul(n,vn));
+  const Vec after=add(mul(tangent,m.tangentRetention),mul(n,-vn*m.restitution));
+  const Vec out=add(body,after);
+  if(!finite(out))return {};
+  return {true,out,-vn,length(rel),length(after)};
+}
+}
+'''
+
+def surface_impact_header(source):
+    return replace_once(source,"  void TribunObserveContactPose(Player* player);",
+        """  void TribunObserveContactPose(Player* player);
+  unsigned long tribunLegacyImpacts=0, tribunSurfaceImpacts=0, tribunSeparatingRejected=0;
+  unsigned long tribunImpactRegions[6]={0,0,0,0,0,0};
+  double tribunRelativeBefore=0, tribunRelativeAfter=0;
+  unsigned long tribunEnergyViolations=0;""")
+
+def surface_impact_match(source):
+    source=replace_once(source,'#include "tribun_visual_rng.hpp"',
+        '#include "tribun_visual_rng.hpp"\n#include "tribun_surface_impact.hpp"')
+    start=source.index("void Match::CheckBallCollisions() {")
+    end=source.index("void Match::FollowCamera(",start)
+    section=source[start:end]
+    section=replace_once(section,"  float tackleBallExcitement = 0.0f;", """  float tackleBallExcitement = 0.0f;
+  const bool surfaceMode=tribun_visual::surfaceImpact();
+  tribun_impact::Result bestImpact;
+  tribun_impact::Region bestRegion=tribun_impact::Other;
+  Player* impactPlayer=nullptr;
+  const auto asVec=[](const Vector3& v){return tribun_impact::Vec{v.coords[0],v.coords[1],v.coords[2]};};""")
+    section=replace_once(section,"          TribunObserveContactPose(players[i]);",
+        """          TribunObserveContactPose(players[i]);
+          if (surfaceMode) objectList.clear();""")
+    section=replace_once(section,"                // todonow: average bouncevec and bias together per hit",
+        """                if (surfaceMode) {
+                  const auto region=tribun_impact::region((*objIter)->GetName());
+                  const auto result=tribun_impact::resolve(asVec(ball->Predict(0)),
+                      asVec(objAABB.minxyz),asVec(objAABB.maxxyz),asVec(ball->GetMovement()),
+                      asVec(players[i]->GetMovement()),region);
+                  if (result.valid && (!bestImpact.valid || result.approach>bestImpact.approach)) {
+                    bestImpact=result;
+                    bestRegion=region;
+                    impactPlayer=players[i];
+                  } else if (!result.valid) {
+                    ++tribunSeparatingRejected;
+                  }
+                  ++objIter;
+                  continue;
+                }
+                // todonow: average bouncevec and bias together per hit""")
+    section=replace_once(section,"  if (bias > 0.0f) {", """  if (surfaceMode && bestImpact.valid && impactPlayer) {
+    ++tribunSurfaceImpacts;
+    ++tribunImpactRegions[bestRegion];
+    tribunRelativeBefore+=bestImpact.relativeBefore;
+    tribunRelativeAfter+=bestImpact.relativeAfter;
+    if (bestImpact.relativeAfter>bestImpact.relativeBefore+0.0001f) ++tribunEnergyViolations;
+    impactPlayer->GetTeam()->SetLastTouchPlayer(impactPlayer,e_TouchType_Accidental);
+    Vector3 resultVector(bestImpact.velocity.x,bestImpact.velocity.y,bestImpact.velocity.z);
+    ball->Touch(resultVector);
+    // Retain pre-contact spin; this model does not yet estimate angular impulse.
+    ball->TriggerBallTouchSound(pow(NormalizedClamp(resultVector.GetLength(),4.0f,40.0f),0.7f));
+    if (impactPlayer->GetCurrentFunctionType()==e_FunctionType_Sliding)
+      AddExcitementBoost(0.35f,1400);
+    else if (impactPlayer->GetCurrentFunctionType()==e_FunctionType_Interfere)
+      AddExcitementBoost(0.22f,1400);
+    lastBodyBallCollisionTime_ms=actualTime_ms;
+  }
+  if (bias > 0.0f) {
+    if (tribun_visual::collisionOnly()) ++tribunLegacyImpacts;""")
+    return source[:start]+section+source[end:]
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -1007,6 +1136,7 @@ def main():
     if "[tribun-workers] hardware=" not in worker_source:
         worker_path.write_text(limit_native_workers(worker_source), encoding="utf-8")
     (src / "onthepitch/tribun_visual_rng.hpp").write_text(VISUAL_RNG_HEADER, encoding="utf-8")
+    (src / "onthepitch/tribun_surface_impact.hpp").write_text(IMPACT_HEADER, encoding="utf-8")
     for relative,marker,transform in (
         ("onthepitch/proceduralpitch.cpp","TribunPitchFast",visual_pitch_rng),
         ("misc/perlin.h","visualRng{0}",visual_perlin_header),
@@ -1029,6 +1159,8 @@ def main():
         ("onthepitch/match.cpp","++tribunBallOverlaps",contact_probe),
         ("onthepitch/match.hpp","tribunPlayerPoseTick",adaptive_contact_header),
         ("onthepitch/match.cpp","void Match::TribunObserveContactPose",adaptive_contact_match),
+        ("onthepitch/match.hpp","tribunLegacyImpacts",surface_impact_header),
+        ("onthepitch/match.cpp","bestImpact.relativeAfter",surface_impact_match),
     ):
         target=src/relative
         original=target.read_text(encoding="utf-8")
