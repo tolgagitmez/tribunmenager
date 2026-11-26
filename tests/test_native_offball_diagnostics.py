@@ -18,3 +18,16 @@ class OffballDiagnosticsTest(unittest.TestCase):
             self.assertEqual(r['uniquePlayers'],2)
             self.assertEqual(r['duplicateSamples'],1)
             self.assertEqual(r['invalidLines'],1)
+
+
+    def test_coordination_samples(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'game.log'
+            a='[tribun-coordinated189] team=0 player=7 paired=1 match_ms=100\n'
+            b=a.replace('paired=1','paired=0').replace('match_ms=100','match_ms=200')
+            p.write_text(a+a+b+a.replace('paired=1','paired=2'))
+            r=inspect_offball(p)
+            self.assertEqual(r['coordinationSamples'],{'paired':1,'unpaired':1})
+            self.assertEqual(r['duplicateSamples'],1)
+            self.assertEqual(r['invalidLines'],1)
+            self.assertTrue(r['evidenceAvailable'])
