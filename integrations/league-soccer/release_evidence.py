@@ -62,6 +62,19 @@ FILES=(
  "season_state.py","server.py","football-sim.js","player-model.js","tactics.js",
  "integrations/league-soccer/native-stream-ui.js","integrations/league-soccer/native-stream-view.js",
  "integrations/league-soccer/native-replay.js","scene3d.js",
+ "humanoid-rig.js","player-renderer.js","player-skinning.js","character-palette-constraints.js",
+ "match-animation-bridge.js","ball-visual.js","gltf-asset-loader.mjs",
+ "assets/player/player-model-data.js","assets/player/SOURCE-LICENSE.md",
+ "assets/interchange/footballer.blender.glb","assets/interchange/SOURCE-LICENSE.md","assets/interchange/manifest.json",
+ "integrations/league-soccer/replay-ui.js","integrations/league-soccer/replay.html",
+ "integrations/league-soccer/replay-browser.cjs","integrations/league-soccer/replay-performance.js",
+ "integrations/league-soccer/native-clip-loader.mjs","integrations/league-soccer/broadcast-clock.js",
+ "integrations/league-soccer/contact-precision-audit.cjs","integrations/league-soccer/ground-recovery-audit.cjs",
+ "integrations/league-soccer/keeper-completion-audit.cjs","integrations/league-soccer/animation-blend-audit.cjs",
+ "integrations/league-soccer/motion-matching-audit.cjs","integrations/league-soccer/motion-identity-audit.cjs",
+ "integrations/league-soccer/anatomy-audit.cjs","integrations/league-soccer/collective-ai-benchmark.py",
+ "integrations/league-soccer/match-pace-benchmark.py","integrations/league-soccer/release-quality.py",
+ ".github/workflows/native-release-quality.yml","tests/test_native_release_quality.py",
 )
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()

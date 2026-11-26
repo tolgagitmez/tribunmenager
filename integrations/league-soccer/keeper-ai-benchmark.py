@@ -17,7 +17,7 @@ def evaluate(rows):
         if not integrated.mode_ok(row,True) or not integrated.stats_ok(row) or not integrated.resource_ok(row):
             raise ValueError("Invalid profile evidence")
         if row.get("keeperAI") is not (mode=="keeper") or any(row.get(k) is not False for k in
-            ("determinismProbe","orderedPose","collisionPose","adaptiveContact","surfaceImpact","angularImpact","sweptImpact","splitImpact","chainImpact","limbImpact","lineBreak","runLanes","triangle","creativeCarry","duel","holdUp","finish")):
+            ("determinismProbe","orderedPose","collisionPose","adaptiveContact","surfaceImpact","angularImpact","sweptImpact","splitImpact","chainImpact","limbImpact","lineBreak","runLanes","triangle","creativeCarry","duel","holdUp","finish","defenseShape","transition","roleProfile","closeTouch","motionSmooth","collectiveAI","matchPace")):
             raise ValueError("Policy is not isolated")
         p=row["keeperProbe"]
         keys=("narrows","intercepts","touches","controls","closed")

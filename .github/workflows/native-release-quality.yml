@@ -1,0 +1,41 @@
+name: Native release quality matrix
+on:
+  push:
+    branches: [experiment/native-release-quality-stage99]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-quality:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate quality and release gates
+        run: |
+          python3 -m unittest discover -s tests -p 'test_native_*.py'
+          node --test integrations/league-soccer/*.test.cjs
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Freeze tactical fixtures
+        run: node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/quality-fixtures"
+      - name: Build single frozen runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/quality-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare twelve matches and audit actual replay
+        run: python3 integrations/league-soccer/release-quality.py "$RUNNER_TEMP/quality-runtime" "$RUNNER_TEMP/quality-fixtures" "$RUNNER_TEMP/quality-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-release-quality
+          path: |
+            ${{ runner.temp }}/quality-results/
+            ${{ runner.temp }}/quality-fixtures/
+          if-no-files-found: ignore

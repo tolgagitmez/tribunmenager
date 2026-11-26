@@ -15,7 +15,7 @@ def evaluate(rows):
         enabled=mode=="collective"
         if not I.mode_ok(row,True) or not I.stats_ok(row) or not I.resource_ok(row):raise ValueError("Invalid profile evidence")
         if any(row.get(k) is not enabled for k in ("collectiveAI","runLanes","triangle","defenseShape","transition")):raise ValueError("Unexpected collective modes")
-        if any(row.get(k) is not False for k in ("lineBreak","creativeCarry","duel","holdUp","finish","keeperAI","roleProfile","closeTouch","motionSmooth","determinismProbe","orderedPose","collisionPose","adaptiveContact","surfaceImpact","angularImpact","sweptImpact","splitImpact","chainImpact","limbImpact")):raise ValueError("Non-collective policy active")
+        if any(row.get(k) is not False for k in ("lineBreak","creativeCarry","duel","holdUp","finish","keeperAI","roleProfile","closeTouch","motionSmooth","matchPace","determinismProbe","orderedPose","collisionPose","adaptiveContact","surfaceImpact","angularImpact","sweptImpact","splitImpact","chainImpact","limbImpact")):raise ValueError("Non-collective policy active")
         for group,keys in KEYS.items():
             p=row[group]
             if not all(I.metric_pair(p.get(k)) for k in keys):raise ValueError("Invalid probe")
