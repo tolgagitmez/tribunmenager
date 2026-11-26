@@ -141,11 +141,11 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false,motionMatching=false,playerMotionIdentity=false,playerAnatomy=false,clipLibrary=null}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false,motionMatching=false,playerMotionIdentity=false,playerAnatomy=false,clipLibrary=null,contactPrecision=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   // The combined profile enables all prior opt-in layers, but remains a
   // presentation experiment; the recorded match is still authoritative.
-  if(clipLibrary)playerAnatomy=true;
+  if(clipLibrary||contactPrecision)playerAnatomy=true;
   if(playerAnatomy)playerMotionIdentity=true;
   if(playerMotionIdentity)motionMatching=true;
   if(motionMatching)animationBlend=true;
@@ -379,6 +379,7 @@
      }:null;
     }
     if(clipLibrary)actor.nativeClipLibrary=actor.nativeBlend?clipLibrary:null;
+    if(contactPrecision)actor.nativeContactPrecision=actor.nativeBlend===true;
     active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion||keeperMotion||aerialMotion?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}

@@ -239,6 +239,80 @@ function nativeClipCue(p,phase,primary,duel){
  const arms=sampleClipArms(p.nativeClipLibrary,name,progress);
  return arms&&weight>0?{name,arms,weight}:null;
 }
+// Stage 93: improve contact proxies, never the simulated ball or player.
+const surfaceError=(point,center,radius=BALL_RADIUS)=>Math.abs(len(sub(point,center))-radius);
+function sphereSurface(point,center,radius=BALL_RADIUS){
+ const d=sub(point,center);return add(center,mul(len(d)>1e-8?unit(d):[1,0,0],radius));
+}
+function refineNativeContact(result,p,frame,anatomy,scale){
+ const report=[],bodyKeys=['pelvis','neck','head','headTop','torsoBase','torsoMid','torsoUpper'];
+ const exact=c=>c&&Math.abs(c.deltaMs)<=35&&c.weight>0;
+ const center=c=>[c.ball.x,c.ball.y,c.ball.z];
+ const addReport=(kind,before,after,correction)=>report.push({kind,before,after,correction});
+ const foot=p.nativeContact;
+ if(exact(foot)&&[0,1].includes(foot.foot)&&result.legs[foot.foot].nativeContact){
+  const i=foot.foot,l=result.legs[i],c=center(foot),before=surfaceError(l.toe,c),w=foot.weight*smooth(1-Math.abs(foot.deltaMs)/35);
+  let best=null,error=before;
+  const offset=sub(l.toe,l.ankle),yaw=Math.atan2(offset[2],offset[0]);
+  // Search a bounded boot yaw and re-solve only the contacting leg.
+  // Opposite stance anchor, torso and actual player remain untouched.
+  for(const turn of [0,-.18,.18,-.36,.36]){
+   const f=yaw+turn*w,toeOffset=[Math.cos(f)*.20*scale,-.075*scale,Math.sin(f)*.20*scale];
+   const desired=sphereSurface(l.toe,c),target=blend(l.ankle,sub(desired,toeOffset),w);
+   if(len(sub(target,l.ankle))>.16)continue;
+   const ik=boundedLimb(l.hip,target,anatomy.thigh,anatomy.shin,frame.forward,LIMITS.knee,LIMITS.hip,frame,i?1:-1);
+   const toe=add(ik.end,toeOffset),e=surfaceError(toe,c);
+   if(e<error-1e-7&&len(sub(ik.end,l.ankle))<=.16){best={ik,toe,target};error=e;}
+  }
+  const correction=best?len(sub(best.ik.end,l.ankle)):0;
+  if(best){const {ik,toe,target}=best;Object.assign(l,{knee:ik.joint,ankle:ik.end,toe,target,bend:ik.bend,flex:ik.flex,abduct:ik.abduct,targetError:ik.error,footLift:ik.end[1]-GROUND*scale,stance:false,requestedStance:false});}
+  addReport('foot',before,error,correction);
+ }
+ const keeper=p.nativeKeeper;
+ if(exact(keeper)&&result.nativeKeeper&&keeper.kind!=='hold'){
+  const c=center(keeper),w=keeper.weight*smooth(1-Math.abs(keeper.deltaMs)/35);
+  for(let i=0;i<2;i++){
+   const a=result.arms[i];if(!a.contactTarget)continue;
+   const before=surfaceError(a.palm,c),desired=sphereSurface(a.palm,c),palm=blend(a.palm,desired,w);
+   let target=sub(palm,mul(unit(sub(palm,a.shoulder)),anatomy.palm)),best=null,error=before;
+   for(let j=0;j<4;j++){
+    if(len(sub(target,a.wrist))>.16)break;
+    const pole=add(mul(frame.forward,-.65),mul(frame.right,(i?1:-1)*.5));
+    const ik=boundedLimb(a.shoulder,target,anatomy.upperArm,anatomy.forearm,pole,LIMITS.elbow,LIMITS.shoulder,frame,i?1:-1);
+    const dir=unit(sub(palm,ik.end)),actual=add(ik.end,mul(dir,anatomy.palm)),e=surfaceError(actual,c);
+    if(e<error-1e-7&&len(sub(ik.end,a.wrist))<=.16){best={ik,actual,dir,target:target.slice()};error=e;}
+    target=add(target,mul(sub(palm,actual),.65));
+   }
+   const correction=best?len(sub(best.ik.end,a.wrist)):0;
+   if(best){const {ik,actual,dir,target}=best;Object.assign(a,{elbow:ik.joint,wrist:ik.end,hand:add(ik.end,mul(dir,anatomy.hand)),palm:actual,target,bend:ik.bend,flex:ik.flex,abduct:ik.abduct,targetError:ik.error,contactTarget:palm,contactError:len(sub(actual,palm))});}
+   addReport('palm',before,error,correction);
+  }
+ }
+ const aerial=p.nativeAerial;
+ if(exact(aerial)&&result.nativeAerial){
+  const c=center(aerial),radius=BALL_RADIUS+.10*scale,before=surfaceError(result.head,c,radius);
+  let best=0,error=before;
+  // Airborne-only vertical correction. Keep all limbs rigidly translated;
+  // no grounded player or stance foot may be lifted for a cosmetic contact.
+  if(result.nativeAerial.jump>.02&&result.legs.every(l=>!l.stance)){
+   const w=aerial.weight*smooth(1-Math.abs(aerial.deltaMs)/35);
+   for(const dy of [-.08,-.04,.04,.08].map(v=>v*w)){
+    if(result.nativeAerial.jump+dy<0||result.nativeAerial.jump+dy>.44||result.legs.some(l=>l.toe[1]+dy<0))continue;
+    const e=surfaceError(add(result.head,[0,dy,0]),c,radius);
+    if(e<error-1e-7){best=dy;error=e;}
+   }
+   if(best){
+    for(const key of bodyKeys)result[key][1]+=best;
+    for(const l of result.legs){for(const key of ['hip','knee','ankle','toe','target'])l[key][1]+=best;l.footLift+=best;}
+    for(const a of result.arms)for(const key of ['shoulder','elbow','wrist','hand','palm','target'])a[key][1]+=best;
+    result.nativeAerial.jump+=best;
+   }
+  }
+  addReport('head',before,error,Math.abs(best));
+ }
+ if(report.length)result.nativeContactPrecision=report;
+ return result;
+}
 function pose(p,dt=1/60){
  const anatomy=anatomyFor(p),bodyScale=anatomy.height/ANATOMY.height,ground=GROUND*bodyScale;
  const st=getState(p);dt=clamp(Number(dt)||0,0,.1);
@@ -691,6 +765,7 @@ function pose(p,dt=1/60){
   for(const leg of legs){for(const key of ['hip','knee','ankle','toe','target'])leg[key][1]+=jump;leg.stance=false;}
   for(const arm of arms)for(const key of ['shoulder','elbow','wrist','hand','palm','target'])arm[key][1]+=jump;
  }
+ if(p.nativeContactPrecision===true&&!special)refineNativeContact(result,p,frame,anatomy,bodyScale);
  st.prevX=p.x;st.prevZ=p.z;st.lastFace=p.face||0;st.prevSpeed=speed;st.lastAction=act;st.pose=result;
  return result;
 }
@@ -708,7 +783,7 @@ function boneFrames(pose){
  Object.freeze(frames);frameCache.set(pose,frames);return frames;
 }
 function reset(p){rigs.delete(p);}
-const API={sampleClipArms,nativeClipCue,anatomyFor,bodyScaleFor,motionIdentityFactors,matchNativeStep,pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
+const API={surfaceError,sphereSurface,refineNativeContact,sampleClipArms,nativeClipCue,anatomyFor,bodyScaleFor,motionIdentityFactors,matchNativeStep,pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 global.TribunHumanoidRig=API;
 })(typeof window!=='undefined'?window:globalThis);
