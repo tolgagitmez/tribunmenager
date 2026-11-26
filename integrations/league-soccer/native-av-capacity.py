@@ -64,6 +64,9 @@ def match_result(directory, native_rc, browser_rc):
             try:
                 item=read(directory / filename)
                 result[field]=item.get('failureType',item.get('status','present'))
+                if filename=='live-report.json':
+                    result['captureFailure']=item.get('captureFailure')
+                    result['runnerExit']=item.get('runnerExit')
             except (OSError,ValueError,TypeError,AttributeError):
                 result[field]='missing-or-invalid'
     return result

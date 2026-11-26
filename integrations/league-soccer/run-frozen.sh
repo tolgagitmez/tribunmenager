@@ -248,7 +248,7 @@ elif [[ -n "${TRIBUN_NATIVE_VIDEO_OUT:-}" ]]; then
     [[ "${TRIBUN_GPU_DEDICATED:-0}" == 1 && -n "${TRIBUN_NATIVE_HLS_DIR:-}" ]] || { echo "Dedicated GPU HLS diagnostic required" >&2; exit 2; }
     python3 "$here/native_gpu_display.py" --display "$TRIBUN_GPU_DISPLAY" --capture "$config" "$limit"
   else
-    xvfb-run -a -s '-screen 0 1920x1080x24 -nolisten tcp' python3 "$here/native-video-pilot.py" --capture-window "$config" "$limit"
+    python3 "$here/native_display_reservation.py" python3 "$here/native-video-pilot.py" --capture-window "$config" "$limit"
   fi
 else
   bash ./run_menu_smoke.sh ./gameplayfootball "$config" "$limit" \

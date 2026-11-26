@@ -14,11 +14,14 @@ def private_audio(out):
     # Private directory and Unix socket, no TCP, no host microphone or default sink.
     with tempfile.TemporaryDirectory(prefix="tribun-pulse-") as d:
         root=Path(d);sock=root/"native"
+        client=root/"client.conf"
+        client.write_text("autospawn = no\n")
         env=os.environ.copy()
-        for key in ("PULSE_SERVER","PULSE_SINK","PULSE_SOURCE","PULSE_COOKIE","ALSOFT_CONF","ALSOFT_LOGFILE"):
+        for key in ("PULSE_SERVER","PULSE_SINK","PULSE_SOURCE","PULSE_COOKIE","PULSE_CLIENTCONFIG","ALSOFT_CONF","ALSOFT_LOGFILE"):
             env.pop(key,None)
         env.update(PULSE_SERVER="unix:"+str(sock),PULSE_RUNTIME_PATH=str(root),PULSE_STATE_PATH=str(root),
-                   PULSE_SINK="tribun_match",PULSE_SOURCE="tribun_match.monitor",ALSOFT_DRIVERS="pulse")
+                   PULSE_SINK="tribun_match",PULSE_SOURCE="tribun_match.monitor",ALSOFT_DRIVERS="pulse",
+                   PULSE_CLIENTCONFIG=str(client))
         with (out/"native-audio.log").open("wb") as log:
             proc=subprocess.Popen(["pulseaudio","-n","--daemonize=no","--use-pid-file=no","--exit-idle-time=-1",
                 "--disable-shm=true","--log-target=stderr",

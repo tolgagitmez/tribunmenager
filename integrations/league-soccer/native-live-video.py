@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from release_evidence import stamp,sha
 from native_audio_capture import audit_audio
 from native_media_audit import audit_media
+from native_capture_failure import summarize as capture_failure
 from native_video_control import ControlBridge
 from native_roster import plan_from_config,verify_halftime
 HERE=Path(__file__).resolve().parent
@@ -128,7 +129,9 @@ def main():
                     if time.monotonic()-started>1000:raise TimeoutError("Native live capture exceeded limit")
                     time.sleep(.1)
                 if control:control.drain();control.close()
-                if proc.returncode:raise RuntimeError("Native live capture failed")
+                if proc.returncode:
+                    report["runnerExit"]=proc.returncode
+                    raise RuntimeError("Native live capture failed")
             finally:
                 if proc.poll() is None:
                     import signal
@@ -168,7 +171,8 @@ def main():
     except BaseException as error:
         state["phase"]="failed"
         if control:control.close()
-        report.update(status="failed",failureType=type(error).__name__,failureMessage=str(error)[:500])
+        report.update(status="failed",failureType=type(error).__name__,failureMessage=str(error)[:500],
+                      captureFailure=capture_failure(out))
         write_json(report_path,report)
         raise
     finally:

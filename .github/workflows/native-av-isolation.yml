@@ -1,0 +1,59 @@
+name: Stage 132 isolated native AV concurrency
+on:
+  push:
+    branches: [experiment/native-av-isolation-stage132]
+permissions:
+  contents: read
+jobs:
+  two:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_av_isolation.py
+          python3 -m unittest discover -s tests -p test_native_av_capacity.py
+          python3 -m unittest discover -s tests -p test_native_audio_capture.py
+          python3 -m py_compile integrations/league-soccer/native-live-video.py integrations/league-soccer/native_display_reservation.py
+          bash -n integrations/league-soccer/run-frozen.sh
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg xdotool xvfb xauth pulseaudio pulseaudio-utils libopenal-dev
+      - name: Verify simultaneous real Xvfb sessions have different displays
+        run: |
+          set -euo pipefail
+          script=integrations/league-soccer/native_display_reservation.py
+          python3 "$script" bash -c 'echo "$DISPLAY"; sleep 3' > "$RUNNER_TEMP/display-a" &
+          a=$!
+          python3 "$script" bash -c 'echo "$DISPLAY"; sleep 3' > "$RUNNER_TEMP/display-b" &
+          b=$!
+          wait "$a"; wait "$b"
+          test "$(tail -1 "$RUNNER_TEMP/display-a")" != "$(tail -1 "$RUNNER_TEMP/display-b")"
+      - run: npm ci
+      - run: npx playwright install --with-deps chrome
+      - name: Build pinned engine
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/isolation-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Run two complete matches; retry diagnostic with bounded filter workers if needed
+        run: |
+          set -euo pipefail
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/isolation-fixtures"
+          cmd=(python3 integrations/league-soccer/native-av-capacity.py "$RUNNER_TEMP/isolation-runtime" "$RUNNER_TEMP/isolation-fixtures")
+          if "${cmd[@]}" "$RUNNER_TEMP/isolation-default" --count 2; then exit 0; fi
+          "${cmd[@]}" "$RUNNER_TEMP/isolation-bounded" --count 2 --filter-threads 1 || true
+          echo 'Default profile did not pass; bounded attempt is diagnostic only.'
+          exit 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolated-native-capacity-evidence
+          path: |
+            ${{ runner.temp }}/isolation-*/capacity-report.json
+            ${{ runner.temp }}/isolation-*/*/live-report.json
+            ${{ runner.temp }}/isolation-*/*/browser-playback-report.json
+          if-no-files-found: ignore
