@@ -15,3 +15,11 @@ be nonnegative integers and zero count must agree with zero duration.
 These are distinct observational signals, not proof of a deadlock or
 causal improvement. Four new synthetic cases plus five prior cases ran
 locally: 9 passed. No real match results yet.
+
+## Confirmed later in stage 195
+The same Actions job subsequently returned Build pinned engine = completed,
+conclusion = success. Baseline private match = in_progress; experimental
+match and evidence gate still pending. Full native CMake build is now
+verified for stage 191 commit d3abe058c65f3e3aef2f00ba8b703f2623214732.
+This confirms the build step, not runtime match completion or gameplay
+improvement. No compiler fixes were needed for this successful build.
