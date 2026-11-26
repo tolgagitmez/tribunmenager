@@ -78,3 +78,15 @@ class ActionDiagnosticsTest(unittest.TestCase):
         self.assertEqual(r['invalidLines'],1)
         self.assertEqual(r['observedEvents'],0)
         self.assertTrue(r['evidenceAvailable'])
+
+
+    def test_paired_foot_timing(self):
+        p='[tribun-foot-timing] phase=1 match_ms=1800 team=0 player=7 action=shot anim=22 frame=12 elapsed_ms=120 state_foot=0 anim_foot=1 outgoing_foot=0 contact_side=right geometry=pass\n'
+        r=self.read(p+p.replace('120 state','140 state')+p.replace('geometry=pass','geometry=miss')+p.replace('120 state','2001 state'))
+        self.assertEqual(r['pairedFootTimingCount'],3)
+        self.assertEqual(r['pairedFootTimingCounts'],{'shot:pass':2,'shot:miss':1})
+        self.assertEqual(r['meanPairedTimingMs'],{'shot:pass':130.0,'shot:miss':120.0})
+        self.assertEqual(r['pairedFootTimingEvents'][0]['contactSide'],'right')
+        self.assertEqual(r['invalidLines'],1)
+        self.assertEqual(r['observedEvents'],0)
+        self.assertTrue(r['evidenceAvailable'])
