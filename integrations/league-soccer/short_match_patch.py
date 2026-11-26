@@ -1004,11 +1004,11 @@ void Referee::Process() {'''),
     ])
     edit(root, "src/onthepitch/match.cpp", [
         ("  // Tell the game page once; the full-time screen used to be re-created", r'''  // Imported CPU league fixtures only. Clock starts on first open-play tick.
-  if (AITactics::FixedDurationEnabled() && !gameOver && !pause) {
+  if (AITactics::FixedDurationEnabled() && !gameOver) {
     if (!std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE") || GetTeam(0)->GetHumanGamerCount() ||
         GetTeam(1)->GetHumanGamerCount() || GetConfiguration()->GetBool("match_extra_time",false))
       throw std::runtime_error("Fixed-duration requires CPU-only regulation fixture");
-    if (matchPhase==e_MatchPhase_1stHalf && IsInPlay() && !IsInSetPiece())
+    if (!pause && matchPhase==e_MatchPhase_1stHalf && IsInPlay() && !IsInSetPiece())
       tribunFixedClock.Start(actualTime_ms);
     if(tribunFixedClock.started){
       matchTime_ms=tribunFixedClock.Nominal(actualTime_ms);
@@ -1223,4 +1223,20 @@ void TeamAIController::TribunShotContact(Player* shooter) {'''),
            AITactics::ReceiptShot(distance,angle,odds,player->GetStat("technical_shot"),
                (match->GetBall()->Predict(0).Get2D()-player->GetPosition()).GetLength())) ||
           AITactics::PrioritizeGoodShot(distance,angle,odds,CastPlayer()->HasUniquePossession()) ||'''),
+    ])
+
+    # Goal replay can pause the native UI between an actual tick increment and
+    # the next Process entry. Keep the authoritative simulation time in sync
+    # at the increment itself and omit the blocking replay in fixed-clock fixtures.
+    edit(root, "src/onthepitch/match.cpp", [
+        ("    actualTime_ms += 10;\n    if (IsGoalScored())", r'''    actualTime_ms += 10;
+    if(AITactics::FixedDurationEnabled() && tribunFixedClock.started){
+      matchTime_ms=tribunFixedClock.Nominal(actualTime_ms);
+      matchTimeExact_ms=static_cast<double>(matchTime_ms);
+    }
+    if (IsGoalScored())'''),
+        ("    if (goalScoredTimer == 6000) {\n      pause = true;", r'''    // The client can replay recorded frames independently. Do not block
+    // the fixed-duration native simulation on an extended replay overlay.
+    if (goalScoredTimer == 6000 && !AITactics::FixedDurationEnabled()) {
+      pause = true;'''),
     ])

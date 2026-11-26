@@ -20,3 +20,19 @@ class CapacityBenchmarkTest(unittest.TestCase):
     def test_missing_resources(self):
         r=row();r["resources"]=None
         self.assertFalse(m.evaluate([r],1)["checks"]["resourceMeasurements"])
+
+    def test_cgroup_cpu_and_memory_limits(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as path:
+            p=Path(path)
+            (p/"cpu.max").write_text("150000 100000")
+            (p/"memory.max").write_text("2147483648")
+            (p/"cpu.stat").write_text("nr_throttled 12")
+            r=m.host_limits(p)
+            self.assertEqual(r["cgroupCpuQuotaCores"],1.5)
+            self.assertEqual(r["cgroupMemoryLimitBytes"],2147483648)
+            self.assertEqual(r["cgroupCpuStat"],"nr_throttled 12")
+            (p/"cpu.max").write_text("max 100000")
+            (p/"memory.max").write_text("max")
+            self.assertIsNone(m.host_limits(p)["cgroupCpuQuotaCores"])
+            self.assertIsNone(m.host_limits(p)["cgroupMemoryLimitBytes"])

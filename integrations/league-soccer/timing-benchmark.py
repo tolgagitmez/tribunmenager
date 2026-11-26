@@ -77,14 +77,15 @@ class Timing:
                     deadBallMs=self.dead_ms,transitionMs=self.transition_ms,gapMs=self.gap_ms,
                     frames=self.frames,maxObservedGapMs=self.max_observed_gap_ms,withinFiveSeconds=abs(wall-300000)<=5000)
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2):
     name,scale,quick=profile
+    if type(render_threads) is not int or render_threads not in (1,2,3,4):raise ValueError("Invalid software renderer thread limit")
     if attack_profile not in ("baseline","short-match"):raise ValueError("Unknown attack profile")
     trace=Path(str(out)+"."+name+".ndjson").resolve()
     trace.unlink(missing_ok=True)
     env={**os.environ,"TRIBUN_NATIVE_REALTIME":"1","TRIBUN_NATIVE_CLOCK_SCALE":scale,
          "TRIBUN_NATIVE_QUICK_RESTARTS":quick,"TRIBUN_LEAGUE_SOCCER_ATTACK":attack_profile,
-         "LP_NUM_THREADS":"2","OMP_NUM_THREADS":"1"}
+         "LP_NUM_THREADS":str(render_threads),"OMP_NUM_THREADS":"1"}
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -143,7 +144,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         report["resources"]=r
     attack=json.loads(Path(str(trace)+".attack.json").read_text())
     if attack["engine"]!="league-soccer" or not attack.get("sampled"):raise ValueError("Missing attack report")
-    report.update(profile=name,attackProfile=attack_profile,retention=retention,boxRuns=box_runs,timedAttack=timed_attack,scale=float(scale),quickRestarts=quick=="1",
+    report.update(profile=name,attackProfile=attack_profile,softwareRenderThreads=render_threads,retention=retention,boxRuns=box_runs,timedAttack=timed_attack,scale=float(scale),quickRestarts=quick=="1",
                   score=attack["score"],shots=attack["shots"],onTarget=attack["onTarget"],
                   controlledBoxCrossings=attack["sampled"]["controlledBoxCrossings"])
     Path(str(trace)+".timing.json").write_text(json.dumps(report,indent=2)+"\n")

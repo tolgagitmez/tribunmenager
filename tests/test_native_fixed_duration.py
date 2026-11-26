@@ -18,3 +18,14 @@ class FixedDurationTest(unittest.TestCase):
         with self.assertRaises(ValueError):f.verify(rows)
     def test_no_missing_final(self):
         with self.assertRaises(ValueError):f.verify(frames()[:-1])
+
+    def test_goal_replay_stale_nominal_tick_rejected(self):
+        # Observed in capacity artifact 15073374846, n1 counter-possession:
+        # actual elapsed 53600, but displayed nominal clock was one 10 ms tick behind.
+        rows=frames()
+        goal=dict(elapsedMs=5000+53600,matchMs=964620,inPlay=False,done=False,
+                  fixedClock=dict(started=True,startMs=5000,elapsedMs=53600,half=False,finished=False))
+        rows.insert(2,goal)
+        with self.assertRaisesRegex(ValueError,"Incorrect nominal clock"):f.verify(rows)
+        goal["matchMs"]=964800
+        self.assertTrue(f.verify(rows)["exactNativeDuration"])
