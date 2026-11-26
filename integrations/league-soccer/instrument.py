@@ -333,6 +333,17 @@ void TribunTrace(Match& match, bool done) {
   }
   output << ']';
   match.tribunDuelEvents.clear();
+  output << ",\"nativeFouls\":[";
+  bool firstFoul=true;
+  for(const auto& f:match.tribunFoulEvents){
+    if(!firstFoul)output<<',';
+    firstFoul=false;
+    output << "{\"timeMs\":" << f.timeMs << ",\"playerId\":" << f.playerId
+           << ",\"victimId\":" << f.victimId << ",\"team\":" << f.team
+           << ",\"tackleType\":" << f.tackleType << '}';
+  }
+  output << ']';
+  match.tribunFoulEvents.clear();
   const auto data = match.GetMatchData();
   output << ",\"stats\":{\"shots\":[" << data->GetShots(0) << ',' << data->GetShots(1)
          << "],\"onTarget\":[" << data->GetShotsOnTarget(0) << ',' << data->GetShotsOnTarget(1)
@@ -1708,16 +1719,20 @@ def contact_event_header(source):
     float displacement,relativeSpeed,balance;
     bool possession;
   };
-  std::vector<TribunDuelEvent> tribunDuelEvents;''')
+  std::vector<TribunDuelEvent> tribunDuelEvents;
+  struct TribunFoulEvent { unsigned long timeMs; int playerId,victimId,team,tackleType; };
+  std::vector<TribunFoulEvent> tribunFoulEvents;''')
 
 def contact_event_source(source):
-    # All four anchors occur inside the accepted native animation contact
+    # All six anchors occur inside the accepted native animation contact
     # branches. Do not record speculative animation selection or collisions.
     for kind, anchor in (
       ("trap", "match->GetBall()->Touch(touchVec);\n        match->GetBall()->SetRotation(xRot, yRot, 0, 0.5f"),
       ("control", "match->GetBall()->Touch(touchVec);\n        match->GetBall()->SetRotation(xRot, yRot, 0, 0.6f"),
       ("pass", "match->GetBall()->Touch(touchVec);\n        match->GetBall()->TriggerBallTouchSound(\n            std::pow"),
       ("shot", "match->GetBall()->Touch(touchVec);\n        match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f"),
+      ("standing-tackle", "match->GetBall()->Touch(touchVec);\n        match->GetBall()->SetRotation(xRot, yRot, 0.3f"),
+      ("sliding-tackle", "match->GetBall()->Touch(touchVec);\n\n        team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental);"),
     ):
         capture = r'''if(std::getenv("TRIBUN_LEAGUE_SOCCER_TRACE")){
           const auto part=currentAnim->anim->GetVariable("touch_bodypart");
@@ -1771,6 +1786,17 @@ def duel_event_source(source):
           f'                recordDuel({victim},{opponent},"tackle-trip",tripVec,0.0f,tripType);\n                '+notice+"\n                AddExcitementBoost")
     return source
 
+def foul_event_source(source):
+    # The referee's existing accepted foul counter, not a trip prediction.
+    anchor="match->GetMatchData()->AddFoul(tripper->GetTeamID());"
+    if source.count(anchor)!=2:
+        raise SystemExit("Unexpected referee foul anchors")
+    return "#include <cstdlib>\n"+source.replace(anchor,anchor+r'''
+      if(std::getenv("TRIBUN_LEAGUE_SOCCER_TRACE"))
+        match->tribunFoulEvents.push_back({match->GetActualTime_ms(),
+          static_cast<int>(tripper->GetID()),static_cast<int>(tripee->GetID()),
+          tripper->GetTeamID(),tackleType});''')
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -1781,6 +1807,7 @@ def main():
       ("match.hpp","struct TribunContactEvent",contact_event_header),
       ("player/humanoid/humanoid.cpp","tribunContactEvents.push_back",contact_event_source),
       ("match.cpp","const auto recordDuel=",duel_event_source),
+      ("referee.cpp","tribunFoulEvents.push_back",foul_event_source),
     ):
         target=contact_root/relative
         source=target.read_text(encoding="utf-8")

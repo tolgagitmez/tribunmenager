@@ -26,6 +26,7 @@ const {createServer}=require('../../tools/serve-character-viewer.cjs');
   await page.locator('#strikeMotion').check();
   await page.locator('#controlMotion').check();
   await page.locator('#duelMotion').check();
+  await page.locator('#tackleMotion').check();
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state()?.players===22);
   await page.locator('#seek').evaluate(el=>{el.value=el.max;el.dispatchEvent(new Event('input'));});
   await page.waitForFunction(()=>window.TRIBUN_NATIVE_REPLAY_TEST.state()?.done===true);

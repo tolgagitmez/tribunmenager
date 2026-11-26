@@ -67,7 +67,7 @@
     for(const e of f.nativeContacts){
      requireValue(e&&nonneg(e.timeMs)&&e.timeMs>=lastContact&&e.timeMs<=f.elapsedMs&&
       nonneg(e.playerId)&&nonneg(e.databaseId)&&[0,1].includes(e.team)&&[-1,0,1].includes(e.foot)&&
-      ['trap','control','pass','shot'].includes(e.kind)&&
+      ['trap','control','pass','shot','standing-tackle','sliding-tackle'].includes(e.kind)&&
       (e.technique===undefined||['none','short-pass','long-pass','high-pass','shot'].includes(e.technique))&&vec(e.ball)&&vec(e.impulseVelocity)&&
       (e.controlContext===undefined||validControl(e.controlContext)),'Geçersiz motor teması.');
      lastContact=e.timeMs;
@@ -83,6 +83,15 @@
       finite(d.displacement)&&d.displacement>=0&&finite(d.relativeSpeed)&&d.relativeSpeed>=0&&
       finite(d.balance)&&typeof d.possession==='boolean','Geçersiz motor mücadelesi.');
      lastDuel=d.timeMs;
+    }
+   }
+   if(f.nativeFouls!==undefined){
+    requireValue(Array.isArray(f.nativeFouls),'Geçersiz faul listesi.');
+    let last=prior?.elapsedMs??0;
+    for(const e of f.nativeFouls){
+     requireValue(e&&nonneg(e.timeMs)&&e.timeMs>=last&&e.timeMs<=f.elapsedMs&&nonneg(e.playerId)&&
+      nonneg(e.victimId)&&e.playerId!==e.victimId&&[0,1].includes(e.team)&&[2,3].includes(e.tackleType),'Geçersiz hakem olayı.');
+     last=e.timeMs;
     }
    }
    if(f.stats!==undefined)requireValue(f.stats&&keys.every(k=>pair(f.stats[k])),'Geçersiz maç istatistiği.');
@@ -119,13 +128,13 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
   const start=frames[0].elapsedMs,end=frames.at(-1).elapsedMs,duration=end-start;
   const contacts=new Map();
-  if(contactSync||strikeMotion||controlMotion)for(const frame of frames)for(const e of frame.nativeContacts||[]){
+  if(contactSync||strikeMotion||controlMotion||tackleMotion)for(const frame of frames)for(const e of frame.nativeContacts||[]){
    if(e.foot<0||e.ball[2]>.35)continue;
    const key=e.team+':'+e.playerId+':'+e.databaseId;
    if(!contacts.has(key))contacts.set(key,[]);
@@ -140,16 +149,19 @@
     if(!e)continue;
     const d=time-e.timeMs;
     const profile=strikeMotion&&strikeProfile(e),control=controlMotion&&controlProfile(e);
-    const shape=profile?strikeProfiles[profile]:control?controlProfiles[control]:null;
+    const tackle=tackleMotion&&['standing-tackle','sliding-tackle'].includes(e.kind);
+    const shape=profile?strikeProfiles[profile]:control?controlProfiles[control]:tackle?{pre:150,post:180}:null;
     if(!shape&&!contactSync)continue;
     if(d< -(shape?.pre??100)||d>(shape?.post??90))continue;
     if(!best||Math.abs(d)<Math.abs(time-best.timeMs))best=e;
    }
    if(!best)return null;
    const delta=time-best.timeMs,profile=strikeMotion&&strikeProfile(best),control=controlMotion&&controlProfile(best);
-   const shape=profile?strikeProfiles[profile]:control?controlProfiles[control]:null;
+   const tackle=tackleMotion&&['standing-tackle','sliding-tackle'].includes(best.kind);
+   const shape=profile?strikeProfiles[profile]:control?controlProfiles[control]:tackle?{pre:150,post:180}:null;
    const weight=clamp(1-Math.abs(delta)/(delta<0?(shape?.pre??100):(shape?.post??90)),0,1);
    const cue={kind:best.kind,foot:best.foot,timeMs:best.timeMs,deltaMs:delta,weight:weight*weight*(3-2*weight),ball:coord(best.ball),impulse:velocity(best.impulseVelocity)};
+   if(tackle)cue.tackle={sliding:best.kind==='sliding-tackle'};
    if(profile)cue.strike={profile,shape,power:clamp(Math.hypot(...best.impulseVelocity)/30,0,1)};
    if(control){
     const c=best.controlContext,skill=c?clamp(control==='cushion'?c.controlSkill:c.dribbleSkill,0,1):.5;
@@ -164,7 +176,7 @@
    return cue;
   }
   const duels=new Map();
-  if(duelMotion)for(const frame of frames)for(const d of frame.nativeDuels||[]){
+  if(duelMotion||tackleMotion)for(const frame of frames)for(const d of frame.nativeDuels||[]){
    const key=d.team+':'+d.playerId+':'+d.databaseId;
    if(!duels.has(key))duels.set(key,[]);
    duels.get(key).push(d);
@@ -176,14 +188,15 @@
    let best=null;
    for(let i=lo-1;i>=0;i--){
     const d=events[i],age=time-d.timeMs;
-    if(age>420)break;
-    const duration=d.kind==='bump'?180:420;
+    if(age>(tackleMotion?900:420))break;
+    const duration=d.kind==='bump'?180:tackleMotion&&d.tripType>=2?900:420;
     if(age>=duration)continue;
     const strength=d.kind==='bump'?clamp(d.displacement/.065,0,1)*(.45+.55*clamp(d.relativeSpeed/7,0,1)):
      clamp(.48+.15*d.tripType,0,1);
+    if(!duelMotion&&d.kind==='bump')continue;
     const recovery=1-age/duration,weight=strength*recovery*recovery;
     if(!best||weight>best.weight)best={kind:d.kind,timeMs:d.timeMs,age,weight,direction:coord(d.direction),
-     balance:clamp(d.balance,0,1),possession:d.possession,opponentId:d.opponentId,tripType:d.tripType};
+     balance:clamp(d.balance,0,1),possession:d.possession,opponentId:d.opponentId,tripType:d.tripType,fall:tackleMotion&&d.kind!=='bump'&&d.tripType>=2};
    }
    return best;
   }
@@ -233,14 +246,14 @@
        speed>(['jog','run','sprint'].includes(prior)?1.1:1.4)?'jog':'walk';
      actor.nativeGait=gait;actor.action=gait;
     }
-    if(contactSync||strikeMotion||controlMotion){
+    if(contactSync||strikeMotion||controlMotion||tackleMotion){
      const cue=actor.role==='GK'||a.setPiece||b.setPiece||a.inPlay===false||b.inPlay===false||span>200?null:contactAt(source,time);
      actor.nativeContact=cue&&Math.hypot(cue.ball.x-actor.x,cue.ball.z-actor.z)<=1.15?cue:null;
     }
-    if(duelMotion){
+    if(duelMotion||tackleMotion){
      actor.nativeDuel=actor.role==='GK'||a.setPiece||a.inPlay===false||span>200||Math.hypot(dest.x-pos.x,dest.z-pos.z)>2?null:duelAt(source,time);
     }
-    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion?step:clamp(dt,0,.1));return actor;
+    active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}
    const p=coord(a.ball),q=coord(b.ball),v=velocity(a.ballVelocity),w=velocity(b.ballVelocity);
