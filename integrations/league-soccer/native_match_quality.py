@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 from native_motion_audit import audit as motion_audit
+from native_attack_intensity import attack_intensity
 HERE=Path(__file__).resolve().parent
 
 def number(v,lo=0,hi=math.inf):
@@ -19,6 +20,7 @@ def football(report):
     stats={k:pair(report[k]) for k in ('score','shots','onTarget','passes','completed','fouls','possessionMs')}
     if any(o>s or p>n for o,s,p,n in zip(stats['onTarget'],stats['shots'],stats['completed'],stats['passes'])):raise ValueError('Inconsistent statistics')
     sampled=report.get('sampled')
+    stats['attackIntensity']=attack_intensity(sampled)
     if isinstance(sampled,dict):
         stats['controlledBoxCrossings']=pair(sampled['controlledBoxCrossings'])
         stats['observedBoxCrossings']=pair(sampled['observedBoxCrossings'])
