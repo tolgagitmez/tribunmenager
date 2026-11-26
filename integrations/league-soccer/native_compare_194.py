@@ -21,6 +21,34 @@ def total(value, label):
     return sum(value)
 
 
+def stall_metrics(quality):
+    # Separate an idle ball carrier from an engine-clock pause. Neither
+    # metric can be inferred from repeated encoded video frames.
+    stalls = quality.get('stallDiagnostics') or {}
+    carrier = stalls.get('carrier') or {}
+    clock = stalls.get('nativeClock') or {}
+    result = dict(stationaryCarrierEpisodes=None, longestStationaryCarrierMs=None,
+                  carrierTraceExcludedGapMs=None, nativeWallGapCount=None,
+                  longestNativeWallGapSeconds=None)
+    if carrier.get('complete') is True and carrier.get('lastNativeMs') == 300000:
+        for key, source in (('stationaryCarrierEpisodes', 'stationaryCarrierEpisodes'),
+                            ('longestStationaryCarrierMs', 'longestStationaryCarrierMs'),
+                            ('carrierTraceExcludedGapMs', 'excludedGapMs')):
+            result[key] = metric(carrier.get(source), source)
+    if clock.get('fullTimeObserved') is True and clock.get('lastNativeMs') == 300000 and 'error' in clock and clock['error'] is None:
+        result['nativeWallGapCount'] = metric(clock.get('wallGapCount'), 'wallGapCount')
+        result['longestNativeWallGapSeconds'] = metric(clock.get('longestWallGapSeconds'), 'longestWallGapSeconds')
+    for key in ('stationaryCarrierEpisodes', 'longestStationaryCarrierMs', 'carrierTraceExcludedGapMs', 'nativeWallGapCount'):
+        if result[key] is not None and type(result[key]) is not int:
+            raise ValueError('Invalid integer ' + key)
+    for count, duration in (('stationaryCarrierEpisodes', 'longestStationaryCarrierMs'),
+                            ('nativeWallGapCount', 'longestNativeWallGapSeconds')):
+        if result[count] is not None and result[duration] is not None:
+            if (result[count] == 0) != (result[duration] == 0):
+                raise ValueError('Inconsistent stall count and duration')
+    return result
+
+
 def profile(report):
     q = report.get('quality') or {}
     f = q.get('football') or {}
@@ -45,7 +73,8 @@ def profile(report):
             'observedOpenPlayMs': metric(f.get('observedOpenPlayMs'), 'observedOpenPlayMs'),
             'excludedGapMs': metric(f.get('excludedGapMs'), 'excludedGapMs'),
             'longestIdenticalImageSeconds': metric(p.get('longestIdenticalImageSeconds'), 'longestIdenticalImageSeconds'),
-            'droppedFraction': metric(p.get('droppedFraction'), 'droppedFraction')}
+            'droppedFraction': metric(p.get('droppedFraction'), 'droppedFraction'),
+            **stall_metrics(q)}
 
 
 def compare(baseline, experimental):
