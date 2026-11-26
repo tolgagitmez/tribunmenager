@@ -656,6 +656,52 @@ def limit_native_workers(source):
     std::fflush(stdout);
   }""")
 
+SKINNING_CHANNEL_HEADER = r'''#pragma once
+namespace tribun_skinning {
+struct Channels {
+  bool vertices;
+  bool normals;
+  bool tangents;
+  bool bitangents;
+};
+inline Channels channels(bool isolated,bool requested,bool updateSrc) {
+  const bool shading=!(isolated && requested && !updateSrc);
+  return {true,shading,shading,shading};
+}
+}
+'''
+
+def optimize_skinning_channels(source):
+    source = replace_once(source, '#include "humanoidbase.hpp"',
+        '#include "humanoidbase.hpp"\n#include "tribun_skinning_channels.hpp"\n#include <cstdlib>\n#include <cstdio>\n#include <cstring>')
+    return replace_once(source, """void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {
+  int uploadVertices = true;
+  int uploadNormals = true;
+  int uploadTangents = true;
+  int uploadBitangents = true;""", """void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {
+  const auto enabled = [](const char* key) {
+    const char* value = std::getenv(key);
+    return value && std::strcmp(value, "1") == 0;
+  };
+  static const bool isolated = enabled("TRIBUN_NATIVE_NULL_RENDERER") &&
+      enabled("TRIBUN_NATIVE_NO_DRAW") && enabled("TRIBUN_NATIVE_NO_UPLOAD") &&
+      enabled("TRIBUN_NATIVE_FIXED_DURATION");
+  static const bool requested = enabled("TRIBUN_NATIVE_POSITION_SKINNING");
+  const auto channels = tribun_skinning::channels(isolated, requested, updateSrc);
+  if (!updateSrc && isolated) {
+    // C++11 local static initialization serializes this one-time diagnostic.
+    static const bool reported = [] {
+      std::printf("[tribun-skinning] runtime=%s bind-pose=full\\n", requested ? "position-only" : "full");
+      std::fflush(stdout);
+      return true;
+    }();
+    (void)reported;
+  }
+  const bool uploadVertices = channels.vertices;
+  const bool uploadNormals = channels.normals;
+  const bool uploadTangents = channels.tangents;
+  const bool uploadBitangents = channels.bitangents;""")
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
@@ -680,6 +726,12 @@ def main():
     if "[tribun-lean] audio-backend=null" not in audio_source:
         audio_path.write_text(lightweight_audio(audio_source), encoding="utf-8")
     src = pathlib.Path(sys.argv[1]) / "src"
+    humanoid_dir = src / "onthepitch/player/humanoid"
+    (humanoid_dir / "tribun_skinning_channels.hpp").write_text(SKINNING_CHANNEL_HEADER, encoding="utf-8")
+    humanoid_path = humanoid_dir / "humanoidbase.cpp"
+    humanoid_source = humanoid_path.read_text(encoding="utf-8")
+    if "[tribun-skinning] runtime=" not in humanoid_source:
+        humanoid_path.write_text(optimize_skinning_channels(humanoid_source), encoding="utf-8")
     (src / "managers/tribun_worker_limit.hpp").write_text(WORKER_LIMIT_HEADER, encoding="utf-8")
     worker_path = src / "managers/taskmanager.cpp"
     worker_source = worker_path.read_text(encoding="utf-8")

@@ -96,8 +96,10 @@ def sample_native_pss(group,proc=Path("/proc")):
         except (OSError,ValueError,IndexError):continue
     return None
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False):
     name,scale,quick=profile
+    if type(position_skinning) is not bool or (position_skinning and not (null_renderer and sample_pss)):
+        raise ValueError("Position-only skinning requires isolated null backend and sampling")
     if type(task_workers) is not int or task_workers not in (0,3,4) or (task_workers and not (null_renderer and sample_pss)):
         raise ValueError("Task worker limit requires isolated null backend and native resource sampling")
     if type(visual_rng) is not bool or type(skip_pitch) is not bool or (visual_rng and not (null_renderer and lean_scene)) or (skip_pitch and not visual_rng):
@@ -129,6 +131,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env["TRIBUN_NATIVE_VISUAL_RNG"]="1" if visual_rng else "0"
     env["TRIBUN_NATIVE_SKIP_PITCH_TEXTURE"]="1" if skip_pitch else "0"
     env["TRIBUN_NATIVE_TASK_WORKERS"]=str(task_workers)
+    env["TRIBUN_NATIVE_POSITION_SKINNING"]="1" if position_skinning else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -200,6 +203,11 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         if marker not in Path(str(trace)+".log").read_text(errors="replace"):
             raise ValueError("Missing visual RNG evidence")
     report=stats.report()
+    report["positionSkinning"]=position_skinning
+    if null_renderer:
+        skinning_marker="[tribun-skinning] runtime="+("position-only" if position_skinning else "full")+" bind-pose=full"
+        if skinning_marker not in Path(str(trace)+".log").read_text(errors="replace"):
+            raise ValueError("Missing runtime skinning evidence")
     report["requestedTaskWorkers"]=task_workers
     if null_renderer:
         import re
