@@ -113,6 +113,41 @@ struct CarryTrial {
 };
 '''
 
+DUEL_RULES = r'''// Relative to attacking direction. A duel starts with a defender ahead and closing.
+inline bool DuelEligible(float ahead,float distance,float closing,float gap,float skill){
+  return ahead>=.45f&&ahead<=4.0f&&distance>=1.4f&&distance<=4.5f&&closing>=.5f&&gap<=1.1f&&skill>=.58f;
+}
+inline float DuelEscapeScore(float advance,float clearance,float turn,float speed,float skill,float wrongFoot){
+  if(advance<.3f||clearance<1.25f||turn<-.15f)return -1000.0f;
+  return advance*.65f+std::min(clearance,4.0f)*1.15f+turn*.4f+
+    std::clamp(wrongFoot,-1.0f,1.0f)*(.35f+.4f*skill)-speed*(1.0f-skill)*.5f;
+}
+struct DuelTrial {
+  int carrier=-1,defender=-1;float initialX=0,forward=1;
+  unsigned long start=0,lastControl=0,cooldown=0,expires=0;
+  unsigned long attempts=0,beaten=0,lost=0,cancelled=0;
+  void End(unsigned long now){carrier=defender=-1;cooldown=now+650;}
+  void Cancel(unsigned long now){if(carrier>=0){++cancelled;End(now);}}
+  bool Begin(int a,int b,float x,float dir,unsigned long now){
+    if(carrier>=0||now<cooldown||a<0||b<0||a==b)return false;
+    carrier=a;defender=b;initialX=x;forward=dir;start=lastControl=now;expires=now+1500;++attempts;return true;
+  }
+  void Observe(int owner,bool opposition,bool invalid,float cx,float dx,float distance,unsigned long now){
+    if(carrier<0)return;
+    if(invalid||now<start){Cancel(now);return;}
+    if(opposition){++lost;End(now);return;}
+    if(owner>=0&&owner!=carrier){Cancel(now);return;}
+    if(owner==carrier){
+      lastControl=now;
+      if(now>=start+250&&(cx-initialX)*forward>=2.0f&&(cx-dx)*forward>=1.0f&&distance>=1.5f){
+        ++beaten;End(now);return;
+      }
+    }
+    if(now>=expires||now>lastControl+200)Cancel(now);
+  }
+};
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -1715,6 +1750,109 @@ void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool sh
         desiredDirection=chosen;
         desiredVelocity=sprintVelocity*chosenSpeed;
         match->tribunCarryTrials[team->GetID()].Begin(player->GetID(),myPos.coords[0],-side,skill,match->GetActualTime_ms());
+      }
+    }
+  }
+  desiredVelocity = RangeVelocity(desiredVelocity);
+}
+
+Vector3 AI_GetForceFieldMovement'''),
+    ])
+
+    # Stage 67: exploit closing defender momentum; observe the same named defender after the carry.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool DuelEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_DUEL");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + DUEL_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  AITactics::CarryTrial tribunCarryTrials[2];", "  AITactics::CarryTrial tribunCarryTrials[2];\n  AITactics::DuelTrial tribunDuelTrials[2];"),
+    ])
+    edit(root, "src/onthepitch/match.cpp", [
+        ("    if(AITactics::CreativeCarryEnabled()){", r'''    if(AITactics::DuelEnabled()){
+      for(int t=0;t<2;++t){
+        auto& trial=tribunDuelTrials[t];
+        if(trial.carrier<0)continue;
+        auto* carrier=teams[t]->GetPlayer(trial.carrier);
+        auto* defender=teams[1-t]->GetPlayer(trial.defender);
+        auto* own=teams[t]->GetDesignatedTeamPossessionPlayer();
+        const bool invalid=!IsInPlay()||IsInSetPiece()||GetBallRetainer()||
+            !carrier||!defender||!carrier->IsActive()||!defender->IsActive();
+        const bool confirmed=own&&own->HasUniquePossession()&&GetLastTouchPlayer()==own;
+        trial.Observe(confirmed?own->GetID():-1,teams[1-t]->HasUniquePossession(),invalid,
+            carrier?carrier->GetPosition().coords[0]:0.0f,defender?defender->GetPosition().coords[0]:0.0f,
+            carrier&&defender?(carrier->GetPosition()-defender->GetPosition()).Get2D().GetLength():0.0f,actualTime_ms);
+      }
+    }
+    if(AITactics::CreativeCarryEnabled()){'''),
+        ("  for(auto& trial:tribunCarryTrials)trial.Cancel(GetActualTime_ms());",
+         "  for(auto& trial:tribunCarryTrials)trial.Cancel(GetActualTime_ms());\n  for(auto& trial:tribunDuelTrials)trial.Cancel(GetActualTime_ms());"),
+    ])
+    edit(root, "src/onthepitch/AIsupport/AIfunctions.cpp", [
+        ("  desiredVelocity = RangeVelocity(desiredVelocity);\n}\n\nVector3 AI_GetForceFieldMovement", r'''  if(AITactics::DuelEnabled() && player->HasUniquePossession() &&
+      match->IsInPlay()&&!match->IsInSetPiece()&&!match->GetBallRetainer()&&
+      !team->GetHumanGamerCount()&&player->GetFormationEntry().role!=e_PlayerRole_GK){
+    const float skill=AITactics::ControlSkill(player->GetStat("technical_dribble"),
+        player->GetStat("technical_ballcontrol"),player->GetStat("physical_agility"),player->GetStat("physical_balance"));
+    const float gap=(mentalImage->GetBallPrediction(0).Get2D()-myPos).GetLength();
+    const float depth=pitchHalfW+side*myPos.coords[0];
+    auto& trial=match->tribunDuelTrials[team->GetID()];
+    if(depth>=8.0f&&depth<=55.0f&&(trial.carrier<0||trial.carrier==player->GetID())){
+      Player* defender=nullptr;
+      float closest=100.0f;
+      for(auto* rival:opponents){
+        if(!rival||!rival->IsActive()||rival->GetFormationEntry().role==e_PlayerRole_GK)continue;
+        if(trial.carrier>=0&&rival->GetID()!=trial.defender)continue;
+        const auto delta=(rival->GetPosition()-myPos).Get2D();
+        const float distance=delta.GetLength();
+        if(distance<.01f)continue;
+        const auto relative=rival->GetMovement()-myMov;
+        const float closing=-(relative.coords[0]*delta.coords[0]+relative.coords[1]*delta.coords[1])/distance;
+        if(AITactics::DuelEligible(delta.coords[0]*-side,distance,closing,gap,skill)&&distance<closest){
+          closest=distance;defender=rival;
+        }
+      }
+      if(defender){
+        const Vector3 forward(-side,0,0);
+        const auto facing=player->GetDirectionVec().Get2D().GetNormalized(forward);
+        const auto current=desiredDirection.Get2D().GetNormalized(facing);
+        const auto rivalMotion=defender->GetMovement().Get2D();
+        auto rate=[&](const Vector3& dir,float speed){
+          const float turn=dir.coords[0]*facing.coords[0]+dir.coords[1]*facing.coords[1];
+          const float advance=sprintVelocity*speed*.55f;
+          const auto end=myPos+dir*advance;
+          if(std::abs(end.coords[0])>pitchHalfW-1.5f||std::abs(end.coords[1])>pitchHalfH-1.5f)return -1000.0f;
+          float clearance=100.0f;
+          for(const auto& opp:opponentPlayerImages)for(float time:{.18f,.36f,.55f}){
+            const auto point=myPos+dir*(sprintVelocity*speed*time);
+            clearance=std::min(clearance,(point-opp.position-opp.movement*time).Get2D().GetLength());
+          }
+          // Reward exiting opposite a defender's lateral momentum, not magical misdirection.
+          const float wrongFoot=-dir.coords[1]*std::clamp(rivalMotion.coords[1]/3.0f,-1.0f,1.0f);
+          return AITactics::DuelEscapeScore(dir.coords[0]*-side*advance,clearance,turn,speed,skill,wrongFoot);
+        };
+        const float baseline=rate(current,clamp(desiredVelocity/sprintVelocity,0.0f,1.0f));
+        float best=baseline,chosenSpeed=0.0f;Vector3 chosen=current;
+        for(float angle:{-.95f,-.60f,-.30f,.30f,.60f,.95f}){
+          const auto dir=forward.GetRotated2D(angle);
+          const float turn=dir.coords[0]*facing.coords[0]+dir.coords[1]*facing.coords[1];
+          const float cap=AITactics::CarrySpeedLimit(skill,closest,gap,turn);
+          for(float fraction:{.45f,.62f,.78f,.90f}){
+            if(fraction>cap+.0001f)continue;
+            const float score=rate(dir,fraction);
+            if(score>best){best=score;chosen=dir;chosenSpeed=fraction;}
+          }
+        }
+        if(best>baseline+.25f&&best>-999.0f&&
+            (trial.carrier==player->GetID()||trial.Begin(player->GetID(),defender->GetID(),myPos.coords[0],-side,match->GetActualTime_ms()))){
+          desiredDirection=chosen;desiredVelocity=sprintVelocity*chosenSpeed;
+        }
       }
     }
   }

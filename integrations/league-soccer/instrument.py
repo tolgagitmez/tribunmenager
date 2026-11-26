@@ -207,6 +207,9 @@ void TribunTrace(Match& match, bool done) {
     std::printf("[tribun-carry] mode=%s attempts=%lu,%lu progressed=%lu,%lu lost=%lu,%lu cancelled=%lu,%lu technical=%lu,%lu conservative=%lu,%lu\n",
         AITactics::CreativeCarryEnabled()?"carry":"off",ca.attempts,cb.attempts,ca.progressed,cb.progressed,ca.lost,cb.lost,
         ca.cancelled,cb.cancelled,ca.technical,cb.technical,ca.conservative,cb.conservative);
+    const auto& da=match.tribunDuelTrials[0];const auto& db=match.tribunDuelTrials[1];
+    std::printf("[tribun-duel] mode=%s attempts=%lu,%lu beaten=%lu,%lu lost=%lu,%lu cancelled=%lu,%lu\n",
+      AITactics::DuelEnabled()?"duel":"off",da.attempts,db.attempts,da.beaten,db.beaten,da.lost,db.lost,da.cancelled,db.cancelled);
     std::fflush(stdout);
   }
   if (done && tribun_visual::collisionOnly()) {

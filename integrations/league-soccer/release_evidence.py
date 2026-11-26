@@ -38,6 +38,7 @@ FILES=(
  "integrations/league-soccer/run-lanes-benchmark.py",
  "integrations/league-soccer/triangle-benchmark.py",
  "integrations/league-soccer/creative-carry-benchmark.py",
+ "integrations/league-soccer/duel-benchmark.py",
  "integrations/league-soccer/position-skinning-benchmark.py",
  "integrations/league-soccer/runtime-layout.py",
  "integrations/league-soccer/verify-substitutions.py",
