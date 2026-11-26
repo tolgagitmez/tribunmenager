@@ -73,6 +73,46 @@ inline bool TriangleGeometry(float progress,float distance,float width,float mar
 inline bool TrianglePassSafe(float odds,float nativeOdds){return odds>=.74f&&odds>=nativeOdds-.05f;}
 '''
 
+CREATIVE_CARRY_RULES = r'''// Scores are relative to the attacking direction; speed fraction is relative to native sprint.
+inline float CarrySpeedLimit(float skill,float pressure,float gap,float turn){
+  if(gap>1.35f)return .48f;
+  const float cap=.60f+.40f*std::clamp(skill,0.0f,1.0f);
+  if(pressure<1.7f||turn<.45f)return std::min(cap,.62f);
+  if(pressure<3.0f)return std::min(cap,.78f);
+  return cap;
+}
+inline float CarryOption(float progress,float clearance,float alignment,float speed,float skill,float attack){
+  if(clearance<1.15f||progress<-.40f||alignment<-.35f)return -1000.0f;
+  return progress*(.65f+.45f*attack)+std::min(clearance,5.0f)*.85f+
+      alignment*(.9f-.35f*skill)-speed*(1.0f-skill)*.6f;
+}
+struct CarryTrial {
+  int player=-1;
+  unsigned long start=0,expires=0,cooldown=0,lastControl=0;
+  float x=0,forward=1;
+  unsigned long attempts=0,progressed=0,lost=0,cancelled=0;
+  unsigned long technical=0,conservative=0;
+  void End(unsigned long now){player=-1;cooldown=now+500;}
+  void Cancel(unsigned long now){if(player>=0){++cancelled;End(now);}}
+  bool Begin(int id,float pos,float dir,float skill,unsigned long now){
+    if(player>=0||now<cooldown||id<0)return false;
+    player=id;start=lastControl=now;expires=now+1100;x=pos;forward=dir;
+    ++attempts;if(skill>=.70f)++technical;else ++conservative;return true;
+  }
+  void Observe(int owner,bool opponentControl,bool invalid,float pos,unsigned long now){
+    if(player<0)return;
+    if(invalid||now<start){Cancel(now);return;}
+    if(opponentControl){++lost;End(now);return;}
+    if(owner>=0&&owner!=player){Cancel(now);return;}
+    if(owner==player){
+      lastControl=now;
+      if(now>=start+250&&(pos-x)*forward>=2.0f){++progressed;End(now);return;}
+    }
+    if(now>=expires||now>lastControl+200)Cancel(now);
+  }
+};
+'''
+
 def apply(root):
     header = Path(root) / "src/base/math/bluntmath.hpp"
     if "randomseed(unsigned int seed)" in header.read_text(encoding="utf-8"):
@@ -1591,4 +1631,95 @@ void TeamAIController::TribunPassContact(Player* passer,Player* receiver,bool sh
         }else if(triangleCandidate && !(progressiveCandidate||supportCandidate||runningCandidate||
             deliveryCandidate||pressureOutlet||returnCandidate||retentionOutlet||timedCandidate||lineBreak))continue;
         float totalRating = mateRating.tacticalDiffRating * tacticalDiffWeight +'''),
+    ])
+
+    # Stage 66: multi-speed dribbling search using native movement limits and actual control outcomes.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool CreativeCarryEnabled() {
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_NATIVE_CREATIVE_CARRY");
+    return value && std::strcmp(value,"1")==0 && ShortMatchAttackEnabled() &&
+        FixedDurationEnabled() && std::getenv("TRIBUN_LEAGUE_SOCCER_FIXTURE");
+  }();
+  return enabled;
+}
+''' + CREATIVE_CARRY_RULES + "struct FixedDurationClock {"),
+    ])
+    edit(root, "src/onthepitch/match.hpp", [
+        ("  unsigned long tribunRunLaneAttempts[2]={0,0};", """  unsigned long tribunRunLaneAttempts[2]={0,0};
+  AITactics::CarryTrial tribunCarryTrials[2];"""),
+    ])
+    edit(root, "src/onthepitch/match.cpp", [
+        ("    teams[1]->UpdatePossessionStats();\n    CalculateBestPossessionTeamID();", r'''    teams[1]->UpdatePossessionStats();
+    if(AITactics::CreativeCarryEnabled()){
+      for(int t=0;t<2;++t){
+        auto& trial=tribunCarryTrials[t];
+        if(trial.player<0)continue;
+        auto* carrier=teams[t]->GetPlayer(trial.player);
+        auto* own=teams[t]->GetDesignatedTeamPossessionPlayer();
+        const bool invalid=!IsInPlay()||IsInSetPiece()||GetBallRetainer()||!carrier||!carrier->IsActive();
+        const bool confirmed=own&&own->HasUniquePossession()&&GetLastTouchPlayer()==own;
+        trial.Observe(confirmed?own->GetID():-1,teams[1-t]->HasUniquePossession(),
+            invalid,carrier?carrier->GetPosition().coords[0]:0.0f,actualTime_ms);
+      }
+    }
+    CalculateBestPossessionTeamID();'''),
+        ("void Match::ResetSituation(const Vector3& focusPos) {", r'''void Match::ResetSituation(const Vector3& focusPos) {
+  for(auto& trial:tribunCarryTrials)trial.Cancel(GetActualTime_ms());'''),
+    ])
+    edit(root, "src/onthepitch/AIsupport/AIfunctions.cpp", [
+        ("  desiredVelocity = RangeVelocity(desiredVelocity);\n}\n\nVector3 AI_GetForceFieldMovement", r'''  if(AITactics::CreativeCarryEnabled() && player->HasUniquePossession() &&
+      match->IsInPlay() && !match->IsInSetPiece() && !match->GetBallRetainer() &&
+      !team->GetHumanGamerCount() && player->GetFormationEntry().role!=e_PlayerRole_GK){
+    const float skill=AITactics::ControlSkill(player->GetStat("technical_dribble"),
+        player->GetStat("technical_ballcontrol"),player->GetStat("physical_agility"),player->GetStat("physical_balance"));
+    const float depth=pitchHalfW+side*myPos.coords[0];
+    const float gap=(mentalImage->GetBallPrediction(0).Get2D()-myPos).GetLength();
+    float nearest=100.0f;
+    for(const auto& opp:opponentPlayerImages)nearest=std::min(nearest,(opp.position-myPos).Get2D().GetLength());
+    if(depth>=8.0f && depth<=65.0f && nearest>=1.0f && nearest<=6.0f && gap<=1.35f){
+      const Vector3 forward(-side,0,0);
+      const auto facing=player->GetDirectionVec().Get2D().GetNormalized(forward);
+      const auto current=desiredDirection.Get2D().GetNormalized(facing);
+      const float attack=clamp(teamTactics.userProperties.GetReal("dribble_offensiveness",.5f),0.0f,1.0f);
+      auto score=[&](const Vector3& dir,float fraction){
+        const float alignment=dir.coords[0]*facing.coords[0]+dir.coords[1]*facing.coords[1];
+        const float distance=sprintVelocity*fraction*.55f;
+        const auto endpoint=myPos+dir*distance;
+        if(std::abs(endpoint.coords[0])>pitchHalfW-1.5f||std::abs(endpoint.coords[1])>pitchHalfH-1.5f)return -1000.0f;
+        float clearance=100.0f;
+        for(const auto& opp:opponentPlayerImages)for(float time:{.18f,.36f,.55f}){
+          const auto point=myPos+dir*(sprintVelocity*fraction*time);
+          const auto rival=opp.position+opp.movement*time;
+          clearance=std::min(clearance,(point-rival).Get2D().GetLength());
+        }
+        return AITactics::CarryOption(dir.coords[0]*-side*distance,clearance,alignment,fraction,skill,attack);
+      };
+      const float currentSpeed=clamp(desiredVelocity/sprintVelocity,0.0f,1.0f);
+      float best=score(current,currentSpeed);
+      const float baseline=best;
+      Vector3 chosen=current;float chosenSpeed=currentSpeed;
+      const Vector3 options[]={current,forward,forward.GetRotated2D(.35f),forward.GetRotated2D(-.35f),
+          forward.GetRotated2D(.70f),forward.GetRotated2D(-.70f),
+          forward.GetRotated2D(1.05f),forward.GetRotated2D(-1.05f)};
+      for(const auto& dir:options){
+        const float turn=dir.coords[0]*facing.coords[0]+dir.coords[1]*facing.coords[1];
+        const float cap=AITactics::CarrySpeedLimit(skill,nearest,gap,turn);
+        for(float fraction:{.45f,.62f,.78f,1.0f}){
+          if(fraction>cap+.0001f)continue;
+          const float rating=score(dir,fraction);
+          if(rating>best){best=rating;chosen=dir;chosenSpeed=fraction;}
+        }
+      }
+      if(best>baseline+.20f && best>-999.0f){
+        desiredDirection=chosen;
+        desiredVelocity=sprintVelocity*chosenSpeed;
+        match->tribunCarryTrials[team->GetID()].Begin(player->GetID(),myPos.coords[0],-side,skill,match->GetActualTime_ms());
+      }
+    }
+  }
+  desiredVelocity = RangeVelocity(desiredVelocity);
+}
+
+Vector3 AI_GetForceFieldMovement'''),
     ])
