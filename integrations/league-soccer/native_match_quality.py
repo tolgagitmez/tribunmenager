@@ -81,4 +81,9 @@ def inspect(directory):
         motion=motion_audit(playlist)
     except (OSError,ValueError,KeyError,TypeError,subprocess.SubprocessError) as exc:result['errors']['motion']=type(exc).__name__
     result['presentation']=presentation(native,browser,motion)
+    result['stallDiagnostics']={'carrier':None,'nativeClock':native.get('clockObservation')}
+    try:
+        from native_stall_diagnostics import inspect_trace
+        result['stallDiagnostics']['carrier']=inspect_trace(trace)
+    except (OSError,ValueError,KeyError,TypeError,AttributeError) as exc:result['errors']['stallDiagnostics']=type(exc).__name__
     return result

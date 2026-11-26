@@ -32,7 +32,7 @@ class EntrypointTest(unittest.TestCase):
         with patch('start.shutil.which',return_value='wsl.exe'):
             c=start.native_command(a,'win32')
             self.assertEqual(c[:7],['wsl.exe','--distribution','Ubuntu','--cd','~','--exec','python3'])
-            self.assertIn('stage172',c[7])
+            self.assertIn('stage173',c[7])
             self.assertNotIn(start.WSL_BOOTSTRAP,c)
         with patch('start.subprocess.run') as run:
             run.return_value.returncode=0

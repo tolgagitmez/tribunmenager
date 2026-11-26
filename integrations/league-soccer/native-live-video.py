@@ -141,17 +141,24 @@ def main():
     if a.halftime_plan:env["TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"]="1"
     if control:
         env["TRIBUN_NATIVE_VIDEO_CONTROL"]="1";env["TRIBUN_LEAGUE_SOCCER_COMMAND_DIR"]=str(control.directory)
-    first=None;started=time.monotonic()
+    from native_stall_diagnostics import ClockObserver
+    observer=ClockObserver()
+    first=None;started=time.monotonic();next_observation=started
     try:
         with (out/"runner.log").open("wb") as log:
             proc=subprocess.Popen(["bash",str(HERE/"run-frozen.sh"),str(runtime),str(fixture),str(trace),"0"],env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             try:
                 while proc.poll() is None:
                     if control:control.drain()
+                    now=time.monotonic()
+                    if now>=next_observation:
+                        observer.poll(trace,now);next_observation=now+.5
                     if first is None and (media/"live.m3u8").is_file() and any(media.glob("segment-*.m4s")):
                         first=time.monotonic();state["phase"]="streaming";state["firstSegmentObserved"]=True
                     if time.monotonic()-started>1000:raise TimeoutError("Native live capture exceeded limit")
                     time.sleep(.1)
+                observer.poll(trace,time.monotonic())
+                report['clockObservation']=observer.report(time.monotonic())
                 if control:control.drain();control.close()
                 if proc.returncode:
                     report["runnerExit"]=proc.returncode
@@ -202,6 +209,7 @@ def main():
     except BaseException as error:
         state["phase"]="failed"
         if control:control.close()
+        if "clockObservation" not in report:report["clockObservation"]=observer.report(time.monotonic())
         report.update(status="failed",failureType=type(error).__name__,failureMessage=str(error)[:500],
                       captureFailure=capture_failure(out))
         write_json(report_path,report)

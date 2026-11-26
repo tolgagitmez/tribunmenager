@@ -102,10 +102,11 @@ def run(runtime,root,port,delay,result_seconds=30,wsl_gpu=False):
                     result={'passed':False,'failureType':type(exc).__name__,'productionQualified':False}
                 result['quality']=inspect_quality(root/attempt/'run')
                 result['requestedIdleRecovery']=True
-                result['idleRecoveryRequests']={}
+                result['idleRecoveryRequests']=None
                 game_log=root/attempt/'run/native-match.game.log'
                 if game_log.is_file() and game_log.stat().st_size<=16*1024*1024:
                     import re
+                    result['idleRecoveryRequests']={}
                     for line in game_log.read_text(errors='replace').splitlines():
                         m=re.fullmatch(r'\[tribun-idle-recovery\] phase=(-?\d+) match_ms=(\d+) player=(-?\d+) action=(safe-pass|safe-move|defensive-clearance|no-safe-option)',line)
                         if m:
