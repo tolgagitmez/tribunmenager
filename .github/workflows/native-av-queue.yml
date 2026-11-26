@@ -1,0 +1,15 @@
+name: Stage 130 durable native AV queue
+on:
+  push:
+    branches: [experiment/native-durable-queue-stage130]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m unittest discover -s tests -p test_native_av_queue.py
+          python3 -m unittest discover -s tests -p test_native_admission.py
+          python3 -m py_compile server.py integrations/league-soccer/native_av_queue.py

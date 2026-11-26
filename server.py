@@ -15,6 +15,10 @@ from live_match import LiveMatchError, Registry, SCHEMA as LIVE_SCHEMA, kick_con
 import season_state
 import native_shadow
 import native_live
+import importlib.util
+_av_spec=importlib.util.spec_from_file_location('native_av_queue',Path(__file__).resolve().parent/'integrations/league-soccer/native_av_queue.py')
+native_av_queue=importlib.util.module_from_spec(_av_spec)
+_av_spec.loader.exec_module(native_av_queue)
 
 ROOT=Path(__file__).resolve().parent
 DATA=Path(os.environ.get('TRIBUN_DB',str(ROOT/'tribun-dev.sqlite3')))
@@ -50,7 +54,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS fixtures(
         league TEXT NOT NULL,round INT NOT NULL,home INT NOT NULL,away INT NOT NULL,
         kickoff REAL NOT NULL,home_score INT,away_score INT,home_yellows INT,away_yellows INT,
-        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA + season_state.SCHEMA + native_shadow.SCHEMA)
+        home_reds INT,away_reds INT,PRIMARY KEY(league,round,home,away));''' + LIVE_SCHEMA + season_state.SCHEMA + native_shadow.SCHEMA + native_av_queue.SCHEMA)
 
 def rounds():
     # 6-team double round robin: 5 rounds each leg, 3 matches per day.
@@ -160,6 +164,8 @@ def settle_due(now=None):
                     (*key,kickoff,json.dumps(config,ensure_ascii=False)))
                 native_shadow.enqueue(c,key,config)
                 created.append((key,kickoff,config))
+            if os.environ.get('TRIBUN_NATIVE_AV_QUEUE')=='1':
+                native_av_queue.sync(c,now)
             pending=c.execute('''SELECT league,round,home,away,kickoff,config
                 FROM live_matches WHERE final_state IS NULL AND kickoff<=?
                 ORDER BY kickoff,league,round,home,away''',(now,)).fetchall()
