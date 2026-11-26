@@ -77,10 +77,30 @@ def profile(report):
             **stall_metrics(q)}
 
 
+def identity(report, field):
+    value = report.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, str) or len(value) != 64 or any(c not in '0123456789abcdef' for c in value):
+        raise ValueError('Invalid ' + field)
+    return value
+
+
+def provenance(baseline, experimental):
+    a, b = (identity(r, 'configSha256') for r in (baseline, experimental))
+    x, y = (identity(r, 'traceSha256') for r in (baseline, experimental))
+    same_fixture = None if a is None or b is None else a == b
+    same_trace = None if x is None or y is None else x == y
+    return {'fixtureIdentityMatched': same_fixture, 'traceIdentityMatched': same_trace,
+            'independentTraceEvidence': None if same_trace is None else not same_trace,
+            'scope': 'Report-provided verified recording hashes; exact fixture equality includes seed and configuration. Distinct trace hashes alone do not prove independent or repeatable simulations.'}
+
+
 def compare(baseline, experimental):
     a, b = profile(baseline), profile(experimental)
     return {'baseline': a, 'experimental': b,
             'deltaExperimentalMinusBaseline': {k: None if a[k] is None or b[k] is None else round(b[k] - a[k], 5) for k in a},
+            'provenance': provenance(baseline, experimental),
             'seedMatchedVerified': False, 'causalImprovementVerified': False,
             'productionQualified': False,
             'scope': 'Two completed private matches; descriptive differences only. Missing measurements are null, not zero.'}
