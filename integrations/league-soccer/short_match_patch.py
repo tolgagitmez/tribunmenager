@@ -3654,6 +3654,66 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 180: sample original skeletal ankle positions at the applied
+    # snapshot, before historical rendering interpolation. Never read
+    # live ball state from the render side or modify skeleton transforms.
+    edit(root, "src/onthepitch/player/humanoid/humanoidbase.hpp", [
+        ("  AnimApplyBuffer buf_animApplyBuffer;", r'''  AnimApplyBuffer buf_animApplyBuffer;
+  struct TribunFootSnapshot {
+    bool enabled=false;
+    int playerId=-1,phase=-1,animation=-1,frame=-1,touchFrame=-1;
+    unsigned long snapshot=0,matchMs=0;
+    Vector3 ball=Vector3(0);
+  };
+  TribunFootSnapshot tribunFootBuffer,tribunFootFetched;
+  bool tribunFootLogged=false;
+  unsigned long tribunLastFootSnapshot=0;'''),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoidbase.cpp", [
+        ('#include <cmath>', '#include <cmath>\n#include <cstdio>\n#include "../../aitactics.hpp"'),
+        ("  buf_animApplyBuffer.snapshotTime_ms = snapshotTime_ms;", r'''  buf_animApplyBuffer.snapshotTime_ms = snapshotTime_ms;
+  tribunFootBuffer.enabled=false;
+  if(AITactics::IdleRecoveryEnabled() && match->IsInPlay() &&
+      !match->IsInSetPiece() && !match->GetBallRetainer() &&
+      !player->GetExternalController() && player->IsActive() &&
+      match->GetDesignatedPossessionPlayer()==player && currentAnim &&
+      currentAnim->anim==animApplyBuffer.anim && currentAnim->frameNum==animApplyBuffer.frameNum){
+    const int frame=currentAnim->frameNum,touch=currentAnim->touchFrame;
+    const bool nearTouch=touch>=0 && std::abs(frame-touch)<=3;
+    const bool movement=currentAnim->functionType==e_FunctionType_Movement;
+    if(nearTouch || movement){
+      tribunFootBuffer.enabled=true;
+      tribunFootBuffer.playerId=player->GetID();
+      tribunFootBuffer.phase=static_cast<int>(match->GetMatchPhase());
+      tribunFootBuffer.animation=currentAnim->id;
+      tribunFootBuffer.frame=frame;tribunFootBuffer.touchFrame=touch;
+      tribunFootBuffer.snapshot=snapshotTime_ms;
+      tribunFootBuffer.matchMs=match->GetMatchTime_ms();
+      tribunFootBuffer.ball=match->GetBall()->Predict(0);
+    }
+  }'''),
+        ("  fetchedbuf_animApplyBuffer = buf_animApplyBuffer;", "  fetchedbuf_animApplyBuffer = buf_animApplyBuffer;\n  tribunFootFetched=tribunFootBuffer;"),
+        ("  // we've just set the humanoid positions for time fetchedbuf_animApplyBuffer.snapshotTime_ms.", r'''  const auto& footSnapshot=tribunFootFetched;
+  if(footSnapshot.enabled && footSnapshot.snapshot==fetchedbuf_animApplyBuffer.snapshotTime_ms &&
+      footSnapshot.frame==fetchedbuf_animApplyBuffer.frameNum &&
+      (!tribunFootLogged || footSnapshot.snapshot!=tribunLastFootSnapshot)){
+    const auto left=nodeMap.find("left_ankle"),right=nodeMap.find("right_ankle");
+    if(left!=nodeMap.end() && right!=nodeMap.end() && left->second && right->second){
+      const auto l=left->second->GetDerivedPosition(),r=right->second->GetDerivedPosition();
+      const auto b=footSnapshot.ball;
+      std::fprintf(stderr,"[tribun-skeleton-feet] snapshot=%lu match_ms=%lu phase=%d player=%d anim=%d frame=%d touch_frame=%d left=%.5f,%.5f,%.5f right=%.5f,%.5f,%.5f ball=%.5f,%.5f,%.5f\n",
+          footSnapshot.snapshot,footSnapshot.matchMs,footSnapshot.phase,footSnapshot.playerId,
+          footSnapshot.animation,footSnapshot.frame,footSnapshot.touchFrame,
+          l.coords[0],l.coords[1],l.coords[2],r.coords[0],r.coords[1],r.coords[2],
+          b.coords[0],b.coords[1],b.coords[2]);
+      tribunFootLogged=true;tribunLastFootSnapshot=footSnapshot.snapshot;
+    }
+  }
+  // we've just set the humanoid positions for time fetchedbuf_animApplyBuffer.snapshotTime_ms.'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
