@@ -470,6 +470,7 @@ void TribunTrace(Match& match, bool done) {
              << ",\"cardCode\":" << player->GetCards()
              << ",\"nominalMs\":" << row.nominalMs << ",\"activeMs\":" << row.activeMs
              << ",\"sprintMs\":" << row.sprintMs
+             << ",\"injuryLevel\":" << player->GetInjuryLevel()
              << ",\"fatigueFactor\":" << player->GetFatigueFactorInv() << '}';
     }
   }

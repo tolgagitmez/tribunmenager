@@ -6,6 +6,7 @@ import secrets,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 import native_live as n
+from native_roster import plan_from_config,roster_snapshot
 class ControlBridge:
     error_type=n.ControlError
     def __init__(self,config,directory,trace,clock=None):
@@ -14,6 +15,7 @@ class ControlBridge:
         self.tokens=[secrets.token_urlsafe(24),secrets.token_urlsafe(24)]
         self.session=n.Session(config,self.directory,**({"clock":clock} if clock else {}))
         self.tail=n.Tail(trace,self.session)
+        self.plans=plan_from_config(config)
     def drain(self):self.tail.drain()
     def close(self):self.session.close()
     def read(self,side):
@@ -23,7 +25,8 @@ class ControlBridge:
         eligible=bool(frame and frame.get("inPlay") is True and not frame.get("setPiece")
             and frame.get("humanGamers")==[0,0] and state["canControl"])
         return {k:state[k] for k in ("side","submittedRevision","appliedRevision","commandState","finalizing")} | {
-            "canControl":eligible,"engineMatchMs":frame.get("matchMs") if frame else None}
+            "canControl":eligible,"engineMatchMs":frame.get("matchMs") if frame else None,
+            "roster":roster_snapshot(frame,self.session.meta["players"],self.plans,side)}
     def submit(self,side,body):
         if not isinstance(body,dict) or body.get("round")!=0 or type(body.get("round")) is not int:
             raise n.ControlError("Geçersiz yerel maç.",400)

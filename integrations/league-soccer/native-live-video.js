@@ -69,14 +69,30 @@
  }
  // Current engine state is separate from buffered video time.
  const panel=document.querySelector('#manager'),send=document.querySelector('#sendTactics'),form=document.querySelector('#tacticsForm'),commandStatus=document.querySelector('#commandStatus');
- let controlState=null,submitting=false,pollGeneration=0,polling=false,managerSide=null,pendingRequest=null;
+ let controlState=null,submitting=false,pollGeneration=0,polling=false,managerSide=null,pendingRequest=null,rosterKey='';
+ function renderRoster(roster){
+  const key=JSON.stringify(roster);if(key===rosterKey)return;rosterKey=key;
+  const rows=document.querySelector('#rosterRows'),plans=document.querySelector('#plannedChanges'),status=document.querySelector('#rosterStatus');
+  rows.replaceChildren();plans.replaceChildren();
+  if(!roster?.available){status.textContent='Doğrulanmış kadro verisi bekleniyor.';return;}
+  status.textContent='Motor saati: '+Math.floor(roster.matchMs/60000)+'′ · '+roster.players.filter(p=>p.active).length+' aktif oyuncu';
+  const percent=v=>Number.isFinite(v)?Math.round(v*100)+'%':'—';
+  for(const p of roster.players){
+   const row=document.createElement('tr');
+   for(const val of [p.name,p.status==='active'?'Sahada':p.status==='dismissed'?'İhraç':p.status==='used'?'Çıktı':'Yedek',percent(p.fatigueFactor),percent(p.injuryLevel),p.red?'Kırmızı':p.yellow?'Sarı ×'+p.yellow:'—',Math.floor(p.nominalMs/60000)]){
+    const cell=document.createElement('td');cell.textContent=String(val);cell.style.padding='5px 3px';row.append(cell);
+   }
+   rows.append(row);
+  }
+  for(const p of roster.changes){const li=document.createElement('li');li.textContent=p.outName+' → '+p.inName+' · '+(p.state==='observed'?'Sahada gözlendi':p.state==='not-observed'?'Henüz gözlenmedi':'Devre arası planı');plans.append(li);}
+ }
  async function controlPoll(){
   const generation=++pollGeneration;
   try{
    const state=JSON.parse(await get('tactics.json'));
    if(generation!==pollGeneration)return;
    if(state.side!==managerSide)throw Error('Takım uyuşmuyor.');
-   controlState=state;
+   controlState=state;renderRoster(state.roster);
    if(!submitting){
     if(state.commandState==='waiting-for-engine')commandStatus.textContent='Komut '+state.submittedRevision+' · motor onayı bekleniyor.';
     else if(state.commandState==='applied')commandStatus.textContent='Motor onayladı · komut '+state.appliedRevision;
@@ -85,7 +101,7 @@
    }
    if(state.appliedRevision>0&&pendingRequest&&state.appliedRevision>=pendingRequest.revision)pendingRequest=null;
    send.disabled=submitting||!state.canControl;
-  }catch(e){if(generation===pollGeneration){controlState=null;send.disabled=true;commandStatus.textContent='Motor bağlantısı yok.';}}
+  }catch(e){if(generation===pollGeneration){controlState=null;renderRoster(null);send.disabled=true;commandStatus.textContent='Motor bağlantısı yok.';}}
  }
  async function startControl(){
   try{

@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from release_evidence import stamp,sha
 from native_audio_capture import audit_audio
 from native_video_control import ControlBridge
+from native_roster import plan_from_config,verify_halftime
 HERE=Path(__file__).resolve().parent
 spec=importlib.util.spec_from_file_location("video",HERE/"native-video-pilot.py")
 V=importlib.util.module_from_spec(spec);spec.loader.exec_module(V)
@@ -85,13 +86,15 @@ def validate_playlist(media):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)
-    p.add_argument("--linger",type=int,default=15);p.add_argument("--audio",action="store_true");p.add_argument("--interactive",action="store_true")
+    p.add_argument("--linger",type=int,default=15);p.add_argument("--audio",action="store_true");p.add_argument("--interactive",action="store_true");p.add_argument("--halftime-plan",action="store_true")
     a=p.parse_args();V.require(0<=a.linger<=120,"Invalid linger")
     runtime=a.runtime.resolve();fixture=a.fixture.resolve();out=a.out.resolve()
+    config=json.loads(fixture.read_text());plans=plan_from_config(config)
+    V.require(bool(plans)==a.halftime_plan,"Use explicit --halftime-plan with prepared changes")
     out.mkdir(parents=True,exist_ok=False);media=out/"hls";media.mkdir()
     state={"phase":"starting","engine":"league-soccer","authoritative":False,"audio":False,"audioRequested":a.audio}
     trace=out/"match.ndjson";video=out/"native-match.mp4"
-    control=ControlBridge(json.loads(fixture.read_text()),out/"commands",trace) if a.interactive else None
+    control=ControlBridge(config,out/"commands",trace) if a.interactive else None
     token=secrets.token_urlsafe(24);server=make_server(media,token,state,control)
     url=f"http://127.0.0.1:{server.server_port}/{token}/"
     # URL is private to local filesystem; never included in report or artifact.
@@ -105,6 +108,7 @@ def main():
         "fixtureSha256":sha(fixture),"videoRedistributionApproved":False,"transport":"local-hls-fmp4"},runtime,"native-live-video")
     report_path=out/"live-report.json";write_json(report_path,report)
     env=V.env_for(os.environ,video);env["TRIBUN_NATIVE_HLS_DIR"]=str(media);env["TRIBUN_NATIVE_AUDIO_CAPTURE"]="1" if a.audio else "0"
+    if a.halftime_plan:env["TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"]="1"
     if control:
         env["TRIBUN_NATIVE_VIDEO_CONTROL"]="1";env["TRIBUN_LEAGUE_SOCCER_COMMAND_DIR"]=str(control.directory)
     first=None;started=time.monotonic()
@@ -134,13 +138,17 @@ def main():
         checks.pop("encodedCadenceAtLeast20")
         checks["firstSegmentBeforeObservedFinal"]=first is not None and capture["finalObserved"] is not None and first<capture["finalObserved"]
         complete=all(checks[k] for k in ("captureBeforeKickoff","videoLengthAtLeastObservedMatch","firstSegmentBeforeObservedFinal"))
+        roster=None
+        if a.halftime_plan:
+            roster=verify_halftime(trace,Path(str(trace)+".fixture.json"),Path(str(trace)+".season.json"))
+            complete=complete and roster["allPlannedChangesObserved"]
         audio=None
         if a.audio:
             V.require(capture.get("audio") is True and capture.get("nativeSinkInputObserved") is True,"No native sound producer observed")
             audio=audit_audio(media/"live.m3u8",checks["observedWallSeconds"])
             complete=complete and audio["nonSilentCoveragePassed"]
         report.update(status="local-live-evidence" if complete else "coverage-inconclusive",nativeClock=clock,audio=audio,
-          playlist=playlist,checks=checks,traceSha256=sha(trace),control=control.report() if control else None,
+          playlist=playlist,checks=checks,traceSha256=sha(trace),control=control.report() if control else None,roster=roster,
           note="Loopback only, 2-second HLS segments. Audio when requested is native OpenAL mix, not synthetic effects. Event-by-event sound and exact A/V alignment not verified. Browser latency, actual renderer FPS, asset clearance, league authorization and capacity not qualified. Manager status is current engine time, not synchronized video time.")
         state["audio"]=bool(audio and audio["nonSilentCoveragePassed"]);state["phase"]="finished" if complete else "failed";write_json(report_path,report)
         if not complete:raise RuntimeError("Live coverage inconclusive")

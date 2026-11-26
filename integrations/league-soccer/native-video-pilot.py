@@ -110,8 +110,12 @@ def _capture_window(config,limit,audio_env):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("runtime",type=Path);p.add_argument("fixture",type=Path);p.add_argument("out",type=Path)
+    p.add_argument("--halftime-plan",action="store_true",help="Quarantined preconfigured native substitutions")
     a=p.parse_args()
     runtime=a.runtime.resolve();fixture=a.fixture.resolve();out=a.out.resolve()
+    from native_roster import plan_from_config, verify_halftime
+    plans=plan_from_config(json.loads(fixture.read_text()))
+    require(bool(plans)==a.halftime_plan,"Use explicit --halftime-plan with prepared changes")
     out.mkdir(parents=True,exist_ok=False)
     video=out/"native-match.mp4";trace=out/"match.ndjson"
     from release_evidence import stamp,sha
@@ -119,17 +123,23 @@ def main():
        "presentation":"original-native-opengl-window","simulation":"pinned-league-soccer","audio":False,
        "fixtureSha256":sha(fixture),"videoRedistributionApproved":False},runtime,"native-video-pilot")
     save(out/"native-video-report.json",report)
+    env=env_for(os.environ,video)
+    if a.halftime_plan:env["TRIBUN_NATIVE_EXPERIMENTAL_SUBSTITUTIONS"]="1"
     with (out/"runner.log").open("wb") as log:
         subprocess.run(["bash",str(HERE/"run-frozen.sh"),str(runtime),str(fixture),str(trace),"0"],
-            env=env_for(os.environ,video),stdout=log,stderr=subprocess.STDOUT,check=True,timeout=1000)
+            env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=1000)
     spec=importlib.util.spec_from_file_location("fixed",HERE/"fixed-duration.py")
     fixed=importlib.util.module_from_spec(spec);spec.loader.exec_module(fixed)
     with trace.open() as f:clock=fixed.verify(json.loads(line) for line in f)
     captured=json.loads(video.with_suffix(".capture.json").read_text());media=measure(video)
     checks=assess(captured,media)
     complete=checks["captureBeforeKickoff"] and checks["videoLengthAtLeastObservedMatch"]
+    roster=None
+    if a.halftime_plan:
+        roster=verify_halftime(trace,Path(str(trace)+".fixture.json"),Path(str(trace)+".season.json"))
+        complete=complete and roster["allPlannedChangesObserved"]
     report.update(status="manual-review-required" if complete else "capture-coverage-inconclusive",
-      nativeClock=clock,video=media,checks=checks,traceSha256=sha(trace),videoSha256=sha(video),
+      nativeClock=clock,video=media,checks=checks,roster=roster,traceSha256=sha(trace),videoSha256=sha(video),
       note="Original window recorded, no reconstructed players. Silent local recording; startup/end screens possible. No live streaming, exact video alignment or production capacity claim.")
     save(out/"native-video-report.json",report)
     print(json.dumps(report,indent=2))
