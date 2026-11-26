@@ -6,7 +6,7 @@ scene.setPerformanceMode('balanced');
 $('renderMode').textContent=scene.gl?'WebGL 3D':'2D yedek görünüm';
 let replay=null,frames=null,manifest=null,position=0,playing=false,last=null,generation=0,current=null,broadcast=null,broadcastStart=0;
 function stop(){playing=false;last=null;$('play').textContent='Oynat';}
-function endBroadcast(){broadcast=null;$('bodyBalance').disabled=$('footPlant').disabled=$('contactSync').disabled=$('strikeMotion').disabled=$('controlMotion').disabled=$('duelMotion').disabled=$('tackleMotion').disabled=$('keeperMotion').disabled=$('aerialMotion').disabled=$('animationBlend').disabled=false;$('play').disabled=$('seek').disabled=$('speed').disabled=!replay;$('broadcast').disabled=!replay?.complete;$('broadcast').textContent='5 dakikalık yayın';}
+function endBroadcast(){broadcast=null;$('bodyBalance').disabled=$('footPlant').disabled=$('contactSync').disabled=$('strikeMotion').disabled=$('controlMotion').disabled=$('duelMotion').disabled=$('tackleMotion').disabled=$('keeperMotion').disabled=$('aerialMotion').disabled=$('animationBlend').disabled=$('motionMatching').disabled=false;$('play').disabled=$('seek').disabled=$('speed').disabled=!replay;$('broadcast').disabled=!replay?.complete;$('broadcast').textContent='5 dakikalık yayın';}
 function reset(){replay?.reset(rig);scene.resetAnimation();last=null;}
 function draw(dt=0,renderDt=dt){
  if(!replay){current=null;scene.render([],{x:0,y:.11,z:0,vx:0,vy:0,vz:0},[0,0],{},0);return;}
@@ -24,7 +24,7 @@ function load(){
  stop();reset();replay=null;endBroadcast();$('broadcastClock').textContent='';position=0;$('play').disabled=$('seek').disabled=true;$('score').textContent='Kayıt seçin';$('stats').textContent='İstatistik kaydı yok.';
  if(!frames){draw();return;}
  try{
-  replay=api.create(frames,manifest,{bodyBalance:$('bodyBalance').checked,footPlant:$('footPlant').checked,contactSync:$('contactSync').checked,strikeMotion:$('strikeMotion').checked,controlMotion:$('controlMotion').checked,duelMotion:$('duelMotion').checked,tackleMotion:$('tackleMotion').checked,keeperMotion:$('keeperMotion').checked,aerialMotion:$('aerialMotion').checked,animationBlend:$('animationBlend').checked});$('seek').max=replay.duration;$('seek').value=0;$('play').disabled=$('seek').disabled=$('speed').disabled=false;$('broadcast').disabled=!replay.complete;
+  replay=api.create(frames,manifest,{bodyBalance:$('bodyBalance').checked,footPlant:$('footPlant').checked,contactSync:$('contactSync').checked,strikeMotion:$('strikeMotion').checked,controlMotion:$('controlMotion').checked,duelMotion:$('duelMotion').checked,tackleMotion:$('tackleMotion').checked,keeperMotion:$('keeperMotion').checked,aerialMotion:$('aerialMotion').checked,animationBlend:$('animationBlend').checked,motionMatching:$('motionMatching').checked});$('seek').max=replay.duration;$('seek').value=0;$('play').disabled=$('seek').disabled=$('speed').disabled=false;$('broadcast').disabled=!replay.complete;
   $('status').textContent=replay.frames+' motor karesi · '+(replay.complete?'Tam maç kaydı':'Eksik kayıt')+' · '+(manifest?'Kadro eşleştirildi':'Kadro dosyası yok');draw();
  }catch(e){$('status').textContent=e.message;draw();}
 }
@@ -48,7 +48,7 @@ $('broadcast').onclick=()=>{
  try{
   broadcast=window.TribunNativeBroadcast.create(frames);
   stop();reset();position=0;broadcastStart=performance.now();
-  $('play').disabled=$('seek').disabled=$('speed').disabled=true;$('bodyBalance').disabled=$('footPlant').disabled=$('contactSync').disabled=$('strikeMotion').disabled=$('controlMotion').disabled=$('duelMotion').disabled=$('tackleMotion').disabled=$('keeperMotion').disabled=$('aerialMotion').disabled=$('animationBlend').disabled=true;
+  $('play').disabled=$('seek').disabled=$('speed').disabled=true;$('bodyBalance').disabled=$('footPlant').disabled=$('contactSync').disabled=$('strikeMotion').disabled=$('controlMotion').disabled=$('duelMotion').disabled=$('tackleMotion').disabled=$('keeperMotion').disabled=$('aerialMotion').disabled=$('animationBlend').disabled=$('motionMatching').disabled=true;
   $('broadcast').textContent='Yayını kapat';
  }catch(e){$('status').textContent=e.message;}
 };
@@ -56,7 +56,7 @@ $('play').onclick=()=>{if(!replay)return;if(playing){stop();return;}if(position>
 $('seek').oninput=()=>{stop();position=Number($('seek').value);reset();draw();};
 $('camera').onclick=()=>{scene.camera=scene.camera==='tv'?'close':scene.camera==='close'?'tactical':'tv';$('camera').textContent='Kamera: '+({tv:'TV',close:'Yakın',tactical:'Taktik'}[scene.camera]);};
 $('quality').onchange=()=>scene.setPerformanceMode($('quality').value);
-$('bodyBalance').onchange=$('footPlant').onchange=$('contactSync').onchange=$('strikeMotion').onchange=$('controlMotion').onchange=$('duelMotion').onchange=$('tackleMotion').onchange=$('keeperMotion').onchange=$('aerialMotion').onchange=$('animationBlend').onchange=()=>{if(!broadcast)load();};
+$('bodyBalance').onchange=$('footPlant').onchange=$('contactSync').onchange=$('strikeMotion').onchange=$('controlMotion').onchange=$('duelMotion').onchange=$('tackleMotion').onchange=$('keeperMotion').onchange=$('aerialMotion').onchange=$('animationBlend').onchange=$('motionMatching').onchange=()=>{if(!broadcast)load();};
 document.addEventListener('visibilitychange',()=>{last=null;});
 function loop(now){
  const dt=last===null?0:Math.min(.1,Math.max(0,(now-last)/1000));last=now;

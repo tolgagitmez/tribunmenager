@@ -138,10 +138,11 @@
   const magnitude=Math.hypot(ax,az),scale=magnitude>15?15/magnitude:1;
   return {ax:ax*scale,az:az*scale,valid:true};
  }
- function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false}={}){
+ function create(frames,manifest=null,{bodyBalance=false,footPlant=false,contactSync=false,strikeMotion=false,controlMotion=false,duelMotion=false,tackleMotion=false,keeperMotion=false,aerialMotion=false,animationBlend=false,motionMatching=false}={}){
   requireValue(Array.isArray(frames)&&frames.length,'Kayıt yok.');
   // The combined profile enables all prior opt-in layers, but remains a
   // presentation experiment; the recorded match is still authoritative.
+  if(motionMatching)animationBlend=true;
   if(animationBlend)bodyBalance=footPlant=contactSync=strikeMotion=controlMotion=duelMotion=tackleMotion=keeperMotion=aerialMotion=true;
   const roster=rosterMap(manifest),actors=new Map();
   if(roster.size)for(const f of frames)for(const p of f.players)requireValue(roster.get(p.databaseId)?.team===p.team,'Kadro dosyası maçla uyuşmuyor.');
@@ -354,6 +355,7 @@
       }
      }
     }
+    if(motionMatching)actor.nativeMotionMatch=actor.nativeBlend&&actor.nativeFootPlant===true&&actor.role!=='GK';
     active.add(source.id);rig?.update(actor,bodyBalance||footPlant||contactSync||strikeMotion||controlMotion||duelMotion||tackleMotion||keeperMotion||aerialMotion?step:clamp(dt,0,.1));return actor;
    });
    for(const [id,p] of actors)if(!active.has(id)){rig?.reset(p);actors.delete(id);}

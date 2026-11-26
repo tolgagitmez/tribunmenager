@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: '22'
       - name: Fixture adapter unit tests
-        run: node --test integrations/league-soccer/fixture-adapter.test.cjs integrations/league-soccer/native-replay.test.cjs integrations/league-soccer/native-foot-plant.test.cjs integrations/league-soccer/native-contact-sync.test.cjs integrations/league-soccer/native-strike-motion.test.cjs integrations/league-soccer/native-control-motion.test.cjs integrations/league-soccer/native-duel-motion.test.cjs integrations/league-soccer/native-tackle-motion.test.cjs integrations/league-soccer/native-keeper-motion.test.cjs integrations/league-soccer/native-aerial-motion.test.cjs integrations/league-soccer/native-animation-blend.test.cjs integrations/league-soccer/broadcast.test.cjs integrations/league-soccer/compare-attacks.test.cjs integrations/league-soccer/native-stream-view.test.cjs integrations/league-soccer/native-advisor.test.cjs
+        run: node --test integrations/league-soccer/fixture-adapter.test.cjs integrations/league-soccer/native-replay.test.cjs integrations/league-soccer/native-foot-plant.test.cjs integrations/league-soccer/native-contact-sync.test.cjs integrations/league-soccer/native-strike-motion.test.cjs integrations/league-soccer/native-control-motion.test.cjs integrations/league-soccer/native-duel-motion.test.cjs integrations/league-soccer/native-tackle-motion.test.cjs integrations/league-soccer/native-keeper-motion.test.cjs integrations/league-soccer/native-aerial-motion.test.cjs integrations/league-soccer/native-animation-blend.test.cjs integrations/league-soccer/native-motion-matching.test.cjs integrations/league-soccer/broadcast.test.cjs integrations/league-soccer/compare-attacks.test.cjs integrations/league-soccer/native-stream-view.test.cjs integrations/league-soccer/native-advisor.test.cjs
       - name: Python shadow queue tests
         run: python3 -m unittest discover -s tests -p 'test_native_*.py'
       - name: Build pinned upstream and capture full match
@@ -50,6 +50,8 @@ jobs:
         run: node integrations/league-soccer/aerial-motion-audit.cjs "$RUNNER_TEMP/league-soccer.ndjson" > "$RUNNER_TEMP/league-soccer.ndjson.aerial-motion.json"
       - name: Compare combined animation transition target discontinuities
         run: node integrations/league-soccer/animation-blend-audit.cjs "$RUNNER_TEMP/league-soccer.ndjson" > "$RUNNER_TEMP/league-soccer.ndjson.animation-blend.json"
+      - name: Compare motion matching stance and step coverage
+        run: node integrations/league-soccer/motion-matching-audit.cjs "$RUNNER_TEMP/league-soccer.ndjson" > "$RUNNER_TEMP/league-soccer.ndjson.motion-matching.json"
       - name: Verify reusable native runtime from frozen fixture
         run: |
           node -e 'process.stdout.write(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/native-config.json"

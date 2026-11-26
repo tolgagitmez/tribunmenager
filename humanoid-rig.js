@@ -102,6 +102,34 @@ function catchHands(p){
  return [-1,1].map(side=>{const shoulder=world(p,.015,side*.32,1.47-gatherDrop(p)),target=[point.x-side*Math.sin(p.face)*.07,point.y,point.z+side*Math.cos(p.face)*.07],delta=sub(target,shoulder),d=len(delta);return d>.66?add(shoulder,mul(delta,.66/d)):target;});
 }
 function saveHands(p){return ['catch','catch-ready'].includes(p.action)?catchHands(p):getDive(p).wrists;}
+// Stage 89: match measured motion features to procedural step templates.
+// Features are in body-local metres/second, with brake and turn cues.
+// This is a small parameter library, not motion-capture clip matching.
+const STEP_PROFILES=Object.freeze([
+ {id:'idle',v:0,dir:[0,0],brake:0,turn:0,duration:.24,lead:0,lift:.07,stride:.72,duty:.64},
+ {id:'walk',v:1.1,dir:[1,0],brake:0,turn:0,duration:.24,lead:.08,lift:.10,stride:.84,duty:.60},
+ {id:'jog',v:2.5,dir:[1,0],brake:0,turn:0,duration:.20,lead:.12,lift:.13,stride:1.15,duty:.51},
+ {id:'run',v:4.3,dir:[1,0],brake:0,turn:0,duration:.155,lead:.16,lift:.17,stride:1.55,duty:.43},
+ {id:'sprint',v:6.7,dir:[1,0],brake:0,turn:0,duration:.115,lead:.18,lift:.21,stride:2.0,duty:.35},
+ {id:'shuffle-left',v:2.8,dir:[0,-1],brake:0,turn:0,duration:.18,lead:.07,lift:.11,stride:.94,duty:.56},
+ {id:'shuffle-right',v:2.8,dir:[0,1],brake:0,turn:0,duration:.18,lead:.07,lift:.11,stride:.94,duty:.56},
+ {id:'backpedal',v:2.6,dir:[-1,0],brake:0,turn:0,duration:.18,lead:.07,lift:.12,stride:1.0,duty:.55},
+ {id:'brake',v:3.4,dir:[1,0],brake:1,turn:0,duration:.13,lead:.035,lift:.12,stride:.80,duty:.62},
+ {id:'pivot',v:1.5,dir:[0,0],brake:0,turn:1,duration:.15,lead:.025,lift:.12,stride:.68,duty:.60}
+].map(Object.freeze));
+function matchNativeStep({forward=0,lateral=0,brake=0,turn=0},prior=null){
+ const speed=Math.hypot(forward,lateral),denom=Math.max(.2,speed);
+ const b=clamp(brake/6,0,1),t=clamp(turn/4,0,1);
+ let best=null,bestCost=Infinity;
+ for(const m of STEP_PROFILES){
+  const speedCost=((speed-m.v)/2.4)**2;
+  const directional=m.dir[0]===0&&m.dir[1]===0?(m.id==='idle'?clamp(speed/2,0,1):.16):
+   (1-(forward*m.dir[0]+lateral*m.dir[1])/denom)*clamp(speed,0,1)*1.65;
+  const cost=speedCost+directional+2.8*(b-m.brake)**2+2.6*(t-m.turn)**2+(prior&&prior!==m.id?.18:0);
+  if(cost<bestCost){best=m;bestCost=cost;}
+ }
+ return {profile:best,cost:bestCost};
+}
 // Stage 80: presentation-only foot swing with explicit landing. The
 // support anchor is never translated to follow the root during stance.
 function nativeStep(p,st,i,hip,neutral,arc,duty,speed,locomoting,dt){
@@ -113,14 +141,25 @@ function nativeStep(p,st,i,hip,neutral,arc,duty,speed,locomoting,dt){
  const cue=p.nativeBodyBalance,brake=cue?.valid?Math.max(0,-(cue.ax*vx+cue.az*vz)/Math.max(.5,speed)):0;
  const turn=cue?.valid?Math.abs(cue.az*vx-cue.ax*vz)/Math.max(.5,speed):0;
  const recovery=clamp(brake/8+turn/10,0,1);
+ const match=p.nativeMotionMatch===true?st.motionMatch:null;
+ const template=match?.profile;
  const needsPlant=distance>Math.max(.045,range*.78)||Math.abs(angle(p.face||0,f.face))>.50;
  const scheduled=!wanted&&f.nativeWanted!==false;
  f.nativeWanted=wanted;
  if(!f.nativeSwing&&(scheduled||needsPlant)&&
     (speed>3.2||!other.nativeSwing)){
-  const duration=clamp(mix(.26,.115,smooth(speed/6))*(1-.28*recovery),.085,.26);
+  const duration=template?clamp(template.duration*(1-.12*recovery),.085,.26):clamp(mix(.26,.115,smooth(speed/6))*(1-.28*recovery),.085,.26);
   const prior=st.pose?.legs[i]?.ankle;
   f.nativeSwing={elapsed:0,duration,start:(prior||f.pos).slice()};
+  if(template){
+   // Latch the selected template for this swing. Predict a landing in
+   // world space once, then allow only small rate-limited corrections.
+   const lead=Math.min(template.lead,range*.4);
+   const dx=vx/Math.max(.5,speed),dz=vz/Math.max(.5,speed);
+   f.nativeSwing.profile=template;
+   f.nativeSwing.target=[neutral[0]+vx*duration+dx*lead,GROUND,neutral[2]+vz*duration+dz*lead];
+   f.nativeSwing.face=p.face;
+  }
   f.adjust=0;f.start=null;f.stance=false;
  }
  if(f.nativeSwing){
@@ -130,8 +169,20 @@ function nativeStep(p,st,i,hip,neutral,arc,duty,speed,locomoting,dt){
   const lead=Math.min(.18,range*.40)*(1-.65*recovery);
   const dx=vx/Math.max(.5,speed),dz=vz/Math.max(.5,speed);
   const target=[neutral[0]+vx*remaining+dx*lead,GROUND,neutral[2]+vz*remaining+dz*lead];
-  f.pos=blend(s.start,target,e);f.pos[1]+=Math.sin(Math.PI*u)*mix(.09,.21,smooth(speed/6));
-  f.face+=angle(p.face||0,f.face)*smooth(u);f.stance=false;
+  if(s.profile){
+   const lead=Math.min(s.profile.lead,range*.4);
+   const desired=[neutral[0]+vx*remaining+dx*lead,GROUND,neutral[2]+vz*remaining+dz*lead];
+   // Corrections stop near landing; never snap a planted anchor.
+   const change=sub(desired,s.target),d=len(change),cap=dt*1.4*(1-smooth((u-.65)/.35));
+   if(d>1e-8)s.target=add(s.target,mul(change,Math.min(1,cap/d)));
+   const turn=clamp(angle(p.face||0,s.face),-dt*3,dt*3);s.face+=turn;
+   f.pos=blend(s.start,s.target,e);f.pos[1]+=Math.sin(Math.PI*u)*s.profile.lift;
+   f.face+=angle(s.face,f.face)*smooth(u);
+  }else{
+   f.pos=blend(s.start,target,e);f.pos[1]+=Math.sin(Math.PI*u)*mix(.09,.21,smooth(speed/6));
+   f.face+=angle(p.face||0,f.face)*smooth(u);
+  }
+  f.stance=false;
   if(u>=1){f.nativeSwing=null;f.pos[1]=GROUND;f.stance=true;f.face=p.face;}
  }else{
   f.pos[1]=GROUND;f.stance=true;f.start=null;
@@ -195,8 +246,17 @@ function pose(p,dt=1/60){
  const aerialCrouch=aerial?clamp((1.77-aerial.ball.y)*.30,0,.24)*aerialW:0;
  const aerialLanding=aerial&&aerial.deltaMs>90?Math.sin(Math.PI*clamp((aerial.deltaMs-90)/270,0,1))*.055:0;
  const nativePlant=p.nativeFootPlant===true&&!special&&!(p.footTouch>0)&&!(p.feintClock>0)&&!(p.feintResponseClock>0);
- const stride=(nativePlant?mix(.72,2.05,smooth(speed/7)):mix(1.0,2.2,smooth(speed/6)))*(1-defensive*.22),
- duty=nativePlant?clamp(mix(.62,.34,smooth(speed/7))+defensive*.05,.34,.67):clamp(mix(.55,.20,smooth(speed/6))+defensive*.04,.20,.60);
+ // Profile selection is replay-local and uses recorded velocity, acceleration
+ // and facing change. Contact protection remains in the existing pose layer.
+ if(p.nativeMotionMatch===true&&nativePlant){
+  const vx=Number.isFinite(p.vx)?p.vx:0,vz=Number.isFinite(p.vz)?p.vz:0;
+  const c=p.nativeBodyBalance,brake=c?.valid?Math.max(0,-(c.ax*vx+c.az*vz)/Math.max(.5,speed)):0;
+  const turn=Math.abs(yaw)/Math.max(dt,.001);
+  st.motionMatch=matchNativeStep({forward:vx*fx+vz*fz,lateral:-vx*fz+vz*fx,brake,turn},st.motionMatch?.profile.id);
+ }else st.motionMatch=null;
+ const selected=st.motionMatch?.profile;
+ const stride=selected?selected.stride:(nativePlant?mix(.72,2.05,smooth(speed/7)):mix(1.0,2.2,smooth(speed/6)))*(1-defensive*.22),
+ duty=selected?selected.duty:nativePlant?clamp(mix(.62,.34,smooth(speed/7))+defensive*.05,.34,.67):clamp(mix(.55,.20,smooth(speed/6))+defensive*.04,.20,.60);
  st.phase+=(travel/stride)+(speed<.3?Math.abs(yaw)*.12:0);
  // These cues read actual Match decisions/touches. They only affect this rig
  // and never move a simulated player, defender or the ball.
@@ -416,7 +476,7 @@ function pose(p,dt=1/60){
   const requestedStance=stance,requestedFoot=foot.slice(),legIK=boundedLimb(hip,foot,ANATOMY.thigh,ANATOMY.shin,facing,LIMITS.knee,LIMITS.hip,bodyFrame,side);
   foot=legIK.end;if(legIK.error>1e-5)stance=false;
   const toe=add(foot,[Math.cos(footFace)*.20,-.075,Math.sin(footFace)*.20]);
-  legs.push({hip,knee:legIK.joint,ankle:foot,toe,stance,requestedStance,nativeContact:!!nativeContact,footLift:foot[1]-GROUND,bend:legIK.bend,flex:legIK.flex,abduct:legIK.abduct,target:requestedFoot,targetError:legIK.error});
+  legs.push({hip,knee:legIK.joint,ankle:foot,toe,stance,requestedStance,nativeContact:!!nativeContact,...(p.nativeMotionMatch===true?{stepProfile:f.nativeSwing?.profile?.id??null}:{}),footLift:foot[1]-GROUND,bend:legIK.bend,flex:legIK.flex,abduct:legIK.abduct,target:requestedFoot,targetError:legIK.error});
   const shoulder=add(torsoUpper,mul(bodyRight,side*ANATOMY.shoulderWidth/2));
   const swing=-Math.sin(st.phase*2*Math.PI+i*Math.PI)*st.activity*(.22+.12*sprint);
   let wrist=world(p,swing+kick*(i===1?-.35:.24),side*(.255+kick*.10),.94+bounce+celebrating*.93+protest*.30-tackle*.17-gather);
@@ -486,6 +546,7 @@ function pose(p,dt=1/60){
  if(duel?.fall)result.nativeRecovery={age:fallAge,weight:fallW,drop:fallDrop};
  if(keeper)result.nativeKeeper={kind:keeper.kind,profile:keeper.profile,hand:keeper.hand,weight:keeperW,held:keeper.held,targets:0,meanPalmError:null};
  if(aerial)result.nativeAerial={profile:aerial.profile,kind:aerial.kind,weight:aerialW,jump:aerialJump,landing:aerialLanding,contested:aerial.contested,headError:null};
+ if(st.motionMatch)result.nativeMotionMatch={profile:st.motionMatch.profile.id,cost:st.motionMatch.cost,steps:st.feet.map(f=>f.nativeSwing?.profile?.id??null)};
  if(blended)result.nativeBlend={gain,contactProtection:protect,primary:recorded?.kind||aerial?.kind||keeper?.kind||null,hipHeight,pitch,roll};
  if(native)result.nativeBalance={pitch:nativePitch,roll:nativeRoll,drop:nativeDrop};
  if(hasScan||st.scanYaw){result.headYaw=st.scanYaw;result.headFace=(p.face||0)+st.scanYaw;}
@@ -585,7 +646,7 @@ function boneFrames(pose){
  Object.freeze(frames);frameCache.set(pose,frames);return frames;
 }
 function reset(p){rigs.delete(p);}
-const API={pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
+const API={matchNativeStep,pose,update:pose,getPose:p=>getState(p).pose||pose(p,0),reset,solveKnee,solveLimb,boneFrames,ANATOMY,LIMITS,kickContact,kickAnkle,getDive,catchHands,saveHands,BALL_RADIUS};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 global.TribunHumanoidRig=API;
 })(typeof window!=='undefined'?window:globalThis);
