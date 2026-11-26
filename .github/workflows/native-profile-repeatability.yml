@@ -1,0 +1,39 @@
+name: Native integrated profile repeatability gate
+on:
+  push:
+    branches: [experiment/native-evidence-stage51]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_profile_repeatability.py'
+      - '.github/workflows/native-profile-repeatability.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  repeatability:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -p test_native_profile_repeatability.py
+      - run: python3 -m unittest discover -s tests -p test_native_release_evidence.py
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/repeat-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Compare repeated reference and candidate trajectories
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/repeat-fixtures"
+          python3 integrations/league-soccer/profile-repeatability.py "$RUNNER_TEMP/repeat-runtime" "$RUNNER_TEMP/repeat-fixtures" "$RUNNER_TEMP/repeat-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-profile-repeatability
+          path: ${{ runner.temp }}/repeat-results/
+          if-no-files-found: ignore
