@@ -1879,6 +1879,41 @@ inline bool Offball188Enabled(){
   }();
   return enabled;
 }
+inline bool CoordinatedRuns189Enabled(){
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_AV_COORDINATED_RUNS");
+    return value && std::strcmp(value,"1")==0 && Offball188Enabled();
+  }();
+  return enabled;
+}
+struct RunReservation189 {
+  int player=-1,carrier=-1,phase=-1;
+  unsigned long at=0;
+  float sx=0,sy=0,tx=0,ty=0;
+  void Clear(){player=carrier=phase=-1;at=0;}
+  void Save(int p,int c,int period,unsigned long now,float x,float y,float endX,float endY){
+    player=p;carrier=c;phase=period;at=now;sx=x;sy=y;tx=endX;ty=endY;
+  }
+  bool Valid(int p,int c,int period,unsigned long now)const{
+    return player>=0 && player!=p && carrier==c && phase==period &&
+        now>=at && now-at<=250UL;
+  }
+};
+inline float CoordinatedRunScore189(float sx,float sy,float tx,float ty,const RunReservation189& other){
+  const float endGap=std::hypot(tx-other.tx,ty-other.ty);
+  if(!std::isfinite(endGap)||endGap<4.0f)return -1000.0f;
+  float pathGap=endGap;
+  for(float f:{.5f,.75f}){
+    const float dx=sx+(tx-sx)*f-other.sx-(other.tx-other.sx)*f;
+    const float dy=sy+(ty-sy)*f-other.sy-(other.ty-other.sy)*f;
+    const float gap=std::hypot(dx,dy);
+    if(!std::isfinite(gap))return -1000.0f;
+    pathGap=std::min(pathGap,gap);
+  }
+  if(pathGap<2.5f)return -1000.0f;
+  return .18f*std::min(endGap,10.0f)+.20f*std::min(pathGap,6.0f)+
+      .12f*std::min(std::abs(ty-other.ty),8.0f);
+}
 inline float OffballArrival188(float distance,float speed){
   return std::clamp(distance/std::clamp(speed+1.5f,3.0f,6.5f),.35f,1.5f);
 }
@@ -1906,7 +1941,8 @@ inline bool RunLanesEnabled() {
     edit(root, "src/onthepitch/match.hpp", [
         ("  unsigned long tribunLineBreakSelections[2]={0,0};", """  unsigned long tribunLineBreakSelections[2]={0,0};
   unsigned long tribunRunLanePrimary[2]={0,0},tribunRunLaneSecondary[2]={0,0};
-  unsigned long tribunRunLaneAttempts[2]={0,0};"""),
+  unsigned long tribunRunLaneAttempts[2]={0,0};
+  AITactics::RunReservation189 tribunRunReservations[2][2];"""),
     ])
     edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
         ("  if (adaptedMakeRun) {\n    ForceSpot spot;\n    spot.origin =\n        Vector3(-team->GetSide() * pitchHalfW,", r'''  bool chosenLane=false;
@@ -1930,6 +1966,15 @@ inline bool RunLanesEnabled() {
       const float leadX=std::min(pitchHalfW-6.0f,limit-1.5f);
       float best=-10000.0f;
       Vector3 target(0);
+      const bool coordinated=AITactics::CoordinatedRuns189Enabled();
+      const int laneIndex=primaryLane?0:1;
+      const int carrierId=designatedPlayer->GetID();
+      const int period=static_cast<int>(match->GetMatchPhase());
+      const auto now=match->GetActualTime_ms();
+      auto& reservation=match->tribunRunReservations[team->GetID()][laneIndex];
+      auto& other=match->tribunRunReservations[team->GetID()][1-laneIndex];
+      const bool pair=coordinated && other.Valid(CastPlayer()->GetID(),carrierId,period,now);
+      if(coordinated)reservation.Clear();
       for(float setback:{0.0f,3.0f,6.0f}){
         for(float width:{4.5f,10.0f,15.5f}){
           const float x=AITactics::Offball188Enabled()?std::min(leadX-setback,currentPos.coords[0]*forward+6.0f):leadX-setback;
@@ -1970,10 +2015,23 @@ inline bool RunLanesEnabled() {
             if(!AITactics::OffballLane188(progress,run.GetLength(),limit-x,endGap,passGap,teamGap,runGap))continue;
             score=AITactics::OffballScore188(endGap,passGap,teamGap,progress,run.GetLength(),std::abs(run.coords[1]),runGap);
           }
+          if(pair){
+            const float coordination=AITactics::CoordinatedRunScore189(currentPos.coords[0],currentPos.coords[1],
+                candidate.coords[0],candidate.coords[1],other);
+            if(coordination<-999.0f)continue;
+            score+=coordination;
+          }
           if(score>best){best=score;target=candidate;}
         }
       }
       if(best>-9999.0f){
+        if(coordinated){
+          reservation.Save(CastPlayer()->GetID(),carrierId,period,now,
+              currentPos.coords[0],currentPos.coords[1],target.coords[0],target.coords[1]);
+          if(now%250UL==0)
+            printf("[tribun-coordinated189] team=%d player=%d paired=%d match_ms=%lu\n",
+                team->GetID(),CastPlayer()->GetID(),pair?1:0,static_cast<unsigned long>(match->GetMatchTime_ms()));
+        }
         ForceSpot spot;
         spot.origin=target;
         spot.magnetType=e_MagnetType_Attract;
