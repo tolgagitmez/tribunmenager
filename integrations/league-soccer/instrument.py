@@ -298,11 +298,30 @@ def replace_once(text, old, new):
         raise SystemExit(f"Unexpected upstream layout: {old!r}")
     return text.replace(old, new, 1)
 
+def suppress_draw_tasks(source):
+    """Keep game Put, context, uploads and event pump; omit only frame drawing."""
+    anchor = """  graphicsSequence->AddSystemTaskEntry(graphicsSystem, e_TaskPhase_Get);
+  graphicsSequence->AddSystemTaskEntry(graphicsSystem, e_TaskPhase_Process);
+  graphicsSequence->AddSystemTaskEntry(graphicsSystem, e_TaskPhase_Put);"""
+    return replace_once(source, anchor, """  const char* tribunDraw = std::getenv("TRIBUN_NATIVE_NO_DRAW");
+  const bool tribunNoDraw = tribunDraw && std::string(tribunDraw) == "1";
+  if (!tribunNoDraw) {
+    graphicsSequence->AddSystemTaskEntry(graphicsSystem, e_TaskPhase_Get);
+    graphicsSequence->AddSystemTaskEntry(graphicsSystem, e_TaskPhase_Process);
+    graphicsSequence->AddSystemTaskEntry(graphicsSystem, e_TaskPhase_Put);
+  }
+  printf("[tribun-render] scheduled-draw=%s\\n", tribunNoDraw ? "off" : "on");
+  fflush(stdout);""")
+
 def main():
     from fixture_patch import apply
     from short_match_patch import apply as apply_short_match
     apply(sys.argv[1])
     apply_short_match(sys.argv[1])
+    main_path = pathlib.Path(sys.argv[1]) / "src/main.cpp"
+    main_source = main_path.read_text(encoding="utf-8")
+    if "[tribun-render] scheduled-draw=" not in main_source:
+        main_path.write_text(suppress_draw_tasks(main_source), encoding="utf-8")
     path = pathlib.Path(sys.argv[1]) / "src/onthepitch/match.cpp"
     text = path.read_text(encoding="utf-8")
     if "void TribunTrace(" in text:

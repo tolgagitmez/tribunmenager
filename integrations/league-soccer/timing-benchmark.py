@@ -77,8 +77,10 @@ class Timing:
                     deadBallMs=self.dead_ms,transitionMs=self.transition_ms,gapMs=self.gap_ms,
                     frames=self.frames,maxObservedGapMs=self.max_observed_gap_ms,withinFiveSeconds=abs(wall-300000)<=5000)
 
-def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0):
+def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False):
     name,scale,quick=profile
+    if type(no_draw) is not bool or (no_draw and (not fixed_duration or render_interval_ms!=100 or scale!="1.0" or quick!="0" or any((retention,box_runs,timed_attack)))):
+        raise ValueError("Isolate no-draw diagnostic at fixed clock and 100 ms cadence")
     if type(render_interval_ms) is not int or render_interval_ms not in (0,100):raise ValueError("Invalid render cadence")
     if render_interval_ms and (not fixed_duration or any((retention,box_runs,timed_attack))):raise ValueError("Isolate fixed-clock render cadence")
     if type(render_threads) is not int or render_threads not in (1,2,3,4):raise ValueError("Invalid software renderer thread limit")
@@ -88,6 +90,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
     env={**os.environ,"TRIBUN_NATIVE_REALTIME":"1","TRIBUN_NATIVE_CLOCK_SCALE":scale,
          "TRIBUN_NATIVE_QUICK_RESTARTS":quick,"TRIBUN_LEAGUE_SOCCER_ATTACK":attack_profile,
          "LP_NUM_THREADS":str(render_threads),"OMP_NUM_THREADS":"1"}
+    env["TRIBUN_NATIVE_NO_DRAW"]="1" if no_draw else "0"
     env["TRIBUN_NATIVE_FIXED_DURATION"]="1" if fixed_duration else "0"
     env["TRIBUN_NATIVE_FINAL_THIRD_RETENTION"]="1" if retention else "0"
     env["TRIBUN_NATIVE_BOX_LANE_RUNS"]="1" if box_runs else "0"
@@ -134,6 +137,9 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
             if process.poll() is None:
                 os.killpg(process.pid,signal.SIGKILL)
                 process.wait()
+    marker="[tribun-render] scheduled-draw="+("off" if no_draw else "on")
+    if no_draw and marker not in Path(str(trace)+".log").read_text(errors="replace"):
+        raise ValueError("Missing native no-draw marker")
     report=stats.report()
     report.update(processWallMs=round((time.monotonic()-launch)*1000),
                   firstObservedMonotonic=stats.first_wall,finalObservedMonotonic=stats.final_wall,
@@ -146,7 +152,7 @@ def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=Fal
         report["resources"]=r
     attack=json.loads(Path(str(trace)+".attack.json").read_text())
     if attack["engine"]!="league-soccer" or not attack.get("sampled"):raise ValueError("Missing attack report")
-    report.update(profile=name,attackProfile=attack_profile,softwareRenderThreads=render_threads,configuredRenderIntervalMs=render_interval_ms,retention=retention,boxRuns=box_runs,timedAttack=timed_attack,scale=float(scale),quickRestarts=quick=="1",
+    report.update(profile=name,attackProfile=attack_profile,softwareRenderThreads=render_threads,configuredRenderIntervalMs=render_interval_ms,noDraw=no_draw,retention=retention,boxRuns=box_runs,timedAttack=timed_attack,scale=float(scale),quickRestarts=quick=="1",
                   score=attack["score"],shots=attack["shots"],onTarget=attack["onTarget"],
                   controlledBoxCrossings=attack["sampled"]["controlledBoxCrossings"])
     Path(str(trace)+".timing.json").write_text(json.dumps(report,indent=2)+"\n")
