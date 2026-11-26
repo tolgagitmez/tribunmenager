@@ -67,3 +67,14 @@ class ActionDiagnosticsTest(unittest.TestCase):
         self.assertTrue(r['evidenceAvailable'])
         self.assertEqual(r['touchGeometryEvents'][0]['frame'],10)
         self.assertEqual(self.read(g.replace('0.5000','nan'))['invalidLines'],1)
+
+
+    def test_body_preparation_requests(self):
+        p='[tribun-body-preparation] phase=1 match_ms=1800 team=0 player=7 action=shot body_dot=0.1000 adjustment=0.3000 clearance=3.0000\n'
+        r=self.read(p+p.replace('0.3000','0.9000'))
+        self.assertEqual(r['bodyPreparationRequests'],1)
+        self.assertEqual(r['bodyPreparationCounts'],{'shot':1})
+        self.assertEqual(r['bodyPreparationEvents'][0]['adjustment'],.3)
+        self.assertEqual(r['invalidLines'],1)
+        self.assertEqual(r['observedEvents'],0)
+        self.assertTrue(r['evidenceAvailable'])
