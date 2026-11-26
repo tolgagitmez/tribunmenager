@@ -3834,6 +3834,65 @@ struct FixedDurationClock {'''),
 
 
 
+    # Stage 183: bound excessive low-ball dribble launch speed using the
+    # actual native touch vector, without changing its direction or height.
+    edit(root, "src/onthepitch/aitactics.hpp", [
+        ("struct FixedDurationClock {", r'''inline bool DribbleControlEnabled(){
+  static const bool enabled=[]{
+    const char* value=std::getenv("TRIBUN_AV_DRIBBLE_CONTROL");
+    return value && std::strcmp(value,"1")==0 && IdleRecoveryEnabled() &&
+        !LegBlendEnabled() && !TurnBrakeEnabled() && !CloseTouchEnabled();
+  }();
+  return enabled;
+}
+inline float DribbleControlScale(float planar,float projected,float skill,
+    float clearance,float alignment,float bias){
+  if(!std::isfinite(planar)||!std::isfinite(projected)||!std::isfinite(skill)||
+      !std::isfinite(clearance)||!std::isfinite(alignment)||!std::isfinite(bias)||
+      planar<=.01f||projected<0||clearance<1.5f||alignment<.3f||alignment>1.01f||
+      bias<0||bias>.25f)return 1.0f;
+  const float control=std::clamp(skill,0.0f,1.0f);
+  const float allowance=1.5f+.8f*control+.6f*std::clamp((clearance-1.5f)/3.0f,0.0f,1.0f);
+  const float cap=std::max(2.0f,projected+allowance);
+  return std::clamp(cap/planar,.8f,1.0f);
+}
+struct FixedDurationClock {'''),
+    ])
+    edit(root, "src/onthepitch/player/humanoid/humanoid.cpp", [
+        ("          match->tribunCloseTouches[team->GetID()].Record(original,touchVec.Get2D().GetLength());\n        }\n        match->GetBall()->Touch(touchVec);", r'''          match->tribunCloseTouches[team->GetID()].Record(original,touchVec.Get2D().GetLength());
+        }
+        if(tribunAudit && tribunTouchControlled && !AITactics::CloseTouchEnabled() &&
+            !(currentAnim->originatingCommand.modifier&e_PlayerCommandModifier_KnockOn) &&
+            match->GetBall()->Predict(0).coords[2]>=0.0f &&
+            match->GetBall()->Predict(0).coords[2]<=.35f && bumpyRideBias<=.25f){
+          const auto planar=touchVec.Get2D();
+          const float before=planar.GetLength();
+          if(before>.01f && std::isfinite(before)){
+            const auto direction=planar.GetNormalized(CastPlayer()->GetDirectionVec());
+            const auto planned=CalculateOutgoingMovement(currentAnim->positions).Get2D();
+            const auto actual=player->GetMovement().Get2D();
+            const float projected=std::max(0.0f,.65f*planned.GetDotProduct(direction)+.35f*actual.GetDotProduct(direction));
+            const float alignment=planned.GetNormalized(CastPlayer()->GetDirectionVec()).GetDotProduct(direction);
+            const float skill=AITactics::ControlSkill(CastPlayer()->GetStat("technical_dribble"),
+                CastPlayer()->GetStat("technical_ballcontrol"),CastPlayer()->GetStat("physical_agility"),
+                CastPlayer()->GetStat("physical_balance"));
+            const float clearance=CastPlayer()->GetClosestOpponentDistance();
+            const float proposed=AITactics::DribbleControlScale(before,projected,skill,clearance,alignment,bumpyRideBias);
+            const bool enabled=AITactics::DribbleControlEnabled();
+            const float applied=enabled?proposed:1.0f;
+            touchVec.coords[0]*=applied;touchVec.coords[1]*=applied;
+            xRot*=applied;yRot*=applied;
+            std::fprintf(stderr,"[tribun-dribble-control] phase=%d match_ms=%lu team=%d player=%d enabled=%d before=%.5f after=%.5f projected=%.5f clearance=%.5f proposed=%.5f\n",
+                static_cast<int>(match->GetMatchPhase()),static_cast<unsigned long>(match->GetMatchTime_ms()),
+                team->GetID(),CastPlayer()->GetID(),enabled?1:0,before,touchVec.Get2D().GetLength(),
+                projected,clearance,proposed);
+          }
+        }
+        match->GetBall()->Touch(touchVec);'''),
+    ])
+
+
+
 def optimize_joint_cache(source):
     # Stage 159: cache repeated joint translation products, preserve all
     # four skinning channels, original rotations and blend operation order.
