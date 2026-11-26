@@ -1,0 +1,46 @@
+name: Native AI quality qualification
+on:
+  push:
+    branches: [experiment/native-quality-stage74]
+    paths:
+      - 'integrations/league-soccer/**'
+      - 'tests/test_native_quality_qualification.py'
+      - '.github/workflows/native-quality.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualification:
+    strategy:
+      fail-fast: false
+      matrix:
+        diagnostic: [quality-qualification, finish-benchmark, defense-shape-benchmark, transition-benchmark]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m py_compile integrations/league-soccer/quality-qualification.py integrations/league-soccer/timing-benchmark.py
+      - run: python3 -m unittest discover -s tests -p 'test_native_*.py'
+      - run: bash -n integrations/league-soccer/run-frozen.sh
+      - name: Build pinned runtime
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_RUNTIME_OUT: ${{ runner.temp }}/quality-runtime
+          TRIBUN_PREPARE_ONLY: '1'
+        run: bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/unused.ndjson" --demo
+      - name: Run isolated quality diagnostic
+        env:
+          DIAGNOSTIC: ${{ matrix.diagnostic }}
+        run: |
+          node integrations/league-soccer/readiness-fixtures.cjs "$RUNNER_TEMP/quality-fixtures"
+          python3 "integrations/league-soccer/$DIAGNOSTIC.py" "$RUNNER_TEMP/quality-runtime" "$RUNNER_TEMP/quality-fixtures" "$RUNNER_TEMP/quality-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-quality-${{ matrix.diagnostic }}
+          path: ${{ runner.temp }}/quality-results/
+          if-no-files-found: ignore

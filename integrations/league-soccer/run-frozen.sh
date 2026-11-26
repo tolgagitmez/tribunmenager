@@ -8,6 +8,15 @@ out="$(realpath -m "$3")"
 render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+active_policies=0
+for policy in TRIBUN_NATIVE_LINE_BREAK TRIBUN_NATIVE_RUN_LANES TRIBUN_NATIVE_TRIANGLE TRIBUN_NATIVE_CREATIVE_CARRY TRIBUN_NATIVE_DUEL TRIBUN_NATIVE_HOLD_UP TRIBUN_NATIVE_FINISH TRIBUN_NATIVE_KEEPER_AI TRIBUN_NATIVE_DEFENSE_SHAPE TRIBUN_NATIVE_TRANSITION TRIBUN_NATIVE_ROLE_PROFILE; do
+  case "${!policy:-0}" in
+    0) ;;
+    1) active_policies=$((active_policies+1));;
+    *) echo "Invalid diagnostic flag: $policy" >&2; exit 2;;
+  esac
+done
+[[ "$active_policies" -le 1 ]] || { echo "Independent attack policies cannot be combined before qualification" >&2; exit 2; }
 case "${TRIBUN_NATIVE_ROLE_PROFILE:-0}" in
   0) ;;
   1) [[ "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" == short-match && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_NATIVE_NULL_RENDERER:-0}" == 1 && "${TRIBUN_NATIVE_COLLISION_POSE:-0}" == 0 && "${TRIBUN_NATIVE_DETERMINISM:-0}" == 0 && "${TRIBUN_NATIVE_FINAL_THIRD_RETENTION:-0}" == 0 && "${TRIBUN_NATIVE_BOX_LANE_RUNS:-0}" == 0 && "${TRIBUN_NATIVE_TIMED_ATTACK:-0}" == 0 && "${TRIBUN_NATIVE_LINE_BREAK:-0}" == 0 && "${TRIBUN_NATIVE_RUN_LANES:-0}" == 0 && "${TRIBUN_NATIVE_TRIANGLE:-0}" == 0 && "${TRIBUN_NATIVE_CREATIVE_CARRY:-0}" == 0 && "${TRIBUN_NATIVE_DUEL:-0}" == 0 && "${TRIBUN_NATIVE_HOLD_UP:-0}" == 0 && "${TRIBUN_NATIVE_FINISH:-0}" == 0 && "${TRIBUN_NATIVE_KEEPER_AI:-0}" == 0 && "${TRIBUN_NATIVE_DEFENSE_SHAPE:-0}" == 0 && "${TRIBUN_NATIVE_TRANSITION:-0}" == 0 ]] || { echo "Role profile require isolated fixed-clock short-match" >&2; exit 2; } ;;

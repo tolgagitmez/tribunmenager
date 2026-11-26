@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "productionEnabled": false,
+  "sourceBranchCommit": "e2c0d9e21ec28b0d46df390679d377c289b34aec",
+  "note": "Historical CI results are observations from different candidate revisions, not portable qualification. Only stage66 passed its original diagnostic, with zero technical-grade attempts. No combined policy is qualified.",
+  "policies": [
+    {
+      "stage": 63,
+      "policy": "line_break",
+      "run": 45773027759,
+      "status": "runtime-error"
+    },
+    {
+      "stage": 64,
+      "policy": "run_lanes",
+      "run": 45773641046,
+      "status": "blocked",
+      "boxDelta": -3,
+      "shotsDelta": -4,
+      "onTargetDelta": -2
+    },
+    {
+      "stage": 65,
+      "policy": "triangle",
+      "run": 45776041133,
+      "status": "unexercised",
+      "started": 0,
+      "completed": 0
+    },
+    {
+      "stage": 66,
+      "policy": "creative_carry",
+      "run": 45776327247,
+      "status": "repeat-required",
+      "attempts": 233,
+      "progressed": 145,
+      "lost": 5,
+      "technical": 0,
+      "boxDelta": 6,
+      "shotsDelta": 4,
+      "onTargetDelta": 0
+    },
+    {
+      "stage": 67,
+      "policy": "duel",
+      "run": 45776794846,
+      "status": "unexercised",
+      "attempts": 0,
+      "beaten": 0
+    },
+    {
+      "stage": 68,
+      "policy": "hold_up",
+      "run": 45777146345,
+      "status": "unexercised",
+      "attempts": 0,
+      "completed": 0
+    },
+    {
+      "stage": 69,
+      "policy": "finish",
+      "run": 45777524724,
+      "status": "retest-build-fixed"
+    },
+    {
+      "stage": 70,
+      "policy": "keeper_ai",
+      "run": 45779102683,
+      "status": "blocked",
+      "narrows": 0,
+      "intercepts": 6,
+      "touches": 6,
+      "controls": 4
+    },
+    {
+      "stage": 71,
+      "policy": "defense_shape",
+      "run": 45779511185,
+      "status": "retest-build-fixed"
+    },
+    {
+      "stage": 72,
+      "policy": "transition",
+      "run": 45779877902,
+      "status": "retest-build-fixed"
+    },
+    {
+      "stage": 73,
+      "policy": "role_profile",
+      "run": 45780597603,
+      "status": "fixture-contrast-missing",
+      "profiles": [
+        1,
+        6,
+        7,
+        9,
+        12
+      ]
+    }
+  ],
+  "repeatCandidate": "creative_carry",
+  "isolatedRetests": [
+    "finish",
+    "defense_shape",
+    "transition"
+  ],
+  "combinedQualified": false
+}

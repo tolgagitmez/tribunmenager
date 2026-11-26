@@ -98,6 +98,9 @@ def sample_native_pss(group,proc=Path("/proc")):
 
 def run(runtime,fixture,out,profile,attack_profile='baseline',fixed_duration=False,retention=False,box_runs=False,timed_attack=False,render_threads=2,render_interval_ms=0,no_draw=False,no_upload=False,null_renderer=False,shared_assets=False,sample_pss=False,lean_scene=False,visual_rng=False,skip_pitch=False,task_workers=0,position_skinning=False,determinism_probe=False,ordered_pose=False,collision_pose=False,contact_interval_ms=100,adaptive_contact=False,surface_impact=False,angular_impact=False,swept_impact=False,split_impact=False,chain_impact=False,limb_impact=False,line_break=False,run_lanes=False,triangle=False,creative_carry=False,duel=False,hold_up=False,finish=False,keeper_ai=False,defense_shape=False,transition=False,role_profile=False):
     name,scale,quick=profile
+    attack_policies=(line_break,run_lanes,triangle,creative_carry,duel,hold_up,finish,keeper_ai,defense_shape,transition,role_profile)
+    if any(type(v) is not bool for v in attack_policies) or sum(attack_policies)>1:
+        raise ValueError("Independent attack policies cannot be combined before qualification")
     if type(role_profile) is not bool or (role_profile and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((transition,defense_shape,keeper_ai,finish,hold_up,duel,creative_carry,triangle,line_break,run_lanes,retention,box_runs,timed_attack,collision_pose,determinism_probe)))):
         raise ValueError("Role profile requires isolated short-match comparison")
     if type(transition) is not bool or (transition and (not fixed_duration or not null_renderer or attack_profile!="short-match" or any((defense_shape,keeper_ai,finish,hold_up,duel,creative_carry,triangle,line_break,run_lanes,retention,box_runs,timed_attack,collision_pose,determinism_probe)))):
