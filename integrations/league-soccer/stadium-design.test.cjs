@@ -13,7 +13,7 @@ test('goal frames remain on actual goal planes and use law dimensions',()=>{
  const calls=capture('balanced'),segments=calls.filter(c=>c[0]==='segment');
  for(const s of [-1,1])for(const z of [-1,1]){
   const x=s*G.halfLength,w=z*(G.goalHalfWidth+G.postRadius),h=G.goalHeight+G.postRadius;
-  assert.ok(segments.some(c=>JSON.stringify(c.slice(1,4))===JSON.stringify([[x,0,w],[x,h,w],G.postRadius])));
+  assert.ok(segments.some(c=>JSON.stringify(c.slice(1,8))===JSON.stringify([x,0,w,x,h,w,G.postRadius])));
  }
 });
 test('new turf stays flat and does not change field boundaries',()=>{
