@@ -8,6 +8,11 @@ out="$(realpath -m "$3")"
 render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+case "${TRIBUN_NATIVE_ANGULAR_IMPACT:-0}" in
+  0) ;;
+  1) [[ "${TRIBUN_NATIVE_SURFACE_IMPACT:-0}" == 1 ]] || { echo "Angular impact requires surface mode" >&2; exit 2; } ;;
+  *) echo "Invalid angular impact flag" >&2; exit 2;;
+esac
 case "${TRIBUN_NATIVE_SURFACE_IMPACT:-0}" in
   0) ;;
   1) [[ "${TRIBUN_NATIVE_COLLISION_POSE:-0}" == 1 && "${TRIBUN_NATIVE_CONTACT_INTERVAL_MS:-100}" == 10 && "${TRIBUN_NATIVE_ADAPTIVE_CONTACT:-0}" == 0 ]] || { echo "Surface impact requires uniform collision-only 10 ms mode" >&2; exit 2; } ;;

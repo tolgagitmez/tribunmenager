@@ -203,6 +203,9 @@ void TribunTrace(Match& match, bool done) {
       tribun_visual::surfaceImpact()?"surface":"legacy",match.tribunLegacyImpacts,match.tribunSurfaceImpacts,match.tribunSeparatingRejected,
       match.tribunImpactRegions[0],match.tribunImpactRegions[1],match.tribunImpactRegions[2],match.tribunImpactRegions[3],match.tribunImpactRegions[4],match.tribunImpactRegions[5],
       match.tribunRelativeBefore,match.tribunRelativeAfter,match.tribunEnergyViolations);
+    std::printf("[tribun-angular] mode=%s impacts=%lu changes=%lu before=%.6f after=%.6f max-delta=%.6f violations=%lu\n",
+      tribun_visual::angularImpact()?"angular":"off",match.tribunAngularImpacts,match.tribunSpinChanges,
+      match.tribunAngularEnergyBefore,match.tribunAngularEnergyAfter,match.tribunMaxSpinDelta,match.tribunAngularEnergyViolations);
     std::fflush(stdout);
   }
   output.imbue(std::locale::classic());
@@ -552,6 +555,7 @@ inline bool orderedPose() { return deterministicProbe() && flag("TRIBUN_NATIVE_O
 inline bool collisionOnly() { return orderedPose() && flag("TRIBUN_NATIVE_COLLISION_POSE"); }
 inline bool adaptiveContact() { return collisionOnly() && flag("TRIBUN_NATIVE_ADAPTIVE_CONTACT"); }
 inline bool surfaceImpact() { return collisionOnly() && flag("TRIBUN_NATIVE_SURFACE_IMPACT"); }
+inline bool angularImpact() { return surfaceImpact() && flag("TRIBUN_NATIVE_ANGULAR_IMPACT"); }
 inline unsigned adaptiveTicks(float predictedDistance,bool dangerousAction,bool closeOpponent) {
   if (dangerousAction || closeOpponent || predictedDistance <= 5.0f) return 1;
   if (predictedDistance <= 12.0f) return 2;
@@ -986,6 +990,7 @@ inline Vec add(Vec a,Vec b){return {a.x+b.x,a.y+b.y,a.z+b.z};}
 inline Vec sub(Vec a,Vec b){return {a.x-b.x,a.y-b.y,a.z-b.z};}
 inline Vec mul(Vec a,float s){return {a.x*s,a.y*s,a.z*s};}
 inline float dot(Vec a,Vec b){return a.x*b.x+a.y*b.y+a.z*b.z;}
+inline Vec cross(Vec a,Vec b){return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
 inline float length(Vec a){return std::sqrt(dot(a,a));}
 inline bool finite(Vec a){return std::isfinite(a.x)&&std::isfinite(a.y)&&std::isfinite(a.z);}
 enum Region { Foot, Leg, Torso, Head, Arm, Other, RegionCount };
@@ -1022,7 +1027,7 @@ inline Vec normal(Vec p,Vec lo,Vec hi){
   int best=0;for(int j=1;j<6;++j)if(gap[j]<gap[best])best=j;
   return normals[best];
 }
-struct Result {bool valid=false; Vec velocity{0,0,0}; float approach=0,relativeBefore=0,relativeAfter=0;};
+struct Result {bool valid=false; Vec velocity{0,0,0}; float approach=0,relativeBefore=0,relativeAfter=0; Vec spin{0,0,0}; float energyBefore=0,energyAfter=0,spinDelta=0;};
 inline Result resolve(Vec p,Vec lo,Vec hi,Vec incoming,Vec body,Region r){
   if(!finite(p)||!finite(lo)||!finite(hi)||!finite(incoming)||!finite(body)||
      lo.x>hi.x||lo.y>hi.y||lo.z>hi.z)return {};
@@ -1036,6 +1041,28 @@ inline Result resolve(Vec p,Vec lo,Vec hi,Vec incoming,Vec body,Region r){
   if(!finite(out))return {};
   return {true,out,-vn,length(rel),length(after)};
 }
+// Thin-shell sphere (I/m=2R^2/3). Impulse expressed per unit mass.
+// Relative contact-point slip includes the ball's existing angular velocity.
+inline Result resolveAngular(Vec p,Vec lo,Vec hi,Vec incoming,Vec body,Region r,Vec spin){
+  auto base=resolve(p,lo,hi,incoming,body,r);
+  if(!base.valid || !finite(spin))return {};
+  constexpr float radius=0.11f, inertia=2.0f*radius*radius/3.0f;
+  const Vec n=normal(p,lo,hi), arm=mul(n,-radius), rel=sub(incoming,body);
+  const float vn=dot(rel,n), jn=-(1.0f+material(r).restitution)*vn;
+  const Vec contact=add(rel,cross(spin,arm));
+  const Vec slip=sub(contact,mul(n,dot(contact,n)));
+  const float slipSpeed=length(slip);
+  const float friction=1.0f-material(r).tangentRetention;
+  const float jt=std::min(friction*jn,slipSpeed/(1.0f+radius*radius/inertia));
+  const Vec tangentImpulse=slipSpeed>1e-6f?mul(slip,-jt/slipSpeed):Vec{0,0,0};
+  const Vec after=add(rel,add(mul(n,jn),tangentImpulse));
+  const Vec afterSpin=add(spin,mul(cross(arm,tangentImpulse),1.0f/inertia));
+  const Vec velocity=add(body,after);
+  const float beforeEnergy=0.5f*(dot(rel,rel)+inertia*dot(spin,spin));
+  const float afterEnergy=0.5f*(dot(after,after)+inertia*dot(afterSpin,afterSpin));
+  if(!finite(velocity)||!finite(afterSpin)||!std::isfinite(beforeEnergy)||!std::isfinite(afterEnergy))return {};
+  return {true,velocity,-vn,length(rel),length(after),afterSpin,beforeEnergy,afterEnergy,length(sub(afterSpin,spin))};
+}
 }
 '''
 
@@ -1045,7 +1072,7 @@ def surface_impact_header(source):
   unsigned long tribunLegacyImpacts=0, tribunSurfaceImpacts=0, tribunSeparatingRejected=0;
   unsigned long tribunImpactRegions[6]={0,0,0,0,0,0};
   double tribunRelativeBefore=0, tribunRelativeAfter=0;
-  unsigned long tribunEnergyViolations=0;""")
+  unsigned long tribunEnergyViolations=0;\n  unsigned long tribunAngularImpacts=0, tribunSpinChanges=0, tribunAngularEnergyViolations=0;\n  double tribunAngularEnergyBefore=0, tribunAngularEnergyAfter=0, tribunMaxSpinDelta=0;""")
 
 def surface_impact_match(source):
     source=replace_once(source,'#include "tribun_visual_rng.hpp"',
@@ -1065,9 +1092,13 @@ def surface_impact_match(source):
     section=replace_once(section,"                // todonow: average bouncevec and bias together per hit",
         """                if (surfaceMode) {
                   const auto region=tribun_impact::region((*objIter)->GetName());
-                  const auto result=tribun_impact::resolve(asVec(ball->Predict(0)),
-                      asVec(objAABB.minxyz),asVec(objAABB.maxxyz),asVec(ball->GetMovement()),
-                      asVec(players[i]->GetMovement()),region);
+                  const auto result=tribun_visual::angularImpact()
+                      ? tribun_impact::resolveAngular(asVec(ball->Predict(0)),
+                          asVec(objAABB.minxyz),asVec(objAABB.maxxyz),asVec(ball->GetMovement()),
+                          asVec(players[i]->GetMovement()),region,asVec(ball->TribunAngularVelocity()))
+                      : tribun_impact::resolve(asVec(ball->Predict(0)),
+                          asVec(objAABB.minxyz),asVec(objAABB.maxxyz),asVec(ball->GetMovement()),
+                          asVec(players[i]->GetMovement()),region);
                   if (result.valid && (!bestImpact.valid || result.approach>bestImpact.approach)) {
                     bestImpact=result;
                     bestRegion=region;
@@ -1084,11 +1115,20 @@ def surface_impact_match(source):
     ++tribunImpactRegions[bestRegion];
     tribunRelativeBefore+=bestImpact.relativeBefore;
     tribunRelativeAfter+=bestImpact.relativeAfter;
-    if (bestImpact.relativeAfter>bestImpact.relativeBefore+0.0001f) ++tribunEnergyViolations;
+    if (!tribun_visual::angularImpact() && bestImpact.relativeAfter>bestImpact.relativeBefore+0.0001f) ++tribunEnergyViolations;
     impactPlayer->GetTeam()->SetLastTouchPlayer(impactPlayer,e_TouchType_Accidental);
     Vector3 resultVector(bestImpact.velocity.x,bestImpact.velocity.y,bestImpact.velocity.z);
     ball->Touch(resultVector);
-    // Retain pre-contact spin; this model does not yet estimate angular impulse.
+    if (tribun_visual::angularImpact()) {
+      ++tribunAngularImpacts;
+      if (bestImpact.spinDelta>0.0001f) ++tribunSpinChanges;
+      tribunAngularEnergyBefore+=bestImpact.energyBefore;
+      tribunAngularEnergyAfter+=bestImpact.energyAfter;
+      tribunMaxSpinDelta=std::max(tribunMaxSpinDelta,static_cast<double>(bestImpact.spinDelta));
+      if (bestImpact.energyAfter>bestImpact.energyBefore+0.0001f*std::max(1.0f,bestImpact.energyBefore))
+        ++tribunAngularEnergyViolations;
+      ball->TribunSetAngularVelocity(Vector3(bestImpact.spin.x,bestImpact.spin.y,bestImpact.spin.z));
+    } // Otherwise retain pre-contact spin.
     ball->TriggerBallTouchSound(pow(NormalizedClamp(resultVector.GetLength(),4.0f,40.0f),0.7f));
     if (impactPlayer->GetCurrentFunctionType()==e_FunctionType_Sliding)
       AddExcitementBoost(0.35f,1400);
@@ -1099,6 +1139,32 @@ def surface_impact_match(source):
   if (bias > 0.0f) {
     if (tribun_visual::collisionOnly()) ++tribunLegacyImpacts;""")
     return source[:start]+section+source[end:]
+
+def angular_ball_header(source):
+    return replace_once(source,"  Vector3 GetMovement();",
+        "  Vector3 GetMovement();\n  Vector3 TribunAngularVelocity() const;\n  void TribunSetAngularVelocity(const Vector3& spin);")
+
+def angular_ball_source(source):
+    return replace_once(source,"void Ball::Touch(const Vector3& target) {",
+        """// Quaternion represents the rotation for a 1 ms step. Use its shortest
+// axis-angle representation directly; legacy Euler setter flips the X axis.
+Vector3 Ball::TribunAngularVelocity() const {
+  const auto q=rotation_ms.GetNormalized();
+  const float sign=q.elements[3]<0 ? -1.0f : 1.0f;
+  const Vector3 axis(q.elements[0]*sign,q.elements[1]*sign,q.elements[2]*sign);
+  const float magnitude=axis.GetLength();
+  if (magnitude<1e-8f) return Vector3(0);
+  const float angle=2.0f*std::atan2(magnitude,std::abs(q.elements[3]));
+  return axis*(1000.0f*angle/magnitude);
+}
+void Ball::TribunSetAngularVelocity(const Vector3& spin) {
+  const float speed=spin.GetLength();
+  if (!std::isfinite(speed)) return;
+  if (speed<1e-5f) rotation_ms=QUATERNION_IDENTITY;
+  else rotation_ms.SetAngleAxis(speed*0.001f,spin/speed);
+  CalculatePrediction();
+}
+void Ball::Touch(const Vector3& target) {""")
 
 def main():
     from fixture_patch import apply
@@ -1161,6 +1227,8 @@ def main():
         ("onthepitch/match.cpp","void Match::TribunObserveContactPose",adaptive_contact_match),
         ("onthepitch/match.hpp","tribunLegacyImpacts",surface_impact_header),
         ("onthepitch/match.cpp","bestImpact.relativeAfter",surface_impact_match),
+        ("onthepitch/ball.hpp","TribunAngularVelocity() const",angular_ball_header),
+        ("onthepitch/ball.cpp","Vector3 Ball::TribunAngularVelocity()",angular_ball_source),
     ):
         target=src/relative
         original=target.read_text(encoding="utf-8")
