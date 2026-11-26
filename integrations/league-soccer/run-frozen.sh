@@ -220,6 +220,10 @@ if [[ "${TRIBUN_NATIVE_REALTIME:-0}" == 1 ]]; then
   grep -F "\"menu_smoke_match_time_scale\" \"$scale\"" "$config" >/dev/null
   limit=850
 fi
+if [[ -n "${TRIBUN_AV_SKIN_CACHE:-}" ]]; then
+  case "$TRIBUN_AV_SKIN_CACHE" in 0|1) ;; *) exit 2 ;; esac
+  [[ "${TRIBUN_AV_RENDER_SIZE:-}" == 1280x720 && "${TRIBUN_AV_SHADOW_SIZE:-2048}" == 2048 && "${TRIBUN_NATIVE_POSITION_SKINNING:-0}" == 0 ]] || exit 2
+fi
 if [[ -n "${TRIBUN_AV_SHADOW_SIZE:-}" ]]; then
   case "$TRIBUN_AV_SHADOW_SIZE" in 1024|2048) ;; *) exit 2 ;; esac
   [[ "${TRIBUN_AV_RENDER_SIZE:-}" == 1280x720 || ( "${TRIBUN_AV_RENDER_SIZE:-}" == 960x540 && "$TRIBUN_AV_SHADOW_SIZE" == 2048 ) ]] || exit 2

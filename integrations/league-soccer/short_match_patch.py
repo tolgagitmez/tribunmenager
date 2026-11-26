@@ -2936,3 +2936,51 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(Player* player,'''),
   }
   renderer->SetViewport(0, 0, shadowW, shadowH);'''),
     ])
+
+    # Stage 159: cache repeated joint translation products, preserve all
+    # four skinning channels, original rotations and blend operation order.
+    edit(root, "src/onthepitch/player/humanoid/humanoidbase.cpp", [
+        ('#include "humanoidbase.hpp"', '#include "humanoidbase.hpp"\n#include <chrono>\n#include <mutex>\n#include <cstdlib>\n#include <cstring>\n#include <cstdio>'),
+        ("void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {", r'''void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {
+  const char* skinCacheMode = std::getenv("TRIBUN_AV_SKIN_CACHE");
+  const bool measureSkin = !updateSrc && skinCacheMode &&
+      (std::strcmp(skinCacheMode, "0") == 0 || std::strcmp(skinCacheMode, "1") == 0);
+  const bool cacheSkin = measureSkin && std::strcmp(skinCacheMode, "1") == 0;
+  const auto skinStart = measureSkin ? std::chrono::steady_clock::now() :
+      std::chrono::steady_clock::time_point();
+  std::vector<Vector3> scaledBind, scaledPose;
+  if (cacheSkin) {
+    scaledBind.reserve(joints.size());
+    scaledPose.reserve(joints.size());
+    for (const auto& joint : joints) {
+      scaledBind.push_back(joint.origPos * zMultiplier);
+      scaledPose.push_back(joint.position * zMultiplier);
+    }
+  }
+  const auto bindOffset = [&](unsigned int id) -> Vector3 {
+    return cacheSkin ? scaledBind[id] : joints[id].origPos * zMultiplier;
+  };
+  const auto poseOffset = [&](unsigned int id) -> Vector3 {
+    return cacheSkin ? scaledPose[id] : joints[id].position * zMultiplier;
+  };'''),
+        ("joints[weightedVertices[v].bones[0].jointID].origPos * zMultiplier", "bindOffset(weightedVertices[v].bones[0].jointID)"),
+        ("joints[weightedVertices[v].bones[0].jointID].position * zMultiplier", "poseOffset(weightedVertices[v].bones[0].jointID)"),
+        ("joints[weightedVertices[v].bones[b].jointID].origPos * zMultiplier", "bindOffset(weightedVertices[v].bones[b].jointID)"),
+        ("joints[weightedVertices[v].bones[b].jointID].position * zMultiplier", "poseOffset(weightedVertices[v].bones[b].jointID)"),
+        ('''  fullbodyGeometryData->resourceMutex.unlock();
+}''', r'''  fullbodyGeometryData->resourceMutex.unlock();
+  if (measureSkin) {
+    const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now() - skinStart).count();
+    static std::mutex skinStatsMutex;
+    static unsigned long long skinCalls = 0, skinNs = 0;
+    std::lock_guard<std::mutex> guard(skinStatsMutex);
+    ++skinCalls;
+    skinNs += static_cast<unsigned long long>(elapsed);
+    if (skinCalls % 256 == 0) {
+      std::fprintf(stderr, "[tribun-skin-cache] mode=%d calls=%llu ns=%llu\n",
+                   cacheSkin ? 1 : 0, skinCalls, skinNs);
+    }
+  }
+}'''),
+    ])

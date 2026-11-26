@@ -27,7 +27,7 @@ def compare(rows):
         else:result['passed']=False
     return result
 
-def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None):
+def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None,skin_cache=None):
     root.mkdir(mode=0o700)
     out=root/'run'
     env={k:v for k,v in os.environ.items() if not k.startswith(('TRIBUN_NATIVE_','TRIBUN_AV_','TRIBUN_GPU_','TRIBUN_LEAGUE_SOCCER_','TRIBUN_EXPECT_','TRIBUN_PLAYBACK_'))}
@@ -40,6 +40,10 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None):
         if type(shadow_size) is not int or shadow_size not in (1024,2048) or render_size not in ('1280x720','960x540') or (render_size=='960x540' and shadow_size!=2048):
             raise ValueError('Unsupported shadow experiment')
         env['TRIBUN_AV_SHADOW_SIZE']=str(shadow_size)
+    if skin_cache is not None:
+        if type(skin_cache) is not int or skin_cache not in (0,1) or render_size!='1280x720' or shadow_size!=2048:
+            raise ValueError('Unsupported skinning experiment')
+        env['TRIBUN_AV_SKIN_CACHE']=str(skin_cache)
     children=[];error=None
     fixture_sha=hashlib.sha256(fixture.read_bytes()).hexdigest()
     try:
@@ -92,6 +96,14 @@ def run_one(runtime,fixture,root,profile,*,render_size=None,shadow_size=None):
             log=out/'native-match.game.log'
             if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
             result['shadowEvidence']=shadow_evidence(log.read_text(errors='replace'),shadow_size)
+        except (OSError,ValueError):result['passed']=False
+    if skin_cache is not None:
+        from native_skinning_cache_comparison import parse_skin
+        result.update(skinCache=skin_cache,skinEvidence=None)
+        try:
+            log=out/'native-match.game.log'
+            if log.stat().st_size>16*1024*1024:raise ValueError('Oversized native log')
+            result['skinEvidence']=parse_skin(log.read_text(errors='replace'),skin_cache)
         except (OSError,ValueError):result['passed']=False
     return result
 
