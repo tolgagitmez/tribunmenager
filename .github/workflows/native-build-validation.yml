@@ -1,7 +1,7 @@
-name: Stage 209 native attacking integration validation
+name: Stage 212 native evidence reporting
 on:
   pull_request:
-    branches: [experiment/native-idle-validation-stage204]
+    branches: [experiment/native-test-repair-stage211]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
@@ -55,6 +55,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_native_combination_diagnostics.py
           python3 -m unittest discover -s tests -p test_native_offball_diagnostics.py
           python3 -m unittest discover -s tests -p test_native_integration_gate.py
+          python3 -m unittest discover -s tests -p test_native_evidence_summary.py
           python3 -m unittest discover -s tests -p test_native_match_quality.py
           python3 -m unittest discover -s tests -p test_native_private_beta.py
           python3 -m py_compile integrations/league-soccer/native_private_beta.py
@@ -131,6 +132,7 @@ jobs:
             ${{ runner.temp }}/coordinated-state/alpha-*/match/*/run/native-match.game.log
             ${{ runner.temp }}/coordinated-state/alpha-*/match/*/run/match.ndjson
       - name: Validate real match evidence for both profiles
+        id: evidence_gate
         if: always()
         shell: bash
         run: |
@@ -144,6 +146,14 @@ jobs:
           python3 integrations/league-soccer/native_integration_gate.py "${baseline[0]}" lanes "$RUNNER_TEMP/baseline-evidence.json" || rc=1
           python3 integrations/league-soccer/native_integration_gate.py "${experiment[0]}" coordinated "$RUNNER_TEMP/coordinated-evidence.json" || rc=1
           exit "$rc"
+      - name: Publish real match evidence diagnostics
+        if: always() && !cancelled()
+        env:
+          GATE_OUTCOME: ${{ steps.evidence_gate.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          BASELINE_OUTCOME: ${{ steps.baseline.outcome }}
+          EXPERIMENTAL_OUTCOME: ${{ steps.experimental.outcome }}
+        run: python3 integrations/league-soccer/native_evidence_summary.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
