@@ -55,3 +55,12 @@ class FullLeagueValidationTests(unittest.TestCase):
                 db.execute('INSERT INTO match_history SELECT 2,team1_name,team2_name,score1,score2,match_time_ms,shots1,shots2,shots_on_target1,shots_on_target2,possession1_pct,possession2_pct,passes1,passes2,passes_completed1,passes_completed2,fouls1,fouls2 FROM match_history WHERE id=1')
             with self.assertRaisesRegex(ValueError,'exactly one finished'):
                 verify(session)
+            from original_match_history import read_recent
+            recent=read_recent(history)
+            self.assertEqual(len(recent['records']),2)
+            self.assertFalse(recent['linkedToLeagueFixtures'])
+            with sqlite3.connect(history) as db:
+                db.execute('UPDATE match_history SET passes_completed1=1000 WHERE id=2')
+            recent=read_recent(history)
+            self.assertEqual(recent['skipped'],1)
+            self.assertEqual(len(recent['records']),1)
