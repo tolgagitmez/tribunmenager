@@ -400,4 +400,6 @@ jobs:
         with:
           name: native-player-observation
           if-no-files-found: ignore
-          path: ${{ runner.temp }}/native-player-observation.json
+          path: |
+            ${{ runner.temp }}/native-player-observation.json
+            ${{ runner.temp }}/native-player-observation-debugger.log
