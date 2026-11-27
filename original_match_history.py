@@ -57,3 +57,60 @@ def read_single(path):
     if len(rows)!=1:
         raise ValueError('Expected exactly one finished 3D match in fresh runtime')
     return validate(rows[0])
+
+
+# This file is a separate native persistence unit; never copy data/saves wholesale.
+HISTORY_PATH=Path('data/saves/match_history.sqlite')
+STORED_NAME='native-match-history.sqlite'
+
+
+def checked_history(path):
+    # Validate the schema and SQLite integrity before publishing or restoring bytes.
+    read_rows(path,1)
+    with closing(sqlite3.connect(path.resolve().as_uri()+'?mode=ro&immutable=1',uri=True)) as db:
+        if db.execute('PRAGMA quick_check').fetchall()!=[('ok',)]:
+            raise ValueError('Native history integrity check failed')
+
+
+def copy_history(source,destination):
+    import os
+    import shutil
+    import tempfile
+    from original_saves import sync_dir
+    source,destination=Path(source),Path(destination)
+    if source.is_symlink() or source.parent.is_symlink() or destination.is_symlink() or destination.parent.is_symlink():
+        raise ValueError('Native history links are not supported')
+    checked_history(source)
+    with tempfile.NamedTemporaryFile(dir=destination.parent,prefix='.history-',delete=False) as f:
+        staged=Path(f.name)
+    try:
+        shutil.copyfile(source,staged)
+        checked_history(staged)
+        with staged.open('rb') as f:
+            os.fsync(f.fileno())
+        os.replace(staged,destination)
+        sync_dir(destination.parent)
+    finally:
+        staged.unlink(missing_ok=True)
+
+
+def restore_history(root,session):
+    source=Path(root)/STORED_NAME
+    if not source.exists() and not source.is_symlink():
+        return False
+    target=Path(session)/HISTORY_PATH
+    if target.parent.is_symlink() or target.parent.parent.is_symlink():
+        raise ValueError('Invalid native history directory')
+    target.parent.mkdir(parents=True,exist_ok=True)
+    copy_history(source,target)
+    return True
+
+
+def commit_history(root,session,exit_code):
+    source=Path(session)/HISTORY_PATH
+    if exit_code!=0 or (not source.exists() and not source.is_symlink()):
+        return False
+    if source.parent.parent.is_symlink():
+        raise ValueError('Invalid native history directory')
+    copy_history(source,Path(root)/STORED_NAME)
+    return True
