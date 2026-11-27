@@ -16,6 +16,8 @@ on:
       - 'original_capture_probe.py'
       - 'original_capture_pattern.py'
       - 'original_default_start_probe.py'
+      - 'original_native_browser_probe.py'
+      - 'tests/original-native-window-browser.cjs'
       - 'tests/original-preview-browser.cjs'
       - 'tests/test_original_capture_probe.py'
       - 'tests/test-original-preview-metrics.cjs'
@@ -51,7 +53,7 @@ jobs:
       - name: Install documented upstream Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils openbox
       - name: Build original pinned upstream with unchanged runtime files
         run: python3 start.py --mode original --original-build-only
       - name: Verify default native startup without engine arguments
@@ -107,6 +109,13 @@ jobs:
           name: original-capture-metrics
           if-no-files-found: warn
           path: ${{ runner.temp }}/original-capture-report.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: Verify real native match window through Chromium without mock media
+        run: python3 original_native_browser_probe.py
   browser-preview:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
