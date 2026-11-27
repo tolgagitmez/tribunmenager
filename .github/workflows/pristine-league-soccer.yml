@@ -42,6 +42,7 @@ on:
       - 'original_av_stream.py'
       - 'original_hls_relay.py'
       - 'original_hls_delivery_probe.py'
+      - 'tests/original-hls-browser.cjs'
       - 'original_native_av_probe.py'
       - 'tests/test_original_av_stream.py'
       - 'original_native_relay_probe.py'
@@ -107,6 +108,7 @@ jobs:
           node --check original-engine-page.js
           node --check original-manager-plan.js
           node --test tests/test-original-manager-plan.cjs
+          node --check tests/original-hls-browser.cjs
           node --check original-match-replay.js
           node --test tests/test-original-match-replay.cjs
           node --check original-preview.js
@@ -219,6 +221,8 @@ jobs:
         run: python3 original_native_relay_probe.py
       - name: Verify native audio and video captured in same HLS segment
         run: python3 original_native_av_probe.py
+      - name: Verify native fragmented MP4 playback in two real Chromium contexts
+        run: python3 original_native_av_probe.py --browser
       - name: Verify custom source selection in actual native menus
         id: custom_source
         continue-on-error: true
