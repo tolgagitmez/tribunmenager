@@ -285,18 +285,35 @@ def main():
             e.call([sys.executable,Path(__file__).resolve().with_name('original_native_reload_probe.py'),second],env)
             if save_manifest(snapshot)!=original:
                 raise RuntimeError('Native reload modified retained snapshot')
-            # A second fresh runtime starts a real league match from the
-            # exact same retained bytes. No changes to engine config or code.
-            kickoff_session=base/'kickoff'
-            populate(build,kickoff_session)
-            e.check_config(work/'source',kickoff_session)
-            saves.restore(store,kickoff_session)
-            if save_manifest(kickoff_session/'saves')!=original:
-                raise RuntimeError('Kickoff test restored different bytes')
-            e.call([sys.executable,Path(__file__).resolve().with_name('original_native_reload_probe.py'),
-                    kickoff_session,'--kickoff'],env)
+            # Schedule the exact next native fixture in the disposable store.
+            # No browser/viewer action is needed. Before kickoff, no claim or
+            # native menu launch is allowed; after kickoff, exactly one claim.
+            from original_fixture_gate import next_native_fixture
+            from original_scheduled_kickoff_probe import probe_due_locked
+            files=list(snapshot.glob('*/autosave.sqlite'))
+            if len(files)!=1:
+                raise RuntimeError('Expected exactly one reviewed native save')
+            path=files[0]
+            native=next_native_fixture(path)
+            if native is None:
+                raise RuntimeError('Expected pending native fixture')
+            fixture=dict(league='NATIVE-CI',round=0,home=native['homeTeamId'],
+                         away=native['awayTeamId'],kickoff=1000)
+            reviewed=dict(fixture,**native,snapshotId=snapshot.name,
+                          saveName=path.parent.name,saveSha256=e.digest(path))
+            early=probe_due_locked(store,work,build,env,path.parent.name,fixture,reviewed,999)
+            if early['claimed'] or early['reason']!='not-due':
+                raise RuntimeError('Scheduled kickoff launched too early')
+            due=probe_due_locked(store,work,build,env,path.parent.name,fixture,reviewed,1000)
+            if not due['claimed'] or not due.get('nativeMenuKickoffProbePassed'):
+                raise RuntimeError('Scheduled native kickoff probe failed')
+            again=probe_due_locked(store,work,build,env,path.parent.name,fixture,reviewed,1001)
+            if again['claimed'] or again['reason']!='already-reserved':
+                raise RuntimeError('Duplicate scheduled native kickoff')
             if save_manifest(snapshot)!=original:
-                raise RuntimeError('Native kickoff modified retained snapshot')
+                raise RuntimeError('Scheduled kickoff modified retained snapshot')
+            print(json.dumps(dict(scheduledNativeKickoffProbe=due,earlyLaunchRejected=True,
+                                  duplicateLaunchRejected=True,syntheticClock=True)),flush=True)
 
         print(json.dumps(dict(revision=e.REVISION,nativeLeagueSaveCreated=True,
              snapshotByteExact=True,restoredByteExact=True,sqliteIntegrityPassed=True,
