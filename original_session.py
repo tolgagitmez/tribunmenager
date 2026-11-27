@@ -35,9 +35,16 @@ class OriginalSession:
         installed=(work/'pristine-manifest.json').is_file()
         code=self.process.poll() if self.process is not None else None
         running=self.process is not None and code is None
+        save_status=None
+        if supported:
+            from original_saves import store_status
+            save_status=store_status(original_engine.save_root_path())
+            # A live session directory is not an interrupted session.
+            if running:
+                save_status['interruptedSessionCount']=None
         return dict(supported=supported,installed=installed,running=running,
                     lastExitCode=code,revision=original_engine.REVISION,
-                    nativeDesktop=True,managerBridge=False)
+                    nativeDesktop=True,managerBridge=False,saveStore=save_status)
 
     def status(self):
         with self.lock:
