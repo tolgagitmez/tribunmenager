@@ -13,6 +13,14 @@ const {chromium}=require('playwright');
    const url=new URL(route.request().url());
    return url.hostname==='127.0.0.1'?route.continue():route.abort();
   });
+  // Test only UI presentation of explicit read-only inventory responses.
+  // Native launch, save manipulation and file contents are never mocked as verified.
+  let inventory={available:true,hasSnapshot:true,recoveryCount:2,
+   interruptedSessionCount:0,inventoryTruncated:false,valid:true};
+  await context.route('**/api/original/status',route=>route.fulfill({
+   json:{supported:true,installed:true,running:false,lastExitCode:0,
+    nativeDesktop:true,managerBridge:false,saveStore:inventory}
+  }));
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
@@ -42,6 +50,16 @@ const {chromium}=require('playwright');
   });
   const url=process.env.ORIGINAL_TEST_URL||'http://127.0.0.1:8765/original-engine.html';
   await page.goto(url,{waitUntil:'domcontentloaded'});
+  const saveNote=page.locator('#nativeSaveStoreStatus');
+  await saveNote.filter({hasText:'Saklanmış lig kayıtları mevcut.'}).waitFor();
+  assert.match(await saveNote.textContent(),/2 kurtarma klasörü/);
+  inventory={...inventory,valid:false};
+  await page.locator('#originalRefresh').click();
+  await saveNote.filter({hasText:'Lig kayıt deposu incelenemedi'}).waitFor();
+  inventory={...inventory,valid:true,hasSnapshot:false,recoveryCount:0,interruptedSessionCount:1};
+  await page.locator('#originalRefresh').click();
+  await saveNote.filter({hasText:'Henüz saklanmış lig kaydı yok.'}).waitFor();
+  assert.match(await saveNote.textContent(),/başka oturum açık olabilir/);
   assert.equal(await page.evaluate(()=>window.__testCaptureCalls),0);
   await page.locator('#originalPreviewStart').click();
   await page.waitForFunction(()=>document.querySelector('#originalPreviewVideo').videoWidth===640);
