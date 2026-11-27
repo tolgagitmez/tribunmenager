@@ -70,6 +70,12 @@ case "$extended" in 0|1) ;; *) echo "Invalid TRIBUN_NATIVE_EXTENDED_MATCH" >&2; 
 if [[ "$extended" == 1 ]]; then
   [[ $# -ge 2 && "${TRIBUN_NATIVE_FIXED_DURATION:-0}" == 1 && "${TRIBUN_BENCHMARK:-0}" != 1 ]] || { echo "Extended match requires a frozen CPU fixture and fixed duration; not a benchmark" >&2; exit 2; }
 fi
+trial="${TRIBUN_NATIVE_EXTENDED_ATTACK_TRIAL:-0}"
+case "$trial" in 0|1) ;; *) exit 2 ;; esac
+[[ "${TRIBUN_NATIVE_EXTENDED_PROGRESS_227:-0}" == 0 ]] || { echo "Recovery flag is owned by the paired trial" >&2; exit 2; }
+if [[ "$trial" == 1 ]]; then
+  [[ "$extended" == 1 && "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" == baseline && "${TRIBUN_AV_IDLE_RECOVERY:-0}" == 0 && -z "${TRIBUN_NATIVE_VIDEO_OUT:-}" ]] || { echo "Extended attack trial requires isolated baseline trace" >&2; exit 2; }
+fi
 # Build once; each match gets a fresh native process and identical frozen elevens.
 config="$work/source/data/menu_smoke_full_match.config"
 if [[ "${TRIBUN_BENCHMARK:-0}" == 1 ]]; then
@@ -108,5 +114,15 @@ if [[ "${TRIBUN_BENCHMARK:-0}" == 1 ]]; then
 else
   limit=420
   if [[ "$extended" == 1 ]]; then limit=3600; fi
-  run_match "$out" "${TRIBUN_LEAGUE_SOCCER_SEED:-}" "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" "$limit"
+  if [[ "$trial" == 1 ]]; then
+    for progress in 0 1; do
+      dest="$out.progress-$progress.ndjson"
+      cp "$out.fixture.json" "$dest.fixture.json"
+      export TRIBUN_NATIVE_EXTENDED_PROGRESS_227="$progress"
+      run_match "$dest" "${TRIBUN_LEAGUE_SOCCER_SEED:-}" baseline "$limit"
+    done
+    unset TRIBUN_NATIVE_EXTENDED_PROGRESS_227
+  else
+    run_match "$out" "${TRIBUN_LEAGUE_SOCCER_SEED:-}" "${TRIBUN_LEAGUE_SOCCER_ATTACK:-baseline}" "$limit"
+  fi
 fi

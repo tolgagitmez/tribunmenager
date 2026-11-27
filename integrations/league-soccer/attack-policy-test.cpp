@@ -472,6 +472,21 @@ int main(){
  assert(!CoordinatedStart208Eligible(25,8,.7f,15,10,14,3,4,3,5,.99f));
  assert(!CoordinatedStart208Eligible(25,8,.7f,15,10,14,3,NAN,3,5,2));
  assert(!CoordinatedStart208Eligible(NAN,8,.7f,15,10,14,3,4,3,5,2));
+ // Stage 227: require a meaningful safe forward outlet and reject risky movement.
+ assert(ProgressOutlet227(4,5,2,.70f,false));
+ assert(ProgressOutlet227(15,23,4,.95f,false));
+ assert(!ProgressOutlet227(3.99f,5,2,.70f,false));
+ assert(!ProgressOutlet227(-4,10,4,.95f,false));
+ assert(!ProgressOutlet227(5,24,4,.95f,false));
+ assert(!ProgressOutlet227(5,10,1.99f,.95f,false));
+ assert(!ProgressOutlet227(5,10,4,.69f,false));
+ assert(!ProgressOutlet227(5,10,4,.95f,true));
+ assert(!ProgressOutlet227(5,10,4,NAN,false));
+ assert(!ProgressOutlet227(5,10,4,1.01f,false));
+ assert(ProgressMove227(1.5f,2.5f));
+ assert(!ProgressMove227(1.49f,5));
+ assert(!ProgressMove227(2.2f,2.49f));
+ assert(!ProgressMove227(NAN,5));
  FixedDurationClock clock;
  assert(!clock.HalfDue(999999));assert(clock.Nominal(999999)==0);
  clock.Start(3100);clock.Start(5000);
