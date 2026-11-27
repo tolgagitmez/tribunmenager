@@ -14,12 +14,13 @@ def vector(v):
 def dist(a,b):return math.hypot(a[0]-b[0],a[1]-b[1])
 def speed(v):return math.sqrt(sum(x*x for x in vector(v)))
 
-def frame(row):
+def frame(row,duration=300000):
+    if duration not in (300000,1800000):raise ValueError('Unsupported native duration')
     c=row.get('fixedClock')
     if not isinstance(c,dict) or type(c.get('started')) is not bool:raise ValueError('Missing native clock')
     if not c['started']:return None
     t=c.get('elapsedMs')
-    if not integer(t) or t>300000 or row.get('matchMs')!=t*18 or type(row.get('phaseCode')) is not int or type(row.get('inPlay')) is not bool or type(row.get('done')) is not bool:
+    if not integer(t) or t>duration or row.get('matchMs')!=t*(5400000//duration) or type(row.get('phaseCode')) is not int or type(row.get('inPlay')) is not bool or type(row.get('done')) is not bool:
         raise ValueError('Invalid native time')
     return t
 
@@ -36,17 +37,22 @@ def carrier(row):
     if dist(pos,ball)>1.25 or speed(p['velocity'])>=.75:return None
     return (p['team'],p['id'],row['phaseCode']),pos,ball
 
-def inspect_trace(path):
+def inspect_trace(path,duration=300000):
+    if duration not in (300000,1800000):raise ValueError('Unsupported native duration')
     path=Path(path)
-    if path.stat().st_size>MAX_BYTES:raise ValueError('Trace too large')
+    if path.stat().st_size>(512*1024*1024 if duration==1800000 else MAX_BYTES):raise ValueError('Trace too large')
     events=[];total=0;longest=0;active=None;prev=None;observed=0;gaps=0;done=False
+    total_stationary_ms=0;longest_event=None
     def close(end_reason):
-        nonlocal active,total,longest
+        nonlocal active,total,longest,total_stationary_ms,longest_event
         if active:
             key,start,last,_,_=active;duration=last-start
             if duration>=1200:
-                total+=1;longest=max(longest,duration)
-                if len(events)<MAX_EVENTS:events.append(dict(team=key[0],playerId=key[1],phaseCode=key[2],startNativeMs=start,endNativeMs=last,durationMs=duration,endReason=end_reason))
+                total+=1;total_stationary_ms+=duration
+                event=dict(team=key[0],playerId=key[1],phaseCode=key[2],startNativeMs=start,endNativeMs=last,durationMs=duration,endReason=end_reason)
+                if longest_event is None or duration>longest:longest_event=event
+                longest=max(longest,duration)
+                if len(events)<MAX_EVENTS:events.append(event)
         active=None
     with path.open('rb') as f:
         while True:
@@ -54,7 +60,7 @@ def inspect_trace(path):
             if not line:break
             if len(line)>MAX_LINE:raise ValueError('Trace line too large')
             if not line.endswith(b'\n'):break
-            row=json.loads(line);t=frame(row)
+            row=json.loads(line);t=frame(row,duration)
             if t is None:
                 if prev is not None:raise ValueError('Clock reset')
                 continue
@@ -78,7 +84,7 @@ def inspect_trace(path):
     close('trace-ended')
     if prev is None:raise ValueError('No started trace')
     return dict(complete=done,lastNativeMs=prev,observedMs=observed,excludedGapMs=gaps,stationaryCarrierEpisodes=total,
-        longestStationaryCarrierMs=longest,episodes=events,truncated=total>len(events),
+        longestStationaryCarrierMs=longest,totalStationaryCarrierMs=total_stationary_ms,longestEpisode=longest_event,episodes=events,truncated=total>len(events),
         scope='Sampled unique control and low motion while native clock advances; not proof of AI deadlock or recovery causation.')
 
 class ClockObserver:
