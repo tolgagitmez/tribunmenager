@@ -140,7 +140,16 @@ def launch_session(build, env, report_path, save_root):
                 raise RuntimeError(f'Lig kaydı saklanamadı: {exc}. Kurtarma dosyaları: {retained}') from exc
         if report_path is not None:
             from original_results import collect, store
-            store(collect(session,REVISION,code),report_path)
+            from datetime import datetime, timezone
+            report=collect(session,REVISION,code)
+            report['createdAtUtc']=datetime.now(timezone.utc).isoformat()
+            report['snapshotId']=None
+            if save_root is not None and code==0:
+                from original_saves import current_snapshot
+                snapshot=current_snapshot(save_root)
+                if snapshot is not None:
+                    report['snapshotId']=snapshot.name
+            store(report,report_path)
         return code
     finally:
         if not preserve_session:
