@@ -1,8 +1,21 @@
 'use strict';
 (() => {
  const status=document.getElementById('originalStatus'), launch=document.getElementById('originalLaunch'), refresh=document.getElementById('originalRefresh');
+ const saveNote=document.getElementById('nativeSaveStoreStatus');
+ function renderSaveStore(s){
+  if(!saveNote)return;
+  const store=s.saveStore;
+  if(!store){saveNote.textContent='Lig kayıt deposu bu ortamda kullanılamıyor.';return;}
+  if(!store.valid){saveNote.textContent='Lig kayıt deposu incelenemedi; terminali kontrol et. Kayıtları silme.';return;}
+  let message=store.hasSnapshot?'Saklanmış lig kayıtları mevcut.':'Henüz saklanmış lig kaydı yok.';
+  if(store.recoveryCount)message+=' '+store.recoveryCount+' kurtarma klasörü var; otomatik yüklenmez.';
+  if(store.interruptedSessionCount)message+=' '+store.interruptedSessionCount+' çalışma klasörü var; başka oturum açık olabilir. Silmeden önce kontrol et.';
+  if(store.inventoryTruncated)message+=' Kayıt deposu incelemesi sınırlandırıldı.';
+  saveNote.textContent=message;
+ }
  let busy=false;
  function render(s) {
+  renderSaveStore(s);
   launch.disabled=busy||!s.supported||!s.installed||s.running;
   status.textContent=!s.supported?'Bu işletim sistemi henüz desteklenmiyor.':!s.installed?'Motor paketi bulunamadı. Terminalden kurulum yap.':s.running?'Masaüstü motoru başlatılıyor veya çalışıyor.':s.lastExitCode!==null&&s.lastExitCode!==0?'Motor kapandı veya doğrulama başarısız oldu. Terminali kontrol et.':'Motor paketi mevcut. Başlatırken bütünlüğü doğrulanacak.';
  }
@@ -34,7 +47,7 @@
  async function update() {
   if(busy)return;
   try{const r=await fetch('/api/original/status',{cache:'no-store'});if(!r.ok)throw Error();render(await r.json());}
-  catch{launch.disabled=true;status.textContent='Yerel motor bağlantısı kullanılamıyor. Oyunu varsayılan yerel sunucudan aç.';}
+  catch{launch.disabled=true;if(saveNote)saveNote.textContent='Lig kayıt deposu durumu alınamadı.';status.textContent='Yerel motor bağlantısı kullanılamıyor. Oyunu varsayılan yerel sunucudan aç.';}
   await updateResults();
  }
  refresh.addEventListener('click',update);
