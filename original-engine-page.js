@@ -99,6 +99,23 @@
     const h=document.createElement('h3');h.textContent=history.scope==='retained-native-history'?'Saklanan 3D maç istatistikleri':'Son oturumun 3D maç istatistikleri';section.append(h);
     const scope=document.createElement('p');scope.textContent='Motorun maç geçmişinden okunur. Lig fikstürleriyle eşleştirilmez; hızlı maç ve kariyer maçı da olabilir. Canlı veri değildir.';section.append(scope);
     const value=(v,percent=false)=>v==null?'—':String(v)+(percent?'%':'');
+    const performance=history.teamPerformance;
+    if(performance&&Array.isArray(performance.teams)&&performance.teams.length){
+     const panel=document.createElement('details');panel.open=true;
+     const title=document.createElement('summary');title.textContent='Takım performans karşılaştırması';panel.append(title);
+     const description=document.createElement('p');description.className='micro';
+     description.textContent=performance.sampleMatches+' geçerli maç · Son 30 kayıt içindeki örneklem. Takımlar tam adlarına göre gruplanır; farklı maç modları karışık olabilir. Sezon puan durumu veya taktik etkisi ölçümü değildir.';
+     if(performance.excludedSameNameMatches)description.textContent+=' Aynı adlı takımların '+performance.excludedSameNameMatches+' karşılaşması dışarıda bırakıldı.';
+     panel.append(description);
+     const wrap=document.createElement('div');wrap.style.overflowX='auto';
+     const table=document.createElement('table');table.setAttribute('aria-label','3D takım performansı');
+     const columns=[['Takım','teamName'],['Maç','played'],['G','won'],['B','drawn'],['M','lost'],['Gol/maç','goalsPerMatch'],['Şut/maç','shotsPerMatch'],['İsabet/maç','shotsOnTargetPerMatch'],['Şut isabeti','shotAccuracyPct',true],['Pas başarısı','passAccuracyPct',true],['Ort. topa sahip olma','meanPossessionPct',true]];
+     const header=table.createTHead().insertRow();
+     for(const [label] of columns){const th=document.createElement('th');th.scope='col';th.textContent=label;header.append(th);}
+     const body=table.createTBody();
+     for(const team of performance.teams){const row=body.insertRow();for(const [,key,percent] of columns)row.insertCell().textContent=value(team[key],percent);}
+     wrap.append(table);panel.append(wrap);section.append(panel);
+    }
     for(const record of history.records){
      const panel=document.createElement('details');
      const title=document.createElement('summary');title.textContent=record.homeTeam+' '+record.homeGoals+' - '+record.awayGoals+' '+record.awayTeam;panel.append(title);
