@@ -17,8 +17,9 @@ const {chromium}=require('playwright');
   // Native launch, save manipulation and file contents are never mocked as verified.
   let inventory={available:true,hasSnapshot:true,recoveryCount:2,
    interruptedSessionCount:0,inventoryTruncated:false,valid:true};
+  let nativeRunning=false;
   await context.route('**/api/original/status',route=>route.fulfill({
-   json:{supported:true,installed:true,running:false,lastExitCode:0,
+   json:{supported:true,installed:true,running:nativeRunning,lastExitCode:nativeRunning?null:0,
     nativeDesktop:true,managerBridge:false,saveStore:inventory}
   }));
   // Synthetic HTTP response tests rendering only; genuine SQLite is covered separately.
@@ -118,6 +119,19 @@ const {chromium}=require('playwright');
   await page.locator('#originalRefresh').click();
   await saveNote.filter({hasText:'Henüz saklanmış lig kaydı yok.'}).waitFor();
   assert.match(await saveNote.textContent(),/başka oturum açık olabilir/);
+  // Observe a running local launcher, then a completed report without another
+  // refresh click. These are test-only HTTP responses, not real game execution.
+  nativeRunning=true;
+  await page.locator('#originalRefresh').click();
+  await page.locator('#originalStatus').filter({hasText:'Masaüstü motoru başlatılıyor veya çalışıyor.'}).waitFor();
+  assert.equal(await page.locator('#originalLaunch').isDisabled(),true);
+  nativeReport={...nativeReport,snapshotConsistency:'matches-saved-snapshot',
+   saves:[{saveName:'Completed session',results:[{nativeDate:'2026-11-30',homeTeam:'Home Club',
+    awayTeam:'Away Club',homeGoals:3,awayGoals:2}],truncated:false}]};
+  nativeRunning=false;
+  await resultList.getByText('2026-11-30 · Home Club 3 - 2 Away Club',{exact:true}).waitFor({timeout:12000});
+  await page.locator('#nativeResultStatus').filter({hasText:'Saklanmış kayıt sürümüyle eşleşiyor'}).waitFor();
+  assert.equal(await page.locator('#originalLaunch').isEnabled(),true);
   assert.equal(await page.evaluate(()=>window.__testCaptureCalls),0);
   await page.locator('#originalPreviewStart').click();
   await page.waitForFunction(()=>document.querySelector('#originalPreviewVideo').videoWidth===640);
@@ -136,7 +150,7 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#originalPreviewReport').isEnabled(),true);
   assert.deepEqual(writes,[],'Original engine page must not send a write request during read-only preview');
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({browserPlaybackVerified:true,managerPlanBrowserVerified:true,managerPlanStorageUnchanged:true,nativeCalendarUiFixtureVerified:true,nativeSavedSquadUiFixtureVerified:true,syntheticCanvasStream:true,
+  console.log(JSON.stringify({browserPlaybackVerified:true,managerPlanBrowserVerified:true,managerPlanStorageUnchanged:true,nativeCalendarUiFixtureVerified:true,nativeSavedSquadUiFixtureVerified:true,nativeExitRefreshUiFixtureVerified:true,syntheticCanvasStream:true,
    nativeWindowPickerVerified:false,nativeMatchVerified:false,reportDownloadVerified:true,
    sampleSeconds:report.seconds,averagePresentedFps:report.averagePresentedFps}));
  }finally{await browser.close();}
