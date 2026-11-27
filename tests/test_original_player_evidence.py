@@ -65,3 +65,22 @@ class PlayerEvidenceTests(unittest.TestCase):
             row['playedClockMs']=5400000
         with self.assertRaisesRegex(ValueError,'eleven-player'):
             validate_observations(self.baseline,self.mapped,bad,self.history)
+
+
+    def test_first_half_added_time_retained_in_conservation(self):
+        candidate=copy.deepcopy(self.report)
+        candidate['periodEndClockMs']=[2820000,5400000]
+        candidate['players'][0]['playedClockMs']=5520000
+        result=validate_observations(self.baseline,self.mapped,candidate,self.history)
+        self.assertEqual(result['observedClockLimitMs'],5520000)
+        self.assertEqual(result['players'][0]['playedClockMs'],5520000)
+        for ends in ([2699999,5400000],[2820000,5400001],[3600001,5400000],['2820000',5400000]):
+            bad=copy.deepcopy(candidate)
+            bad['periodEndClockMs']=ends
+            with self.assertRaisesRegex(ValueError,'period end'):
+                validate_observations(self.baseline,self.mapped,bad,self.history)
+        bad=copy.deepcopy(candidate)
+        for row in bad['players'][:12]:
+            row['playedClockMs']=5520000
+        with self.assertRaisesRegex(ValueError,'eleven-player'):
+            validate_observations(self.baseline,self.mapped,bad,self.history)
