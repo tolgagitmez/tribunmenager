@@ -1,5 +1,6 @@
 """Explicit local desktop launch bridge, never edits native game settings."""
 import ipaddress
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -41,6 +42,19 @@ class OriginalSession:
     def status(self):
         with self.lock:
             return self._status()
+
+    def results(self):
+        with self.lock:
+            path=original_engine.cache_root()/'last-native-results.json'
+            try:
+                if path.is_symlink() or path.stat().st_size>4*1024*1024:
+                    return None
+                result=json.loads(path.read_text(encoding='utf-8'))
+                if result.get('schema')!=1 or result.get('revision')!=original_engine.REVISION:
+                    return None
+                return result
+            except (OSError,ValueError,AttributeError):
+                return None
 
     def launch(self):
         with self.lock:
