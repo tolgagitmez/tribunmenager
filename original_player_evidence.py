@@ -126,3 +126,71 @@ def validate_observations(baseline,mapped,report,history):
                 observedClockLimitMs=exposure,periodEndClockMs=period_ends,
                 sourceAuthenticityVerified=False,nativePlayerTelemetryVerified=False,
                 nativeFatigueIsWebFitness=False,productionImportAllowed=False)
+
+
+def project_candidate(baseline,mapped,candidate,observer):
+    """Prepare a read-only player projection for a staged fixture.
+
+    A smoke observation cannot be reused as a league result. Matching
+    metadata is necessary but is not an attestation of runtime provenance.
+    No official assists, fitness conversion or production writes.
+    """
+    if (observer.get('actualLeagueFixtureVerified') is not True or
+        observer.get('acceleratedSmoke') is not False):
+        raise ValueError('League-bound observation required; smoke is not eligible')
+    if (candidate.get('sourceSha256')!=baseline['sourceSaveSha256'] or
+        observer.get('sourceSaveSha256')!=baseline['sourceSaveSha256'] or
+        observer.get('fixtureKey')!=candidate.get('fixtureKey') or
+        observer.get('historySha256')!=candidate.get('historySha256')):
+        raise ValueError('Observation does not match staged fixture evidence')
+    for key in ('fixtureKey','historySha256','sourceSaveSha256'):
+        value=observer.get(key)
+        if not isinstance(value,str) or len(value)!=64 or any(ch not in '0123456789abcdef' for ch in value):
+            raise ValueError('Missing immutable fixture evidence identity')
+    history=candidate['history']
+    if (observer.get('scoreAndClockMatchHistory') is not True or
+        observer.get('nativeMatchClockMs')!=history['nativeMatchClockMs']):
+        raise ValueError('Observation clock not matched to staged history')
+    teams=observer.get('teams')
+    if not isinstance(teams,list) or len(teams)!=2:
+        raise ValueError('Expected two observed native teams')
+    timeline=observer.get('timeline')
+    timings={}
+    ends=None
+    if timeline is not None:
+        if timeline.get('eventSequenceConsistent') is not True:
+            raise ValueError('Incomplete player timeline')
+        ends=timeline.get('periodEndClockMs')
+        if ends is None:
+            raise ValueError('Missing period clocks')
+        for p in timeline['players']:
+            k=(p['side'],p['nativePlayerId'])
+            if k in timings or k not in mapped:
+                raise ValueError('Invalid timeline player identity')
+            timings[k]=p
+        if set(timings)!=set(mapped):
+            raise ValueError('Incomplete timeline roster')
+    rows=[]
+    for side,t in enumerate(teams):
+        expected=baseline['teams'][side]['nativeTeamId']
+        native_key=('homeTeamId','awayTeamId')[side]
+        total=history[('homeGoals','awayGoals')[side]]
+        if (t.get('side')!=side or t.get('nativeTeamId')!=expected or
+            candidate['nativeFixture'][native_key]!=expected or t.get('score')!=total):
+            raise ValueError('Observed team or score differs from staged fixture')
+        for p in t['players']:
+            k=(side,p['nativePlayerId'])
+            timing=timings.get(k)
+            if timing is not None and timing['finalFatigueFactorInv']!=p['fatigueFactorInv']:
+                raise ValueError('Timeline and final fatigue differ')
+            rows.append(dict(side=side,nativePlayerId=k[1],goals=p['goals'],
+                assists=None,playedClockMs=timing['observedOnPitchClockMs'] if timing else None,
+                yellow=p['yellow'],red=None,fatigueFactorInv=p['fatigueFactorInv']))
+    result=validate_observations(baseline,mapped,
+        dict(revision=observer.get('revision'),sourceSaveSha256=observer['sourceSaveSha256'],
+             players=rows,periodEndClockMs=ends),history)
+    result.update(fixtureKey=candidate['fixtureKey'],historySha256=candidate['historySha256'],
+                  scope='read-only-staged-player-projection',fixtureMetadataMatched=True,
+                  officialAssistsVerified=False,disciplineImportAllowed=False,
+                  seasonStateWritten=False)
+    return result
