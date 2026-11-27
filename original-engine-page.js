@@ -308,6 +308,22 @@
   if(plan.lineup)rows('Kaydedilmiş ilk 11',plan.lineup.map(p=>p.slot+'. '+p.name+(p.position?' · '+p.position:'')));
   else rows('İlk 11',['Tam ve geçerli bir ilk 11 kaydı bulunamadı.']);
   if(plan.tactics.length)rows('Kaydedilmiş web taktikleri',plan.tactics.map(t=>t.label+' : '+t.value));
+  let preflight=null;
+  try{preflight=window.TribunOriginalManagerPlan.rosterPreflight(JSON.parse(window.localStorage.getItem('tribun-manager-pro09')||'null'));}catch{}
+  if(preflight){
+   const hint=document.createElement('p');hint.className='micro';
+   hint.textContent=preflight.players.length+' kayıtlı oyuncu · '+preflight.unresolvedRoles+' mevki açık eşleştirme gerektiriyor. Bu yerel dosya hazırlık verisidir, motor kadrosu değildir. Hesap bilgileri dışa aktarılmaz.';
+   panel.append(hint);
+   const button=document.createElement('button');button.type='button';button.className='button ghost';
+   button.textContent='Kadro aktarım hazırlığını indir (JSON)';
+   button.addEventListener('click',()=>{
+    const url=URL.createObjectURL(new Blob([JSON.stringify(preflight,null,2)],{type:'application/json'}));
+    const a=document.createElement('a');a.href=url;a.download='tribun-roster-preflight.json';
+    document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+   });
+   panel.append(button);
+  }
+
  }
  refresh.addEventListener('click',loadManagerPlan);
  loadManagerPlan();
