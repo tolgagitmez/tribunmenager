@@ -93,6 +93,34 @@
     fragment.append(rows);
     if(save.truncated){const p=document.createElement('p');p.textContent='Yalnızca son 100 kayıt gösteriliyor.';fragment.append(p);}
    }
+   const history=report.matchHistory;
+   if(history&&Array.isArray(history.records)){
+    const section=document.createElement('section');
+    const h=document.createElement('h3');h.textContent='Son oturumun 3D maç istatistikleri';section.append(h);
+    const scope=document.createElement('p');scope.textContent='Motorun maç geçmişinden okunur. Lig fikstürleriyle eşleştirilmez; hızlı maç ve kariyer maçı da olabilir. Canlı veri değildir.';section.append(scope);
+    const value=(v,percent=false)=>v==null?'—':String(v)+(percent?'%':'');
+    for(const record of history.records){
+     const panel=document.createElement('details');
+     const title=document.createElement('summary');title.textContent=record.homeTeam+' '+record.homeGoals+' - '+record.awayGoals+' '+record.awayTeam;panel.append(title);
+     const table=document.createElement('table');table.setAttribute('aria-label','3D maç istatistikleri');
+     const head=table.createTHead().insertRow();
+     for(const label of ['İstatistik',record.homeTeam,record.awayTeam]){
+      const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th);
+     }
+     const body=table.createTBody();
+     for(const [label,key,percent] of [['Şut','shots',false],['İsabetli şut','shotsOnTarget',false],['Topa sahip olma','possessionPct',true],['Pas','passAttempts',false],['Başarılı pas','passesCompleted',false],['Pas başarısı','passAccuracyPct',true],['Faul','fouls',false]]){
+      const row=body.insertRow();const th=document.createElement('th');th.scope='row';th.textContent=label;row.append(th);
+      for(const v of record[key]||[null,null])row.insertCell().textContent=value(v,percent);
+     }
+     panel.append(table);section.append(panel);
+    }
+    if(!history.records.length||history.skipped||history.truncated){
+     const warning=document.createElement('p');warning.textContent=!history.records.length?'Geçerli 3D maç kaydı bulunamadı.':'Bazı maçlar atlandı veya son 30 kayıtla sınırlandırıldı.';section.append(warning);
+    }
+    fragment.append(section);
+   }else if(report.matchHistoryUnavailable){
+    const p=document.createElement('p');p.textContent='3D maç geçmişi okunamadı; lig verileri ayrı olarak gösteriliyor.';fragment.append(p);
+   }
    list.replaceChildren(fragment);
    note.textContent=count?count+' kayıt · Son tamamlanan oturum': 'Son oturumda okunabilir lig maçı kaydı bulunamadı.';
    if(report.skippedSaves||report.saveLimitReached)note.textContent+=' Bazı kayıtlar incelenemedi veya sınır nedeniyle atlandı.';
