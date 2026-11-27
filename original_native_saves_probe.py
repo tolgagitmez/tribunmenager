@@ -1,7 +1,7 @@
 """Test persistence with a genuine save produced by the pinned upstream game.
 The first session uses upstream's unmodified league smoke fixture. The second
 session restores the bytes into a fresh runtime and verifies the actual database
-read-only. This does not automate reopening a league through the native menu.
+read-only. A separate native UI probe then opens the restored autosave.
 """
 import json
 import os
@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import sqlite3
 import tempfile
+import sys
 
 import original_engine as e
 import original_saves as saves
@@ -89,11 +90,15 @@ def main():
             if saves.commit(store,second,1) or saves.current_snapshot(store)!=snapshot:
                 raise RuntimeError('Failed exit replaced previous save')
             e.check_config(work/'source',second)
+            # The previous immutable snapshot stays untouched even if native reload writes autosave.
+            e.call([sys.executable,Path(__file__).resolve().with_name('original_native_reload_probe.py'),second],env)
+            if save_manifest(snapshot)!=original:
+                raise RuntimeError('Native reload modified retained snapshot')
         print(json.dumps(dict(revision=e.REVISION,nativeLeagueSaveCreated=True,
              snapshotByteExact=True,restoredByteExact=True,sqliteIntegrityPassed=True,
              failedExitPreservedSnapshot=True,readOnlyResultsVerified=True,
              savedFiles=len(original),nativeLeagueDatabases=before,
-             nativeMenuReopenVerified=False,productionConfigChanged=False),indent=2))
+             nativeMenuReopenVerified=True,productionConfigChanged=False),indent=2))
     e.verify_install(work,env)
 
 
