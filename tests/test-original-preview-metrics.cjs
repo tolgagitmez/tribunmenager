@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {createMonitor}=require('../original-preview-metrics.js');
+const {createMonitor,createReport}=require('../original-preview-metrics.js');
 
 function setup(){
  let time=0,visible=true,tick,callback;
@@ -61,4 +61,34 @@ test('stop cancels callbacks and prevents late samples',()=>{
  const s=setup();s.monitor.start();s.monitor.stop();s.frame(1000,10);s.tick(2000);
  assert.deepEqual(s.cleanup(),[1,1]);
  assert.equal(s.samples.length,0);
+});
+
+test('report weights FPS by measured duration and excludes waiting/paused',()=>{
+ const report=createReport();
+ const base={state:'playing',width:1280,height:720,longestGapMs:33};
+ report.add({...base,intervalMs:1000,intervalFrames:30});
+ report.add({...base,intervalMs:2000,intervalFrames:40,longestGapMs:1200,state:'stalled'});
+ report.add({state:'paused'});report.add({state:'waiting'});
+ const data=report.snapshot();
+ assert.equal(data.seconds,3);
+ assert.equal(data.frames,70);
+ assert.equal(data.averagePresentedFps,23.3);
+ assert.equal(data.longestObservedGapMs,1200);
+ assert.equal(data.excludedObservations,2);
+ assert.equal(data.samples.length,2);
+ report.reset();
+ assert.equal(report.snapshot().averagePresentedFps,null);
+});
+
+test('report is bounded and contains only numeric sample fields and state',()=>{
+ const report=createReport();
+ for(let i=0;i<3602;i++)report.add({state:'playing',intervalMs:1000,intervalFrames:30,
+    width:1280,height:720,longestGapMs:34,windowTitle:'private',pixels:'private'});
+ const data=report.snapshot();
+ assert.equal(data.samples.length,3600);
+ assert.equal(data.discardedAfterLimit,2);
+ assert.equal(data.samples[0].windowTitle,undefined);
+ assert.equal(data.samples[0].pixels,undefined);
+ data.samples[0].frames=0;
+ assert.equal(report.snapshot().frames,108000);
 });
