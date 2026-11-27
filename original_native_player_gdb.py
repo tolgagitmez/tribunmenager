@@ -60,6 +60,54 @@ def add_event(event):
         raise ValueError('Native event cap exceeded')
     events.append(event)
 
+touch_events=[]
+
+def touch_event(match,kind,phase,clock=None,**extra):
+    if len(touch_events)>=12000:
+        raise ValueError('Touch observation cap exceeded')
+    data=match['matchData'].dereference()
+    touch_events.append(dict(kind=kind,period=phase,
+        clockMs=int(match['matchTime_ms']) if clock is None else clock,
+        passes=[int(data['passAttempts'][s]) for s in (0,1)],
+        shots=[int(data['shots'][s]) for s in (0,1)],
+        score=[int(data['goalCount'][s]) for s in (0,1)],
+        scorers=[[int(v) for v in vector(data['goalScorers']['_M_elems'][s],99)] for s in (0,1)],
+        **extra))
+
+class TouchObserver(gdb.Breakpoint):
+    def stop(self):
+        if tracked_match is None or final_observer.attempted:
+            return False
+        try:
+            f=gdb.newest_frame()
+            team=f.read_var('this').dereference()
+            if int(team['match'])!=tracked_match:
+                raise ValueError('Unexpected touch match instance')
+            player=f.read_var('player').dereference()
+            if not bool(player['isActive']):
+                raise ValueError('Inactive touch player')
+            typ=int(f.read_var('touchType'))
+            touch_event(team['match'].dereference(),'touch',period,
+                side=int(team['id']),nativePlayerId=int(player['playerData'].dereference()['databaseID']),touchType=typ)
+        except Exception as error:
+            print('TRIBUN_NATIVE_TOUCH_ERROR '+str(error),flush=True)
+            self.enabled=False
+        return False
+
+class ResetObserver(gdb.Breakpoint):
+    def stop(self):
+        if tracked_match is None or final_observer.attempted:
+            return False
+        try:
+            ptr=gdb.newest_frame().read_var('this')
+            if int(ptr)!=tracked_match:
+                raise ValueError('Unexpected reset match instance')
+            touch_event(ptr.dereference(),'reset',period)
+        except Exception as error:
+            print('TRIBUN_NATIVE_TOUCH_ERROR '+str(error),flush=True)
+            self.enabled=False
+        return False
+
 class PeriodObserver(gdb.Breakpoint):
     def stop(self):
         global tracked_match,period
@@ -89,6 +137,8 @@ class PeriodObserver(gdb.Breakpoint):
                         active.append(key)
                     fatigue.append(dict(key,fatigueFactorInv=float(p['fatigueFactorInv'])))
             add_event(dict(kind='period',period=new,previousClockMs=int(match['matchTime_ms']),active=active,fatigue=fatigue))
+            if assists_enabled:
+                touch_event(match,'period',new,clock=0 if new==1 else 2700000)
             period=new
         except Exception as error:
             print('TRIBUN_NATIVE_TIMELINE_ERROR '+str(error),flush=True)
@@ -135,6 +185,9 @@ class FinalObserver(gdb.Breakpoint):
                     raise ValueError('Final match differs from observed match')
                 add_event(dict(kind='final',clockMs=result['nativeMatchClockMs']))
                 print('TRIBUN_NATIVE_PLAYER_TIMELINE '+json.dumps(events,allow_nan=False),flush=True)
+                if assists_enabled:
+                    touch_event(page['match'].dereference(),'final',period)
+                    print('TRIBUN_NATIVE_TOUCH_EVENTS '+json.dumps(touch_events,allow_nan=False),flush=True)
         except Exception as error:
             print('TRIBUN_NATIVE_PLAYER_ERROR '+str(error),flush=True)
         return False
@@ -142,8 +195,15 @@ class FinalObserver(gdb.Breakpoint):
 gdb.execute('set may-call-functions off')
 gdb.execute('set pagination off')
 timeline_enabled=bool(int(gdb.parse_and_eval('$tribun_timeline'))) if gdb.convenience_variable('tribun_timeline') is not None else False
+assists_enabled=bool(int(gdb.parse_and_eval('$tribun_assists'))) if gdb.convenience_variable('tribun_assists') is not None else False
 final_observer=FinalObserver()
 if timeline_enabled:
     PeriodObserver('Match::SetMatchPhase',internal=True)
     ActivityObserver('Player::Activate','activate')
     ActivityObserver('Player::Deactivate','deactivate')
+
+if assists_enabled:
+    if not timeline_enabled:
+        raise ValueError('Touch tracing requires period tracking')
+    TouchObserver('Team::SetLastTouchPlayer',internal=True)
+    ResetObserver('Match::ResetSituation',internal=True)
