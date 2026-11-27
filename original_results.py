@@ -25,6 +25,41 @@ LIMIT ?
 """
 
 
+# Calendar entries without a completed result are pending, not predicted scores.
+PENDING_QUERY = """
+SELECT c.id,c.team1_id,c.team2_id,h.name,a.name,c.timestamp
+FROM calendar c
+JOIN teams h ON h.id=c.team1_id
+JOIN teams a ON a.id=c.team2_id
+WHERE (c.team1_id=? OR c.team2_id=?)
+AND NOT EXISTS (SELECT 1 FROM match_results m WHERE m.calendar_id=c.id
+    AND m.team1_id=c.team1_id AND m.team2_id=c.team2_id AND m.played=1)
+ORDER BY c.timestamp ASC,c.id ASC LIMIT ?
+"""
+MAX_PENDING=30
+
+
+def read_context(conn):
+    rows=conn.execute("""SELECT s.team_id,t.name FROM settings s
+        JOIN teams t ON t.id=s.team_id ORDER BY s.id LIMIT 2""").fetchall()
+    if len(rows)!=1:
+        raise ValueError('Missing or ambiguous managed team')
+    team,name=rows[0]
+    if type(team) is not int or team<=0 or not isinstance(name,str) or not 0<len(name)<=256:
+        raise ValueError('Invalid managed team')
+    pending=conn.execute(PENDING_QUERY,(team,team,MAX_PENDING+1)).fetchall()
+    fixtures=[]
+    for fixture,home,away,hn,an,date in pending[:MAX_PENDING]:
+        if (any(type(x) is not int for x in (fixture,home,away)) or
+            min(fixture,home,away)<=0 or home==away or
+            not all(isinstance(x,str) and 0<len(x)<=256 for x in (hn,an,date))):
+            raise ValueError('Invalid pending fixture')
+        fixtures.append(dict(nativeFixtureId=fixture,homeTeamId=home,awayTeamId=away,
+            homeTeam=hn,awayTeam=an,nativeDate=date))
+    return dict(managedTeam=dict(id=team,name=name),pendingFixtures=fixtures,
+                pendingTruncated=len(pending)>MAX_PENDING)
+
+
 def read_save(path):
     path=Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size>MAX_DB_BYTES:
@@ -39,6 +74,7 @@ def read_save(path):
         conn.execute('PRAGMA trusted_schema=OFF')
         conn.execute('PRAGMA query_only=ON')
         rows=conn.execute(QUERY,(MAX_RESULTS+1,)).fetchall()
+        context=read_context(conn)
     finally:
         conn.close()
     results=[]
@@ -52,7 +88,7 @@ def read_save(path):
         ids.add(fixture)
         results.append(dict(nativeFixtureId=fixture,homeTeamId=home,awayTeamId=away,
             homeTeam=hn,awayTeam=an,homeGoals=hg,awayGoals=ag,nativeDate=date))
-    return dict(results=results,truncated=len(rows)>MAX_RESULTS)
+    return dict(results=results,truncated=len(rows)>MAX_RESULTS,**context)
 
 
 def collect(session, revision, exit_code):
