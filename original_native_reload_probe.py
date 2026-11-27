@@ -32,6 +32,32 @@ def opened_database(pid, expected):
     return False
 
 
+def press_key(key,env):
+    # The native GUI samples current key state, not every X11 key event.
+    # A default xdotool tap can be shorter than the slow software-rendered frame.
+    e.call(['xdotool','keydown','--clearmodifiers',key],env)
+    try:
+        time.sleep(.24)
+    finally:
+        e.call(['xdotool','keyup',key],env)
+    time.sleep(2)
+
+
+def diagnostic_frame(label,env):
+    # Only test frames from this disposable display; no user desktop.
+    output=os.environ.get('RUNNER_TEMP')
+    if not output:
+        return
+    folder=Path(output)/'native-reload-diagnostics'
+    folder.mkdir(exist_ok=True)
+    try:
+        subprocess.run(['ffmpeg','-nostdin','-v','error','-y','-f','x11grab',
+            '-video_size','1280x1024','-i',env['DISPLAY'],'-frames:v','1',
+            '-threads','1',str(folder/(label+'.png'))],env=env,timeout=8,check=True)
+    except (OSError,subprocess.SubprocessError) as exc:
+        print('Diagnostic frame unavailable: '+str(exc),file=sys.stderr)
+
+
 def run(session):
     env=e.clean_env(os.environ)
     if not env.get('DISPLAY','').startswith(':'):
@@ -59,9 +85,11 @@ def run(session):
             # Intro -> main menu; Quick Match initially focused. One Down
             # selects League Mode; Load Saved is focused on the next page.
             # The sole save entry is focused; the confirmation defaults to Load.
-            for keys in (['Return'],['Down'],['Return'],['Return'],['Return'],['Return']):
-                e.call(['xdotool','key','--clearmodifiers',*keys],env)
-                time.sleep(2)
+            diagnostic_frame('00-start',env)
+            for index,key in enumerate(('Return','Down','Return','Return','Return','Return'),1):
+                press_key(key,env)
+                print('Native navigation step '+str(index)+': '+key,flush=True)
+                diagnostic_frame(f'{index:02d}-{key}',env)
                 if opened_database(game.pid,expected):
                     break
             wait_for(lambda: opened_database(game.pid,expected),15,game)
@@ -74,6 +102,7 @@ def run(session):
                   scope='Native UI keyboard navigation and process file descriptor; not a full resumed match.')),
                   flush=True)
         except Exception:
+            diagnostic_frame('99-failure',env)
             log.seek(0)
             print(log.read()[-6000:].decode(errors='replace'),file=sys.stderr)
             raise
