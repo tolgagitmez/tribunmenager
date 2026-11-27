@@ -10,6 +10,8 @@ on:
       - 'original_custom_database_probe.py'
       - 'original_roster_pack.py'
       - 'original_tactic_mapping.py'
+      - 'original_fixture_gate.py'
+      - 'tests/test_original_fixture_gate.py'
       - 'tests/test_original_tactic_mapping.py'
       - 'original_roster_import.py'
       - 'tests/test_original_roster_import.py'
@@ -81,6 +83,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_original_custom_database_probe.py -v
           python3 -m unittest discover -s tests -p test_original_roster_pack.py -v
           python3 -m unittest discover -s tests -p test_original_tactic_mapping.py -v
+          python3 -m unittest discover -s tests -p test_original_fixture_gate.py -v
           python3 -m unittest discover -s tests -p test_original_roster_import.py -v
           python3 -m unittest discover -s tests -p test_original_skill_mapping.py -v
           python3 -m unittest discover -s tests -p test_original_catalog.py -v
