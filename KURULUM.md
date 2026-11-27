@@ -213,3 +213,20 @@ python3 original_native_av_probe.py --browser
 ```
 
 Sistemde kurulu Chromium için `CHROMIUM=/usr/bin/chromium` kullanılabilir. Rapor her izleyicinin ilk kare ve ilk ses sürelerini, ekrana sunulan kareleri, ses sinyalini, tampon beklemelerini ve kısa bağlantı kesintisi sonrası alınan segmentleri gösterir. Segment yaşı ve ilk ses/görüntü zaman damgası farkı kodlayıcı çıkışına aittir. Test, hızlandırılmış yerel örneğin bir bölümünü kapsar. [PR #95 doğrulaması](https://github.com/tolgagitmez/tribunmenager/pull/95)
+
+
+## Katı 300 saniyelik yerel maç tekrarı (deneysel)
+
+Tamamlanmış bir kaynak kayıt mevcutsa:
+
+```sh
+python3 original_match_playback.py kaynak.mp4 tekrar.mp4 --exact
+```
+
+Bu mod en az 300 saniyelik, başlangıç ve bitiş zamanları uyumlu video ve ses izleri ister.
+9000 kodlanmış video karesini (30 FPS), 48 kHz AAC ses izini ve tam 300 saniyelik
+çıktıyı doğrular. Kaynağı değiştirmez, var olan hedefin üzerine yazmaz ve kaynak/çıktı
+SHA-256 değerlerini raporlar. En fazla 100 ms terminal codec yuvarlama payı vardır.
+Kısa kayıtlar uzatılmaz. Bu işlem gecikmeli tekrar üretir; canlı yayın, native maçın
+gerçekten tamamlandığının veya fiziksel ses-görüntü eşzamanlılığının kanıtı değildir.
+``--exact`` olmadan önceki en fazla 300 saniyelik dönüştürme davranışı korunur.
