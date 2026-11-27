@@ -86,6 +86,32 @@ class OriginalResultsTests(unittest.TestCase):
             self.assertTrue(table['includesAllPlayedCompetitions'])
             self.assertEqual(path.read_bytes(),before)
 
+    def test_independent_native_standings_checker_with_nonzero_scores(self):
+        from original_native_saves_probe import verify_standings
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            league=root/'saves'/'test'
+            league.mkdir(parents=True)
+            path=league/'autosave.sqlite'
+            fixture(path)
+            with sqlite3.connect(path) as db:
+                db.executescript("""
+                CREATE TABLE leagues(id INTEGER PRIMARY KEY,name TEXT);
+                INSERT INTO leagues VALUES(1,'Test League');
+                ALTER TABLE teams ADD COLUMN league_id INTEGER DEFAULT 1;
+                ALTER TABLE match_results ADD COLUMN id INTEGER;
+                UPDATE match_results SET id=rowid;
+                """)
+            before=path.read_bytes()
+            report=collect(root,'rev',0)
+            checks=verify_standings(root/'saves',report)
+            self.assertEqual(checks[0]['playedResults'],2)
+            self.assertTrue(checks[0]['allRowsMatched'])
+            report['saves'][0]['standings']['rows'][0]['points']+=1
+            with self.assertRaisesRegex(RuntimeError,'calculation mismatch'):
+                verify_standings(root/'saves',report)
+            self.assertEqual(path.read_bytes(),before)
+
     def test_missing_standings_schema_does_not_hide_valid_results(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'autosave.sqlite'
