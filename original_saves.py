@@ -129,6 +129,38 @@ def current_snapshot(root):
     return path
 
 
+def store_status(root):
+    """Read-only inventory; no save contents, paths, recovery or mutation."""
+    root=Path(root)
+    result=dict(available=False,hasSnapshot=False,recoveryCount=0,
+                interruptedSessionCount=0,inventoryTruncated=False,valid=True)
+    if root.is_symlink():
+        result['valid']=False
+        return result
+    if not root.exists():
+        return result
+    if not root.is_dir():
+        result['valid']=False
+        return result
+    result['available']=True
+    try:
+        result['hasSnapshot']=current_snapshot(root) is not None
+        with os.scandir(root) as entries:
+            for index,entry in enumerate(entries):
+                if index>=10000:
+                    result['inventoryTruncated']=True
+                    break
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+                if re.fullmatch(r'recovery-[0-9a-f]{32}',entry.name):
+                    result['recoveryCount']+=1
+                elif entry.name.startswith('tribun-original-session-'):
+                    result['interruptedSessionCount']+=1
+    except (OSError,RuntimeError,ValueError):
+        result['valid']=False
+    return result
+
+
 def restore(root,session):
     source=current_snapshot(root)
     if source is not None:
