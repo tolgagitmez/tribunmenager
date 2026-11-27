@@ -20,6 +20,9 @@ on:
       - 'original_verified_result_ledger.py'
       - 'original_web_league_preflight.py'
       - 'original_player_evidence.py'
+      - 'original_native_player_gdb.py'
+      - 'original_native_player_probe.py'
+      - 'tests/test_original_native_player_probe.py'
       - 'tests/test_original_player_evidence.py'
       - 'tests/test_original_verified_result_ledger.py'
       - 'original_scheduled_kickoff_probe.py'
@@ -368,3 +371,27 @@ jobs:
           done
           curl -fsS http://127.0.0.1:8765/api/health
           node tests/original-preview-browser.cjs
+
+  native-player-observer:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate native player snapshot contract
+        run: |
+          python3 -m py_compile original_native_player_gdb.py original_native_player_probe.py
+          python3 -m unittest discover -s tests -p test_original_native_player_probe.py -v
+      - name: Install native build and debugger dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth gdb
+      - name: Build and verify unchanged release package
+        run: python3 start.py --mode original --original-build-only
+      - name: Observe final player fields in separate symbol build
+        run: python3 original_native_player_probe.py "$RUNNER_TEMP/native-player-observation.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-player-observation
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-player-observation.json
