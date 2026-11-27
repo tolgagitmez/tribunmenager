@@ -41,10 +41,19 @@ def main(argv=None):
     if sys.version_info < (3, 10):
         raise SystemExit('Python 3.10 veya daha yeni bir sürüm gerekli.')
     parser = argparse.ArgumentParser(description='Tribün Manager başlatıcısı')
-    parser.add_argument('--mode', choices=['local', 'league', 'full'], default='local')
+    parser.add_argument('--mode', choices=['local', 'league', 'full', 'original'], default='local')
+    parser.add_argument('--original-build-only', action='store_true', help='Orijinal motoru hazırla, başlatma.')
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', type=int, default=8000)
     args = parser.parse_args(argv)
+    if args.original_build_only and args.mode != 'original':
+        parser.error('--original-build-only yalnızca --mode original ile kullanılabilir.')
+    if args.mode == 'original':
+        import original_engine
+        try:
+            return original_engine.main(build_only=args.original_build_only)
+        except (RuntimeError, OSError, ValueError, original_engine.subprocess.CalledProcessError) as exc:
+            parser.exit(1, f'Orijinal League-Soccer açılamadı: {exc}. KURULUM.md dosyasına bak.\n')
     if not 1 <= args.port <= 65535:
         parser.error('Port 1–65535 arasında olmalı.')
     if args.mode == 'full':
@@ -70,4 +79,4 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
