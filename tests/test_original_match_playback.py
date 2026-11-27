@@ -71,3 +71,37 @@ class PlaybackTests(unittest.TestCase):
             self.assertFalse(report['live'])
             with self.assertRaises(ValueError):
                 convert_exact(source,output)
+
+
+    def test_verified_capture_rejects_short_and_tampered_fragments(self):
+        import hashlib
+        from original_av_stream import encoding_args,read_playlist
+        from original_match_playback import replay_verified_capture
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            archive=root/'hls'
+            archive.mkdir()
+            subprocess.run(['ffmpeg','-nostdin','-v','error','-f','lavfi','-i',
+                'testsrc2=size=64x64:rate=30','-f','lavfi','-i','sine=frequency=440:sample_rate=48000',
+                '-t','6',*encoding_args(archive,fmp4=True,hd=True,retain=True)],check=True,timeout=60)
+            final=read_playlist(archive,fmp4=True)
+            self.assertTrue(final['ended'])
+            paths=sorted(archive.glob('segment-*.m4s'))
+            hashes=[hashlib.sha256(p.read_bytes()).hexdigest() for p in paths]
+            evidence=dict(nativeFullSmokeCaptured=True,nativeMarkerOrderVerified=True,
+                nativeFullStreamPlaybackVerified=True,nativeSettingsPatched=False,
+                archiveFragmentCount=len(hashes),nativeMatchSpanSeconds=5,
+                results=[dict(fragments=[dict(sha256=h) for h in hashes]) for _ in range(2)])
+            destination=root/'candidate.mp4'
+            report=replay_verified_capture(archive,hashes,evidence,destination)
+            self.assertFalse(report['candidateProduced'])
+            self.assertEqual(report['reason'],'native-capture-shorter-than-300-seconds')
+            self.assertFalse(destination.exists())
+            with self.assertRaises(ValueError):
+                replay_verified_capture(archive,hashes,dict(evidence,nativeMarkerOrderVerified=False),destination)
+            with self.assertRaises(ValueError):
+                replay_verified_capture(archive,hashes,dict(evidence,results=[]),destination)
+            paths[0].write_bytes(paths[0].read_bytes()+b'tampered')
+            with self.assertRaisesRegex(ValueError,'digest mismatch'):
+                replay_verified_capture(archive,hashes,evidence,destination)
+            self.assertFalse(destination.exists())
