@@ -65,6 +65,8 @@ def probe_due_locked(root,work,build,env,save_name,fixture,reviewed,now=None):
     if not gate['eligible']:
         return dict(base,claimed=False,reason=gate['reason'])
     lineups=inspect_lineups(source,native)
+    from original_player_evidence import roster_baseline
+    player_baseline=roster_baseline(source,native)
     original=save_manifest(snapshot)
     # Prepare and verify the exact bytes before consuming the durable claim.
     with tempfile.TemporaryDirectory(prefix='scheduled-kickoff-proof-') as tmp:
@@ -88,6 +90,7 @@ def probe_due_locked(root,work,build,env,save_name,fixture,reviewed,now=None):
                 raise RuntimeError('Disposable kickoff modified retained native snapshot')
         return dict(base,**claim,nativeMenuKickoffProbePassed=True,
                     reviewedNativeFixture=native,savedLineups=lineups,
+                    frozenNativePlayerBaseline=player_baseline,
                     restoredSnapshotVerified=True,retainedSnapshotUnchanged=True,
                     expectedFixtureIndependentlyConfirmedInMatch=False)
 
