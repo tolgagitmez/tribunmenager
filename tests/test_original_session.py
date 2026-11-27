@@ -75,6 +75,38 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(start.main(['--mode','original','--original-installed-only']),0)
             launch.assert_called_once_with(installed_only=True)
 
+    def test_report_freshness_matches_snapshot_and_legacy_is_unknown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp)
+            cache=base/'cache'
+            cache.mkdir()
+            root=base/'store'
+            root.mkdir()
+            old='snapshot-'+'a'*32
+            new='snapshot-'+'b'*32
+            for name in (old,new):
+                (root/name).mkdir()
+            (root/'current').write_text(old)
+            report=cache/'last-native-results.json'
+            data=dict(schema=1,revision=session.original_engine.REVISION,
+                      exitCode=0,saves=[],snapshotId=old,createdAtUtc='2026-11-27T12:00:00+00:00')
+            report.write_text(json.dumps(data))
+            with patch('original_engine.cache_root',return_value=cache), \
+                 patch('original_engine.save_root_path',return_value=root), \
+                 patch('original_session.sys.platform','linux'):
+                bridge=session.OriginalSession()
+                response=bridge.results()
+                self.assertEqual(response['snapshotConsistency'],'matches-saved-snapshot')
+                self.assertNotIn('snapshotId',response)
+                self.assertEqual(json.loads(report.read_text()),data)
+                (root/'current').write_text(new)
+                self.assertEqual(bridge.results()['snapshotConsistency'],'different-saved-snapshot')
+                (root/'current').write_text('../invalid')
+                self.assertEqual(bridge.results()['snapshotConsistency'],'unknown')
+                data.pop('snapshotId')
+                report.write_text(json.dumps(data))
+                self.assertEqual(bridge.results()['snapshotConsistency'],'unknown')
+
 
 if __name__=='__main__':
     unittest.main()
