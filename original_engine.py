@@ -111,8 +111,11 @@ def launch(build, env, report_path=None, save_root=None):
 def launch_session(build, env, report_path, save_root):
     # New private runtime copy per launch; upstream may write its own settings.
     # No synthetic fixture, clock, manager command, configuration argument or patch.
-    with tempfile.TemporaryDirectory(prefix='tribun-original-session-') as temp:
-        session=Path(temp)
+    # Persistent store and session share a filesystem, so a failed snapshot
+    # can retain the original save tree by rename without another large copy.
+    session=Path(tempfile.mkdtemp(prefix='tribun-original-session-',dir=save_root))
+    preserve_session=False
+    try:
         for name in RUNTIME:
             src=build/name
             if src.is_dir():
@@ -124,11 +127,24 @@ def launch_session(build, env, report_path, save_root):
             restore(save_root,session)
         code=subprocess.run([str(session/'gameplayfootball')],cwd=session,env=env).returncode
         if save_root is not None:
-            commit(save_root,session,code)
+            try:
+                commit(save_root,session,code)
+            except (OSError,RuntimeError,ValueError) as exc:
+                from original_saves import quarantine
+                # Never automatically promote an unvalidated recovery tree.
+                try:
+                    retained=quarantine(save_root,session)
+                except (OSError,RuntimeError):
+                    preserve_session=True
+                    retained=session
+                raise RuntimeError(f'Lig kaydı saklanamadı: {exc}. Kurtarma dosyaları: {retained}') from exc
         if report_path is not None:
             from original_results import collect, store
             store(collect(session,REVISION,code),report_path)
         return code
+    finally:
+        if not preserve_session:
+            shutil.rmtree(session)
 
 
 def cache_root():
