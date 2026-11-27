@@ -47,8 +47,11 @@ class LocalHandler(SimpleHTTPRequestHandler):
                 team = int(query['team'][0]) if 'team' in query else None
                 work = original_engine.cache_root()/original_engine.REVISION
                 database = work/'build/databases/default/database.sqlite'
+                manifest = json.loads((work/'pristine-manifest.json').read_text())
+                if manifest.get('revision') != original_engine.REVISION or manifest['files'].get('databases/default/database.sqlite') != original_engine.digest(database):
+                    raise ValueError('Orijinal veri tabanı bütünlüğü doğrulanamadı.')
                 return self.reply(200, original_catalog.catalog(database, team))
-            except (OSError, ValueError, sqlite3.Error, ET.ParseError):
+            except (OSError, ValueError, KeyError, TypeError, AttributeError, sqlite3.Error, ET.ParseError):
                 return self.reply(409, {'error': 'Orijinal takım verisi okunamadı. Kurulumu kontrol et.'})
         if path == '/api/original/results':
             if not self.original_access():
