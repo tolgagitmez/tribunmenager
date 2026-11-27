@@ -145,11 +145,76 @@ def run(browser=False):
     engine.verify_install(work,env)
 
 
+def five_minute_transport():
+    """Wall-clock 300s synthetic transport test; never native match evidence."""
+    import threading
+    from original_av_stream import encoding_args
+    from original_hls_relay import HLSRelay
+    env=engine.clean_env(os.environ)
+    with tempfile.TemporaryDirectory(prefix='five-minute-hls-') as tmp, tempfile.TemporaryFile() as log:
+        output=Path(tmp)
+        begin=time.monotonic()
+        encoder=subprocess.Popen(['ffmpeg','-nostdin','-v','error',
+            '-re','-f','lavfi','-i','testsrc2=size=640x512:rate=30',
+            '-re','-f','lavfi','-i','sine=frequency=440:sample_rate=48000',
+            '-t','300',*encoding_args(output,fmp4=True,hd=True)],
+            env=env,stdout=log,stderr=subprocess.STDOUT)
+        try:
+            deadline=time.monotonic()+20
+            while time.monotonic()<deadline and encoder.poll() is None:
+                if (output/'stream.m3u8').is_file():
+                    report=read_playlist(output,fmp4=True)
+                    if len(report['segments'])>=2:
+                        if report['mediaSequence']!=0:
+                            raise RuntimeError('Missed initial synthetic fragments')
+                        break
+                time.sleep(.15)
+            else:
+                raise RuntimeError('HD synthetic stream did not start')
+            with HLSRelay(output,max_clients=8) as server:
+                thread=threading.Thread(target=server.serve_forever,daemon=True)
+                thread.start()
+                try:
+                    script=Path(__file__).resolve().parent/'tests/original-hls-browser.cjs'
+                    result=subprocess.run(['node',str(script),
+                        f'http://127.0.0.1:{server.server_port}','--five-minute'],
+                        env=env,capture_output=True,text=True,timeout=375)
+                    if result.returncode:
+                        raise RuntimeError('Five-minute browser test failed: '+result.stderr[-12000:])
+                    if encoder.wait(timeout=10)!=0:
+                        raise RuntimeError('HD synthetic encoder failed')
+                    final=read_playlist(output,fmp4=True)
+                    if not final['ended'] or final['mediaSequence']+len(final['segments'])!=150:
+                        raise RuntimeError('Missing final encoded fragment')
+                    wall=time.monotonic()-begin
+                    if not 295<=wall<=360:
+                        raise RuntimeError('Transport test not completed in expected real time')
+                    evidence=json.loads(result.stdout)
+                    if not evidence.get('fiveMinuteTransportVerified'):
+                        raise RuntimeError('Missing browser evidence')
+                    evidence.update(syntheticSource=True,nativeMatchVerified=False,
+                                    testWallSeconds=round(wall,3),targetSeconds=300,
+                                    sourceResolution=[640,512],encodedResolution=[1280,720],
+                                    targetEncodedFps=30)
+                    print(json.dumps(evidence),flush=True)
+                finally:
+                    server.shutdown()
+                    thread.join(timeout=5)
+        except Exception:
+            log.seek(0)
+            print(log.read()[-8000:].decode(errors='replace'),file=sys.stderr)
+            raise
+        finally:
+            terminate(encoder)
+
+
 if __name__=='__main__':
-    if sys.argv[1:] in (['--inside-private-xvfb'],['--inside-private-xvfb','--browser']):
+    if sys.argv[1:]==['--five-minute-transport']:
+        five_minute_transport()
+    elif sys.argv[1:] in (['--inside-private-xvfb'],['--inside-private-xvfb','--browser']):
         run(browser='--browser' in sys.argv)
     elif sys.argv[1:] in ([],['--browser']):
         engine.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
             sys.executable,Path(__file__).resolve(),'--inside-private-xvfb',*sys.argv[1:]],engine.clean_env(os.environ))
     else:
-        raise SystemExit('Usage: original_native_av_probe.py [--browser]')
+        raise SystemExit('Usage: original_native_av_probe.py [--browser | --five-minute-transport]')
