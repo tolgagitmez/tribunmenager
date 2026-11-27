@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 
 from native_extended_clock_verify import DURATION, verify
+from native_extended_capture import sha
 
 BIN_MS = 1000
 PITCH_HALF = 55.0
@@ -185,7 +186,7 @@ def analyze(path):
                              'level': LEVELS[level], 'reasons': names})
     return {'schema': 1, 'simulationMs': DURATION, 'targetPlaybackMs': 300000,
             'levelDurationsMs': totals, 'eventCounts': event_counts,
-            'score': verified['score'], 'segments': segments,
+            'score': verified['score'], 'segments': segments, 'sourceTraceSha256': sha(path),
             'scope': 'Recorded importance heuristic; no legal-pass, xG, playback-duration or quality guarantee.'}
 
 

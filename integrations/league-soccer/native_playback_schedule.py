@@ -95,7 +95,7 @@ def schedule(highlights, target_ms=TARGET_MS, *, rate_limits=None):
                 status='target-met' if feasible else 'target-too-short' if target_ms < minimum else 'target-too-long',
                 sourceDurationsMs=totals, playbackDurationsMs=playback_totals,
                 criticalAtNormalSpeed=playback_totals['critical']==totals['critical'],
-                score=highlights.get('score'), segments=output,
+                score=highlights.get('score'), sourceTraceSha256=highlights.get('sourceTraceSha256'), segments=output,
                 scope='Presentation plan only; no dropped source intervals, no physics changes or measured video duration.')
 
 

@@ -5,6 +5,7 @@ import json
 import math
 from pathlib import Path
 import subprocess
+from native_extended_capture import sha
 
 WIDTH, HEIGHT = 256, 16
 MAX_LAG_MS = 200
@@ -155,6 +156,7 @@ def main():
         '-show_packets','-show_entries','packet=pts_time,duration_time','-of','json',str(a.video)]))
     result['audioPacketContinuity']=audio_packet_audit(audio['packets'],
         m['kickoffCandidatePtsSeconds'],m['fullTimeCandidatePtsSeconds'])
+    result.update(videoSha256=sha(a.video),markersSha256=sha(a.markers),alignmentSha256=sha(a.alignment))
     a.output.write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result,indent=2))
     return 0 if result['visualCalibrationPassed'] and result['audioPacketContinuity']['continuityPassed'] else 2
