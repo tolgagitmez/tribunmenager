@@ -210,6 +210,21 @@ jobs:
           name: native-roster-menu-diagnostics
           if-no-files-found: ignore
           path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
+      - name: Verify reviewed tactics in genuine native league creation
+        id: native_tactics
+        continue-on-error: true
+        run: python3 original_native_roster_probe.py --tactics
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.native_tactics.outcome == 'failure'
+        with:
+          name: native-tactic-menu-diagnostics
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
+      - name: Enforce native tactic data verification
+        if: always() && steps.native_tactics.outcome == 'failure'
+        run: |
+          echo "::error::Reviewed native tactic roundtrip failed."
+          exit 1
       - name: Enforce native roster package verification
         if: always() && steps.native_roster.outcome == 'failure'
         run: |
