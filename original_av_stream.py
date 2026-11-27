@@ -19,7 +19,7 @@ MAX_SEGMENT_BYTES=16*1024*1024
 SEGMENT=re.compile(r'segment-\d{6}\.ts')
 FMP4_SEGMENT=re.compile(r'segment-\d{6}\.m4s')
 
-def encoder_args(display,monitor,output,*,fmp4=False,hd=False):
+def encoder_args(display,monitor,output,*,fmp4=False,hd=False,retain=False):
     if not re.fullmatch(r':\d+(?:\.\d+)?',display):
         raise ValueError('Private X11 display required')
     if not re.fullmatch(r'tribun_[a-z0-9]+\.monitor',monitor):
@@ -31,9 +31,9 @@ def encoder_args(display,monitor,output,*,fmp4=False,hd=False):
             '-thread_queue_size','256','-f','x11grab','-draw_mouse','0',
             '-framerate','30' if hd else '25','-video_size','1280x1024','-i',display,
             '-thread_queue_size','256','-f','pulse','-i',monitor,
-            *encoding_args(output,fmp4=fmp4,hd=hd)]
+            *encoding_args(output,fmp4=fmp4,hd=hd,retain=retain)]
 
-def encoding_args(output,*,fmp4=False,hd=False):
+def encoding_args(output,*,fmp4=False,hd=False,retain=False):
     output=Path(output)
     extra=['-hls_segment_type','fmp4','-hls_fmp4_init_filename','init.mp4'] if fmp4 else []
     suffix='m4s' if fmp4 else 'ts'
@@ -45,7 +45,7 @@ def encoding_args(output,*,fmp4=False,hd=False):
             '-pix_fmt','yuv420p','-r',fps,'-g',gop,'-keyint_min',gop,'-sc_threshold','0',
             '-c:a','aac','-ar','48000','-ac','2','-b:a','96k',
             '-f','hls','-hls_time',str(SEGMENT_SECONDS),'-hls_list_size',str(MAX_SEGMENTS),
-            '-hls_delete_threshold','2','-hls_flags','delete_segments+independent_segments+temp_file',
+            '-hls_delete_threshold','2','-hls_flags',('independent_segments+temp_file' if retain else 'delete_segments+independent_segments+temp_file'),
             *extra,'-hls_segment_filename',str(output/('segment-%06d.'+suffix)),str(output/'stream.m3u8')]
 
 def read_published_file(path,limit):
@@ -168,7 +168,7 @@ def audit_packet_timeline(fragments):
         for packet in data.get('packets',[]):
             kind=mapping[packet['stream_index']]
             pts=float(packet['pts_time'])
-            # AAC-LC at 48 kHz and fixed 25fps are the existing encoder contract.
+            # AAC-LC at 48 kHz; video packet durations are read from the stream.
             # ffprobe may omit the first AAC packet duration in each fMP4 fragment.
             duration=float(packet.get('duration_time',1024/48000 if kind=='audio' else 'nan'))
             if not math.isfinite(pts) or not math.isfinite(duration) or duration<=0:
@@ -195,4 +195,6 @@ def audit_packet_timeline(fragments):
     offset=round(max(abs(x) for x in boundaries)*1000,3)
     return dict(encodedTimelineVerified=max(*gap.values(),*overlap.values())<=50 and offset<=100,
                 fragmentCount=len(boundaries)//2, maxPacketGapMs=gap,maxPacketOverlapMs=overlap,
+                firstVideoPts=tracks['video'][0][0], lastVideoEnd=sum(tracks['video'][-1]),
+                firstAudioPts=tracks['audio'][0][0], lastAudioEnd=sum(tracks['audio'][-1]),
                 maxTrackBoundaryOffsetMs=offset,physicalAVSyncVerified=False)
