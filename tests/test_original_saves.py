@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 import unittest
 from unittest.mock import patch
-from original_saves import locked_store, restore, commit, current_snapshot
+from original_saves import locked_store, restore, commit, current_snapshot, store_status
 
 
 class OriginalSavesTests(unittest.TestCase):
@@ -98,6 +98,31 @@ class OriginalSavesTests(unittest.TestCase):
             with locked_store(base/'store') as root:
                 self.assertFalse(commit(root,session,0))
                 self.assertIsNone(current_snapshot(root))
+
+    def test_read_only_inventory_counts_real_recovery_directories(self):
+        with tempfile.TemporaryDirectory() as d:
+            base=Path(d)
+            root=base/'store'
+            self.assertFalse(store_status(root)['available'])
+            self.assertFalse(root.exists())
+            session=base/'session'
+            (session/'saves/league').mkdir(parents=True)
+            (session/'saves/league/autosave.sqlite').write_bytes(b'native')
+            with locked_store(root):
+                commit(root,session,0)
+                recovery=root/('recovery-'+'a'*32)
+                recovery.mkdir()
+                (root/('recovery-'+'b'*32)).symlink_to(recovery)
+                (root/'tribun-original-session-leftover').mkdir()
+                before=sorted(p.name for p in root.iterdir())
+                status=store_status(root)
+                self.assertTrue(status['hasSnapshot'])
+                self.assertEqual(status['recoveryCount'],1)
+                self.assertEqual(status['interruptedSessionCount'],1)
+                self.assertEqual(sorted(p.name for p in root.iterdir()),before)
+                self.assertNotIn(str(root),str(status))
+                (root/'current').write_text('../invalid')
+                self.assertFalse(store_status(root)['valid'])
 
 
 if __name__=='__main__':
