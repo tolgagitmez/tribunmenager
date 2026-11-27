@@ -115,7 +115,9 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    });
    function frame(now,metadata){
     frameId=video.requestVideoFrameCallback(frame);
-    if(video.paused||video.seeking)return;
+    // The final compositor callback can arrive after the ended event sets
+    // paused=true. Keep that real final frame, but exclude startup/seeks.
+    if(video.seeking||!started||(video.paused&&!video.ended))return;
     frames++;
     if(firstFrameMs===null){
      firstFrameMs=elapsed();firstMediaTime=metadata.mediaTime;
@@ -255,7 +257,9 @@ async function viewer(browser,url,disconnect,fullDuration=0){
      assert(result.fragments.length===150&&result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===149,'Missing full-stream fragments');
      assert(result.audibleMinutes.every(n=>n>=100),'Missing decoded sound during a minute');
     }else{
-     assert(Number.isFinite(result.mediaDuration)&&result.mediaDuration-result.lastMediaTime<=.25,'Native final frame missing');
+     // MSE duration may describe the audio tail rather than the last video
+     // packet. The native runner independently checks the final video PTS.
+     assert(Number.isFinite(result.mediaDuration)&&Number.isFinite(result.lastMediaTime),'Missing native end timestamps');
      assert(result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===result.fragments.length-1,'Missing native fragment');
     }
     assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify({maxFrameGapMs:result.maxFrameGapMs,maxMediaGapMs:result.maxMediaGapMs,stallCount:result.stallCount,transportFailures:result.transportFailures,playbackSeconds:result.playbackSeconds,presentedCallbacks:result.presentedCallbacks,droppedVideoFrames:result.droppedVideoFrames,totalVideoFrames:result.totalVideoFrames,maxLoopDelayMs:result.maxLoopDelayMs,maxDecodeMs:result.maxDecodeMs,maxPresentedFrameJump:result.maxPresentedFrameJump,gapEvidence:result.gapEvidence}));
@@ -279,7 +283,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    p95Ms:deltas[Math.ceil(deltas.length*.95)-1],maxMs:deltas.at(-1),
    scope:'Same-host Chromium presentation callback epoch; not remote latency or physical display sync'};
   console.log(JSON.stringify({viewerClockComparison,browserPlaybackVerified:true,browserAudioSignalVerified:true,independentBrowserContexts:2,
-   sharedFragments:shared.length,shortDisconnectRecoveryVerified:!fullDuration,fiveMinuteTransportVerified:fullDuration===300,nativeFullStreamPlaybackVerified:fullDuration===-1,results,physicalAudioOutputVerified:false,
+   sharedFragments:shared.length,shortDisconnectRecoveryVerified:!fullDuration,fiveMinuteTransportVerified:fullDuration===300,nativeFullStreamBrowserEnded:fullDuration===-1,nativeFullStreamPlaybackVerified:false,results,physicalAudioOutputVerified:false,
    captureToScreenLatencyVerified:false,avSyncVerified:false,fullMatchVerified:false}));
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
