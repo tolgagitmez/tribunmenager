@@ -7,6 +7,7 @@ from pathlib import Path
 
 from native_extended_clock_verify import verify, DURATION
 from native_media_retime import probe, duration
+from native_extended_capture import sha
 
 MAX_NATIVE_GAP_MS = 250
 MAX_WALL_GAP_MS = 500
@@ -102,6 +103,7 @@ def main():
         tracks.append((start,start+duration(stream,fmt['duration'])))
     with a.trace.open() as f:
         report=audit((json.loads(line) for line in f),origin,tracks)
+    report.update(traceSha256=sha(a.trace),videoSha256=sha(a.video))
     a.output.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps({k:v for k,v in report.items() if k!='anchors'},indent=2))
     return 0 if report['candidateMappingPassed'] else 2
