@@ -158,7 +158,7 @@ const {chromium}=require('playwright');
   await trend.getByText('Native Alpha',{exact:true}).waitFor();
   assert.equal(await trend.getByRole('row').nth(1).locator('td').nth(2).textContent(),'Deplasman');
   assert.equal(await trend.getByRole('row').nth(1).locator('td').nth(5).textContent(),'4');
-  assert.equal(await resultList.getByRole('img',{name:'Şutlar grafiği'}).count(),1);
+  assert.equal(await resultList.getByRole('img',{name:'Şutlar grafiği',exact:true}).count(),1);
   const [performanceDownload]=await Promise.all([page.waitForEvent('download'),resultList.getByRole('button',{name:'Performans raporunu indir (JSON)'}).click()]);
   const exported=JSON.parse(await fs.readFile(await performanceDownload.path(),'utf8'));
   assert.equal(performanceDownload.suggestedFilename(),'tribun-native-performance.json');
