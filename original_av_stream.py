@@ -40,7 +40,7 @@ def encoding_args(output,*,fmp4=False,hd=False,retain=False):
     fps='30' if hd else '25'
     gop='60' if hd else '50'
     scale=('scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=fast_bilinear,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1' if hd else 'scale=640:512:flags=fast_bilinear')
-    return ['-map','0:v:0','-map','1:a:0','-vf',scale,
+    return ['-filter_threads','1','-map','0:v:0','-map','1:a:0','-vf',scale,
             '-c:v','libx264','-threads','2','-preset','veryfast','-tune','zerolatency',
             '-pix_fmt','yuv420p','-r',fps,'-g',gop,'-keyint_min',gop,'-sc_threshold','0',
             '-c:a','aac','-ar','48000','-ac','2','-b:a','96k',
