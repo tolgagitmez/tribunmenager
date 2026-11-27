@@ -137,6 +137,9 @@ const {chromium}=require('playwright');
      shotsOnTargetPerMatch:5,shotAccuracyPct:50,passAccuracyPct:90,meanPossessionPct:60},
     {teamName:'Native Beta',played:1,won:0,drawn:0,lost:1,goalsPerMatch:1,shotsPerMatch:4,
      shotsOnTargetPerMatch:2,shotAccuracyPct:50,passAccuracyPct:75,meanPossessionPct:40}]}};
+  nativeReport.matchHistory.teamTrends=[
+   {teamName:'Native Alpha',matches:[{opponent:'Native Beta',home:true,goalsFor:2,goalsAgainst:1,shots:10,shotsAgainst:4,shotsOnTarget:5,shotsOnTargetAgainst:2,possessionPct:60,passAccuracyPct:90}]},
+   {teamName:'Native Beta',matches:[{opponent:'Native Alpha',home:false,goalsFor:1,goalsAgainst:2,shots:4,shotsAgainst:10,shotsOnTarget:2,shotsOnTargetAgainst:5,possessionPct:40,passAccuracyPct:75}]}];
   nativeRunning=false;
   await resultList.getByText('2026-11-30 · Home Club 3 - 2 Away Club',{exact:true}).waitFor({timeout:12000});
   await page.locator('#nativeResultStatus').filter({hasText:'Saklanmış kayıt sürümüyle eşleşiyor'}).waitFor();
@@ -149,6 +152,20 @@ const {chromium}=require('playwright');
   const stats=resultList.getByRole('table',{name:'3D maç istatistikleri'});
   await stats.getByRole('row',{name:'İsabetli şut 5 2',exact:true}).waitFor();
   assert.equal(await stats.getByRole('row',{name:'Pas başarısı 90% 75%',exact:true}).count(),1);
+  await resultList.getByText('Son beş maç performansı',{exact:true}).click();
+  await resultList.getByRole('combobox',{name:'Performans grafiği takımı'}).selectOption('1');
+  const trend=resultList.getByRole('table',{name:'Son beş maç verileri'});
+  await trend.getByText('Native Alpha',{exact:true}).waitFor();
+  assert.equal(await trend.getByRole('row').nth(1).locator('td').nth(2).textContent(),'Deplasman');
+  assert.equal(await trend.getByRole('row').nth(1).locator('td').nth(5).textContent(),'4');
+  assert.equal(await resultList.getByRole('img',{name:'Şutlar grafiği'}).count(),1);
+  const [performanceDownload]=await Promise.all([page.waitForEvent('download'),resultList.getByRole('button',{name:'Performans raporunu indir (JSON)'}).click()]);
+  const exported=JSON.parse(await fs.readFile(await performanceDownload.path(),'utf8'));
+  assert.equal(performanceDownload.suggestedFilename(),'tribun-native-performance.json');
+  assert.equal(exported.linkedToLeagueFixtures,false);
+  assert.deepEqual(exported.records,nativeReport.matchHistory.records);
+  assert.deepEqual(exported.teamTrends,nativeReport.matchHistory.teamTrends);
+  assert.deepEqual(exported.teamPerformance,nativeReport.matchHistory.teamPerformance);
   assert.equal(await page.evaluate(()=>window.__testCaptureCalls),0);
   await page.locator('#originalPreviewStart').click();
   await page.waitForFunction(()=>document.querySelector('#originalPreviewVideo').videoWidth===640);
@@ -167,7 +184,7 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#originalPreviewReport').isEnabled(),true);
   assert.deepEqual(writes,[],'Original engine page must not send a write request during read-only preview');
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({browserPlaybackVerified:true,managerPlanBrowserVerified:true,managerPlanStorageUnchanged:true,nativeCalendarUiFixtureVerified:true,nativeSavedSquadUiFixtureVerified:true,nativeExitRefreshUiFixtureVerified:true,nativeHistoryPerformanceUiFixtureVerified:true,syntheticCanvasStream:true,
+  console.log(JSON.stringify({browserPlaybackVerified:true,managerPlanBrowserVerified:true,managerPlanStorageUnchanged:true,nativeCalendarUiFixtureVerified:true,nativeSavedSquadUiFixtureVerified:true,nativeExitRefreshUiFixtureVerified:true,nativeHistoryPerformanceUiFixtureVerified:true,nativeHistoryTrendAndExportFixtureVerified:true,syntheticCanvasStream:true,
    nativeWindowPickerVerified:false,nativeMatchVerified:false,reportDownloadVerified:true,
    sampleSeconds:report.seconds,averagePresentedFps:report.averagePresentedFps}));
  }finally{await browser.close();}
