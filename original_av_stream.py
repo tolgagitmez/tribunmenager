@@ -148,3 +148,48 @@ def publication_age_ms(path,now=None):
     """Local file age only; not capture-to-screen latency."""
     now=time.time() if now is None else now
     return max(0,round((now-Path(path).stat().st_mtime)*1000))
+
+
+def audit_packet_timeline(fragments):
+    """Check encoded track continuity, not physical A/V synchronization."""
+    tracks={'video':[], 'audio':[]}
+    boundaries=[]
+    for media in fragments:
+        data=json.loads(subprocess.check_output(['ffprobe','-v','error',
+            '-show_entries','stream=index,codec_type,codec_name,sample_rate:packet=stream_index,pts_time,duration_time',
+            '-of','json','-i','pipe:0'],input=media,timeout=10))
+        mapping={s['index']:s['codec_type'] for s in data['streams']}
+        if sorted(mapping.values())!=['audio','video']:
+            raise ValueError('Expected exactly one video and audio track')
+        part={'video':[], 'audio':[]}
+        for packet in data.get('packets',[]):
+            kind=mapping[packet['stream_index']]
+            pts=float(packet['pts_time'])
+            # AAC-LC at 48 kHz and fixed 25fps are the existing encoder contract.
+            # ffprobe may omit the first AAC packet duration in each fMP4 fragment.
+            duration=float(packet.get('duration_time',1024/48000 if kind=='audio' else .04))
+            if not math.isfinite(pts) or not math.isfinite(duration) or duration<=0:
+                raise ValueError('Invalid encoded packet timing')
+            part[kind].append((pts,duration))
+        for kind, packets in part.items():
+            if not packets:
+                raise ValueError('Missing encoded '+kind+' packets')
+            # The configured zero-latency H264 encoder has no B-frames.
+            if any(b[0]<=a[0] for a,b in zip(packets,packets[1:])):
+                raise ValueError('Non-monotonic '+kind+' presentation timestamps')
+            tracks[kind].extend(packets)
+        boundaries.extend([part['audio'][0][0]-part['video'][0][0],
+            sum(part['audio'][-1])-sum(part['video'][-1])])
+    if len(boundaries)<4:
+        raise ValueError('Need at least two consecutive fragments')
+    gap={}; overlap={}
+    for kind,packets in tracks.items():
+        deltas=[b[0]-sum(a) for a,b in zip(packets,packets[1:])]
+        if any(b[0]<=a[0] for a,b in zip(packets,packets[1:])):
+            raise ValueError('Non-monotonic '+kind+' fragment timeline')
+        gap[kind]=round(max(0,*deltas)*1000,3)
+        overlap[kind]=round(max(0,*[-x for x in deltas])*1000,3)
+    offset=round(max(abs(x) for x in boundaries)*1000,3)
+    return dict(encodedTimelineVerified=max(*gap.values(),*overlap.values())<=50 and offset<=100,
+                fragmentCount=len(boundaries)//2, maxPacketGapMs=gap,maxPacketOverlapMs=overlap,
+                maxTrackBoundaryOffsetMs=offset,physicalAVSyncVerified=False)
