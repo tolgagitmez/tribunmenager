@@ -39,6 +39,8 @@ on:
       - 'original-preview-metrics.js'
       - 'original_capture_probe.py'
       - 'original_match_playback.py'
+      - 'original-match-replay.js'
+      - 'tests/test-original-match-replay.cjs'
       - 'tests/test_original_match_playback.py'
       - 'original_capture_pattern.py'
       - 'original_default_start_probe.py'
@@ -96,6 +98,8 @@ jobs:
           node --check original-engine-page.js
           node --check original-manager-plan.js
           node --test tests/test-original-manager-plan.cjs
+          node --check original-match-replay.js
+          node --test tests/test-original-match-replay.cjs
           node --check original-preview.js
           node --test tests/test-original-preview.cjs tests/test-original-preview-metrics.cjs
           node --check original-preview-metrics.js
