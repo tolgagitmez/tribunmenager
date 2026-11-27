@@ -40,6 +40,8 @@ on:
       - 'original_capture_probe.py'
       - 'original_preview_relay.py'
       - 'original_av_stream.py'
+      - 'original_hls_relay.py'
+      - 'original_hls_delivery_probe.py'
       - 'original_native_av_probe.py'
       - 'tests/test_original_av_stream.py'
       - 'original_native_relay_probe.py'
