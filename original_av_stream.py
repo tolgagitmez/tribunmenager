@@ -153,8 +153,10 @@ def publication_age_ms(path,now=None):
     return max(0,round((now-Path(path).stat().st_mtime)*1000))
 
 
-def audit_packet_timeline(fragments):
+def audit_packet_timeline(fragments,*,fps=25):
     """Check encoded track continuity, not physical A/V synchronization."""
+    if fps not in (25,30):
+        raise ValueError('Unsupported encoded frame rate')
     tracks={'video':[], 'audio':[]}
     boundaries=[]
     for media in fragments:
@@ -168,9 +170,11 @@ def audit_packet_timeline(fragments):
         for packet in data.get('packets',[]):
             kind=mapping[packet['stream_index']]
             pts=float(packet['pts_time'])
-            # AAC-LC at 48 kHz; video packet durations are read from the stream.
-            # ffprobe may omit the first AAC packet duration in each fMP4 fragment.
-            duration=float(packet.get('duration_time',1024/48000 if kind=='audio' else 'nan'))
+            # Some ffprobe builds omit duration in isolated fMP4 fragments.
+            # Infer only missing durations from the known constant-rate encoder.
+            # Actual PTS are never inferred, so gaps/duplicates remain detectable.
+            raw=packet.get('duration_time')
+            duration=(1024/48000 if kind=='audio' else 1/fps) if raw in (None,'N/A') else float(raw)
             if not math.isfinite(pts) or not math.isfinite(duration) or duration<=0:
                 raise ValueError('Invalid encoded packet timing')
             part[kind].append((pts,duration))
