@@ -107,6 +107,12 @@ def run(browser=False):
                     fullMatchVerified=False,acceleratedUpstreamSmoke=True,
                     nativeSettingsPatched=False)
                 if browser:
+                    from original_av_stream import audit_packet_timeline
+                    timeline=audit_packet_timeline([media for media,_ in samples])
+                    evidence['encodedTimeline']=timeline
+                    print(json.dumps(dict(nativeEncodedTimeline=timeline)),flush=True)
+                    if not timeline['encodedTimelineVerified']:
+                        raise RuntimeError('Native encoded A/V timeline exceeded continuity budget')
                     import threading
                     from original_hls_relay import HLSRelay
                     with HLSRelay(output,max_clients=8) as server:
