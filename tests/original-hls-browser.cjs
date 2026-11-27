@@ -4,7 +4,7 @@ const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const {setTimeout:delay}=require('node:timers/promises');
 
-async function viewer(browser,url,disconnect){
+async function viewer(browser,url,disconnect,fullDuration=0){
  const context=await browser.newContext();
  try{
   const page=await context.newPage();
@@ -15,7 +15,7 @@ async function viewer(browser,url,disconnect){
    });
   }
   await page.goto(url+'/viewer',{timeout:5000});
-  return await page.evaluate(async disconnect=>{
+  return await page.evaluate(async ({disconnect,fullDuration})=>{
    const video=document.querySelector('video'),start=performance.now();
    const elapsed=()=>performance.now()-start,round=n=>Math.round(n*100)/100;
    let transportFailures=0,resumedAfterFailure=0,offline=false,lastTransportError=null;
@@ -54,7 +54,7 @@ async function viewer(browser,url,disconnect){
    const opened=new Promise(resolve=>media.addEventListener('sourceopen',resolve,{once:true}));
    video.src=object;
    video.muted=false;
-   const deadline=performance.now()+25000;
+   const deadline=performance.now()+(fullDuration? (fullDuration+60)*1000:25000);
    const watchdog=new Promise((_,reject)=>setTimeout(()=>reject(Error('Timed out waiting for MediaSource')),6000));
    await Promise.race([opened,watchdog]);
    const buffer=media.addSourceBuffer(mime);
@@ -134,7 +134,7 @@ async function viewer(browser,url,disconnect){
     return names.map((name,i)=>({name,sequence:first+i}));
    }
    const fragments=[];
-   let started=false,appendedDuringPlayback=0,appendedAfterReconnect=0;
+   let started=false,appendedDuringPlayback=0,appendedAfterReconnect=0,endedManifest=false;
    try{
     await append(init);
     frameId=video.requestVideoFrameCallback(frame);
@@ -142,7 +142,9 @@ async function viewer(browser,url,disconnect){
      if(video.error)throw Error('video error '+video.error.code);
      const playlist=await fetchMedia('stream.m3u8',manifest);
      if(playlist){
-      for(const fragment of readPlaylist(playlist.data)){
+      const entries=readPlaylist(playlist.data);
+      if(fullDuration&&!fragments.length&&entries[0].sequence!==0)throw Error('Missed initial fragment');
+      for(const fragment of entries){
        const previous=fragments.at(-1);
        if(previous&&fragment.sequence<=previous.sequence)continue;
        if(previous&&fragment.sequence!==previous.sequence+1)throw Error('Live playlist advanced past the last appended fragment');
@@ -155,15 +157,19 @@ async function viewer(browser,url,disconnect){
        fragments.push({...fragment,bytes:received.data.byteLength,requestMs:received.requestMs,
         publicationAgeMs:received.publicationAgeMs,sha256:Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('')});
       }
+      if(fullDuration&&playlist.data.split(/\r?\n/).includes('#EXT-X-ENDLIST')&&fragments.at(-1)?.sequence===entries.at(-1).sequence&&!endedManifest){
+       media.endOfStream();endedManifest=true;
+      }
      }
-     if(!started&&buffer.buffered.length&&buffer.buffered.end(0)-buffer.buffered.start(0)>=2){
+     if(!started&&buffer.buffered.length&&buffer.buffered.end(0)-buffer.buffered.start(0)>=(fullDuration?4:2)){
       video.currentTime=buffer.buffered.start(0)+.05;
       await audio.resume();
       await video.play();
       started=true;
      }
      const playbackSeconds=mediaTime-firstMediaTime;
-     if(started&&frames>=30&&signatures.size>=3&&playbackSeconds>=4.05&&nonSilentAudioSamples>=3&&appendedDuringPlayback>0&&(!disconnect||appendedAfterReconnect>0)){
+     const complete=fullDuration ? endedManifest&&video.ended&&playbackSeconds>=fullDuration-.3 : playbackSeconds>=4.05;
+     if(started&&frames>=30&&signatures.size>=3&&complete&&nonSilentAudioSamples>=3&&appendedDuringPlayback>0&&(!disconnect||appendedAfterReconnect>0)){
       if(interruptionError)throw Error('Connection interruption failed: '+interruptionError);
       const quality=video.getVideoPlaybackQuality();
       return {presentedCallbacks:frames,distinctScreenSamples:signatures.size,totalVideoFrames:quality.totalVideoFrames,
@@ -171,9 +177,10 @@ async function viewer(browser,url,disconnect){
        width:video.videoWidth,height:video.videoHeight,codec:mime,fragments,appendedDuringPlayback,
        audioAnalysisSampleRate:audio.sampleRate,nonSilentAudioSamples,peakAudioRms,firstAudioSignalMs:round(firstAudioSignalMs),
        transportFailures,resumedAfterFailure,interruptionFailures,appendedAfterReconnect,simulatedDisconnect:disconnect,
+       firstMediaTime, lastMediaTime:mediaTime, endedManifest, ended:video.ended,
        maxFrameGapMs:round(maxFrameGapMs),stallCount,
        stallMs:round(stallMs+(stallAt===null?0:performance.now()-stallAt)),
-       appendedMediaAheadMs:round((buffer.buffered.end(buffer.buffered.length-1)-mediaTime)*1000)};
+       appendedMediaAheadMs:buffer.buffered.length?round((buffer.buffered.end(buffer.buffered.length-1)-mediaTime)*1000):0};
      }
      await new Promise(resolve=>setTimeout(resolve,280));
     }
@@ -186,30 +193,41 @@ async function viewer(browser,url,disconnect){
     video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(object);
     await audio.close();
    }
-  },disconnect);
+  },{disconnect,fullDuration});
  }finally{await context.close();}
 }
 
 (async()=>{
  const url=new URL(process.argv[2]);
+ const fullDuration=process.argv[3]==='--five-minute'?300:0;
+ assert(process.argv.length===(fullDuration?4:3),'Unexpected arguments');
  assert.equal(url.protocol,'http:');
  assert.equal(url.hostname,'127.0.0.1');
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM||undefined,
   args:['--autoplay-policy=no-user-gesture-required']});
  try{
-  const results=await Promise.all([viewer(browser,url.origin,false),viewer(browser,url.origin,true)]);
+  const results=await Promise.all([viewer(browser,url.origin,false,fullDuration),viewer(browser,url.origin,!fullDuration,fullDuration)]);
   for(const result of results){
-   assert(result.presentedCallbacks>=30&&result.distinctScreenSamples>=3&&result.width===640&&result.height===512);
+   assert(result.presentedCallbacks>=30&&result.distinctScreenSamples>=3&&result.width===(fullDuration?1280:640)&&result.height===(fullDuration?720:512));
    assert(result.nonSilentAudioSamples>=3&&result.peakAudioRms>=0.0001);
    assert(result.fragments.every(f=>Number.isFinite(f.publicationAgeMs)));
   }
-  assert(results[1].interruptionFailures>0&&results[1].resumedAfterFailure>0&&results[1].appendedAfterReconnect>0);
+  if(fullDuration){
+   for(const result of results){
+    assert(result.ended&&result.endedManifest&&result.firstMediaTime<=.15,'Missing stream boundaries');
+    assert(result.playbackSeconds>=299.7&&result.lastMediaTime>=299.7,'Incomplete playback duration');
+    assert(result.fragments.length===150&&result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===149,'Missing full-stream fragments');
+    assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify(result));
+    assert(result.presentedCallbacks/result.playbackSeconds>=28.5,'Insufficient delivered video callbacks');
+    assert(result.droppedVideoFrames/Math.max(1,result.totalVideoFrames)<=.01,'Too many dropped video frames');
+   }
+  }else assert(results[1].interruptionFailures>0&&results[1].resumedAfterFailure>0&&results[1].appendedAfterReconnect>0);
   const peer=new Map(results[1].fragments.map(f=>[f.name,f.sha256]));
   const shared=results[0].fragments.filter(f=>peer.has(f.name));
-  assert(shared.length>=3,'The viewers must receive three common ordered fragments');
+  assert(shared.length>=(fullDuration?150:3),'The viewers must receive common ordered fragments');
   for(const fragment of shared)assert.equal(fragment.sha256,peer.get(fragment.name),fragment.name);
   console.log(JSON.stringify({browserPlaybackVerified:true,browserAudioSignalVerified:true,independentBrowserContexts:2,
-   sharedFragments:shared.length,shortDisconnectRecoveryVerified:true,results,physicalAudioOutputVerified:false,
+   sharedFragments:shared.length,shortDisconnectRecoveryVerified:!fullDuration,fiveMinuteTransportVerified:!!fullDuration,results,physicalAudioOutputVerified:false,
    captureToScreenLatencyVerified:false,avSyncVerified:false,fullMatchVerified:false}));
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
