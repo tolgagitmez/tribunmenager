@@ -79,6 +79,13 @@
    list.replaceChildren(fragment);
    note.textContent=count?count+' kayıt · Son tamamlanan oturum': 'Son oturumda okunabilir lig maçı kaydı bulunamadı.';
    if(report.skippedSaves||report.saveLimitReached)note.textContent+=' Bazı kayıtlar incelenemedi veya sınır nedeniyle atlandı.';
+   if(report.createdAtUtc){
+    const date=new Date(report.createdAtUtc);
+    if(Number.isFinite(date.getTime()))note.textContent+=' · Rapor zamanı: '+date.toLocaleString('tr-TR');
+   }
+   if(report.snapshotConsistency==='different-saved-snapshot')note.textContent+=' Uyarı: Rapor güncel saklanmış lig kaydına ait değil.';
+   else if(report.snapshotConsistency==='matches-saved-snapshot')note.textContent+=' · Saklanmış kayıt sürümüyle eşleşiyor (canlı veri değil).';
+   else note.textContent+=' · Kayıt sürümü eşleşmesi doğrulanamadı.';
   } catch{if(seq===resultsSequence){list.replaceChildren();note.textContent='Yerel sonuç bağlantısı kullanılamıyor.';}}
  }
  async function update() {
