@@ -96,7 +96,7 @@
    const history=report.matchHistory;
    if(history&&Array.isArray(history.records)){
     const section=document.createElement('section');
-    const h=document.createElement('h3');h.textContent='Son oturumun 3D maç istatistikleri';section.append(h);
+    const h=document.createElement('h3');h.textContent=history.scope==='retained-native-history'?'Saklanan 3D maç istatistikleri':'Son oturumun 3D maç istatistikleri';section.append(h);
     const scope=document.createElement('p');scope.textContent='Motorun maç geçmişinden okunur. Lig fikstürleriyle eşleştirilmez; hızlı maç ve kariyer maçı da olabilir. Canlı veri değildir.';section.append(scope);
     const value=(v,percent=false)=>v==null?'—':String(v)+(percent?'%':'');
     for(const record of history.records){
