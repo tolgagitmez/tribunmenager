@@ -35,3 +35,25 @@ test('invalid or unowned starter rejects the lineup rather than repairing it',()
  data.starters[3]=50;
  assert.equal(plan.inspect(data).lineup,null);
 });
+
+test('roster preflight preserves explicitly saved skills and blocks unsupported native roles',()=>{
+ const data={formation:'4-3-3',players:Array.from({length:12},(_,i)=>({name:'Player '+i,subposition:i===0?'ST':i===1?'LW':'CM',rating:82,passing:77,preferredFoot:'left',dataKind:'demo',privateNote:'secret'})),
+ starters:Array.from({length:11},(_,i)=>i),auth:'private-auth'};
+ data.players[11].owned=false;
+ const before=JSON.stringify(data);
+ const out=plan.rosterPreflight(data);
+ assert.equal(out.players.length,11);
+ assert.equal(out.players[0].nativeRole,'CF');
+ assert.equal(out.players[1].nativeRole,null);
+ assert.equal(out.unresolvedRoles,1);
+ assert.equal(out.players[0].webValues.passing,77);
+ assert.equal(out.players[0].nativeSkillValues,null);
+ assert.equal(out.players[0].starterSlot,1);
+ assert.equal(out.players[0].dataKind,'demo');
+ assert.equal(out.skillConversionVerified,false);
+ assert.ok(!JSON.stringify(out).includes('secret'));
+ assert.ok(!JSON.stringify(out).includes('private-auth'));
+ assert.equal(JSON.stringify(data),before);
+ data.starters[0]=11;
+ assert.equal(plan.rosterPreflight(data),null);
+});
