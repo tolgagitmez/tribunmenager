@@ -54,6 +54,30 @@ class VerifiedResultLedgerTests(unittest.TestCase):
             self.assertEqual([(r['teamId'],r['played'],r['points'],r['goalDifference']) for r in table['rows']],
                              [(10,1,3,2),(20,1,0,-2)])
             self.assertEqual(provisional_table(root,'TEST-2027')['fixtures'],0)
+            from original_web_league_preflight import preflight
+            web_db=base/'web.sqlite'
+            with sqlite3.connect(web_db) as db:
+                db.executescript("""
+                    CREATE TABLE fixtures(league TEXT,round INT,home INT,away INT,kickoff REAL,home_score INT,away_score INT);
+                    CREATE TABLE live_matches(league TEXT,round INT,home INT,away INT,final_state TEXT);
+                    INSERT INTO fixtures VALUES('TEST-2026',1,20,10,100,NULL,NULL);
+                """)
+            web_before=web_db.read_bytes()
+            pre=preflight(root,web_db,key,399)
+            self.assertIn('scheduled-match-not-ended',pre['blockers'])
+            self.assertFalse(pre['productionImportAllowed'])
+            self.assertEqual(web_db.read_bytes(),web_before)
+            with sqlite3.connect(web_db) as db:
+                db.execute("INSERT INTO live_matches VALUES('TEST-2026',1,20,10,NULL)")
+                db.execute("UPDATE fixtures SET home_score=0,away_score=0")
+            web_before=web_db.read_bytes()
+            pre=preflight(root,web_db,key,400)
+            self.assertIn('legacy-worker-already-owns-fixture',pre['blockers'])
+            self.assertIn('web-score-conflict',pre['blockers'])
+            self.assertIn('native-player-season-evidence-unavailable',pre['blockers'])
+            self.assertFalse(pre['scoreWritten'])
+            self.assertEqual(web_db.read_bytes(),web_before)
+
             self.assertEqual(hashes,(digest(source),digest(saved),digest(history)))
             with sqlite3.connect(saved) as db:
                 db.execute('UPDATE match_results SET team2_goals=4 WHERE calendar_id=12')
