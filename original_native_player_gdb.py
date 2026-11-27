@@ -51,6 +51,72 @@ def snapshot():
     return dict(nativeMatchClockMs=int(match['matchTime_ms']),teams=teams,
                 observationPoint='GameOverPage::Process',historySaved=True)
 
+events=[]
+tracked_match=None
+period=None
+
+def add_event(event):
+    if len(events)>=1024:
+        raise ValueError('Native event cap exceeded')
+    events.append(event)
+
+class PeriodObserver(gdb.Breakpoint):
+    def stop(self):
+        global tracked_match,period
+        try:
+            f=gdb.newest_frame()
+            ptr=f.read_var('this')
+            phase=str(f.read_var('newMatchPhase')).split('::')[-1]
+            if phase=='e_MatchPhase_PreMatch':
+                return False
+            if phase not in ('e_MatchPhase_1stHalf','e_MatchPhase_2ndHalf'):
+                raise ValueError('Unsupported match phase '+phase)
+            new=1 if phase=='e_MatchPhase_1stHalf' else 2
+            match=ptr.dereference()
+            if new==1:
+                if tracked_match is not None:
+                    raise ValueError('Repeated first half')
+                tracked_match=int(ptr)
+            elif tracked_match!=int(ptr):
+                raise ValueError('Unexpected match instance')
+            active=[];fatigue=[]
+            for side in (0,1):
+                team=unique(match['teams'][side])
+                for item in vector(team['players'],128):
+                    p=unique(item)
+                    key=dict(side=side,nativePlayerId=int(p['playerData'].dereference()['databaseID']))
+                    if bool(p['isActive']):
+                        active.append(key)
+                    fatigue.append(dict(key,fatigueFactorInv=float(p['fatigueFactorInv'])))
+            add_event(dict(kind='period',period=new,previousClockMs=int(match['matchTime_ms']),active=active,fatigue=fatigue))
+            period=new
+        except Exception as error:
+            print('TRIBUN_NATIVE_TIMELINE_ERROR '+str(error),flush=True)
+        return False
+
+class ActivityObserver(gdb.Breakpoint):
+    def __init__(self,name,kind):
+        super().__init__(name,internal=True)
+        self.kind=kind
+    def stop(self):
+        if tracked_match is None or final_observer.attempted:
+            return False
+        try:
+            p=gdb.newest_frame().read_var('this').dereference()
+            if int(p['match'])!=tracked_match:
+                raise ValueError('Unexpected player match instance')
+            match=p['match'].dereference()
+            team=p['team'].dereference()
+            side=int(team['id'])
+            active=bool(p['isActive'])
+            if active!=(self.kind=='deactivate'):
+                raise ValueError('Unexpected pre-transition activity')
+            add_event(dict(kind=self.kind,period=period,clockMs=int(match['matchTime_ms']),
+                           side=side,nativePlayerId=int(p['playerData'].dereference()['databaseID'])))
+        except Exception as error:
+            print('TRIBUN_NATIVE_TIMELINE_ERROR '+str(error),flush=True)
+        return False
+
 class FinalObserver(gdb.Breakpoint):
     def __init__(self):
         super().__init__('GameOverPage::Process',internal=True)
@@ -61,11 +127,23 @@ class FinalObserver(gdb.Breakpoint):
         self.attempted=True
         self.enabled=False
         try:
-            print('TRIBUN_NATIVE_PLAYER_SNAPSHOT '+json.dumps(snapshot(),allow_nan=False),flush=True)
+            result=snapshot()
+            print('TRIBUN_NATIVE_PLAYER_SNAPSHOT '+json.dumps(result,allow_nan=False),flush=True)
+            if timeline_enabled:
+                page=gdb.newest_frame().read_var('this').dereference()
+                if tracked_match!=int(page['match']):
+                    raise ValueError('Final match differs from observed match')
+                add_event(dict(kind='final',clockMs=result['nativeMatchClockMs']))
+                print('TRIBUN_NATIVE_PLAYER_TIMELINE '+json.dumps(events,allow_nan=False),flush=True)
         except Exception as error:
             print('TRIBUN_NATIVE_PLAYER_ERROR '+str(error),flush=True)
         return False
 
 gdb.execute('set may-call-functions off')
 gdb.execute('set pagination off')
-FinalObserver()
+timeline_enabled=bool(int(gdb.parse_and_eval('$tribun_timeline'))) if gdb.convenience_variable('tribun_timeline') is not None else False
+final_observer=FinalObserver()
+if timeline_enabled:
+    PeriodObserver('Match::SetMatchPhase',internal=True)
+    ActivityObserver('Player::Activate','activate')
+    ActivityObserver('Player::Deactivate','deactivate')
