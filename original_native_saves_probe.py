@@ -142,6 +142,44 @@ def verify_standings(restored,report):
     return checked
 
 
+def verify_managed_squad(restored,report):
+    """Compare the actual saved club rows and explicit XML values independently."""
+    import xml.etree.ElementTree as ET
+    checked=[]
+    for item in report['saves']:
+        path=restored/item['saveName']/'autosave.sqlite'
+        team=item['managedTeam']['id']
+        squad=item.get('managedSquad')
+        if not squad or not squad['readOnly'] or squad['representsLiveLineup']:
+            raise RuntimeError('Native saved squad report missing or mislabeled')
+        with sqlite3.connect(path.resolve().as_uri()+'?mode=ro&immutable=1',uri=True) as db:
+            expected=db.execute("""SELECT id,firstname,lastname,role,formationorder
+                FROM players WHERE team_id=? ORDER BY formationorder,id""",(team,)).fetchall()
+            actual=[(p['id'],p['name'],p['role'],p['formationOrder']) for p in squad['players']]
+            want=[(i,' '.join(x for x in (first,last) if x),role,order)
+                  for i,first,last,role,order in expected]
+            if actual!=want[:128] or squad['truncated']!=(len(want)>128) or len(actual)<11:
+                raise RuntimeError('Native saved roster mismatch or incomplete club')
+            raw_formation,raw_tactics=db.execute('SELECT formation_xml,tactics_xml FROM teams WHERE id=?',(team,)).fetchone()
+            slots=ET.fromstring('<root>'+(raw_formation or '')+'</root>')
+            expected_slots=sorted((int(n.tag[1:]),n.findtext('role'),
+                [float(x) for x in n.findtext('position').split(',')] if n.findtext('position') else None)
+                for n in slots if n.tag in {f'p{i}' for i in range(1,12)})
+            actual_slots=[(p['slot'],p['role'],p['rawPosition']) for p in (squad['formation'] or [])]
+            if actual_slots!=expected_slots or len(actual_slots)!=11:
+                raise RuntimeError('Native saved formation mismatch')
+            raw=ET.fromstring('<root>'+(raw_tactics or '')+'</root>')
+            explicit={n.tag:float(n.text) for n in raw if n.tag in __import__('original_catalog').KNOWN_TACTICS}
+            actual_values={t['key']:t['value'] for t in (squad['tactics'] or []) if t['source']=='database'}
+            if not explicit or actual_values!=explicit:
+                raise RuntimeError('Native saved tactical values mismatch')
+            checked.append(dict(managedTeam=item['managedTeam']['name'],rosterPlayers=len(actual),
+                formationSlots=len(actual_slots),explicitTacticalValues=len(explicit),allRowsMatched=True))
+    if not checked:
+        raise RuntimeError('No genuine native squad verified')
+    return checked
+
+
 def main():
     env=e.clean_env(os.environ)
     work=e.cache_root()/e.REVISION
@@ -178,6 +216,7 @@ def main():
                 raise RuntimeError('Native league result reader failed')
             calendar_checks=verify_calendar(restored,report)
             standings_checks=verify_standings(restored,report)
+            squad_checks=verify_managed_squad(restored,report)
             if save_manifest(restored)!=original:
                 raise RuntimeError('Read-only native save inspection changed bytes')
             if saves.commit(store,second,1) or saves.current_snapshot(store)!=snapshot:
@@ -189,6 +228,7 @@ def main():
                  savedFiles=len(original),nativeLeagueDatabases=before,
                  nativeCalendarVerified=True,nativeCalendarChecks=calendar_checks,
                  nativeStandingsVerified=True,nativeStandingsChecks=standings_checks,
+                 nativeSavedSquadVerified=True,nativeSavedSquadChecks=squad_checks,
                  nativeMenuReopenVerified=False,productionConfigChanged=False),
                  indent=2),flush=True)
             # The previous immutable snapshot stays untouched even if native reload writes autosave.
@@ -201,6 +241,7 @@ def main():
              savedFiles=len(original),nativeLeagueDatabases=before,
                  nativeCalendarVerified=True,nativeCalendarChecks=calendar_checks,
                  nativeStandingsVerified=True,nativeStandingsChecks=standings_checks,
+                 nativeSavedSquadVerified=True,nativeSavedSquadChecks=squad_checks,
              nativeMenuReopenVerified=True,productionConfigChanged=False),indent=2))
     e.verify_install(work,env)
 
