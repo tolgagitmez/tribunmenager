@@ -99,6 +99,20 @@
     const h=document.createElement('h3');h.textContent=history.scope==='retained-native-history'?'Saklanan 3D maç istatistikleri':'Son oturumun 3D maç istatistikleri';section.append(h);
     const scope=document.createElement('p');scope.textContent='Motorun maç geçmişinden okunur. Lig fikstürleriyle eşleştirilmez; hızlı maç ve kariyer maçı da olabilir. Canlı veri değildir.';section.append(scope);
     const value=(v,percent=false)=>v==null?'—':String(v)+(percent?'%':'');
+    if(history.records.length){
+     const exportButton=document.createElement('button');exportButton.type='button';exportButton.className='button ghost';exportButton.textContent='Performans raporunu indir (JSON)';
+     exportButton.addEventListener('click',()=>{
+      // Explicit local export; do not transmit or expose internal save paths.
+      const payload={schema:1,revision:report.revision??null,createdAtUtc:report.createdAtUtc??null,
+       source:'native-3d-match-history',scope:history.scope,linkedToLeagueFixtures:false,
+       records:history.records,skipped:history.skipped??0,truncated:history.truncated===true,
+       teamPerformance:history.teamPerformance??null,teamTrends:history.teamTrends??null};
+      const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+      const link=document.createElement('a');link.href=url;link.download='tribun-native-performance.json';
+      document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+     });
+     section.append(exportButton);
+    }
     const performance=history.teamPerformance;
     if(performance&&Array.isArray(performance.teams)&&performance.teams.length){
      const panel=document.createElement('details');panel.open=true;
