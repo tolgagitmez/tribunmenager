@@ -60,6 +60,67 @@ def read_context(conn):
                 pendingTruncated=len(pending)>MAX_PENDING)
 
 
+# Mirror the pinned native standings screen: all played match_results,
+# grouped by league name, then points, goal difference, original name order.
+# Limit the web report to the managed club's league and never show partial ranks.
+MAX_STANDING_TEAMS=100
+MAX_STANDING_MATCHES=100000
+
+
+def read_standings(conn,team_id):
+    league=conn.execute("""SELECT l.name FROM teams t JOIN leagues l ON t.league_id=l.id
+        WHERE t.id=?""",(team_id,)).fetchone()
+    if not league or not isinstance(league[0],str) or not 0<len(league[0])<=256:
+        raise ValueError('Managed club league unavailable')
+    teams=conn.execute("""SELECT t.id,t.name FROM teams t JOIN leagues l ON t.league_id=l.id
+        WHERE l.name=? ORDER BY t.name LIMIT ?""",(league[0],MAX_STANDING_TEAMS+1)).fetchall()
+    if not teams or len(teams)>MAX_STANDING_TEAMS:
+        raise ValueError('League exceeds complete table limit')
+    rows={}
+    for ident,name in teams:
+        if type(ident) is not int or ident<=0 or ident in rows or not isinstance(name,str) or not 0<len(name)<=256:
+            raise ValueError('Invalid standings team')
+        rows[ident]=dict(teamId=ident,name=name,played=0,won=0,drawn=0,lost=0,
+                         goalsFor=0,goalsAgainst=0,goalDifference=0,points=0,form='',
+                         managed=ident==team_id)
+    if team_id not in rows:
+        raise ValueError('Managed team absent from table')
+    matches=conn.execute("""SELECT mr.team1_id,mr.team2_id,mr.team1_goals,mr.team2_goals,
+        c.id FROM match_results mr LEFT JOIN calendar c ON mr.calendar_id=c.id
+        WHERE mr.played=1 ORDER BY date(c.timestamp),mr.id LIMIT ?""",
+        (MAX_STANDING_MATCHES+1,)).fetchall()
+    if len(matches)>MAX_STANDING_MATCHES:
+        raise ValueError('Standings match limit exceeded')
+    for home,away,hg,ag,calendar_id in matches:
+        if home not in rows and away not in rows:
+            continue
+        if (any(type(v) is not int for v in (home,away,hg,ag)) or min(home,away)<=0 or
+            home==away or min(hg,ag)<0 or max(hg,ag)>99):
+            raise ValueError('Invalid played match in standings')
+        for ident,gf,ga in ((home,hg,ag),(away,ag,hg)):
+            if ident not in rows:
+                continue
+            row=rows[ident]
+            row['played']+=1
+            row['goalsFor']+=gf
+            row['goalsAgainst']+=ga
+            row['goalDifference']+=gf-ga
+            outcome='W' if gf>ga else 'D' if gf==ga else 'L'
+            row[{'W':'won','D':'drawn','L':'lost'}[outcome]]+=1
+            row['points']+={'W':3,'D':1,'L':0}[outcome]
+            # Native form includes only played results with a calendar join.
+            if calendar_id is not None:
+                row['form']=(row['form']+outcome)[-5:]
+    ordered=sorted(rows.values(),key=lambda row:(-row['points'],-row['goalDifference']))
+    for position,row in enumerate(ordered,1):
+        row['position']=position
+    return dict(league=league[0],rows=ordered,scope='managed-club-league',
+                source='native-standings-rules-derived-from-save',
+                includesAllPlayedCompetitions=True)
+
+
+
+
 def read_save(path):
     path=Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size>MAX_DB_BYTES:
@@ -75,6 +136,11 @@ def read_save(path):
         conn.execute('PRAGMA query_only=ON')
         rows=conn.execute(QUERY,(MAX_RESULTS+1,)).fetchall()
         context=read_context(conn)
+        try:
+            context['standings']=read_standings(conn,context['managedTeam']['id'])
+        except (sqlite3.Error,ValueError):
+            # Older/incomplete saves may lack standings schema; retain valid results.
+            context['standings']=None
     finally:
         conn.close()
     results=[]
