@@ -233,7 +233,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
      assert(Number.isFinite(result.mediaDuration)&&result.mediaDuration-result.lastMediaTime<=.25,'Native final frame missing');
      assert(result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===result.fragments.length-1,'Missing native fragment');
     }
-    assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify(result));
+    assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify({maxFrameGapMs:result.maxFrameGapMs,maxMediaGapMs:result.maxMediaGapMs,stallCount:result.stallCount,transportFailures:result.transportFailures,playbackSeconds:result.playbackSeconds,presentedCallbacks:result.presentedCallbacks,droppedVideoFrames:result.droppedVideoFrames,totalVideoFrames:result.totalVideoFrames}));
     assert(result.maxMediaGapMs<=200,'Missing media-time frames');
     assert(result.presentedCallbacks/result.playbackSeconds>=28.5,'Insufficient delivered video callbacks');
     assert(result.droppedVideoFrames/Math.max(1,result.totalVideoFrames)<=.01,'Too many dropped video frames');
