@@ -98,6 +98,8 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    const pixels=canvas.getContext('2d',{willReadFrequently:true}),signatures=new Set();
    let frames=0,firstFrameMs=null,lastFrameAt=null,maxFrameGapMs=0,firstMediaTime=null,mediaTime=null;
    let lastScreenSample=-Infinity,frameId=null,maxMediaGapMs=0;
+   const clockSamples=[];
+   let lastClockBin=-1;
    let stallAt=null,stallCount=0,stallMs=0;
    video.addEventListener('waiting',()=>{
     if(firstFrameMs!==null&&stallAt===null){stallAt=performance.now();stallCount++;}
@@ -119,6 +121,11 @@ async function viewer(browser,url,disconnect,fullDuration=0){
     lastFrameAt=now;
     if(mediaTime!==null)maxMediaGapMs=Math.max(maxMediaGapMs,(metadata.mediaTime-mediaTime)*1000);
     mediaTime=metadata.mediaTime;
+    const bin=Math.floor(mediaTime);
+    if(bin>lastClockBin){
+     lastClockBin=bin;
+     clockSamples.push({bin,mediaTime,epochMs:performance.timeOrigin+now});
+    }
     if(mediaTime-lastScreenSample>=.5){
      pixels.drawImage(video,0,0,canvas.width,canvas.height);
      const data=pixels.getImageData(0,0,canvas.width,canvas.height).data;
@@ -180,7 +187,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
        width:video.videoWidth,height:video.videoHeight,codec:mime,fragments,appendedDuringPlayback,
        audioAnalysisSampleRate:audio.sampleRate,nonSilentAudioSamples,peakAudioRms,firstAudioSignalMs:round(firstAudioSignalMs),
        transportFailures,resumedAfterFailure,interruptionFailures,appendedAfterReconnect,simulatedDisconnect:disconnect,
-       firstMediaTime, lastMediaTime:mediaTime, mediaDuration:video.duration, endedManifest, ended:video.ended,audibleMinutes,maxMediaGapMs:round(maxMediaGapMs),
+       clockSamples,firstMediaTime, lastMediaTime:mediaTime, mediaDuration:video.duration, endedManifest, ended:video.ended,audibleMinutes,maxMediaGapMs:round(maxMediaGapMs),
        maxFrameGapMs:round(maxFrameGapMs),stallCount,
        stallMs:round(stallMs+(stallAt===null?0:performance.now()-stallAt)),
        appendedMediaAheadMs:buffer.buffered.length?round((buffer.buffered.end(buffer.buffered.length-1)-mediaTime)*1000):0};
@@ -237,7 +244,16 @@ async function viewer(browser,url,disconnect,fullDuration=0){
   assert(shared.length>=(fullDuration===300?150:3),'The viewers must receive common ordered fragments');
   if(fullDuration)assert(results.every(r=>r.fragments.length===shared.length),'Full viewers did not receive identical fragment counts');
   for(const fragment of shared)assert.equal(fragment.sha256,peer.get(fragment.name),fragment.name);
-  console.log(JSON.stringify({browserPlaybackVerified:true,browserAudioSignalVerified:true,independentBrowserContexts:2,
+  const peerClock=new Map(results[1].clockSamples.map(s=>[s.bin,s]));
+  const deltas=results[0].clockSamples.filter(s=>peerClock.has(s.bin)).map(s=>{
+   const b=peerClock.get(s.bin);
+   return Math.abs((s.epochMs-b.epochMs)-(s.mediaTime-b.mediaTime)*1000);
+  }).sort((a,b)=>a-b);
+  assert(deltas.length>=3,'Insufficient paired viewer media clock samples');
+  const viewerClockComparison={sampleCount:deltas.length,medianMs:deltas[Math.floor(deltas.length/2)],
+   p95Ms:deltas[Math.ceil(deltas.length*.95)-1],maxMs:deltas.at(-1),
+   scope:'Same-host Chromium presentation callback epoch; not remote latency or physical display sync'};
+  console.log(JSON.stringify({viewerClockComparison,browserPlaybackVerified:true,browserAudioSignalVerified:true,independentBrowserContexts:2,
    sharedFragments:shared.length,shortDisconnectRecoveryVerified:!fullDuration,fiveMinuteTransportVerified:fullDuration===300,nativeFullStreamPlaybackVerified:fullDuration===-1,results,physicalAudioOutputVerified:false,
    captureToScreenLatencyVerified:false,avSyncVerified:false,fullMatchVerified:false}));
  }finally{await browser.close();}
