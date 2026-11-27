@@ -100,7 +100,15 @@ def verify_install(work, env):
     return build
 
 
-def launch(build, env, report_path=None):
+def launch(build, env, report_path=None, save_root=None):
+    if save_root is not None:
+        import original_saves
+        with original_saves.locked_store(save_root) as root:
+            return launch_session(build,env,report_path,root)
+    return launch_session(build,env,report_path,None)
+
+
+def launch_session(build, env, report_path, save_root):
     # New private runtime copy per launch; upstream may write its own settings.
     # No synthetic fixture, clock, manager command, configuration argument or patch.
     with tempfile.TemporaryDirectory(prefix='tribun-original-session-') as temp:
@@ -111,7 +119,12 @@ def launch(build, env, report_path=None):
                 shutil.copytree(src,session/name)
             else:
                 shutil.copy2(src,session/name)
+        if save_root is not None:
+            from original_saves import restore, commit
+            restore(save_root,session)
         code=subprocess.run([str(session/'gameplayfootball')],cwd=session,env=env).returncode
+        if save_root is not None:
+            commit(save_root,session,code)
         if report_path is not None:
             from original_results import collect, store
             store(collect(session,REVISION,code),report_path)
@@ -146,4 +159,6 @@ def main(*, build_only=False, installed_only=False):
     print('League-Soccer: orijinal kaynak ve varsayılan dosyalar doğrulandı.',flush=True)
     if build_only:
         return 0
-    return launch(build,env,cache/'last-native-results.json')
+    save_root=Path.home()/'.local/share/tribun-manager-original'/REVISION
+    require(not save_root.resolve().is_relative_to(ROOT),'Lig kayıtları web dizininin dışında olmalı.')
+    return launch(build,env,cache/'last-native-results.json',save_root)
