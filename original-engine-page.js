@@ -116,6 +116,59 @@
      for(const team of performance.teams){const row=body.insertRow();for(const [,key,percent] of columns)row.insertCell().textContent=value(team[key],percent);}
      wrap.append(table);panel.append(wrap);section.append(panel);
     }
+    if(Array.isArray(history.teamTrends)&&history.teamTrends.length){
+     const trend=document.createElement('details');
+     const title=document.createElement('summary');title.textContent='Son beş maç performansı';trend.append(title);
+     const desc=document.createElement('p');desc.className='micro';desc.textContent='Son 30 geçmiş kaydındaki en fazla beş geçerli karşılaşma, eskiden yeniye. Aynı adlı takımlar gruplanır; farklı maç modları ve süreleri olabilir. Eksik maçlar tahmin edilmez.';trend.append(desc);
+     const label=document.createElement('label');label.textContent='Takım: ';
+     const select=document.createElement('select');select.setAttribute('aria-label','Performans grafiği takımı');
+     for(const [index,item] of history.teamTrends.entries()){
+      const option=document.createElement('option');option.value=String(index);option.textContent=item.teamName;select.append(option);
+     }
+     label.append(select);trend.append(label);
+     const graph=document.createElement('div');trend.append(graph);
+     const ns='http://www.w3.org/2000/svg';
+     function draw(){
+      graph.replaceChildren();
+      const item=history.teamTrends[Number(select.value)];
+      if(!item||!item.matches.length)return;
+      const matches=item.matches;
+      const caption=document.createElement('p');caption.textContent=item.teamName+' · '+matches.length+' maç';graph.append(caption);
+      for(const [name,left,right] of [['Goller','goalsFor','goalsAgainst'],['Şutlar','shots','shotsAgainst'],['İsabetli şutlar','shotsOnTarget','shotsOnTargetAgainst']]){
+       const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 340 150');svg.setAttribute('width','100%');svg.style.maxWidth='520px';svg.setAttribute('role','img');svg.setAttribute('aria-label',name+' grafiği');
+       function el(tag,attrs,text){
+        const e=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));if(text!==undefined)e.textContent=text;svg.append(e);return e;
+       }
+       const max=Math.max(1,...matches.flatMap(m=>[m[left],m[right]]));
+       el('text',{x:12,y:15,fill:'currentColor','font-size':11},name+' · mavi: takım, turuncu: rakip');
+       el('line',{x1:22,y1:118,x2:330,y2:118,stroke:'currentColor','stroke-opacity':.4});
+       const step=300/matches.length;
+       matches.forEach((m,i)=>{
+        const x=25+step*i+(step-32)/2;
+        for(const [j,key,color] of [[0,left,'#60a5fa'],[1,right,'#f59e0b']]){
+         const n=m[key],h=85*n/max;
+         el('rect',{x:x+j*17,y:118-h,width:14,height:h,fill:color});
+         el('text',{x:x+j*17+7,y:114-h,fill:'currentColor','font-size':10,'text-anchor':'middle'},String(n));
+        }
+        el('text',{x:x+15,y:134,fill:'currentColor','font-size':10,'text-anchor':'middle'},String(i+1));
+       });
+       graph.append(svg);
+      }
+      const wrap=document.createElement('div');wrap.style.overflowX='auto';
+      const table=document.createElement('table');table.setAttribute('aria-label','Son beş maç verileri');
+      const header=table.createTHead().insertRow();
+      for(const name of ['#','Rakip','Saha','Gol','Yenilen','Şut','Rakip şut','İsabet','Rakip isabet','Topa sahip olma','Pas başarısı']){
+       const th=document.createElement('th');th.scope='col';th.textContent=name;header.append(th);
+      }
+      const body=table.createTBody();
+      matches.forEach((m,i)=>{
+       const row=body.insertRow();
+       for(const v of [i+1,m.opponent,m.home?'İç saha':'Deplasman',m.goalsFor,m.goalsAgainst,m.shots,m.shotsAgainst,m.shotsOnTarget,m.shotsOnTargetAgainst,value(m.possessionPct,true),value(m.passAccuracyPct,true)])row.insertCell().textContent=v;
+      });
+      wrap.append(table);graph.append(wrap);
+     }
+     select.addEventListener('change',draw);draw();section.append(trend);
+    }
     for(const record of history.records){
      const panel=document.createElement('details');
      const title=document.createElement('summary');title.textContent=record.homeTeam+' '+record.homeGoals+' - '+record.awayGoals+' '+record.awayTeam;panel.append(title);
