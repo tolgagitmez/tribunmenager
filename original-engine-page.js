@@ -38,6 +38,23 @@
     if(save.managedTeam){
      const club=document.createElement('p');club.textContent='Yönetilen takım: '+save.managedTeam.name;fragment.append(club);
     }
+    if(save.managedSquad){
+     const squad=save.managedSquad;
+     const panel=document.createElement('details');
+     const summary=document.createElement('summary');summary.textContent='Saklanmış takım kadrosu ve taktikleri';panel.append(summary);
+     const note=document.createElement('p');note.className='micro';note.textContent='Son kaydedilen yerel lig verisi. Canlı ilk 11 değildir; motora veya web kadrosuna yazılmaz.';panel.append(note);
+     function group(title,values){
+      const h=document.createElement('h5');h.textContent=title;panel.append(h);
+      const ul=document.createElement('ul');
+      for(const value of values){const li=document.createElement('li');li.textContent=value;ul.append(li);}
+      panel.append(ul);
+     }
+     group('Kayıtlı kulüp oyuncuları',squad.players.map(p=>p.name+' · '+(p.role??'—')+' · sıra: '+(p.formationOrder??'—')));
+     if(squad.truncated){const p=document.createElement('p');p.textContent='Kadro 128 oyuncuyla sınırlandırıldı.';panel.append(p);}
+     group('Kayıtlı diziliş yuvaları',squad.formation?.length?squad.formation.map(p=>p.slot+' · '+(p.role??'—')+' · '+(p.rawPosition?.join(', ')??'—')):['Diziliş bilgisi okunamadı.']);
+     group('Kayıtlı motor taktikleri',squad.tactics?.length?squad.tactics.map(t=>t.label+' : '+t.value+(t.source==='upstream-memory-default'?' (motorun varsayılan değeri)':'')):['Taktik bilgisi okunamadı.']);
+     fragment.append(panel);
+    }
     if(Array.isArray(save.pendingFixtures)){
      const next=document.createElement('h4');next.textContent='Oynanmamış fikstürler';fragment.append(next);
      const pending=document.createElement('ul');
