@@ -59,6 +59,17 @@ class OriginalSession:
                 result=json.loads(path.read_text(encoding='utf-8'))
                 if result.get('schema')!=1 or result.get('revision')!=original_engine.REVISION:
                     return None
+                # Old reports remain readable but cannot be certified current.
+                result['snapshotConsistency']='unknown'
+                if sys.platform.startswith('linux') and result.get('snapshotId'):
+                    from original_saves import current_snapshot
+                    try:
+                        current=current_snapshot(original_engine.save_root_path())
+                        result['snapshotConsistency']='matches-saved-snapshot' if current is not None and current.name==result['snapshotId'] else 'different-saved-snapshot'
+                    except (OSError,RuntimeError,ValueError):
+                        result['snapshotConsistency']='unknown'
+                # Internal identifier is not needed by the browser.
+                result.pop('snapshotId',None)
                 return result
             except (OSError,ValueError,AttributeError):
                 return None
