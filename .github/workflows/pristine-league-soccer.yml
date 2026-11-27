@@ -13,6 +13,8 @@ on:
       - 'original-engine-page.js'
       - 'original-preview.js'
       - 'original-preview-metrics.js'
+      - 'original_capture_probe.py'
+      - 'tests/test_original_capture_probe.py'
       - 'tests/test-original-preview-metrics.cjs'
       - 'tests/test-original-preview.cjs'
       - 'index.html'
@@ -36,6 +38,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_original_session.py -v
           python3 -m unittest discover -s tests -p test_original_results.py -v
           python3 -m unittest discover -s tests -p test_original_catalog.py -v
+          python3 -m unittest discover -s tests -p test_original_capture_probe.py -v
           node --check original-engine-page.js
           node --check original-preview.js
           node --test tests/test-original-preview.cjs tests/test-original-preview-metrics.cjs
@@ -45,7 +48,7 @@ jobs:
       - name: Install documented upstream Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg
       - name: Build original pinned upstream with unchanged runtime files
         run: python3 start.py --mode original --original-build-only
       - name: Inspect the real pinned native default catalog without mutation
@@ -89,3 +92,13 @@ jobs:
                       '[menu-smoke] Full-match verification succeeded, quitting test run'],env,session)
           e.verify_install(work,env)
           PY
+      - name: Measure real unmodified native match using private external pixel capture
+        run: |
+          python3 original_capture_probe.py "$RUNNER_TEMP/original-capture-report.json"
+          cat "$RUNNER_TEMP/original-capture-report.json" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-capture-metrics
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/original-capture-report.json
