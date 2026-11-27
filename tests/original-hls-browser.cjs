@@ -81,6 +81,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    audio.createMediaElementSource(video).connect(analyser).connect(sink).connect(audio.destination);
    const pcm=new Float32Array(analyser.fftSize);
    let nonSilentAudioSamples=0,firstAudioSignalMs=null,peakAudioRms=0;
+   const audibleMinutes=Array(5).fill(0);
    const audioTimer=setInterval(()=>{
     if(video.paused)return;
     analyser.getFloatTimeDomainData(pcm);
@@ -88,6 +89,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
     peakAudioRms=Math.max(peakAudioRms,rms);
     if(rms>=0.0001){
      nonSilentAudioSamples++;
+     if(fullDuration)audibleMinutes[Math.min(4,Math.max(0,Math.floor(video.currentTime/60)))]++;
      firstAudioSignalMs??=elapsed();
     }
    },80);
@@ -95,7 +97,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    canvas.width=32;canvas.height=24;
    const pixels=canvas.getContext('2d',{willReadFrequently:true}),signatures=new Set();
    let frames=0,firstFrameMs=null,lastFrameAt=null,maxFrameGapMs=0,firstMediaTime=null,mediaTime=null;
-   let lastScreenSample=-Infinity,frameId=null;
+   let lastScreenSample=-Infinity,frameId=null,maxMediaGapMs=0;
    let stallAt=null,stallCount=0,stallMs=0;
    video.addEventListener('waiting',()=>{
     if(firstFrameMs!==null&&stallAt===null){stallAt=performance.now();stallCount++;}
@@ -115,6 +117,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
     }
     if(lastFrameAt!==null)maxFrameGapMs=Math.max(maxFrameGapMs,now-lastFrameAt);
     lastFrameAt=now;
+    if(mediaTime!==null)maxMediaGapMs=Math.max(maxMediaGapMs,(metadata.mediaTime-mediaTime)*1000);
     mediaTime=metadata.mediaTime;
     if(mediaTime-lastScreenSample>=.5){
      pixels.drawImage(video,0,0,canvas.width,canvas.height);
@@ -177,7 +180,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
        width:video.videoWidth,height:video.videoHeight,codec:mime,fragments,appendedDuringPlayback,
        audioAnalysisSampleRate:audio.sampleRate,nonSilentAudioSamples,peakAudioRms,firstAudioSignalMs:round(firstAudioSignalMs),
        transportFailures,resumedAfterFailure,interruptionFailures,appendedAfterReconnect,simulatedDisconnect:disconnect,
-       firstMediaTime, lastMediaTime:mediaTime, endedManifest, ended:video.ended,
+       firstMediaTime, lastMediaTime:mediaTime, endedManifest, ended:video.ended,audibleMinutes,maxMediaGapMs:round(maxMediaGapMs),
        maxFrameGapMs:round(maxFrameGapMs),stallCount,
        stallMs:round(stallMs+(stallAt===null?0:performance.now()-stallAt)),
        appendedMediaAheadMs:buffer.buffered.length?round((buffer.buffered.end(buffer.buffered.length-1)-mediaTime)*1000):0};
@@ -218,6 +221,8 @@ async function viewer(browser,url,disconnect,fullDuration=0){
     assert(result.playbackSeconds>=299.7&&result.lastMediaTime>=299.7,'Incomplete playback duration');
     assert(result.fragments.length===150&&result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===149,'Missing full-stream fragments');
     assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify(result));
+    assert(result.maxMediaGapMs<=200,'Missing media-time frames');
+    assert(result.audibleMinutes.every(n=>n>=100),'Missing decoded sound during a minute');
     assert(result.presentedCallbacks/result.playbackSeconds>=28.5,'Insufficient delivered video callbacks');
     assert(result.droppedVideoFrames/Math.max(1,result.totalVideoFrames)<=.01,'Too many dropped video frames');
    }
