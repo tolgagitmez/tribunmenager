@@ -19,9 +19,11 @@ from original_roster_pack import build_pack
 from original_skill_mapping import factor,plan_profile
 
 PACK='tribun-roster-pilot'
+# Test-only explicit native choices, not a translation of old web tactics.
+TACTIC_PILOT={'team_pressure':.81,'counter_attack':.73,'support_distance':.29}
 
 
-def prepare(runtime):
+def prepare(runtime,reviewed_tactics=None):
     path=runtime/'databases/default/database.sqlite'
     with closing(connect(path)) as db:
         team,name,xml=db.execute('SELECT id,name,formation_xml FROM teams ORDER BY name LIMIT 1').fetchone()
@@ -44,13 +46,13 @@ def prepare(runtime):
                 nativeRole=role,webValues={'shooting':target}))
             if not plan_profile(base,age,profile,rows[-1]['webValues'])['proposed']:
                 raise ValueError('Native shooting field cannot be mapped')
-    report=build_pack(runtime,team,rows,skill_pilot=True,slot_order=order)
+    report=build_pack(runtime,team,rows,skill_pilot=True,slot_order=order,reviewed_tactics=reviewed_tactics)
     if not report['experimentalLineupWritten'] or report['experimentalSkillProfilesWritten']!=len(rows):
         raise RuntimeError('Incomplete roster pilot')
     return team,name,rows,order
 
 
-def verify(runtime,team,name,rows,order):
+def verify(runtime,team,name,rows,order,reviewed_tactics=None):
     files=list((runtime/'saves').glob('*/autosave.sqlite'))
     if len(files)!=1:
         raise ValueError('Expected a single native-created league')
@@ -75,19 +77,38 @@ def verify(runtime,team,name,rows,order):
             if row[4:6]!=old[4:6] or row[6]==old[6]:
                 raise ValueError('Native age/base changed or profile missing')
         q='SELECT formation_xml,tactics_xml FROM teams WHERE id=?'
-        if saved.execute(q,(team,)).fetchone()!=default.execute(q,(team,)).fetchone():
-            raise ValueError('Native formation or tactics unexpectedly changed')
+        initial=default.execute(q,(team,)).fetchone()
+        actual=saved.execute(q,(team,)).fetchone()
+        expected_team=pack.execute(q,(team,)).fetchone()
+        if actual!=expected_team or actual[0]!=initial[0]:
+            raise ValueError('Native team formation/tactics do not match the package')
+        if reviewed_tactics is None:
+            if actual!=initial:
+                raise ValueError('Unrequested native tactic change')
+        else:
+            from original_catalog import tactics
+            old_values={t['key']:t['value'] for t in tactics(initial[1])}
+            actual_values={t['key']:t['value'] for t in tactics(actual[1])}
+            if actual_values!={**old_values,**reviewed_tactics} or actual_values==old_values:
+                raise ValueError('Reviewed native tactic values not retained')
+            # Preserve every other team's formation and tactics.
+            others='SELECT id,formation_xml,tactics_xml FROM teams WHERE id!=? ORDER BY id'
+            if saved.execute(others,(team,)).fetchall()!=default.execute(others,(team,)).fetchall():
+                raise ValueError('Other native teams changed')
         if saved.execute('SELECT COUNT(*) FROM calendar').fetchone()[0]<1:
             raise ValueError('Native league fixture missing')
     if engine.digest(path)!=before:
         raise RuntimeError('Read-only verification changed save')
     return dict(nativeRosterSaveRoundtripVerified=True,club=name,players=len(rows),
         starterIds=expected_ids,profileRowsVerified=len(rows),nativeFormationUnchanged=True,
-        nativeTacticsUnchanged=True,liveOnPitchLineupVerified=False,
+        nativeTacticsUnchanged=reviewed_tactics is None,
+        nativeTacticSaveRoundtripVerified=reviewed_tactics is not None,
+        reviewedNativeTactics=reviewed_tactics or {},tacticBehaviorVerified=False,
+        liveOnPitchLineupVerified=False,
         skillBehaviorVerified=False,productionRosterImported=False)
 
 
-def main(full_match=False):
+def main(full_match=False,tactic_pilot=False):
     env=engine.clean_env(os.environ)
     work=engine.cache_root()/engine.REVISION
     build=engine.verify_install(work,env)
@@ -96,7 +117,8 @@ def main(full_match=False):
         populate(build,runtime)
         engine.check_config(work/'source',runtime)
         before=engine.digest(runtime/'databases/default/database.sqlite')
-        team,name,rows,order=prepare(runtime)
+        reviewed=TACTIC_PILOT if tactic_pilot else None
+        team,name,rows,order=prepare(runtime,reviewed)
         if full_match:
             from original_match_history import HISTORY_PATH
             if (runtime/'saves').exists() or (runtime/HISTORY_PATH).exists():
@@ -119,7 +141,7 @@ def main(full_match=False):
         if engine.digest(runtime/'databases/default/database.sqlite')!=before:
             raise RuntimeError('Default native database changed')
         engine.verify_install(work,env)
-        report=verify(runtime,team,name,rows,order)
+        report=verify(runtime,team,name,rows,order,reviewed)
         if full_match:
             from original_full_league_validation import verify as verify_match
             report['fullMatch']=verify_match(runtime)
@@ -134,7 +156,9 @@ def main(full_match=False):
 if __name__=='__main__':
     if sys.argv[1:]==['--full-match']:
         main(full_match=True)
+    elif sys.argv[1:]==['--tactics']:
+        main(tactic_pilot=True)
     elif len(sys.argv)==1:
         main()
     else:
-        raise SystemExit('Usage: original_native_roster_probe.py [--full-match]')
+        raise SystemExit('Usage: original_native_roster_probe.py [--full-match | --tactics]')
