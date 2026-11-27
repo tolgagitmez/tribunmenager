@@ -235,6 +235,8 @@ jobs:
           python3 integrations/league-soccer/native_extended_clock_verify.py "$RUNNER_TEMP/extended.ndjson" "$RUNNER_TEMP/extended-report.json"
           cat "$RUNNER_TEMP/extended-report.json" >> "$GITHUB_STEP_SUMMARY"
       - name: Diagnose stationary carriers in the completed extended trace
+        id: stall_audit
+        continue-on-error: true
         run: |
           python3 -c 'import json,sys; sys.path.insert(0,"integrations/league-soccer"); from native_stall_diagnostics import inspect_trace; print(json.dumps(inspect_trace(sys.argv[1],1800000),indent=2))' "$RUNNER_TEMP/extended.ndjson" > "$RUNNER_TEMP/extended-stalls.json"
           python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps({k:v for k,v in d.items() if k!="episodes"},indent=2))' "$RUNNER_TEMP/extended-stalls.json" >> "$GITHUB_STEP_SUMMARY"
@@ -292,6 +294,7 @@ jobs:
         run: |
           rc=0
           test "${{ steps.raw_capture.outcome }}" = success || rc=1
+          test "${{ steps.stall_audit.outcome }}" = success || rc=1
           if [ -s "$RUNNER_TEMP/alignment-summary.json" ]; then cat "$RUNNER_TEMP/alignment-summary.json" >> "$GITHUB_STEP_SUMMARY"; fi
           test "${{ steps.alignment_audit.outcome }}" = success || rc=1
           if [ -s "$RUNNER_TEMP/frame-calibration-summary.json" ]; then cat "$RUNNER_TEMP/frame-calibration-summary.json" >> "$GITHUB_STEP_SUMMARY"; fi
