@@ -28,7 +28,122 @@ def audible_rms(media):
     return math.sqrt(sum(x*x for x in values)/len(values))/32768 if values else 0
 
 
-def run(browser=False):
+def full_native_capture(work,session,output,env,display,game_log,encoder_log):
+    """Capture before native startup and drain both browsers after smoke end."""
+    import hashlib
+    import signal
+    import threading
+    from original_capture_probe import ACTIVE,HALF,FULL,DONE,match_intervals
+    from original_av_stream import audit_packet_timeline,read_published_file,MAX_SEGMENT_BYTES
+    from original_hls_relay import HLSRelay
+    game=encoder=browser=None
+    events=[]
+    capture_begin=time.monotonic()
+    try:
+        encoder=subprocess.Popen(encoder_args(display,'tribun_test.monitor',output,
+            fmp4=True,hd=True,retain=True),env=env,stdout=encoder_log,stderr=subprocess.STDOUT)
+        deadline=time.monotonic()+25
+        while time.monotonic()<deadline and encoder.poll() is None:
+            if (output/'stream.m3u8').is_file():
+                ready=read_playlist(output,fmp4=True)
+                if len(ready['segments'])>=2:
+                    if ready['mediaSequence']!=0:
+                        raise RuntimeError('Initial native stream fragments missed')
+                    break
+            time.sleep(.1)
+        else:
+            raise RuntimeError('HD native capture not ready before game start')
+        capture_ready=time.monotonic()
+        with HLSRelay(output,max_clients=8) as server, tempfile.TemporaryFile() as browser_log:
+            thread=threading.Thread(target=server.serve_forever,daemon=True)
+            thread.start()
+            try:
+                script=Path(__file__).resolve().parent/'tests/original-hls-browser.cjs'
+                browser=subprocess.Popen(['node',str(script),f'http://127.0.0.1:{server.server_port}',
+                    '--native-full'],env=env,stdout=browser_log,stderr=subprocess.STDOUT)
+                game=subprocess.Popen(['stdbuf','-oL','-eL',str(session/'gameplayfootball'),
+                    str(work/'source/data/menu_smoke_full_match.config')],cwd=session,env=env,
+                    stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)
+                silent=[]
+                def read_game():
+                    for line in game.stdout:
+                        game_log.write(line.encode())
+                        if 'falling back to silent audio' in line:
+                            silent.append(line)
+                        for marker in (ACTIVE,HALF,FULL,DONE):
+                            if marker in line:
+                                events.append((time.monotonic(),marker,line.strip()))
+                logger=threading.Thread(target=read_game,daemon=True)
+                logger.start()
+                deadline=time.monotonic()+420
+                while game.poll() is None and time.monotonic()<deadline:
+                    if encoder.poll() is not None or browser.poll() is not None or silent:
+                        raise RuntimeError('Native capture, browser, or original sound ended prematurely')
+                    time.sleep(.1)
+                if game.wait(timeout=1)!=0:
+                    raise RuntimeError('Native full smoke failed')
+                logger.join(timeout=5)
+                if logger.is_alive() or silent:
+                    raise RuntimeError('Native marker or audio capture failed')
+                intervals,full_line,extra=match_intervals(events)
+                if capture_ready>intervals[0][0] or encoder.poll() is not None:
+                    raise RuntimeError('Capture did not cover both native half markers')
+                time.sleep(1)
+                encoder.send_signal(signal.SIGINT)
+                code=encoder.wait(timeout=15)
+                capture_end=time.monotonic()
+                if code not in (0,255) or capture_end<intervals[-1][1]:
+                    raise RuntimeError('Native encoder did not finalize cleanly')
+                final=read_playlist(output,fmp4=True)
+                count=final['mediaSequence']+len(final['segments'])
+                if not final['ended'] or not 3<=count<=240:
+                    raise RuntimeError('Invalid bounded final native manifest')
+                if browser.wait(timeout=40)!=0:
+                    raise RuntimeError('Native full browser playback failed')
+                browser_log.seek(0)
+                evidence=json.loads(browser_log.read().decode())
+                if not evidence.get('nativeFullStreamPlaybackVerified'):
+                    raise RuntimeError('Missing native browser end evidence')
+                paths=[output/f'segment-{i:06d}.m4s' for i in range(count)]
+                hashes=[hashlib.sha256(read_published_file(path,MAX_SEGMENT_BYTES)[0]).hexdigest()
+                        for path in paths]
+                for viewer in evidence['results']:
+                    if [f['sha256'] for f in viewer['fragments']]!=hashes:
+                        raise RuntimeError('Browser and native archive fragment hashes disagree')
+                timeline=audit_packet_timeline(read_segment(path)[0] for path in paths)
+                if not timeline['encodedTimelineVerified']:
+                    raise RuntimeError('Native full encoded timeline failed: '+json.dumps(timeline))
+                native_span=intervals[-1][1]-intervals[0][0]
+                video_span=timeline['lastVideoEnd']-timeline['firstVideoPts']
+                if video_span<native_span or abs(video_span-(capture_end-capture_begin))>5:
+                    raise RuntimeError('Native encoded duration does not cover observed match span')
+                evidence.update(nativeFullSmokeCaptured=True,nativeMarkerOrderVerified=True,
+                    nativeMarkerReceiptSeconds=[dict(marker=m,seconds=round(t-capture_begin,3)) for t,m,_ in events],
+                    activeHalfSeconds=[round(b-a,3) for a,b in intervals],
+                    nativeMatchSpanSeconds=round(native_span,3),encodedVideoSeconds=round(video_span,3),
+                    captureProcessSeconds=round(capture_end-capture_begin,3),fullTimeMarker=full_line,
+                    duplicateActiveMarkers=extra,archiveFragmentCount=count,encodedTimeline=timeline,
+                    acceleratedUpstreamSmoke=True,realTime300SecondMatchVerified=False,
+                    physicalAVSyncVerified=False,frameToNativeEventAlignmentVerified=False,
+                    nativeSettingsPatched=False,publicStreaming=False)
+                print(json.dumps(evidence),flush=True)
+            except Exception:
+                browser_log.seek(0)
+                print(browser_log.read()[-12000:].decode(errors='replace'),file=sys.stderr)
+                raise
+            finally:
+                terminate(browser)
+                terminate(game)
+                terminate(encoder)
+                server.shutdown()
+                thread.join(timeout=5)
+    finally:
+        terminate(browser)
+        terminate(game)
+        terminate(encoder)
+
+
+def run(browser=False,full_native=False):
     env=engine.clean_env(os.environ)
     display=env.get('DISPLAY','')
     if not display.startswith(':') or not display[1:].split('.')[0].isdigit():
@@ -64,6 +179,10 @@ def run(browser=False):
                 else:
                     raise RuntimeError('Private audio server unavailable')
                 subprocess.run(['pactl','set-default-sink','tribun_test'],env=env,check=True,timeout=5)
+                if full_native:
+                    full_native_capture(work,session,output,env,display,log,encoder_log)
+                    engine.verify_install(work,env)
+                    return
                 game=subprocess.Popen(['stdbuf','-oL','-eL',str(session/'gameplayfootball'),
                     str(work/'source/data/menu_smoke_full_match.config')],cwd=session,env=env,
                     stdout=log,stderr=subprocess.STDOUT)
@@ -211,10 +330,10 @@ def five_minute_transport():
 if __name__=='__main__':
     if sys.argv[1:]==['--five-minute-transport']:
         five_minute_transport()
-    elif sys.argv[1:] in (['--inside-private-xvfb'],['--inside-private-xvfb','--browser']):
-        run(browser='--browser' in sys.argv)
-    elif sys.argv[1:] in ([],['--browser']):
+    elif sys.argv[1:] in (['--inside-private-xvfb'],['--inside-private-xvfb','--browser'],['--inside-private-xvfb','--native-full']):
+        run(browser='--browser' in sys.argv,full_native='--native-full' in sys.argv)
+    elif sys.argv[1:] in ([],['--browser'],['--native-full']):
         engine.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
             sys.executable,Path(__file__).resolve(),'--inside-private-xvfb',*sys.argv[1:]],engine.clean_env(os.environ))
     else:
-        raise SystemExit('Usage: original_native_av_probe.py [--browser | --five-minute-transport]')
+        raise SystemExit('Usage: original_native_av_probe.py [--browser | --five-minute-transport | --native-full]')
