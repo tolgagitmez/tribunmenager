@@ -1,0 +1,53 @@
+name: Pristine League-Soccer integration
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'original_engine.py'
+      - 'start.py'
+      - 'BASLAT_ORIJINAL.sh'
+      - 'tests/test_original_engine.py'
+      - '.github/workflows/pristine-league-soccer.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Launcher and isolation tests
+        run: |
+          python3 -m unittest discover -s tests -p test_original_engine.py -v
+          python3 -m unittest discover -s tests -p test_launcher.py -v
+          sh -n BASLAT_ORIJINAL.sh
+      - name: Install documented upstream Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth
+      - name: Build original pinned upstream with unchanged runtime files
+        run: python3 start.py --mode original --original-build-only
+      - name: Run upstream full-match smoke test in separate disposable runtime
+        run: |
+          python3 - <<'PY'
+          import original_engine as e
+          from pathlib import Path
+          import tempfile, shutil, os
+          env=e.clean_env(os.environ)
+          work=Path.home()/'.cache'/'tribun-manager-original'/e.REVISION
+          build=e.verify_install(work,env)
+          with tempfile.TemporaryDirectory(prefix='upstream-smoke-') as tmp:
+              session=Path(tmp)
+              for name in e.RUNTIME:
+                  source=build/name
+                  if source.is_dir(): shutil.copytree(source,session/name)
+                  else: shutil.copy2(source,session/name)
+              # The upstream test config is used only for this test, never in normal launch.
+              e.call(['bash',work/'source/tests/run_menu_smoke.sh',session/'gameplayfootball',
+                      work/'source/data/menu_smoke_full_match.config','420',
+                      '[menu-smoke] Main menu ready, opening Quick Match',
+                      '[menu-smoke] Full match complete:',
+                      '[menu-smoke] Full-match verification succeeded, quitting test run'],env,session)
+          e.verify_install(work,env)
+          PY
