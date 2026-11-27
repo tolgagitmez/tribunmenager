@@ -47,6 +47,8 @@ on:
       - 'tests/test_original_av_stream.py'
       - 'original_native_relay_probe.py'
       - 'tests/test_original_preview_relay.py'
+      - 'original_replay_schedule.py'
+      - 'tests/test_original_replay_schedule.py'
       - 'original_shared_replay.py'
       - 'original-shared-replay.js'
       - 'tests/test_original_shared_replay.py'
@@ -117,6 +119,7 @@ jobs:
           node --check original-shared-replay.js
           node --check tests/original-shared-replay-browser.cjs
           node --test tests/test-original-shared-replay.cjs
+          python3 -m unittest discover -s tests -p test_original_replay_schedule.py -v
           node --check original-match-replay.js
           node --test tests/test-original-match-replay.cjs
           node --check original-preview.js
