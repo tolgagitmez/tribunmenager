@@ -63,6 +63,20 @@ class SharedReplayTests(unittest.TestCase):
                 finally:
                     server.shutdown()
                     worker.join(timeout=5)
+            # A restarted server derives playback from the same persisted epoch.
+            import time
+            from original_replay_schedule import fixture_identity,schedule_replay,open_scheduled_replay
+            fixture=dict(league='TEST',round=1,home=0,away=1,kickoff=time.time()-120)
+            key,_,_=fixture_identity(fixture)
+            schedule_replay(tmp,fixture,dict(operatorReviewed=True,fixtureKey=key,
+                kickoff=fixture['kickoff'],replaySha256=digest))
+            for _ in range(2):
+                with open_scheduled_replay(tmp,key,source) as scheduled:
+                    state=scheduled.replay_clock.state()
+                    self.assertEqual(state['phase'],'playing')
+                    self.assertGreaterEqual(state['positionSeconds'],120)
+                    self.assertLess(state['positionSeconds'],150)
+                    self.assertEqual(scheduled.fixture_key,key)
 
 
 if __name__=='__main__':
