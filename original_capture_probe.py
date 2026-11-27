@@ -25,6 +25,44 @@ FULL = '[menu-smoke] Full match complete:'
 DONE = '[menu-smoke] Full-match verification succeeded, quitting test run'
 
 
+def match_intervals(events):
+    """Upstream may re-enter gameplay after an interruption within a half.
+    Keep the first ACTIVE in each half, require the actual halftime and finish.
+    Duplicate ACTIVE events are reported, not interpreted as new halves.
+    """
+    if any(not math.isfinite(t) for t,_,_ in events) or any(
+            b[0]<a[0] for a,b in zip(events,events[1:])):
+        raise ValueError('Invalid smoke event timestamps')
+    state='first'
+    starts=[]
+    ends=[]
+    extra_active=0
+    full_line=None
+    for t,marker,line in events:
+        if marker==ACTIVE and state in ('first','second'):
+            if len(starts)==len(ends):
+                starts.append(t)
+            else:
+                extra_active+=1
+        elif marker==HALF and state=='first' and len(starts)==1:
+            ends.append(t)
+            state='second'
+        elif marker==FULL and state=='second' and len(starts)==2:
+            ends.append(t)
+            full_line=line
+            state='finished'
+        elif marker==DONE and state=='finished':
+            state='done'
+        else:
+            raise ValueError('Unexpected smoke event in '+state+': '+marker)
+    if state!='done' or len(starts)!=2 or len(ends)!=2:
+        raise ValueError('Incomplete native match markers')
+    intervals=list(zip(starts,ends))
+    if any(b<=a for a,b in intervals):
+        raise ValueError('Empty native match interval')
+    return intervals,full_line,extra_active
+
+
 def repeated_pixels(frames):
     """Observed identical hashes only; do not bridge missing samples."""
     longest=0.0
@@ -203,15 +241,15 @@ def match_capture(session, source, env):
             worker.join(timeout=10)
         if errors or worker.is_alive():
             raise RuntimeError('Capture read failed: '+str(errors))
-        if [m for _,m,_ in events]!=[ACTIVE,HALF,ACTIVE,FULL,DONE]:
-            raise RuntimeError('Unexpected native smoke markers: '+str(events))
-        intervals=[(events[0][0],events[1][0]),(events[2][0],events[3][0])]
+        intervals,full_line,extra_active=match_intervals(events)
         result=summarize(samples,intervals)
+        result['extraGameplayEntries']=extra_active
+        result['intervalScope']='First gameplay entry to half/full-time marker, including in-half interruptions.'
         result.update(captureCalibration=calibration,graphicsEnvironment=graphics,
                       nativeWindowDiagnostic=window_info,
                       calibrationComparisonScope='Tk reference window checks sampling path, not OpenGL rendering or GPU performance.',
                       revision=engine.REVISION,fixture='upstream menu_smoke_full_match.config',
-                      fullTimeMarker=events[3][2],requestedCaptureFps=REQUEST_FPS,
+                      fullTimeMarker=full_line,requestedCaptureFps=REQUEST_FPS,
                       sampledResolution=[WIDTH,HEIGHT],nativeSettingsPatched=False,
                       smokeFixtureUsesAcceleratedClock=True,browserPreviewVerified=False)
         return result
