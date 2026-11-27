@@ -126,6 +126,9 @@ def full_native_capture(work,session,output,env,display,game_log,encoder_log):
                     acceleratedUpstreamSmoke=True,realTime300SecondMatchVerified=False,
                     physicalAVSyncVerified=False,frameToNativeEventAlignmentVerified=False,
                     nativeSettingsPatched=False,publicStreaming=False)
+                from original_match_playback import replay_verified_capture
+                evidence['fiveMinuteReplayCandidate']=replay_verified_capture(
+                    output,hashes,evidence,output.parent/'private-replay.mp4')
                 print(json.dumps(evidence),flush=True)
             except Exception:
                 browser_log.seek(0)
