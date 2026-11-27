@@ -38,6 +38,9 @@ on:
       - 'original-preview.js'
       - 'original-preview-metrics.js'
       - 'original_capture_probe.py'
+      - 'original_preview_relay.py'
+      - 'original_native_relay_probe.py'
+      - 'tests/test_original_preview_relay.py'
       - 'original_match_playback.py'
       - 'original-match-replay.js'
       - 'tests/test-original-match-replay.cjs'
@@ -95,6 +98,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_original_skill_mapping.py -v
           python3 -m unittest discover -s tests -p test_original_catalog.py -v
           python3 -m unittest discover -s tests -p test_original_capture_probe.py -v
+          python3 -m unittest discover -s tests -p test_original_preview_relay.py -v
           node --check original-engine-page.js
           node --check original-manager-plan.js
           node --test tests/test-original-manager-plan.cjs
@@ -204,6 +208,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Verify real native match window through Chromium without mock media
         run: python3 original_native_browser_probe.py
+      - name: Verify single-encoder native match relay with two HTTP viewers
+        run: python3 original_native_relay_probe.py
       - name: Verify custom source selection in actual native menus
         id: custom_source
         continue-on-error: true
