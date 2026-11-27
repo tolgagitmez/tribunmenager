@@ -76,6 +76,19 @@ def validate_observations(baseline,mapped,report,history):
     clock=history['nativeMatchClockMs']
     if type(clock) is not int or clock<5400000:
         raise ValueError('Full-time native clock required')
+    # The native second-half clock resets to 45:00. A complete observed
+    # timeline retains first-half stoppage separately. Without that evidence,
+    # retain the older conservative bound instead of inventing added time.
+    period_ends=report.get('periodEndClockMs')
+    exposure=clock
+    if period_ends is not None:
+        if (not isinstance(period_ends,list) or len(period_ends)!=2
+            or any(type(x) is not int for x in period_ends)
+            or not 2700000<=period_ends[0]<=3600000
+            or not 5400000<=period_ends[1]<=6300000
+            or period_ends[1]!=clock):
+            raise ValueError('Invalid observed period end clocks')
+        exposure=period_ends[0]+period_ends[1]-2700000
     rows=report.get('players')
     if not isinstance(rows,list) or len(rows)!=len(mapped):
         raise ValueError('Complete observed roster rows required')
@@ -94,7 +107,7 @@ def validate_observations(baseline,mapped,report,history):
                 if field=='fatigueFactorInv':
                     valid=type(value) in (int,float) and math.isfinite(value) and .01<=value<=1
                 else:
-                    limit={'goals':99,'assists':99,'playedClockMs':clock,'yellow':2,'red':1}[field]
+                    limit={'goals':99,'assists':99,'playedClockMs':exposure,'yellow':2,'red':1}[field]
                     valid=type(value) is int and 0<=value<=limit
                 if not valid:
                     raise ValueError('Invalid native player metric: '+field)
@@ -106,9 +119,10 @@ def validate_observations(baseline,mapped,report,history):
         team=[r for r in output if r['side']==side]
         if sum(r['goals'] or 0 for r in team)>total or sum(r['assists'] or 0 for r in team)>total:
             raise ValueError('Player scoring totals exceed native team score')
-        if sum(r['playedClockMs'] or 0 for r in team)>11*clock:
+        if sum(r['playedClockMs'] or 0 for r in team)>11*exposure:
             raise ValueError('Player clock exceeds eleven-player team time')
     missing={field:sum(r[field] is None for r in output) for field in FIELDS}
     return dict(players=output,missingCounts=missing,shapeValidated=True,
+                observedClockLimitMs=exposure,periodEndClockMs=period_ends,
                 sourceAuthenticityVerified=False,nativePlayerTelemetryVerified=False,
                 nativeFatigueIsWebFitness=False,productionImportAllowed=False)
