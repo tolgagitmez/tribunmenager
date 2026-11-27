@@ -180,6 +180,56 @@ def verify_managed_squad(restored,report):
     return checked
 
 
+def verify_played_matchday(build,source,base,env):
+    """Use the upstream's own matchday route, not a patched or rendered match."""
+    session=base/'played-matchday'
+    populate(build,session)
+    e.check_config(source,session)
+    e.call(['bash',source/'tests/run_menu_smoke.sh',session/'gameplayfootball',
+            source/'data/menu_smoke_league_matchday.config','90',
+            '[menu-smoke] Main menu ready, opening League Mode',
+            '[menu-smoke] League dashboard advancing to next matchday',
+            '[menu-smoke] League matchday summary reached successfully'],env,session)
+    original=save_manifest(session/'saves')
+    if not original:
+        raise RuntimeError('No played matchday save')
+    report=results.collect(session,e.REVISION,0)
+    if not report['saves'] or report['skippedSaves']:
+        raise RuntimeError('Could not read native played matchday')
+    table_checks=verify_standings(session/'saves',report)
+    if not any(x['playedResults']>0 for x in table_checks):
+        raise RuntimeError('No native completed results in matchday report')
+    # The first resolved day may involve other clubs only, so verify the
+    # managed club's completed and pending fixtures without requiring a goal.
+    for item in report['saves']:
+        path=session/'saves'/item['saveName']/'autosave.sqlite'
+        with sqlite3.connect(path.resolve().as_uri()+'?mode=ro&immutable=1',uri=True) as db:
+            team=item['managedTeam']['id']
+            expected=db.execute("""SELECT calendar_id,team1_id,team2_id,team1_goals,team2_goals
+                FROM match_results WHERE played=1 AND (team1_id=? OR team2_id=?)
+                ORDER BY calendar_id""",(team,team)).fetchall()
+            actual=sorted((x['nativeFixtureId'],x['homeTeamId'],x['awayTeamId'],
+                           x['homeGoals'],x['awayGoals']) for x in item['results'])
+            if actual!=expected or set(x[0] for x in actual)&{x['nativeFixtureId'] for x in item['pendingFixtures']}:
+                raise RuntimeError('Native completed matchday scores mismatch')
+    if save_manifest(session/'saves')!=original:
+        raise RuntimeError('Matchday report changed native save')
+    with saves.locked_store(base/'played-store') as store:
+        if not saves.commit(store,session,0):
+            raise RuntimeError('Matchday snapshot failed')
+        restored=base/'played-restored'
+        restored.mkdir()
+        saves.restore(store,restored)
+        if save_manifest(restored/'saves')!=original or results.collect(restored,e.REVISION,0)!=report:
+            raise RuntimeError('Played matchday report changed after restoration')
+    e.check_config(source,session)
+    print(json.dumps(dict(nativeMatchdayResultRoundtripVerified=True,
+         source='upstream-matchday-fast-simulation',renderedMatchVerified=False,
+         productionConfigChanged=False,standingsChecks=table_checks,
+         managedCompletedResults=sum(len(x['results']) for x in report['saves']),
+         savedFiles=len(original))),flush=True)
+
+
 def main():
     env=e.clean_env(os.environ)
     work=e.cache_root()/e.REVISION
@@ -243,6 +293,7 @@ def main():
                  nativeStandingsVerified=True,nativeStandingsChecks=standings_checks,
                  nativeSavedSquadVerified=True,nativeSavedSquadChecks=squad_checks,
              nativeMenuReopenVerified=True,productionConfigChanged=False),indent=2))
+        verify_played_matchday(build,work/'source',base,env)
     e.verify_install(work,env)
 
 
