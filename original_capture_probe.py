@@ -5,6 +5,7 @@ No footage is stored; measure capture delivery and pixel changes, not engine FPS
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -26,9 +27,11 @@ DONE = '[menu-smoke] Full-match verification succeeded, quitting test run'
 
 def summarize(samples, intervals):
     """Samples are (monotonic receipt time, frame digest). Intervals exclude menus."""
-    if not intervals or any(b<=a for a,b in intervals):
+    if (not intervals or any(not math.isfinite(a) or not math.isfinite(b) or b<=a for a,b in intervals)
+            or any(a[1]>b[0] for a,b in zip(intervals,intervals[1:]))):
         raise ValueError('Missing valid active-match intervals')
-    if any(b[0]<a[0] for a,b in zip(samples,samples[1:])):
+    if (any(not math.isfinite(t) for t,_ in samples)
+            or any(b[0]<a[0] for a,b in zip(samples,samples[1:]))):
         raise ValueError('Nonmonotonic capture receipt times')
     count=changed=0
     max_gap=0.0
@@ -47,13 +50,17 @@ def summarize(samples, intervals):
         max_gap=max(max_gap,longest)
         gaps+=sum(d>=1 for d in delays)
         per_half.append(dict(seconds=round(end-start,3),samples=n,changedTransitions=c,
-                             captureReceiptFps=round(n/(end-start),2),maxReceiptGapMs=round(longest*1000,1)))
+                             captureReceiptFps=round(n/(end-start),2),maxReceiptGapMs=round(longest*1000,1),
+                             observedMotion=c>0,
+                             deliveryTargetMet=n/(end-start)>=24 and longest<1))
     return dict(activeWindowSeconds=round(seconds,3),captureSamples=count,
                 captureReceiptFps=round(count/seconds,2),
                 changedFrameTransitions=changed,changedTransitionsPerSecond=round(changed/seconds,2),
                 longestReceiptGapMs=round(max_gap*1000,1),receiptGapsAtLeastOneSecond=gaps,
                 halves=per_half,hasObservedMotion=changed>0,
-                evidencePassed=seconds>=1 and all(h['samples']>=2 for h in per_half) and changed>0,
+                evidencePassed=seconds>=1 and all(h['samples']>=2 and h['observedMotion'] for h in per_half),
+                deliveryQualityPassed=seconds>=1 and all(h['observedMotion'] and h['deliveryTargetMet'] for h in per_half),
+                deliveryTarget=dict(minReceiptFpsPerHalf=24,maxReceiptGapExclusiveMs=1000),
                 scope='External sampled Xvfb pixels at requested 30Hz; callback/pipe receipt timing, '
                       'not native FPS, unique rendered frames, browser screen-share or physics stall proof.')
 
@@ -109,6 +116,9 @@ def match_capture(session, source, env):
             logger.join(timeout=10)
             if logger.is_alive() or code:
                 raise RuntimeError('Native smoke game did not finish normally')
+            if capture.poll() is not None:
+                capture_log.seek(0)
+                raise RuntimeError('Capture ended before the match completed: '+capture_log.read(4096).decode(errors='replace'))
         finally:
             if game is not None and game.poll() is None:
                 game.kill();game.wait()
