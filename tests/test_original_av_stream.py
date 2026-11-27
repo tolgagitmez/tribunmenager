@@ -53,6 +53,17 @@ class AudioVideoStreamTests(unittest.TestCase):
             self.assertEqual(report['mediaSequence'],0)
             self.assertEqual(len(report['segments']),3)
             self.assertTrue(report['ended'])
+            from original_av_stream import audit_packet_timeline
+            fragments=[read_segment(root/s['name'])[0] for s in report['segments']]
+            timeline=audit_packet_timeline(fragments)
+            self.assertTrue(timeline['encodedTimelineVerified'],timeline)
+            self.assertFalse(timeline['physicalAVSyncVerified'])
+            self.assertLessEqual(timeline['maxTrackBoundaryOffsetMs'],100)
+            missing=audit_packet_timeline([fragments[0],fragments[2]])
+            self.assertFalse(missing['encodedTimelineVerified'])
+            self.assertGreater(missing['maxPacketGapMs']['video'],1000)
+            with self.assertRaises(ValueError):
+                audit_packet_timeline([fragments[0],fragments[0]])
             video_starts=[]
             for segment in report['segments']:
                 path=root/segment['name']
