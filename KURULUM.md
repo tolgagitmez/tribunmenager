@@ -14,6 +14,8 @@ python3 start.py --mode original --original-build-only
 
 Motor kurulduktan sonra `sh BASLAT.sh` ile varsayılan yerel web sunucusunu aç; kulüp merkezindeki **Orijinal motor** bağlantısından motoru başlat. Bu bağlantı yalnızca 127.0.0.1 üzerinde çalışan yerel sunucuda ve aynı kaynak isteğinde çalışır. Tarayıcı kurulum yapmaz; bütünlük doğrulaması ve motorun başlatılması terminaldeki süreçte gerçekleşir. Çift başlatma engeli aynı yerel sunucu oturumu için geçerlidir.
 
+Normal kapanışta motorun kendi `saves/<lig>/autosave.sqlite` kayıtlarından yalnızca kullanıcının oynanmış olarak işaretlenen lig fikstürleri salt okunur biçimde özetlenir. Özet, yerel motor önbelleğinde son tamamlanan oturuma ait JSON dosyası olarak tutulur ve Orijinal motor ekranından **Durumu yenile** ile görüntülenir. Bu sonuçlar hızlı maç/kariyer verisi değildir; motorun görüntülü oynatımını kanıtlamaz ve Tribün ligine otomatik işlenmez. Motorun geçici oturumu silindiği için orijinal lig kaydı sonraki açılışta devam etmez.
+
 Bu yol ayrı bir native masaüstü oyunudur: Tribün Manager web menajerlik arayüzünden kadro/taktik aktarımı, otomatik maç sonucu kaydı ve 30→5 dakika yayın bağlantısı henüz yoktur. Mevcut web maç rotası ve lig işlevleri değiştirilmemiştir; orijinal motor ayrı bir bağlantıdan açılır. Orijinal kaynaklar ve lisanslar yerel upstream checkout içinde saklanır; bu değişiklik motoru veya varlıklarını yeniden dağıtmaz.
 
 ---
