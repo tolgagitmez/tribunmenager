@@ -85,45 +85,7 @@ def run_private_menu(runtime):
         try:
             def window():
                 p=subprocess.run(['xdotool','search','--onlyvisible','--pid',str(game.pid),
-                    '--name','^League Soccer
-    env=engine.clean_env(os.environ)
-    work=engine.cache_root()/engine.REVISION
-    build=engine.verify_install(work,env)
-    with tempfile.TemporaryDirectory(prefix='tribun-custom-source-probe-') as tmp:
-        runtime=Path(tmp)/'runtime'
-        populate(build,runtime)
-        engine.check_config(work/'source',runtime)
-        original_digest=engine.digest(runtime/'databases/default/database.sqlite')
-        expected=prepare_pack(runtime)
-        print('Geçici veri aktarım testi: League Mode > New League.',flush=True)
-        print('Kaynak veritabanı olarak '+PACK+' seç, bir lig oluştur ve normal şekilde kapat.',flush=True)
-        print('Deneme oyuncusu: '+expected['teamName']+' / '+MARKER,flush=True)
-        if ci:
-            import sys
-            engine.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',sys.executable,
-                Path(__file__).resolve(),'--inside-private-menu',runtime],env)
-            code=0
-        else:
-            code=subprocess.run([str(runtime/'gameplayfootball')],cwd=runtime,env=env).returncode
-        if code!=0:
-            raise RuntimeError('Native game did not exit normally')
-        if engine.digest(runtime/'databases/default/database.sqlite')!=original_digest:
-            raise RuntimeError('Default database changed during source selection probe')
-        engine.verify_install(work,env)
-        print(json.dumps(verify(runtime,expected),ensure_ascii=False,indent=2),flush=True)
-
-
-if __name__=='__main__':
-    import sys
-    if len(sys.argv)==3 and sys.argv[1]=='--inside-private-menu':
-        run_private_menu(sys.argv[2])
-    elif sys.argv[1:]==['--ci']:
-        main(ci=True)
-    elif len(sys.argv)==1:
-        main()
-    else:
-        raise SystemExit('Usage: original_custom_database_probe.py [--ci]')
-],env=env,capture_output=True,text=True,timeout=5)
+                    '--name','^League Soccer$'],env=env,capture_output=True,text=True,timeout=5)
                 return p.stdout.strip().splitlines()[0] if p.returncode==0 and p.stdout.strip() else None
             wid=wait_for(window,60,game)
             time.sleep(5)
@@ -185,7 +147,13 @@ def main(ci=False):
         print('Geçici veri aktarım testi: League Mode > New League.',flush=True)
         print('Kaynak veritabanı olarak '+PACK+' seç, bir lig oluştur ve normal şekilde kapat.',flush=True)
         print('Deneme oyuncusu: '+expected['teamName']+' / '+MARKER,flush=True)
-        code=subprocess.run([str(runtime/'gameplayfootball')],cwd=runtime,env=env).returncode
+        if ci:
+            import sys
+            engine.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',sys.executable,
+                Path(__file__).resolve(),'--inside-private-menu',runtime],env)
+            code=0
+        else:
+            code=subprocess.run([str(runtime/'gameplayfootball')],cwd=runtime,env=env).returncode
         if code!=0:
             raise RuntimeError('Native game did not exit normally')
         if engine.digest(runtime/'databases/default/database.sqlite')!=original_digest:
@@ -195,4 +163,12 @@ def main(ci=False):
 
 
 if __name__=='__main__':
-    main()
+    import sys
+    if len(sys.argv)==3 and sys.argv[1]=='--inside-private-menu':
+        run_private_menu(sys.argv[2])
+    elif sys.argv[1:]==['--ci']:
+        main(ci=True)
+    elif len(sys.argv)==1:
+        main()
+    else:
+        raise SystemExit('Usage: original_custom_database_probe.py [--ci]')
