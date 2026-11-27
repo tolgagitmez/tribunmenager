@@ -5,7 +5,7 @@ The server alone decides daily match start/finish/results; clients cannot advanc
 """
 from __future__ import annotations
 from contextlib import closing
-import hashlib, json, os, secrets, shutil, sqlite3, threading, time
+import hashlib, json, math, os, re, secrets, shutil, sqlite3, threading, time
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -118,6 +118,31 @@ def update_tactics(token, tactics, formation=None):
         c.execute('UPDATE teams SET formation=?,tactics=? WHERE token=?',(formation,serialize_tactics(tactics),token))
         return {'ok':True,'formation':formation}
 
+def reserve_native_trial(key,kickoff,review_sha256,*,experimental=False,now=None):
+    """Internal opt-in hold only; no HTTP endpoint or automatic native launch.
+
+    Reserve a future unplayed fixture before the scheduler can claim it.
+    No release/fallback until a reviewed reconciliation mechanism exists.
+    """
+    now=time.time() if now is None else now
+    if (experimental is not True or not isinstance(key,tuple) or len(key)!=4 or
+        not isinstance(key[0],str) or not key[0] or
+        any(type(v) is not int or v<0 for v in key[1:]) or key[2]==key[3] or
+        type(now) not in (int,float) or not math.isfinite(now) or
+        type(kickoff) not in (int,float) or not math.isfinite(kickoff) or kickoff<=now or
+        not isinstance(review_sha256,str) or not re.fullmatch('[0-9a-f]{64}',review_sha256)):
+        raise ValueError('Explicit reviewed future native trial required')
+    with LOCK,closing(db()) as c,c:
+        c.execute('BEGIN IMMEDIATE')
+        existing=c.execute('SELECT kickoff,review_sha256 FROM native_fixture_holds WHERE league=? AND round=? AND home=? AND away=?',key).fetchone()
+        if existing is not None:
+            if tuple(existing)!=(kickoff,review_sha256):
+                raise ValueError('Conflicting native fixture hold')
+            return False
+        c.execute('INSERT INTO native_fixture_holds VALUES(?,?,?,?,?,?,?)',(*key,kickoff,now,review_sha256))
+    return True
+
+
 def settle_due(now=None):
     """Freeze EVERY due fixture once; results come only from the real Match worker.
 
@@ -135,6 +160,8 @@ def settle_due(now=None):
             c.execute('BEGIN IMMEDIATE')
             due=c.execute('''SELECT f.league,f.round,f.home,f.away,f.kickoff FROM fixtures f
                 WHERE f.kickoff<=? AND f.home_score IS NULL
+                AND NOT EXISTS (SELECT 1 FROM native_fixture_holds n
+                WHERE n.league=f.league AND n.round=f.round AND n.home=f.home AND n.away=f.away)
                 AND NOT EXISTS (SELECT 1 FROM live_matches l
                 WHERE l.league=f.league AND l.round=f.round
                 AND l.home=f.home AND l.away=f.away)
@@ -178,7 +205,11 @@ def status(token, now=None):
         fix=[dict(f) for f in c.execute('SELECT * FROM fixtures WHERE league=? ORDER BY round,home',(code,))]
         current_round=max(0,min(9,int((now-fix[0]['kickoff'])//86400))) if now>=fix[0]['kickoff'] else 0
         next_time=min((f['kickoff'] for f in fix if f['kickoff']>now),default=None)
-        active=[f for f in fix if f['kickoff']<=now and f['home_score'] is None]
+        native_holds={(r['round'],r['home'],r['away']) for r in c.execute('SELECT round,home,away FROM native_fixture_holds WHERE league=?',(code,))}
+        for f in fix:
+            if (f['round'],f['home'],f['away']) in native_holds:
+                f['engineState']='native-reserved'
+        active=[f for f in fix if f['kickoff']<=now and f['home_score'] is None and f.get('engineState')!='native-reserved']
         standings=[]
         for t in teams:
             item={'slot':t['slot'],'club':t['name'],'manager':t['manager'],'played':0,'w':0,'d':0,'l':0,'gf':0,'ga':0,'points':0}
@@ -277,7 +308,8 @@ def local_match(token, now=None):
         enemy=c.execute('SELECT * FROM teams WHERE league=? AND slot=?',(person['league'],enemy_slot)).fetchone()
         if enemy is None:raise ValueError('Fikstürün rakip kulübü bulunamadı.')
         active=fixture['kickoff']<=now and (fixture['watched'] or now<fixture['kickoff']+300)
-        phase='completed' if fixture['home_score'] is not None else 'live' if active else 'scheduled'
+        held=c.execute('SELECT 1 FROM native_fixture_holds WHERE league=? AND round=? AND home=? AND away=?',tuple(fixture[field] for field in ('league','round','home','away'))).fetchone()
+        phase='completed' if fixture['home_score'] is not None else 'native-reserved' if held else 'live' if active else 'scheduled'
         config_row=c.execute('''SELECT config FROM live_matches
             WHERE league=? AND round=? AND home=? AND away=?''',
             tuple(fixture[field] for field in ('league','round','home','away'))).fetchone()
@@ -341,6 +373,8 @@ def live_session(token, round_number, *, watch, now=None):
             raise LiveMatchError('Bu maç için izleyici yetkin yok.',403)
         key = tuple(fixture[field] for field in ('league','round','home','away'))
         kickoff = fixture['kickoff']
+        if c.execute('SELECT 1 FROM native_fixture_holds WHERE league=? AND round=? AND home=? AND away=?',key).fetchone():
+            raise LiveMatchError('Bu fikstür native motor denemesi için ayrıldı; eski motorla oynatılamaz.',409)
         stored = c.execute('SELECT config FROM live_matches WHERE league=? AND round=? AND home=? AND away=?',
                            key).fetchone()
         if stored is None or (watch and now < kickoff):
