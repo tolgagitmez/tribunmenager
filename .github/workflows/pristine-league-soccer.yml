@@ -6,6 +6,7 @@ on:
       - 'original_engine.py'
       - 'original_saves.py'
       - 'original_native_saves_probe.py'
+      - 'original_native_reload_probe.py'
       - 'tests/test_original_saves.py'
       - 'original_session.py'
       - 'original_results.py'
@@ -57,7 +58,7 @@ jobs:
       - name: Install documented upstream Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils openbox
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils openbox xdotool
       - name: Build original pinned upstream with unchanged runtime files
         run: python3 start.py --mode original --original-build-only
       - name: Verify default native startup without engine arguments
