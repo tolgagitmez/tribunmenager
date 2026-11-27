@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import subprocess
 import sys
 import tempfile
 
@@ -86,7 +87,7 @@ def verify(runtime,team,name,rows,order):
         skillBehaviorVerified=False,productionRosterImported=False)
 
 
-def main():
+def main(full_match=False):
     env=engine.clean_env(os.environ)
     work=engine.cache_root()/engine.REVISION
     build=engine.verify_install(work,env)
@@ -96,14 +97,44 @@ def main():
         engine.check_config(work/'source',runtime)
         before=engine.digest(runtime/'databases/default/database.sqlite')
         team,name,rows,order=prepare(runtime)
-        engine.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
-            sys.executable,Path(__file__).with_name('original_custom_database_probe.py').resolve(),
-            '--inside-private-menu',runtime,PACK],env)
+        if full_match:
+            from original_match_history import HISTORY_PATH
+            if (runtime/'saves').exists() or (runtime/HISTORY_PATH).exists():
+                raise RuntimeError('Fresh test runtime unexpectedly contains previous league data')
+            print('Geçici 3D kadro testi — League Mode > New League > '+PACK,flush=True)
+            print('Takım: '+name+'; varsayılan süre ve zorluğu değiştirme.',flush=True)
+            print('Play next match > Kick off > Start. Maç başlayınca Esc > Game Plan.',flush=True)
+            print('Motorun canlı Match TeamData nesnesinden çizilen saha planındaki isimleri karşılaştır:',flush=True)
+            for slot,i in enumerate(order,1):
+                row=rows[i]
+                print(f"  p{slot}: {row['nativeRole']} / {row['lastName']} (ID {row['nativePlayerId']})",flush=True)
+            print('Kadro/taktik değiştirme. Bir 3D maç tamamla, Continue ile sonucu kaydet ve normal menüden çık.',flush=True)
+            print('Hızlı simülasyon veya ikinci maç yapma. Görsel kontrol otomatik olarak doğrulanmış sayılmaz.',flush=True)
+            if subprocess.run([str(runtime/'gameplayfootball')],cwd=runtime,env=env).returncode!=0:
+                raise RuntimeError('Native match did not exit normally')
+        else:
+            engine.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
+                sys.executable,Path(__file__).with_name('original_custom_database_probe.py').resolve(),
+                '--inside-private-menu',runtime,PACK],env)
         if engine.digest(runtime/'databases/default/database.sqlite')!=before:
             raise RuntimeError('Default native database changed')
         engine.verify_install(work,env)
-        print(json.dumps(verify(runtime,team,name,rows,order),ensure_ascii=False),flush=True)
+        report=verify(runtime,team,name,rows,order)
+        if full_match:
+            from original_full_league_validation import verify as verify_match
+            report['fullMatch']=verify_match(runtime)
+            report['normalExitVerified']=True
+            report['defaultConfigAtLaunch']=True
+            report['commandArgumentCount']=0
+            report['visualLineupReviewRequired']=True
+            report['sessionConfigByteUnchanged']=(runtime/'football.config').read_bytes()==(work/'source/data/football.config').read_bytes()
+        print(json.dumps(report,ensure_ascii=False,indent=2),flush=True)
 
 
 if __name__=='__main__':
-    main()
+    if sys.argv[1:]==['--full-match']:
+        main(full_match=True)
+    elif len(sys.argv)==1:
+        main()
+    else:
+        raise SystemExit('Usage: original_native_roster_probe.py [--full-match]')
