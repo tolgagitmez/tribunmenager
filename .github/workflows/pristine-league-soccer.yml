@@ -39,6 +39,9 @@ on:
       - 'original-preview-metrics.js'
       - 'original_capture_probe.py'
       - 'original_preview_relay.py'
+      - 'original_av_stream.py'
+      - 'original_native_av_probe.py'
+      - 'tests/test_original_av_stream.py'
       - 'original_native_relay_probe.py'
       - 'tests/test_original_preview_relay.py'
       - 'original_match_playback.py'
@@ -112,9 +115,11 @@ jobs:
       - name: Install documented upstream Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils openbox xdotool
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils openbox xdotool pulseaudio pulseaudio-utils
       - name: Verify bounded offline playback with FFmpeg
         run: python3 -m unittest discover -s tests -p test_original_match_playback.py -v
+      - name: Verify audiovisual HLS packaging and retention
+        run: python3 -m unittest discover -s tests -p test_original_av_stream.py -v
       - name: Build original pinned upstream with unchanged runtime files
         run: python3 start.py --mode original --original-build-only
       - name: Verify default native startup without engine arguments
@@ -210,6 +215,8 @@ jobs:
         run: python3 original_native_browser_probe.py
       - name: Verify single-encoder native match relay with two HTTP viewers
         run: python3 original_native_relay_probe.py
+      - name: Verify native audio and video captured in same HLS segment
+        run: python3 original_native_av_probe.py
       - name: Verify custom source selection in actual native menus
         id: custom_source
         continue-on-error: true
