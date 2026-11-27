@@ -14,6 +14,7 @@ import time
 import urllib.request
 
 import original_engine as e
+from original_capture_probe import match_intervals
 
 ACTIVE='[menu-smoke] Gameplay page reached and live match is active'
 HALF='[menu-smoke] Continuing second half automatically'
@@ -98,15 +99,15 @@ def run():
                 result=json.loads(lines[0].split(' ',1)[1])
                 code=game.wait(timeout=420)
                 logger.join(timeout=10)
-                if code or logger.is_alive() or [m for _,m,_ in events]!=[ACTIVE,HALF,ACTIVE,FULL,DONE]:
+                if code or logger.is_alive():
                     raise RuntimeError('Original smoke fixture did not complete normally')
-                intervals=[(events[0][0],events[1][0]),(events[2][0],events[3][0])]
+                intervals,full_line,extra_active=match_intervals(events)
                 overlap=sum(max(0,min(b,result['endMs'])-max(a,result['startMs'])) for a,b in intervals)
                 if overlap<4000:
                     raise RuntimeError('Less than four seconds of active match overlapped browser capture')
                 result.update(nativeWindowBrowserVerified=True,syntheticStream=False,
                     activeMatchOverlapMs=overlap,revision=e.REVISION,
-                    fullTime=events[3][2],testOnlyAutoSelection=True,
+                    fullTime=full_line,extraGameplayEntries=extra_active,testOnlyAutoSelection=True,
                     hardwareFpsVerified=False,defaultSpeedMatchVerified=False)
                 print(json.dumps(result,indent=2),flush=True)
             except Exception:
