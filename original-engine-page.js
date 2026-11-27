@@ -19,31 +19,53 @@
   launch.disabled=busy||!s.supported||!s.installed||s.running;
   status.textContent=!s.supported?'Bu işletim sistemi henüz desteklenmiyor.':!s.installed?'Motor paketi bulunamadı. Terminalden kurulum yap.':s.running?'Masaüstü motoru başlatılıyor veya çalışıyor.':s.lastExitCode!==null&&s.lastExitCode!==0?'Motor kapandı veya doğrulama başarısız oldu. Terminali kontrol et.':'Motor paketi mevcut. Başlatırken bütünlüğü doğrulanacak.';
  }
+ let resultsSequence=0;
  async function updateResults() {
+  const seq=++resultsSequence;
   const note=document.getElementById('nativeResultStatus'), list=document.getElementById('nativeResultList');
-  list.replaceChildren();
+  const fragment=document.createDocumentFragment();
   try {
    const response=await fetch('/api/original/results',{cache:'no-store'});
    if(!response.ok)throw Error();
    const {report}=await response.json();
+   if(seq!==resultsSequence)return;
+   list.replaceChildren();
    if(!report){note.textContent='Henüz tamamlanmış bir motor oturumu kaydı yok.';return;}
    if(report.exitCode!==0){note.textContent='Son motor oturumu hatayla kapandı; sonuç aktarılmadı.';return;}
    let count=0;
    for(const save of report.saves){
-    const heading=document.createElement('h3');heading.textContent=save.saveName;list.append(heading);
+    const heading=document.createElement('h3');heading.textContent=save.saveName;fragment.append(heading);
     if(save.managedTeam){
-     const club=document.createElement('p');club.textContent='Yönetilen takım: '+save.managedTeam.name;list.append(club);
+     const club=document.createElement('p');club.textContent='Yönetilen takım: '+save.managedTeam.name;fragment.append(club);
     }
     if(Array.isArray(save.pendingFixtures)){
-     const next=document.createElement('h4');next.textContent='Oynanmamış fikstürler';list.append(next);
+     const next=document.createElement('h4');next.textContent='Oynanmamış fikstürler';fragment.append(next);
      const pending=document.createElement('ul');
      for(const match of save.pendingFixtures){
       const row=document.createElement('li');row.textContent=match.nativeDate+' · '+match.homeTeam+' – '+match.awayTeam;pending.append(row);
      }
      if(!save.pendingFixtures.length){const row=document.createElement('li');row.textContent='Bekleyen fikstür bulunamadı.';pending.append(row);}
-     list.append(pending);
-     if(save.pendingTruncated){const p=document.createElement('p');p.textContent='İlk 30 oynanmamış fikstür gösteriliyor.';list.append(p);}
-     const played=document.createElement('h4');played.textContent='Tamamlanmış maç kayıtları';list.append(played);
+     fragment.append(pending);
+     if(save.pendingTruncated){const p=document.createElement('p');p.textContent='İlk 30 oynanmamış fikstür gösteriliyor.';fragment.append(p);}
+     const played=document.createElement('h4');played.textContent='Tamamlanmış maç kayıtları';fragment.append(played);
+    }
+    if(save.standings&&Array.isArray(save.standings.rows)){
+     const h=document.createElement('h4');h.textContent='Puan durumu · '+save.standings.league;fragment.append(h);
+     const wrap=document.createElement('div');wrap.style.overflowX='auto';
+     const table=document.createElement('table');table.setAttribute('aria-label','Orijinal lig puan durumu');
+     const header=table.createTHead().insertRow();
+     for(const name of ['#','Takım','O','G','B','M','A','Y','AV','P','Form']){
+      const cell=document.createElement('th');cell.scope='col';cell.textContent=name;header.append(cell);
+     }
+     const body=table.createTBody();
+     for(const item of save.standings.rows){
+      const tr=body.insertRow();
+      const values=[item.position,item.name+(item.managed?' (Senin takımın)':''),item.played,item.won,item.drawn,item.lost,item.goalsFor,item.goalsAgainst,item.goalDifference,item.points,item.form||'—'];
+      for(const value of values)tr.insertCell().textContent=value;
+     }
+     wrap.append(table);fragment.append(wrap);
+     const scope=document.createElement('p');scope.className='micro';
+     scope.textContent='Orijinal motorun kayıtlı sonuçlarından hesaplandı; motorun puan durumu kuralları tüm oynanmış müsabakaları sayar. Web ligine yazılmaz.';fragment.append(scope);
     }
     const rows=document.createElement('ul');
     for(const result of save.results){
@@ -51,12 +73,13 @@
      row.textContent=result.nativeDate+' · '+result.homeTeam+' '+result.homeGoals+' - '+result.awayGoals+' '+result.awayTeam;
      rows.append(row);count++;
     }
-    list.append(rows);
-    if(save.truncated){const p=document.createElement('p');p.textContent='Yalnızca son 100 kayıt gösteriliyor.';list.append(p);}
+    fragment.append(rows);
+    if(save.truncated){const p=document.createElement('p');p.textContent='Yalnızca son 100 kayıt gösteriliyor.';fragment.append(p);}
    }
+   list.replaceChildren(fragment);
    note.textContent=count?count+' kayıt · Son tamamlanan oturum': 'Son oturumda okunabilir lig maçı kaydı bulunamadı.';
    if(report.skippedSaves||report.saveLimitReached)note.textContent+=' Bazı kayıtlar incelenemedi veya sınır nedeniyle atlandı.';
-  } catch{note.textContent='Yerel sonuç bağlantısı kullanılamıyor.';}
+  } catch{if(seq===resultsSequence){list.replaceChildren();note.textContent='Yerel sonuç bağlantısı kullanılamıyor.';}}
  }
  async function update() {
   if(busy)return;
