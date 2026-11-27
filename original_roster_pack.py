@@ -75,7 +75,7 @@ def validate_lineup(db,team_id,rows,slot_order):
     return starters+bench
 
 
-def build_pack(runtime,team_id,rows,*,skill_pilot=False,slot_order=None):
+def build_pack(runtime,team_id,rows,*,skill_pilot=False,slot_order=None,reviewed_tactics=None):
     runtime=Path(runtime)
     original=runtime/'databases/default'
     target=runtime/'databases/tribun-roster-pilot'
@@ -85,6 +85,13 @@ def build_pack(runtime,team_id,rows,*,skill_pilot=False,slot_order=None):
     with closing(connect(original/'database.sqlite')) as db:
         updates=validate_mapping(db,team_id,rows)
         lineup=validate_lineup(db,team_id,rows,slot_order) if slot_order is not None else None
+        tactic_plan=None
+        if reviewed_tactics is not None:
+            from original_tactic_mapping import plan_native_tactics
+            saved=db.execute('SELECT tactics_xml FROM teams WHERE id=?',(team_id,)).fetchone()
+            if saved is None:
+                raise ValueError('Native team tactics unavailable')
+            tactic_plan=plan_native_tactics(saved[0],reviewed_tactics)
         profiles=[]
         if skill_pilot:
             from original_skill_mapping import plan_profile
@@ -118,6 +125,10 @@ def build_pack(runtime,team_id,rows,*,skill_pilot=False,slot_order=None):
                     for xml,ident,team in profiles:
                         if db.execute('SELECT profile_xml FROM players WHERE id=? AND team_id=?',(ident,team)).fetchone()!=(xml,):
                             raise RuntimeError('Skill profile did not roundtrip')
+                if tactic_plan is not None:
+                    db.execute('UPDATE teams SET tactics_xml=? WHERE id=?',(tactic_plan['tacticsXml'],team_id))
+                    if db.execute('SELECT tactics_xml FROM teams WHERE id=?',(team_id,)).fetchone()!=(tactic_plan['tacticsXml'],):
+                        raise RuntimeError('Native team tactic data did not roundtrip')
                 if db.execute('PRAGMA quick_check').fetchall()!=[('ok',)]:
                     raise ValueError('Alternative database integrity failed')
                 for first,last,role,ident,team in updates:
@@ -130,4 +141,5 @@ def build_pack(runtime,team_id,rows,*,skill_pilot=False,slot_order=None):
                 nativeSkillsImported=False,experimentalSkillProfilesWritten=len(profiles),
                 skillEquivalenceVerified=False,experimentalLineupWritten=lineup is not None,
                 nativeFormationImported=False,nativeTacticsImported=False,
+                experimentalTacticsWritten=tactic_plan['changes'] if tactic_plan else [],
                 nativeMenuLoadVerified=False,defaultDatabaseUnchanged=True)
