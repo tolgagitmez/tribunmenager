@@ -21,6 +21,14 @@ const {chromium}=require('playwright');
    json:{supported:true,installed:true,running:false,lastExitCode:0,
     nativeDesktop:true,managerBridge:false,saveStore:inventory}
   }));
+  // Synthetic HTTP response tests rendering only; genuine SQLite is covered separately.
+  let nativeReport={schema:1,exitCode:0,saves:[{saveName:'Test league',
+   managedTeam:{id:1,name:'Home Club'},pendingFixtures:[
+    {nativeFixtureId:12,homeTeam:'Away Club',awayTeam:'Home Club',nativeDate:'2026-11-29'}],
+   pendingTruncated:false,results:[
+    {nativeFixtureId:10,homeTeam:'Home Club',awayTeam:'Away Club',homeGoals:2,awayGoals:1,nativeDate:'2026-11-27'}],
+   truncated:false}],skippedSaves:0};
+  await context.route('**/api/original/results',route=>route.fulfill({json:{report:nativeReport}}));
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
@@ -76,6 +84,17 @@ const {chromium}=require('playwright');
   await managerStatus.filter({hasText:'kaydedilmiş menajer planı bulunamadı'}).waitFor();
   assert.equal(await managerDetails.locator('li').count(),0);
   assert.equal(await page.evaluate(()=>localStorage.getItem('tribun-manager-pro09')),null);
+  const resultList=page.locator('#nativeResultList');
+  await resultList.getByText('Yönetilen takım: Home Club',{exact:true}).waitFor();
+  assert.equal(await resultList.getByText('2026-11-29 · Away Club – Home Club',{exact:true}).count(),1);
+  assert.equal(await resultList.getByText('2026-11-27 · Home Club 2 - 1 Away Club',{exact:true}).count(),1);
+  assert.ok(!(await resultList.textContent()).includes('0 - 0'));
+  // Older saved reports do not contain calendar context. They still show results.
+  nativeReport={...nativeReport,saves:nativeReport.saves.map(({managedTeam,pendingFixtures,pendingTruncated,...rest})=>rest)};
+  await page.locator('#originalRefresh').click();
+  await resultList.getByText('2026-11-27 · Home Club 2 - 1 Away Club',{exact:true}).waitFor();
+  assert.equal(await resultList.getByText('Oynanmamış fikstürler',{exact:true}).count(),0);
+  assert.equal(await resultList.getByText('Yönetilen takım: Home Club',{exact:true}).count(),0);
   const saveNote=page.locator('#nativeSaveStoreStatus');
   await saveNote.filter({hasText:'Saklanmış lig kayıtları mevcut.'}).waitFor();
   assert.match(await saveNote.textContent(),/2 kurtarma klasörü/);
@@ -104,7 +123,7 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#originalPreviewReport').isEnabled(),true);
   assert.deepEqual(writes,[],'Original engine page must not send a write request during read-only preview');
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({browserPlaybackVerified:true,managerPlanBrowserVerified:true,managerPlanStorageUnchanged:true,syntheticCanvasStream:true,
+  console.log(JSON.stringify({browserPlaybackVerified:true,managerPlanBrowserVerified:true,managerPlanStorageUnchanged:true,nativeCalendarUiFixtureVerified:true,syntheticCanvasStream:true,
    nativeWindowPickerVerified:false,nativeMatchVerified:false,reportDownloadVerified:true,
    sampleSeconds:report.seconds,averagePresentedFps:report.averagePresentedFps}));
  }finally{await browser.close();}
