@@ -89,5 +89,26 @@
  }
  team.addEventListener('change',loadTeam);
  refresh.addEventListener('click',loadCatalog);
+ function loadManagerPlan(){
+  const note=document.getElementById('managerPlanStatus'),panel=document.getElementById('managerPlanDetails');
+  if(!note||!panel)return;
+  panel.replaceChildren();
+  let plan=null;
+  try{plan=window.TribunOriginalManagerPlan.read(window.localStorage);}catch{}
+  if(!plan){note.textContent='Bu tarayıcıda kaydedilmiş menajer planı bulunamadı.';return;}
+  note.textContent='Web oyunundan okundu · Orijinal motora uygulanmadı.';
+  function rows(title,values){
+   const h=document.createElement('h3');h.textContent=title;panel.append(h);
+   const ul=document.createElement('ul');
+   for(const value of values){const li=document.createElement('li');li.textContent=value;ul.append(li);}
+   panel.append(ul);
+  }
+  if(plan.formation)rows('Diziliş',[plan.formation]);
+  if(plan.lineup)rows('Kaydedilmiş ilk 11',plan.lineup.map(p=>p.slot+'. '+p.name+(p.position?' · '+p.position:'')));
+  else rows('İlk 11',['Tam ve geçerli bir ilk 11 kaydı bulunamadı.']);
+  if(plan.tactics.length)rows('Kaydedilmiş web taktikleri',plan.tactics.map(t=>t.label+' : '+t.value));
+ }
+ refresh.addEventListener('click',loadManagerPlan);
+ loadManagerPlan();
  update();loadCatalog();
 })();
