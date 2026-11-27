@@ -188,6 +188,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p test_native_extended_capture.py -v
           python3 -m unittest discover -s tests -p test_native_capture_alignment.py -v
+          python3 -m unittest discover -s tests -p test_native_stall_diagnostics.py -v
       - name: Install extended audiovisual capture dependencies
         run: sudo apt-get install -y ffmpeg xdotool pulseaudio pulseaudio-utils libopenal-dev
       - name: Build pinned native runtime for extended capture
@@ -233,6 +234,10 @@ jobs:
         run: |
           python3 integrations/league-soccer/native_extended_clock_verify.py "$RUNNER_TEMP/extended.ndjson" "$RUNNER_TEMP/extended-report.json"
           cat "$RUNNER_TEMP/extended-report.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Diagnose stationary carriers in the completed extended trace
+        run: |
+          python3 -c 'import json,sys; sys.path.insert(0,"integrations/league-soccer"); from native_stall_diagnostics import inspect_trace; print(json.dumps(inspect_trace(sys.argv[1],1800000),indent=2))' "$RUNNER_TEMP/extended.ndjson" > "$RUNNER_TEMP/extended-stalls.json"
+          python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps({k:v for k,v in d.items() if k!="episodes"},indent=2))' "$RUNNER_TEMP/extended-stalls.json" >> "$GITHUB_STEP_SUMMARY"
       - name: Audit shared epoch candidate mapping
         id: alignment_audit
         continue-on-error: true
@@ -302,6 +307,7 @@ jobs:
             ${{ runner.temp }}/extended.ndjson.fixture.json
             ${{ runner.temp }}/extended.ndjson.attack.json
             ${{ runner.temp }}/extended-report.json
+            ${{ runner.temp }}/extended-stalls.json
             ${{ runner.temp }}/extended-highlights.json
             ${{ runner.temp }}/highlight-summary.json
             ${{ runner.temp }}/extended-playback.json
