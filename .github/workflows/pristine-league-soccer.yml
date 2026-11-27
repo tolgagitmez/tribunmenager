@@ -22,6 +22,8 @@ on:
       - 'server.py'
       - 'live_match.py'
       - 'tests/test_native_fixture_ownership.py'
+      - 'original_held_trial_dispatch.py'
+      - 'tests/test_original_held_trial_dispatch.py'
       - 'original_player_evidence.py'
       - 'original_native_player_gdb.py'
       - 'original_native_player_probe.py'
@@ -134,6 +136,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_original_verified_result_ledger.py -v
           python3 -m unittest discover -s tests -p test_original_player_evidence.py -v
           python3 -m unittest discover -s tests -p test_native_fixture_ownership.py -v
+          python3 -m unittest discover -s tests -p test_original_held_trial_dispatch.py -v
           python3 -m unittest discover -s tests -p test_original_scheduled_kickoff_probe.py -v
           python3 -m unittest discover -s tests -p test_original_roster_import.py -v
           python3 -m unittest discover -s tests -p test_original_skill_mapping.py -v
