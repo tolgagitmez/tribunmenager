@@ -6,6 +6,8 @@ on:
       - 'original_engine.py'
       - 'original_session.py'
       - 'original_results.py'
+      - 'original_catalog.py'
+      - 'tests/test_original_catalog.py'
       - 'tests/test_original_results.py'
       - 'original-engine.html'
       - 'original-engine-page.js'
@@ -29,6 +31,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_original_engine.py -v
           python3 -m unittest discover -s tests -p test_original_session.py -v
           python3 -m unittest discover -s tests -p test_original_results.py -v
+          python3 -m unittest discover -s tests -p test_original_catalog.py -v
           node --check original-engine-page.js
           python3 -m unittest discover -s tests -p test_launcher.py -v
           sh -n BASLAT_ORIJINAL.sh
@@ -38,6 +41,24 @@ jobs:
           sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth
       - name: Build original pinned upstream with unchanged runtime files
         run: python3 start.py --mode original --original-build-only
+      - name: Inspect the real pinned native default catalog without mutation
+        run: |
+          python3 - <<'PY'
+          import original_engine as e, original_catalog as c
+          work=e.cache_root()/e.REVISION
+          path=work/'build/databases/default/database.sqlite'
+          before=e.digest(path)
+          teams=c.catalog(path)['teams']
+          assert teams, 'Native database has no teams'
+          inspected=0
+          for team in teams:
+              data=c.catalog(path,team['id'])
+              if len(data['players'])>=11:
+                  inspected+=1
+          assert inspected>0, 'No complete native club roster'
+          assert e.digest(path)==before, 'Catalog changed database'
+          print('Read-only native catalog:',len(teams),'teams;',inspected,'club rosters with >=11 players')
+          PY
       - name: Run upstream full-match smoke test in separate disposable runtime
         run: |
           python3 - <<'PY'
