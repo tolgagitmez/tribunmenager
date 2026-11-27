@@ -1,0 +1,47 @@
+name: Stage 227 isolated extended progression trial
+on:
+  pull_request:
+    branches: [experiment/native-capture-diagnosis-stage226]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired_progress:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sudo apt-get update && sudo apt-get install -y xvfb xauth
+      - name: Check patched decision predicates and runner syntax
+        env:
+          TRIBUN_POLICY_ONLY: '1'
+        run: |
+          bash -n integrations/league-soccer/run-pilot.sh
+          bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/progress-policy.ndjson"
+      - name: Run matched thirty-minute trace pair
+        env:
+          TRIBUN_INSTALL_NATIVE_DEPS: '1'
+          TRIBUN_BUILD_JOBS: '3'
+          TRIBUN_NATIVE_FIXED_DURATION: '1'
+          TRIBUN_NATIVE_EXTENDED_MATCH: '1'
+          TRIBUN_NATIVE_EXTENDED_ATTACK_TRIAL: '1'
+          TRIBUN_LEAGUE_SOCCER_SEED: '2026'
+          TRIBUN_LEAGUE_SOCCER_ATTACK: baseline
+        run: |
+          set -o pipefail
+          bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/progress" --demo 2>&1 | tee "$RUNNER_TEMP/progress-run.log"
+      - name: Report actual progression outcomes
+        run: |
+          python3 integrations/league-soccer/native_progress_comparison.py "$RUNNER_TEMP/progress.progress-0.ndjson" "$RUNNER_TEMP/progress.progress-1.ndjson" "$RUNNER_TEMP/progress-comparison.json"
+          cat "$RUNNER_TEMP/progress-comparison.json" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paired-native-progress-evidence
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/progress*
