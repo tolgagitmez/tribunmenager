@@ -58,7 +58,7 @@ def diagnostic_frame(label,env):
         print('Diagnostic frame unavailable: '+str(exc),file=sys.stderr)
 
 
-def run(session):
+def run(session,kickoff=False):
     env=e.clean_env(os.environ)
     if not env.get('DISPLAY','').startswith(':'):
         raise RuntimeError('Private CI display required')
@@ -67,6 +67,12 @@ def run(session):
     if len(autosaves)!=1 or autosaves[0].is_symlink():
         raise RuntimeError('Expected exactly one restored native league')
     expected=autosaves[0].resolve()
+    fixture=None
+    if kickoff:
+        from original_fixture_gate import next_native_fixture
+        fixture=next_native_fixture(expected)
+        if fixture is None:
+            raise RuntimeError('No eligible native fixture in test save')
     with tempfile.TemporaryFile() as log:
         game=subprocess.Popen([str(session/'gameplayfootball')],cwd=session,
                               env=env,stdout=log,stderr=subprocess.STDOUT)
@@ -101,6 +107,32 @@ def run(session):
                   gameProcessAlive=True,normalExitVerified=False,
                   scope='Native UI keyboard navigation and process file descriptor; not a full resumed match.')),
                   flush=True)
+            if kickoff:
+                # Only the pinned, disposable menu sequence; never send keys
+                # to an operator's desktop. Upstream logs match construction
+                # without requiring any config flag or test instrumentation.
+                def match_created():
+                    log.seek(0)
+                    data=log.read()
+                    return (b'[Notice] in [Match::Match]: Starting Match' in data and
+                            b'[Notice] in [Match::Match]: Done creating match!' in data)
+                if match_created():
+                    raise RuntimeError('Unexpected match before menu kickoff')
+                for step,key in enumerate(('Return','Return','Return'),1):
+                    press_key(key,env)
+                    diagnostic_frame(f'kickoff-{step:02d}',env)
+                wait_for(match_created,120,game)
+                time.sleep(5)
+                if game.poll() is not None or not opened_database(game.pid,expected):
+                    raise RuntimeError('Native match session lost its restored league')
+                diagnostic_frame('kickoff-04-created',env)
+                print(json.dumps(dict(nativeMatchConstructionVerified=True,
+                    nativeMenuKickoffSequenceVerified=True,expectedFixture=fixture,
+                    expectedFixtureIndependentlyConfirmedInMatch=False,
+                    defaultConfigLaunch=True,commandArgumentCount=0,
+                    matchCompleted=False,normalExitVerified=False,
+                    automaticProductionKickoff=False,
+                    scope='Disposable UI input, upstream match constructor logs and open autosave; not completed match or independent team identity evidence')),flush=True)
         except Exception:
             diagnostic_frame('99-failure',env)
             log.seek(0)
@@ -117,11 +149,11 @@ def run(session):
 
 
 if __name__=='__main__':
-    if len(sys.argv)==3 and sys.argv[1]=='--inside-private-display':
-        run(sys.argv[2])
-    elif len(sys.argv)==2:
+    if len(sys.argv) in (3,4) and sys.argv[1]=='--inside-private-display' and (len(sys.argv)==3 or sys.argv[3]=='--kickoff'):
+        run(sys.argv[2],kickoff=len(sys.argv)==4)
+    elif len(sys.argv) in (2,3) and (len(sys.argv)==2 or sys.argv[2]=='--kickoff'):
         e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
                 sys.executable,Path(__file__).resolve(),'--inside-private-display',
-                Path(sys.argv[1]).resolve()],e.clean_env(os.environ))
+                Path(sys.argv[1]).resolve(),*sys.argv[2:]],e.clean_env(os.environ))
     else:
-        raise SystemExit('Usage: original_native_reload_probe.py <disposable-runtime>')
+        raise SystemExit('Usage: original_native_reload_probe.py <disposable-runtime> [--kickoff]')
