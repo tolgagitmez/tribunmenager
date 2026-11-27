@@ -51,6 +51,35 @@ def inspect(root):
     return reports
 
 
+def verify_calendar(restored,report):
+    """Independent SQL cross-check against genuine native-generated save data."""
+    checked=[]
+    for item in report['saves']:
+        path=restored/item['saveName']/'autosave.sqlite'
+        with sqlite3.connect(path.resolve().as_uri()+'?mode=ro&immutable=1',uri=True) as db:
+            team,name=db.execute('SELECT s.team_id,t.name FROM settings s JOIN teams t ON t.id=s.team_id').fetchone()
+            if item['managedTeam']!={'id':team,'name':name}:
+                raise RuntimeError('Managed native club mismatch')
+            calendar=db.execute('SELECT id,team1_id,team2_id,timestamp FROM calendar ORDER BY timestamp,id').fetchall()
+            played={r[0] for r in db.execute('SELECT calendar_id FROM match_results WHERE played=1')}
+            own=[r for r in calendar if team in r[1:3]]
+            pending=[r[0] for r in own if r[0] not in played]
+            completed={r[0] for r in own if r[0] in played}
+            expected=pending[:results.MAX_PENDING]
+            actual=[r['nativeFixtureId'] for r in item['pendingFixtures']]
+            if actual!=expected or item['pendingTruncated']!=(len(pending)>results.MAX_PENDING):
+                raise RuntimeError('Native calendar pending fixture mismatch')
+            actual_completed={r['nativeFixtureId'] for r in item['results']}
+            if not actual_completed.issubset(completed) or (not item['truncated'] and actual_completed!=completed):
+                raise RuntimeError('Native calendar completed fixture mismatch')
+            if set(actual)&actual_completed:
+                raise RuntimeError('Played fixture incorrectly shown as pending')
+            checked.append(dict(managedTeam=name,ownFixtures=len(own),pending=len(pending),completed=len(completed)))
+    if not checked or not any(x['pending'] for x in checked):
+        raise RuntimeError('Native test generated no pending fixtures')
+    return checked
+
+
 def main():
     env=e.clean_env(os.environ)
     work=e.cache_root()/e.REVISION
@@ -85,6 +114,7 @@ def main():
             report=results.collect(second,e.REVISION,0)
             if not report['saves'] or report['skippedSaves']:
                 raise RuntimeError('Native league result reader failed')
+            calendar_checks=verify_calendar(restored,report)
             if save_manifest(restored)!=original:
                 raise RuntimeError('Read-only native save inspection changed bytes')
             if saves.commit(store,second,1) or saves.current_snapshot(store)!=snapshot:
@@ -94,6 +124,7 @@ def main():
                  snapshotByteExact=True,restoredByteExact=True,sqliteIntegrityPassed=True,
                  failedExitPreservedSnapshot=True,readOnlyResultsVerified=True,
                  savedFiles=len(original),nativeLeagueDatabases=before,
+                 nativeCalendarVerified=True,nativeCalendarChecks=calendar_checks,
                  nativeMenuReopenVerified=False,productionConfigChanged=False),
                  indent=2),flush=True)
             # The previous immutable snapshot stays untouched even if native reload writes autosave.
@@ -104,6 +135,7 @@ def main():
              snapshotByteExact=True,restoredByteExact=True,sqliteIntegrityPassed=True,
              failedExitPreservedSnapshot=True,readOnlyResultsVerified=True,
              savedFiles=len(original),nativeLeagueDatabases=before,
+                 nativeCalendarVerified=True,nativeCalendarChecks=calendar_checks,
              nativeMenuReopenVerified=True,productionConfigChanged=False),indent=2))
     e.verify_install(work,env)
 
