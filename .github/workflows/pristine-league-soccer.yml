@@ -17,6 +17,8 @@ on:
       - 'original_tactic_mapping.py'
       - 'original_fixture_gate.py'
       - 'original_fixture_dispatch.py'
+      - 'original_verified_result_ledger.py'
+      - 'tests/test_original_verified_result_ledger.py'
       - 'original_scheduled_kickoff_probe.py'
       - 'tests/test_original_scheduled_kickoff_probe.py'
       - 'tests/test_original_fixture_dispatch.py'
@@ -116,6 +118,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_original_tactic_mapping.py -v
           python3 -m unittest discover -s tests -p test_original_fixture_gate.py -v
           python3 -m unittest discover -s tests -p test_original_fixture_dispatch.py -v
+          python3 -m unittest discover -s tests -p test_original_verified_result_ledger.py -v
           python3 -m unittest discover -s tests -p test_original_scheduled_kickoff_probe.py -v
           python3 -m unittest discover -s tests -p test_original_roster_import.py -v
           python3 -m unittest discover -s tests -p test_original_skill_mapping.py -v
