@@ -81,6 +81,29 @@ def summarize_teams(records):
                 excludedSameNameMatches=excluded,teams=sorted(totals.values(),key=lambda x:x['teamName']))
 
 
+def recent_team_matches(records):
+    """Up to five valid matches per exact name, oldest first for charts."""
+    teams={}
+    for record in records:
+        home,away=record['homeTeam'],record['awayTeam']
+        if home==away:
+            continue
+        goals=(record['homeGoals'],record['awayGoals'])
+        for side,name in enumerate((home,away)):
+            series=teams.setdefault(name,[])
+            if len(series)>=5:
+                continue
+            other=1-side
+            series.append(dict(opponent=(home,away)[other],home=side==0,
+                goalsFor=goals[side],goalsAgainst=goals[other],
+                shots=record['shots'][side],shotsAgainst=record['shots'][other],
+                shotsOnTarget=record['shotsOnTarget'][side],
+                shotsOnTargetAgainst=record['shotsOnTarget'][other],
+                possessionPct=record['possessionPct'][side],
+                passAccuracyPct=record['passAccuracyPct'][side]))
+    return [dict(teamName=name,matches=list(reversed(teams[name]))) for name in sorted(teams)]
+
+
 def read_recent(path):
     rows=read_rows(Path(path),MAX_HISTORY+1)
     records=[]
@@ -93,7 +116,7 @@ def read_recent(path):
     return dict(source='native-3d-match-history',scope='last-closed-session',
                 linkedToLeagueFixtures=False,readOnly=True,records=records,
                 skipped=skipped,truncated=len(rows)>MAX_HISTORY,
-                teamPerformance=summarize_teams(records))
+                teamPerformance=summarize_teams(records),teamTrends=recent_team_matches(records))
 
 
 def read_single(path):
