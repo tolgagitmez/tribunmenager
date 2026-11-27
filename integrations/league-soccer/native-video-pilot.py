@@ -74,6 +74,8 @@ def _capture_window(config,limit,audio_env):
     sink_input=False;next_audio_probe=0.0;audio_probes={};child_env=audio_env or os.environ.copy()
     extended=os.environ.get("TRIBUN_NATIVE_EXTENDED_CAPTURE","0")=="1"
     observations=[]; encoder_launch=None; encoder_stop=None
+    epoch_origin=None
+    epoch_mode=extended and os.environ.get('TRIBUN_NATIVE_CAPTURE_EPOCH')=='1'
     gl_workers=os.environ.get("TRIBUN_AV_GL_WORKERS","2")
     swap_enabled=os.environ.get("TRIBUN_AV_SWAP_PROBE","0")
     require(gl_workers in ("1","2") and swap_enabled in ("0","1"),"Invalid render diagnostic")
@@ -141,10 +143,20 @@ def _capture_window(config,limit,audio_env):
             filter_args=[] if filter_threads=="0" else ["-filter_threads","1"]
             if not hls:
                 encode_args=["-vf","scale=trunc(iw/2)*2:trunc(ih/2)*2","-c:v","libx264","-threads","2","-preset","ultrafast","-crf","25","-pix_fmt","yuv420p"]
+            epoch_input=[]; epoch_global=[]; epoch_output=[]
+            if epoch_mode:
+                require(not hls and audio_env is not None,"Epoch clock requires private MP4/audio")
+                epoch_origin=int(time.time())-1
+                epoch_input=["-use_wallclock_as_timestamps","1"]
+                epoch_global=["-copyts"]
+                epoch_output=["-vsync","0","-avoid_negative_ts","disabled",
+                              "-af",f"asetpts=PTS-{epoch_origin}/TB"]
+                audio_args=epoch_input+audio_args
+                encode_args[encode_args.index("-vf")+1]+=f",setpts=PTS-{epoch_origin}/TB"
             encoder_launch=time.monotonic()
-            encoder=subprocess.Popen(["ffmpeg","-nostdin","-hide_banner","-loglevel","warning","-y",*init_args,"-thread_queue_size","512","-f","x11grab",
+            encoder=subprocess.Popen(["ffmpeg","-nostdin","-hide_banner","-loglevel","warning","-y",*epoch_global,*init_args,"-thread_queue_size","512",*epoch_input,"-f","x11grab",
               "-draw_mouse","0","-framerate","25","-window_id",window,"-i",os.environ["DISPLAY"],
-              *audio_args,*filter_args,*encode_args,"-progress",str(progress),*output_args],stdout=e,stderr=subprocess.STDOUT,env=child_env)
+              *audio_args,*filter_args,*encode_args,*epoch_output,"-progress",str(progress),*output_args],stdout=e,stderr=subprocess.STDOUT,env=child_env)
             def drain():
                 nonlocal offset,kickoff,final,last,first
                 if first is None and progress.exists():
@@ -184,6 +196,7 @@ def _capture_window(config,limit,audio_env):
                 save(video.with_suffix(".clock-observations.json"),{
                     "encoderLaunchMonotonic":encoder_launch,
                     "encoderStopRequestedMonotonic":encoder_stop,
+                    "mediaEpochOriginSeconds":epoch_origin,
                     "samples":observations,
                     "scope":"Trace polling and encoder process observations, NOT exact media PTS alignment."})
     logs=game_log.read_text(errors="replace");print(logs[-16000:] if extended else logs)
