@@ -117,6 +117,31 @@ def frames(video):
             proc.kill();proc.wait()
 
 
+def audio_packet_audit(packets, first_pts, last_pts):
+    previous_end=None
+    max_gap=0.0
+    count=0
+    first=None
+    for p in packets:
+        pts=float(p['pts_time'])
+        duration=float(p['duration_time'])
+        require(math.isfinite(pts) and math.isfinite(duration) and 0<duration<=.1,
+                'Invalid AAC packet timing')
+        end=pts+duration
+        if end<first_pts or pts>last_pts:
+            continue
+        if first is None:
+            first=pts
+        if previous_end is not None:
+            require(pts>=previous_end-.003,'Audio timestamps overlap or reverse')
+            max_gap=max(max_gap,pts-previous_end)
+        previous_end=end
+        count+=1
+    passed=(count>0 and first<=first_pts+.05 and previous_end>=last_pts-.05 and max_gap<=.05)
+    return dict(packetCount=count,maxGapMs=round(max_gap*1000,3),
+                continuityPassed=passed,scope='AAC packet PTS continuity only; no sound-event alignment proof.')
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('video','markers','alignment','output'):
@@ -126,9 +151,13 @@ def main():
     require(m.get('candidateMappingPassed') is True,'Shared epoch candidate did not pass')
     result=audit_frames(frames(a.video),read_markers(a.markers),m['mediaEpochOriginSeconds'],
                        m['kickoffCandidatePtsSeconds'],m['fullTimeCandidatePtsSeconds'])
+    audio=json.loads(subprocess.check_output(['ffprobe','-v','error','-select_streams','a:0',
+        '-show_packets','-show_entries','packet=pts_time,duration_time','-of','json',str(a.video)]))
+    result['audioPacketContinuity']=audio_packet_audit(audio['packets'],
+        m['kickoffCandidatePtsSeconds'],m['fullTimeCandidatePtsSeconds'])
     a.output.write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result,indent=2))
-    return 0 if result['visualCalibrationPassed'] else 2
+    return 0 if result['visualCalibrationPassed'] and result['audioPacketContinuity']['continuityPassed'] else 2
 
 
 if __name__=='__main__':
