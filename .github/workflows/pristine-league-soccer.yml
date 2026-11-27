@@ -7,6 +7,7 @@ on:
       - 'original_saves.py'
       - 'original_native_saves_probe.py'
       - 'original_full_league_validation.py'
+      - 'original_match_history.py'
       - 'tests/test_original_full_league_validation.py'
       - 'original_native_reload_probe.py'
       - 'tests/test_original_saves.py'
