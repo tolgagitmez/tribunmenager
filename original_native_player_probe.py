@@ -71,7 +71,10 @@ def parse_log(text):
     prefix='TRIBUN_NATIVE_PLAYER_SNAPSHOT '
     lines=[line[len(prefix):] for line in text.splitlines() if line.startswith(prefix)]
     if len(lines)!=1 or 'TRIBUN_NATIVE_PLAYER_ERROR ' in text:
-        raise ValueError('Expected exactly one successful final debugger snapshot')
+        diagnostic=[line[:600] for line in text.splitlines() if any(marker in line for marker in (
+            'TRIBUN_NATIVE_PLAYER_ERROR','Python Exception','Traceback','Error in sourced command file',
+            'Function "','not defined','No symbol','optimized out','Cannot access memory','auto-load','Breakpoint'))][-20:]
+        raise ValueError('Expected exactly one successful final debugger snapshot; records='+str(len(lines))+'; diagnostics='+json.dumps(diagnostic))
     return json.loads(lines[0])
 
 def run(output, timeline=False, assists=False):
@@ -87,7 +90,7 @@ def run(output, timeline=False, assists=False):
         build=Path(tmp)/'build'
         # Separate build with upstream's normal CMake configuration; no source
         # changes. A debugger stop and different build preclude FPS evidence.
-        e.call(['cmake','-S',source,'-B',build,'-DCMAKE_BUILD_TYPE=RelWithDebInfo','-DBUILD_TESTING=OFF'],env)
+        e.call(['cmake','-S',source,'-B',build,'-DCMAKE_BUILD_TYPE=RelWithDebInfo','-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-Og -g -fno-inline','-DBUILD_TESTING=OFF'],env)
         e.call(['cmake','--build',build,'--parallel','2'],env)
         e.check_source(source,env)
         e.check_config(source,build)
@@ -108,6 +111,10 @@ def run(output, timeline=False, assists=False):
             if result.returncode:
                 raise RuntimeError('Debug smoke failed: '+log.read()[-6000:].decode(errors='replace'))
             text=log.read().decode(errors='replace')
+        # Preserve the bounded debugger log even if parsing or cross-checks fail.
+        diagnostic_path=output.with_name(output.stem+'-debugger.log')
+        with diagnostic_path.open('x') as debug_log:
+            debug_log.write(text[-2_000_000:])
         if '[menu-smoke] Full-match verification succeeded, quitting test run' not in text:
             raise RuntimeError('Missing native full-match completion marker')
         history=read_single(session/HISTORY_PATH)
