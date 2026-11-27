@@ -147,3 +147,52 @@ class FullLeagueValidationTests(unittest.TestCase):
         self.assertEqual([m['opponent'] for m in club],['Opponent '+str(i) for i in range(3,8)])
         self.assertEqual(len(teams['Opponent 1']),1)
         self.assertEqual(recent_team_matches([]),[])
+
+
+    def test_restored_fixture_requires_one_new_exact_result_and_fresh_full_history(self):
+        from original_full_league_validation import completed_own,verify_restored_fixture
+        from original_fixture_gate import next_native_fixture
+        with tempfile.TemporaryDirectory() as tmp:
+            session=Path(tmp)
+            league=session/'saves'/'test'
+            league.mkdir(parents=True)
+            dbpath=league/'autosave.sqlite'
+            fixture(dbpath)
+            expected=next_native_fixture(dbpath)
+            before=completed_own(dbpath)
+            history=session/'data/saves/match_history.sqlite'
+            history.parent.mkdir(parents=True)
+            with sqlite3.connect(history) as db:
+                db.executescript("""
+                CREATE TABLE match_history(id INTEGER PRIMARY KEY,team1_name TEXT,team2_name TEXT,
+                    score1 INTEGER,score2 INTEGER,match_time_ms INTEGER,shots1 INTEGER,shots2 INTEGER,
+                    shots_on_target1 INTEGER,shots_on_target2 INTEGER,
+                    possession1_pct REAL,possession2_pct REAL,passes1 INTEGER,passes2 INTEGER,
+                    passes_completed1 INTEGER,passes_completed2 INTEGER,fouls1 INTEGER,fouls2 INTEGER);
+                INSERT INTO match_history VALUES(1,'Away','Home',1,3,5400000,6,4,3,2,54.5,45.5,100,80,84,60,2,3);
+                """)
+            with self.assertRaisesRegex(ValueError,'exactly the reserved'):
+                verify_restored_fixture(session,expected,before)
+            with sqlite3.connect(dbpath) as db:
+                db.execute('UPDATE match_results SET played=1,team1_goals=1,team2_goals=3 WHERE calendar_id=12')
+            saved_bytes=dbpath.read_bytes(),history.read_bytes()
+            report=verify_restored_fixture(session,expected,before)
+            self.assertTrue(report['reservedFixtureResultVerified'])
+            self.assertEqual(report['previousOwnResultsPreserved'],1)
+            self.assertEqual(report['expectedFixture']['nativeFixtureId'],12)
+            self.assertFalse(report['automaticLeagueImport'])
+            self.assertEqual((dbpath.read_bytes(),history.read_bytes()),saved_bytes)
+            with sqlite3.connect(history) as db:
+                db.execute('UPDATE match_history SET match_time_ms=10000')
+            with self.assertRaisesRegex(ValueError,'full regulation'):
+                verify_restored_fixture(session,expected,before)
+            with sqlite3.connect(history) as db:
+                db.execute('UPDATE match_history SET match_time_ms=5400000,score1=2')
+            with self.assertRaisesRegex(ValueError,'does not match reserved'):
+                verify_restored_fixture(session,expected,before)
+            with sqlite3.connect(history) as db:
+                db.execute('UPDATE match_history SET score1=1')
+            with sqlite3.connect(dbpath) as db:
+                db.execute('UPDATE match_results SET team1_goals=5 WHERE calendar_id=10')
+            with self.assertRaisesRegex(ValueError,'Previously completed'):
+                verify_restored_fixture(session,expected,before)
