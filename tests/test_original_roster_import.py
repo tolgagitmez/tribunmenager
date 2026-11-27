@@ -38,3 +38,33 @@ class RosterImportTests(unittest.TestCase):
                     mapping['assignments'].pop()
                 with self.assertRaises(ValueError):
                     prepare_rows(snapshot,mapping)
+
+
+    def test_unique_exact_name_suggestions_never_replace_unmatched_players(self):
+        from original_roster_import import suggest_mapping
+        snapshot,_=self.fixture()
+        team=dict(id=1,players=[dict(id=i+100,name=f'web player {i}') for i in range(12)],
+                  formation=[dict(slot=i+1,role='CM') for i in range(11)],truncated=False)
+        result=suggest_mapping(snapshot,team)
+        self.assertTrue(result['complete'])
+        self.assertTrue(result['requiresReview'])
+        self.assertFalse(result['nativeApplied'])
+        self.assertEqual(result['mapping']['nativeSlotOrder'],list(range(11)))
+        self.assertEqual(result['mapping']['assignments'][0]['nativePlayerId'],100)
+        team['players'][0]['name']='Other player'
+        incomplete=suggest_mapping(snapshot,team)
+        self.assertFalse(incomplete['complete'])
+        self.assertEqual(incomplete['unresolved'][0]['reason'],'ambiguous-or-missing-name')
+        self.assertIn(None,incomplete['mapping']['nativeSlotOrder'])
+        self.assertNotIn(100,[r['nativePlayerId'] for r in incomplete['mapping']['assignments']])
+
+    def test_duplicate_names_and_incompatible_formation_block_suggestions(self):
+        from original_roster_import import suggest_mapping
+        snapshot,_=self.fixture()
+        team=dict(id=1,players=[dict(id=i+100,name=f'Web Player {i}') for i in range(12)],
+                  formation=[dict(slot=i+1,role='CM') for i in range(11)],truncated=False)
+        team['formation'][0]['role']='GK'
+        self.assertFalse(suggest_mapping(snapshot,team)['complete'])
+        team['formation'][0]['role']='CM'
+        team['players'][1]['name']=team['players'][0]['name']
+        self.assertFalse(suggest_mapping(snapshot,team)['complete'])
