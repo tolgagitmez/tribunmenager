@@ -8,6 +8,8 @@ on:
       - 'original_native_saves_probe.py'
       - 'original_full_league_validation.py'
       - 'original_native_finish_gate.py'
+      - 'original_halftime_gate.py'
+      - 'tests/test_original_halftime_gate.py'
       - 'original_custom_database_probe.py'
       - 'original_roster_pack.py'
       - 'original_tactic_mapping.py'
@@ -105,6 +107,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_original_session.py -v
           python3 -m unittest discover -s tests -p test_original_results.py -v
           python3 -m unittest discover -s tests -p test_original_full_league_validation.py -v
+          python3 -m unittest discover -s tests -p test_original_halftime_gate.py -v
           python3 -m unittest discover -s tests -p test_original_custom_database_probe.py -v
           python3 -m unittest discover -s tests -p test_original_roster_pack.py -v
           python3 -m unittest discover -s tests -p test_original_tactic_mapping.py -v
