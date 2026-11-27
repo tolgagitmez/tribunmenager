@@ -1,3 +1,21 @@
+# Orijinal League-Soccer masaüstü modu
+
+Bu mod motorun sabitlenmiş upstream sürümünü (087414cde936c3e26ed0b8c244d9d85425ec5657) hiçbir Tribün Manager oynanış yaması olmadan derler. Linux veya grafik oturumu olan WSL için hazırlanmıştır. Git, Python 3.10+, CMake ve [upstream Linux derleme bağımlılıkları](https://github.com/awest813/League-Soccer/blob/087414cde936c3e26ed0b8c244d9d85425ec5657/scripts/setup_linux_deps.sh) önceden kurulu olmalıdır.
+
+```sh
+sh BASLAT_ORIJINAL.sh
+# veya:
+python3 start.py --mode original
+# sadece kur/derle:
+python3 start.py --mode original --original-build-only
+```
+
+İlk açılış ağ bağlantısı ve derleme gerektirir. Kaynak ve derlenmiş dosyalar web kökü dışında, kullanıcının ev dizinindeki `~/.cache/tribun-manager-original/` altında tutulur. Başlatıcı kaynak revizyonunu, temiz Git ağacını ve çalışma dosyalarının hash'lerini doğrular; her açılışta özel bir çalışma kopyası kullanır. Motor kendi varsayılan `football.config` dosyasıyla, argümansız açılır. Motorun kendisinin oturum sırasında değiştirdiği çalışma kopyası ayarları sonraki oturuma taşınmaz.
+
+Bu yol ayrı bir native masaüstü oyunudur: Tribün Manager web menajerlik arayüzünden kadro/taktik aktarımı, otomatik maç sonucu kaydı ve 30→5 dakika yayın bağlantısı henüz yoktur. Mevcut web başlatıcısı ve lig işlevleri bu geçişte değiştirilmemiştir. Orijinal kaynaklar ve lisanslar yerel upstream checkout içinde saklanır; bu değişiklik motoru veya varlıklarını yeniden dağıtmaz.
+
+---
+
 # Tribün Manager kurulumu
 
 Yerel futbol simülasyonu için **Python 3.10 veya üzeri** ve güncel Chrome, Edge veya Firefox yeterlidir. Oynamak için Node.js, npm veya Python paketi kurman gerekmez. İnternet bağlantısı olmadan yerel maç oynanabilir; bazı isteğe bağlı font ve görseller yüklenmeyebilir.
