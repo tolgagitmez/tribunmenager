@@ -12,7 +12,9 @@ python3 start.py --mode original --original-build-only
 
 İlk açılış ağ bağlantısı ve derleme gerektirir. Kaynak ve derlenmiş dosyalar web kökü dışında, kullanıcının ev dizinindeki `~/.cache/tribun-manager-original/` altında tutulur. Başlatıcı kaynak revizyonunu, temiz Git ağacını ve çalışma dosyalarının hash'lerini doğrular; her açılışta özel bir çalışma kopyası kullanır. Motor kendi varsayılan `football.config` dosyasıyla, argümansız açılır. Motorun kendisinin oturum sırasında değiştirdiği çalışma kopyası ayarları sonraki oturuma taşınmaz.
 
-Bu yol ayrı bir native masaüstü oyunudur: Tribün Manager web menajerlik arayüzünden kadro/taktik aktarımı, otomatik maç sonucu kaydı ve 30→5 dakika yayın bağlantısı henüz yoktur. Mevcut web başlatıcısı ve lig işlevleri bu geçişte değiştirilmemiştir. Orijinal kaynaklar ve lisanslar yerel upstream checkout içinde saklanır; bu değişiklik motoru veya varlıklarını yeniden dağıtmaz.
+Motor kurulduktan sonra `sh BASLAT.sh` ile varsayılan yerel web sunucusunu aç; kulüp merkezindeki **Orijinal motor** bağlantısından motoru başlat. Bu bağlantı yalnızca 127.0.0.1 üzerinde çalışan yerel sunucuda ve aynı kaynak isteğinde çalışır. Tarayıcı kurulum yapmaz; bütünlük doğrulaması ve motorun başlatılması terminaldeki süreçte gerçekleşir. Çift başlatma engeli aynı yerel sunucu oturumu için geçerlidir.
+
+Bu yol ayrı bir native masaüstü oyunudur: Tribün Manager web menajerlik arayüzünden kadro/taktik aktarımı, otomatik maç sonucu kaydı ve 30→5 dakika yayın bağlantısı henüz yoktur. Mevcut web maç rotası ve lig işlevleri değiştirilmemiştir; orijinal motor ayrı bir bağlantıdan açılır. Orijinal kaynaklar ve lisanslar yerel upstream checkout içinde saklanır; bu değişiklik motoru veya varlıklarını yeniden dağıtmaz.
 
 ---
 
