@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'original_engine.py'
+      - 'original_saves.py'
+      - 'tests/test_original_saves.py'
       - 'original_session.py'
       - 'original_results.py'
       - 'original_catalog.py'
@@ -40,6 +42,7 @@ jobs:
       - name: Launcher and isolation tests
         run: |
           python3 -m unittest discover -s tests -p test_original_engine.py -v
+          python3 -m unittest discover -s tests -p test_original_saves.py -v
           python3 -m unittest discover -s tests -p test_original_session.py -v
           python3 -m unittest discover -s tests -p test_original_results.py -v
           python3 -m unittest discover -s tests -p test_original_catalog.py -v
