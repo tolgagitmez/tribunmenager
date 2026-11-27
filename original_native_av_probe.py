@@ -102,7 +102,7 @@ def full_native_capture(work,session,output,env,display,game_log,encoder_log):
                     raise RuntimeError('Native full browser playback failed')
                 browser_log.seek(0)
                 evidence=json.loads(browser_log.read().decode())
-                if not evidence.get('nativeFullStreamPlaybackVerified'):
+                if not evidence.get('nativeFullStreamBrowserEnded'):
                     raise RuntimeError('Missing native browser end evidence')
                 paths=[output/f'segment-{i:06d}.m4s' for i in range(count)]
                 hashes=[hashlib.sha256(read_published_file(path,MAX_SEGMENT_BYTES)[0]).hexdigest()
@@ -113,6 +113,18 @@ def full_native_capture(work,session,output,env,display,game_log,encoder_log):
                 timeline=audit_packet_timeline((read_segment(path)[0] for path in paths),fps=30)
                 if not timeline['encodedTimelineVerified']:
                     raise RuntimeError('Native full encoded timeline failed: '+json.dumps(timeline))
+                endpoint_errors=[]
+                for viewer in evidence['results']:
+                    # Compare presented video PTS to independently decoded last
+                    # video endpoint, not the browser's combined A/V duration.
+                    end_error=timeline['lastVideoEnd']-viewer['lastMediaTime']
+                    if not math.isfinite(end_error) or not -0.05<=end_error<=0.15:
+                        raise RuntimeError('Native final video frame missing: '+json.dumps(dict(
+                            lastVideoEnd=timeline['lastVideoEnd'],lastAudioEnd=timeline['lastAudioEnd'],
+                            lastPresented=viewer['lastMediaTime'],mediaDuration=viewer['mediaDuration'],
+                            differenceSeconds=end_error)))
+                    endpoint_errors.append(round(end_error*1000,3))
+                evidence.update(nativeFullStreamPlaybackVerified=True,videoEndpointDifferencesMs=endpoint_errors)
                 native_span=intervals[-1][1]-intervals[0][0]
                 video_span=timeline['lastVideoEnd']-timeline['firstVideoPts']
                 if video_span<native_span or abs(video_span-(capture_end-capture_begin))>5:
