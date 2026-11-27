@@ -83,6 +83,44 @@ class OriginalEngineTests(unittest.TestCase):
                 self.assertEqual(engine.launch(build,{'DISPLAY':':0'}),0)
             self.assertEqual((build/'football.config').read_text(),'original')
 
+    def test_launcher_restores_only_native_saves_and_keeps_last_clean_exit(self):
+        from original_saves import current_snapshot
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp)
+            build=base/'build'
+            build.mkdir()
+            store=base/'store'
+            for name in engine.RUNTIME:
+                p=build/name
+                if name in ('gameplayfootball','football.config'):
+                    p.write_text('original')
+                else:
+                    p.mkdir()
+            calls=[]
+            def run(args,*,cwd,env):
+                self.assertEqual(args,[str(cwd/'gameplayfootball')])
+                self.assertEqual((cwd/'football.config').read_text(),'original')
+                self.assertEqual(env,{'DISPLAY':':0'})
+                save=cwd/'saves/league/autosave.sqlite'
+                if not calls:
+                    save.parent.mkdir(parents=True)
+                    save.write_bytes(b'first native save')
+                else:
+                    self.assertEqual(save.read_bytes(),b'first native save')
+                    save.write_bytes(b'uncommitted changes')
+                (cwd/'football.config').write_text('session-only settings')
+                calls.append(cwd)
+                return type('Result',(),{'returncode':0 if len(calls)==1 else 1})()
+            with patch('original_engine.subprocess.run',side_effect=run):
+                self.assertEqual(engine.launch(build,{'DISPLAY':':0'},save_root=store),0)
+                previous=current_snapshot(store)
+                self.assertEqual(engine.launch(build,{'DISPLAY':':0'},save_root=store),1)
+                self.assertEqual(current_snapshot(store),previous)
+            self.assertNotEqual(calls[0],calls[1])
+            self.assertEqual((previous/'league/autosave.sqlite').read_bytes(),b'first native save')
+            self.assertFalse((previous/'football.config').exists())
+            self.assertEqual((build/'football.config').read_text(),'original')
+
 
 if __name__=='__main__':
     unittest.main()
