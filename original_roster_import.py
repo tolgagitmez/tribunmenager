@@ -76,17 +76,92 @@ def prepare_rows(snapshot,mapping):
     return rows,order
 
 
+def suggest_mapping(snapshot,team):
+    """Propose only unique exact name matches and compatible existing slots.
+    No fuzzy identity guessing, no arbitrary native player substitution.
+    """
+    from original_roster_pack import NATIVE_ROLES,ROLE_OPTIONS
+    from collections import Counter,defaultdict
+    players=snapshot.get('players') if isinstance(snapshot,dict) else None
+    if (not isinstance(snapshot,dict) or snapshot.get('schema')!=1 or
+        snapshot.get('source')!='saved-web-roster' or snapshot.get('nativeApplied') is not False or
+        not isinstance(players,list) or not 11<=len(players)<=128):
+        raise ValueError('Valid saved roster export required')
+    native=team['players']
+    if team.get('truncated'):
+        raise ValueError('Native roster is truncated')
+    # Unicode casefold plus whitespace only; accents remain significant.
+    norm=lambda s:' '.join(s.split()).casefold()
+    groups=defaultdict(list)
+    for p in native:
+        groups[norm(p['name'])].append(p)
+    counts=Counter(norm(p['name']) for p in players)
+    assignments=[]
+    blocked=[]
+    starter_groups=defaultdict(list)
+    seen=set()
+    for p in players:
+        idx=p.get('localIndex')
+        if type(idx) is not int or idx<0 or idx in seen:
+            raise ValueError('Duplicate or invalid web index')
+        seen.add(idx)
+        source=p.get('webRole')
+        choices={source} if isinstance(source,str) and source in NATIVE_ROLES else ROLE_OPTIONS.get(source,set()) if isinstance(source,str) else set()
+        matches=groups.get(norm(p['name']),[])
+        if counts[norm(p['name'])]!=1 or len(matches)!=1 or len(choices)!=1:
+            blocked.append(dict(localIndex=idx,name=p['name'],reason='ambiguous-or-missing-name' if counts[norm(p['name'])]!=1 or len(matches)!=1 else 'unsupported-role'))
+            continue
+        role=next(iter(choices))
+        name=p['name'].split()
+        first,last=' '.join(name[:-1]),name[-1]
+        if len(first)>64 or len(last)>64:
+            blocked.append(dict(localIndex=idx,name=p['name'],reason='name-too-long'))
+            continue
+        assignments.append(dict(localIndex=idx,nativePlayerId=matches[0]['id'],firstName=first,lastName=last,nativeRole=role))
+        if p.get('starterSlot') is not None:
+            starter_groups[role].append((p['starterSlot'],idx))
+    slots=team['formation']
+    order=[]
+    for slot in slots:
+        candidates=starter_groups[slot['role']]
+        candidates.sort()
+        if candidates:
+            order.append(candidates.pop(0)[1])
+        else:
+            order.append(None)
+    complete=(len(assignments)==len(players)==len(native) and len(order)==11 and
+              all(i is not None for i in order) and not any(starter_groups.values()))
+    mapping=dict(schema=1,teamId=team['id'],nativeSlotOrder=order,assignments=assignments)
+    if complete:
+        prepare_rows(snapshot,mapping)
+    return dict(mapping=mapping,complete=complete,requiresReview=True,unresolved=blocked,
+                nativeSlotRoles=[s['role'] for s in slots],nativePlayerCount=len(native),
+                webPlayerCount=len(players),nativeApplied=False)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('snapshot',type=Path)
     parser.add_argument('mapping',type=Path,nargs='?')
     parser.add_argument('--inspect-team',type=int)
+    parser.add_argument('--suggest-team',type=int)
     args=parser.parse_args()
     snapshot=read_json(args.snapshot)
     env=engine.clean_env(os.environ)
     work=engine.cache_root()/engine.REVISION
     build=engine.verify_install(work,env)
     default=build/'databases/default/database.sqlite'
+    if args.suggest_team is not None:
+        if args.mapping is not None or args.inspect_team is not None:
+            parser.error('Choose one operation')
+        proposal=suggest_mapping(snapshot,catalog(default,args.suggest_team))
+        if proposal['complete']:
+            rows,order=prepare_rows(snapshot,proposal['mapping'])
+            with closing(connect(default)) as db:
+                validate_mapping(db,args.suggest_team,rows)
+                validate_lineup(db,args.suggest_team,rows,order)
+        print(json.dumps(proposal,ensure_ascii=False,indent=2))
+        return
     if args.inspect_team is not None:
         if args.mapping is not None:
             parser.error('Choose inspection or a reviewed mapping, not both')
