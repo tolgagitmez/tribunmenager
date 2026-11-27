@@ -90,6 +90,12 @@ def main():
             if saves.commit(store,second,1) or saves.current_snapshot(store)!=snapshot:
                 raise RuntimeError('Failed exit replaced previous save')
             e.check_config(work/'source',second)
+            print(json.dumps(dict(revision=e.REVISION,nativeLeagueSaveCreated=True,
+                 snapshotByteExact=True,restoredByteExact=True,sqliteIntegrityPassed=True,
+                 failedExitPreservedSnapshot=True,readOnlyResultsVerified=True,
+                 savedFiles=len(original),nativeLeagueDatabases=before,
+                 nativeMenuReopenVerified=False,productionConfigChanged=False),
+                 indent=2),flush=True)
             # The previous immutable snapshot stays untouched even if native reload writes autosave.
             e.call([sys.executable,Path(__file__).resolve().with_name('original_native_reload_probe.py'),second],env)
             if save_manifest(snapshot)!=original:
