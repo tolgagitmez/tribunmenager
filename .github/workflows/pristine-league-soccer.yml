@@ -71,7 +71,7 @@ permissions:
 jobs:
   original:
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - name: Launcher and isolation tests
@@ -241,6 +241,16 @@ jobs:
           name: five-minute-hls-evidence
           if-no-files-found: ignore
           path: ${{ runner.temp }}/five-minute-hls.log
+      - name: Verify original native full smoke HD stream through two browsers
+        run: |
+          set -o pipefail
+          python3 original_native_av_probe.py --native-full 2>&1 | tee "$RUNNER_TEMP/native-full-hls.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-full-hls-evidence
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-full-hls.log
       - name: Verify custom source selection in actual native menus
         id: custom_source
         continue-on-error: true
