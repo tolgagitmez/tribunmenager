@@ -23,6 +23,8 @@ on:
       - 'original_native_player_gdb.py'
       - 'original_native_player_probe.py'
       - 'original_native_player_timeline.py'
+      - 'original_native_assist_candidates.py'
+      - 'tests/test_original_native_assist_candidates.py'
       - 'tests/test_original_native_player_timeline.py'
       - 'tests/test_original_native_player_probe.py'
       - 'tests/test_original_player_evidence.py'
@@ -384,6 +386,7 @@ jobs:
           python3 -m py_compile original_native_player_gdb.py original_native_player_probe.py
           python3 -m unittest discover -s tests -p test_original_native_player_probe.py -v
           python3 -m unittest discover -s tests -p test_original_native_player_timeline.py -v
+          python3 -m unittest discover -s tests -p test_original_native_assist_candidates.py -v
       - name: Install native build and debugger dependencies
         run: |
           sudo apt-get update
@@ -391,7 +394,7 @@ jobs:
       - name: Build and verify unchanged release package
         run: python3 start.py --mode original --original-build-only
       - name: Observe final player fields in separate symbol build
-        run: python3 original_native_player_probe.py "$RUNNER_TEMP/native-player-observation.json" --timeline
+        run: python3 original_native_player_probe.py "$RUNNER_TEMP/native-player-observation.json" --timeline --assists
       - uses: actions/upload-artifact@v4
         if: always()
         with:
