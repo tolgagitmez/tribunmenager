@@ -37,43 +37,56 @@ def claim_fixture(root,save_name,fixture,reviewed,now=None):
         raise ValueError('Invalid web fixture identity')
     now=time.time() if now is None else now
     with locked_store(root) as root:
-        snapshot=current_snapshot(root)
-        if snapshot is None:
-            return dict(claimed=False,reason='no-closed-native-save',automaticLaunch=False)
-        folder=snapshot/save_name
-        path=folder/'autosave.sqlite'
-        if folder.is_symlink() or not folder.is_dir():
-            raise ValueError('Native save folder unavailable')
-        if reviewed.get('snapshotId')!=snapshot.name or reviewed.get('saveName')!=save_name:
-            return dict(claimed=False,reason='stale-reviewed-snapshot',automaticLaunch=False)
-        before=digest(path)
-        if reviewed.get('saveSha256')!=before:
-            return dict(claimed=False,reason='stale-reviewed-save',automaticLaunch=False)
-        native=next_native_fixture(path)
-        gate=eligibility(fixture,reviewed,native,now)
-        if not gate['eligible']:
-            return dict(claimed=False,reason=gate['reason'],automaticLaunch=False)
-        if digest(path)!=before:
-            raise RuntimeError('Native save changed before claim')
-        # Use the web fixture identity without kickoff: rescheduling must not
-        # create a second claim for the same league/round/home/away.
-        identity=json.dumps([fixture[k] for k in WEB_FIELDS[:-1]],ensure_ascii=False,separators=(',',':'))
-        key=hashlib.sha256(identity.encode()).hexdigest()
-        payload=json.dumps({k:reviewed[k] for k in WEB_FIELDS+NATIVE_FIELDS},ensure_ascii=False,sort_keys=True)
-        ledger=root/'fixture-dispatch.sqlite3'
-        if ledger.is_symlink() or ledger.exists() and not ledger.is_file():
-            raise ValueError('Invalid external dispatch ledger')
-        fd=os.open(ledger,os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
-        os.close(fd)
-        with closing(sqlite3.connect(ledger)) as db:
-            with db:
-                db.execute('''CREATE TABLE IF NOT EXISTS claims(
-                    key TEXT PRIMARY KEY, mapping TEXT NOT NULL,
-                    snapshot TEXT NOT NULL, save_name TEXT NOT NULL,
-                    save_sha256 TEXT NOT NULL, claimed_at REAL NOT NULL)''')
-                result=db.execute('INSERT OR IGNORE INTO claims VALUES(?,?,?,?,?,?)',
-                    (key,payload,snapshot.name,save_name,before,now))
-                created=result.rowcount==1
-        return dict(claimed=created,reason='reserved-for-review' if created else 'already-reserved',
-                    fixtureKey=key,automaticLaunch=False,scoreWritten=False,
-                    requiresReconciliation=True)
+        return claim_locked(root,save_name,fixture,reviewed,now)
+
+
+def claim_locked(root,save_name,fixture,reviewed,now):
+    """Internal dispatch operation; caller must hold the native store lock."""
+    snapshot=current_snapshot(root)
+    if snapshot is None:
+        return dict(claimed=False,reason='no-closed-native-save',automaticLaunch=False)
+    folder=snapshot/save_name
+    path=folder/'autosave.sqlite'
+    if folder.is_symlink() or not folder.is_dir():
+        raise ValueError('Native save folder unavailable')
+    if reviewed.get('snapshotId')!=snapshot.name or reviewed.get('saveName')!=save_name:
+        return dict(claimed=False,reason='stale-reviewed-snapshot',automaticLaunch=False)
+    if path.is_symlink() or not path.is_file():
+        raise ValueError('Invalid native autosave')
+    before=digest(path)
+    if reviewed.get('saveSha256')!=before:
+        return dict(claimed=False,reason='stale-reviewed-save',automaticLaunch=False)
+    native=next_native_fixture(path)
+    gate=eligibility(fixture,reviewed,native,now)
+    if not gate['eligible']:
+        return dict(claimed=False,reason=gate['reason'],automaticLaunch=False)
+    if digest(path)!=before:
+        raise RuntimeError('Native save changed before claim')
+    # Use the web fixture identity without kickoff: rescheduling must not
+    # create a second claim for the same league/round/home/away.
+    identity=json.dumps([fixture[k] for k in WEB_FIELDS[:-1]],ensure_ascii=False,separators=(',',':'))
+    key=hashlib.sha256(identity.encode()).hexdigest()
+    payload=json.dumps({k:reviewed[k] for k in WEB_FIELDS+NATIVE_FIELDS},ensure_ascii=False,sort_keys=True)
+    ledger=root/'fixture-dispatch.sqlite3'
+    if ledger.is_symlink() or ledger.exists() and not ledger.is_file():
+        raise ValueError('Invalid external dispatch ledger')
+    fd=os.open(ledger,os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+    os.close(fd)
+    with closing(sqlite3.connect(ledger)) as db:
+        with db:
+            db.execute('''CREATE TABLE IF NOT EXISTS claims(
+                key TEXT PRIMARY KEY, mapping TEXT NOT NULL,
+                snapshot TEXT NOT NULL, save_name TEXT NOT NULL,
+                save_sha256 TEXT NOT NULL, claimed_at REAL NOT NULL)''')
+            # The same native fixture must not be assigned to another web
+            # fixture, even when its snapshot ID or scheduled time changes.
+            for old_key,old_mapping in db.execute('SELECT key,mapping FROM claims WHERE save_name=?',(save_name,)):
+                previous=json.loads(old_mapping)
+                if old_key!=key and all(previous.get(k)==reviewed[k] for k in NATIVE_FIELDS):
+                    return dict(claimed=False,reason='native-fixture-already-reserved',automaticLaunch=False)
+            result=db.execute('INSERT OR IGNORE INTO claims VALUES(?,?,?,?,?,?)',
+                (key,payload,snapshot.name,save_name,before,now))
+            created=result.rowcount==1
+    return dict(claimed=created,reason='reserved-for-review' if created else 'already-reserved',
+                fixtureKey=key,automaticLaunch=False,scoreWritten=False,
+                requiresReconciliation=True)
