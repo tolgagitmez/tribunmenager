@@ -24,6 +24,11 @@ def analyze(events,history,roster):
         clock=event.get('clockMs')
         if type(clock) is not int or clock<0 or type(phase) is not int or phase not in (1,2):
             raise ValueError('Invalid native period/clock')
+        if kind=='period':
+            if phase!=period+1 or clock!=(0 if phase==1 else 2700000):
+                raise ValueError('Missing, repeated or invalid period boundary')
+        elif phase!=period or clock<(0 if phase==1 else 2700000):
+            raise ValueError('Event outside established native period')
         ps,ss,gs=(counts(event,k) for k in ('passes','shots','score'))
         scorers=event.get('scorers')
         if not isinstance(scorers,list) or len(scorers)!=2 or any(not isinstance(v,list) or len(v)>gs[s] or any(type(p) is not int or p not in roster[s] for p in v) for s,v in enumerate(scorers)):
@@ -73,8 +78,6 @@ def analyze(events,history,roster):
                                   period=period,observedAtClockMs=clock))
                 chain=None
         if kind=='period':
-            if phase!=period+1:
-                raise ValueError('Missing or repeated period boundary')
             chain=None
         elif kind=='reset':
             chain=None
