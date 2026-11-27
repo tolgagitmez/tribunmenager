@@ -28,7 +28,7 @@ def audible_rms(path):
     return math.sqrt(sum(x*x for x in values)/len(values))/32768 if values else 0
 
 
-def run():
+def run(browser=False):
     env=engine.clean_env(os.environ)
     display=env.get('DISPLAY','')
     if not display.startswith(':') or not display[1:].split('.')[0].isdigit():
@@ -78,18 +78,35 @@ def run():
                     time.sleep(.2)
                 else:
                     raise RuntimeError('Native match not active')
-                encoder=subprocess.Popen(encoder_args(display,'tribun_test.monitor',output),
+                encoder=subprocess.Popen(encoder_args(display,'tribun_test.monitor',output,fmp4=browser),
                     env=env,stdout=encoder_log,stderr=subprocess.STDOUT)
                 deadline=time.monotonic()+35
                 report=None
                 while time.monotonic()<deadline and encoder.poll() is None and game.poll() is None:
                     if (output/'stream.m3u8').is_file():
-                        report=read_playlist(output)
+                        report=read_playlist(output,fmp4=browser)
                         if len(report['segments'])>=3:
                             break
                     time.sleep(.25)
                 else:
                     raise RuntimeError('Expected three live audiovisual segments')
+                if browser:
+                    import threading
+                    from original_hls_relay import HLSRelay
+                    with HLSRelay(output,max_clients=8) as server:
+                        worker=threading.Thread(target=server.serve_forever,daemon=True)
+                        worker.start()
+                        try:
+                            script=Path(__file__).resolve().parent/'tests/original-hls-browser.cjs'
+                            response=subprocess.run(['node',str(script),f'http://127.0.0.1:{server.server_port}'],env=env,capture_output=True,text=True,timeout=45)
+                            print(response.stdout,flush=True)
+                            if response.returncode or game.poll() is not None or encoder.poll() is not None:
+                                raise RuntimeError('Native browser AV playback failed: '+response.stderr)
+                        finally:
+                            server.shutdown()
+                            worker.join(timeout=5)
+                    engine.verify_install(work,env)
+                    return
                 paths=[output/x['name'] for x in report['segments']]
                 inspected=[segment_probe(p) for p in paths]
                 rms=[audible_rms(p) for p in paths]
@@ -119,10 +136,10 @@ def run():
 
 
 if __name__=='__main__':
-    if sys.argv[1:]==['--inside-private-xvfb']:
-        run()
-    elif len(sys.argv)==1:
+    if sys.argv[1:] in (['--inside-private-xvfb'],['--inside-private-xvfb','--browser']):
+        run(browser='--browser' in sys.argv)
+    elif sys.argv[1:] in ([],['--browser']):
         engine.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
-            sys.executable,Path(__file__).resolve(),'--inside-private-xvfb'],engine.clean_env(os.environ))
+            sys.executable,Path(__file__).resolve(),'--inside-private-xvfb',*sys.argv[1:]],engine.clean_env(os.environ))
     else:
-        raise SystemExit('Usage: original_native_av_probe.py')
+        raise SystemExit('Usage: original_native_av_probe.py [--browser]')
