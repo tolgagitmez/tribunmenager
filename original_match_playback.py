@@ -165,6 +165,72 @@ def convert_exact(source,destination):
                 live=False,nativeSimulationChanged=False)
 
 
+
+def replay_verified_capture(directory,fragment_hashes,evidence,destination):
+    """Private candidate from the same completed native capture, not a league result.
+
+    The caller is the local native probe, not an untrusted HTTP client.
+    The capture may include menus: event-to-frame alignment is not established.
+    Reject a short capture instead of manufacturing 300 seconds.
+    """
+    import hashlib
+    import re
+    from original_av_stream import (read_playlist,read_published_file,MAX_SEGMENT_BYTES,
+                                    audit_packet_timeline)
+    directory,destination=Path(directory),Path(destination)
+    if directory.is_symlink() or not directory.is_dir():
+        raise ValueError('Expected private capture directory')
+    if destination.exists() or destination.is_symlink() or destination.suffix.lower()!='.mp4':
+        raise ValueError('Expected new MP4 destination')
+    if any(evidence.get(key) is not True for key in
+           ('nativeFullSmokeCaptured','nativeMarkerOrderVerified','nativeFullStreamPlaybackVerified')):
+        raise ValueError('Native full capture evidence required')
+    if evidence.get('nativeSettingsPatched') is not False:
+        raise ValueError('Unmodified native capture required')
+    if not isinstance(fragment_hashes,list) or not 3<=len(fragment_hashes)<=240 or any(
+            not isinstance(h,str) or not re.fullmatch('[0-9a-f]{64}',h) for h in fragment_hashes):
+        raise ValueError('Invalid capture fragment digests')
+    count=len(fragment_hashes)
+    final=read_playlist(directory,fmp4=True)
+    if not final['ended'] or final['mediaSequence']+len(final['segments'])!=count or evidence.get('archiveFragmentCount')!=count:
+        raise ValueError('Capture manifest incomplete or inconsistent')
+    viewers=evidence.get('results',[])
+    if len(viewers)!=2 or any([f.get('sha256') for f in v.get('fragments',[])]!=fragment_hashes for v in viewers):
+        raise ValueError('Both browser archives must agree with the capture')
+    init=read_published_file(directory/'init.mp4',MAX_SEGMENT_BYTES)[0]
+    # Work from a private frozen byte snapshot. No HTTP URI or external source
+    # is followed by FFmpeg, and fragments cannot change between checks and mux.
+    with tempfile.TemporaryDirectory(prefix='.verified-native-replay-',dir=destination.parent) as tmp:
+        root=Path(tmp)
+        frozen=root/'capture.fmp4'
+        with frozen.open('wb') as out:
+            out.write(init)
+            for i,expected in enumerate(fragment_hashes):
+                data=read_published_file(directory/f'segment-{i:06d}.m4s',MAX_SEGMENT_BYTES)[0]
+                if hashlib.sha256(data).hexdigest()!=expected:
+                    raise ValueError('Capture fragment digest mismatch')
+                out.write(data)
+                (root/f'fragment-{i:06d}.m4s').write_bytes(data)
+        timeline=audit_packet_timeline((init+(root/f'fragment-{i:06d}.m4s').read_bytes()
+                                       for i in range(count)),fps=30)
+        if not timeline['encodedTimelineVerified']:
+            raise ValueError('Capture packet timeline failed')
+        span=timeline['lastVideoEnd']-timeline['firstVideoPts']
+        if span<300 or evidence.get('nativeMatchSpanSeconds',0)<300:
+            return dict(candidateProduced=False,reason='native-capture-shorter-than-300-seconds',
+                        encodedCaptureSeconds=span,live=False)
+        source=root/'remux.mp4'
+        subprocess.run(['ffmpeg','-nostdin','-v','error','-i',str(frozen),
+            '-map','0:v:0','-map','0:a:0','-c','copy','-movflags','+faststart',str(source)],
+            check=True,timeout=120)
+        report=convert_exact(source,destination)
+    return dict(report,candidateProduced=True,sourceFragmentCount=count,
+                initSha256=hashlib.sha256(init).hexdigest(),fragmentSha256=fragment_hashes,
+                sourceNativeSmokeCaptured=True,sourceRecordingVerifiedComplete=False,
+                matchOnlyReplayVerified=False,frameToNativeEventAlignmentVerified=False,
+                publicPlaybackVerified=False,leagueResultLinked=False)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source',type=Path)
