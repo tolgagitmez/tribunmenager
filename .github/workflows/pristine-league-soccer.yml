@@ -82,9 +82,11 @@ jobs:
           print('Read-only native catalog:',len(teams),'teams;',inspected,'club rosters with >=11 players')
           PY
       - name: Verify real upstream league save and byte-exact restoration
+        id: native_saves
+        continue-on-error: true
         run: python3 original_native_saves_probe.py
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always() && steps.native_saves.outcome == 'failure'
         with:
           name: native-reload-diagnostics
           if-no-files-found: ignore
@@ -129,6 +131,11 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Verify real native match window through Chromium without mock media
         run: python3 original_native_browser_probe.py
+      - name: Enforce native save and reload verification
+        if: always() && steps.native_saves.outcome == 'failure'
+        run: |
+          echo "::error::Native save/reload verification failed; independent match tests were not suppressed."
+          exit 1
   browser-preview:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
