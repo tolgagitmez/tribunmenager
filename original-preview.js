@@ -61,10 +61,25 @@
  const status=document.getElementById('originalPreviewStatus');
  if(!video||!start||!stop||!status)return;
  const metrics=document.getElementById('originalPreviewMetrics');
+ const reportButton=document.getElementById('originalPreviewReport');
+ const report=root.TribunOriginalMetrics?.createReport();
+ if(reportButton)reportButton.disabled=true;
+ reportButton?.addEventListener('click',()=>{
+  if(!report)return;
+  const data=report.snapshot();
+  if(!data.samples.length)return;
+  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+  const link=document.createElement('a');
+  link.href=url;link.download='tribun-original-preview-metrics.json';
+  link.click();
+  root.setTimeout(()=>URL.revokeObjectURL(url),1000);
+ });
  const monitor=root.TribunOriginalMetrics?.createMonitor({
   video,now:()=>performance.now(),interval:(fn,ms)=>root.setInterval(fn,ms),
   clearInterval:id=>root.clearInterval(id),isVisible:()=>!document.hidden,
   onSample:s=>{
+   report?.add(s);
+   if(reportButton&&report)reportButton.disabled=!report.snapshot().samples.length;
    if(!metrics)return;
    if(s.state==='unsupported'){metrics.textContent='Kare ölçümü tarayıcıda desteklenmiyor.';return;}
    if(s.state==='paused'){metrics.textContent='Ölçüm duraklatıldı (sekme gizli veya video duraklatılmış).';return;}
@@ -76,7 +91,10 @@
  });
  const preview=createPreview({mediaDevices:root.navigator.mediaDevices,video,onState:({state,message})=>{
   status.textContent=message;
-  if(state==='playing')monitor?.start();
+  if(state==='playing'){
+   report?.reset();if(reportButton)reportButton.disabled=true;
+   monitor?.start();
+  }
   else {monitor?.stop();if(metrics)metrics.textContent='Kare ölçümü kapalı.';}
   start.disabled=state==='choosing'||state==='playing'||state==='unsupported';
   stop.disabled=state!=='choosing'&&state!=='playing';
