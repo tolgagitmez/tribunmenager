@@ -1,7 +1,7 @@
-name: Stage 224 private native adaptive prototype
+name: Stage 225 matched native duration comparison
 on:
   pull_request:
-    branches: [experiment/native-frame-calibration-stage223]
+    branches: [experiment/native-private-prototype-stage224]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
@@ -199,9 +199,23 @@ jobs:
         run: |
           set -o pipefail
           bash integrations/league-soccer/run-pilot.sh "$RUNNER_TEMP/extended-build.ndjson" 2>&1 | tee "$RUNNER_TEMP/extended-run.log"
-      - name: Record independent 30-minute CPU fixture with native audio
+      - name: Record matched five-minute reference fixture
+        id: matched_short
+        continue-on-error: true
+        env:
+          TRIBUN_NATIVE_FIXED_DURATION: '1'
+          TRIBUN_NATIVE_REALTIME: '1'
+          TRIBUN_NATIVE_CLOCK_SCALE: '1.0'
+          TRIBUN_NATIVE_EXTENDED_MATCH: '0'
+          TRIBUN_LEAGUE_SOCCER_ATTACK: baseline
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          LP_NUM_THREADS: '2'
         run: |
           node -e 'process.stdout.write(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/extended-fixture.json"
+          bash integrations/league-soccer/run-frozen.sh "$RUNNER_TEMP/extended-runtime" "$RUNNER_TEMP/extended-fixture.json" "$RUNNER_TEMP/matched-short.ndjson" 0 > "$RUNNER_TEMP/matched-short.log" 2>&1
+      - name: Record independent 30-minute CPU fixture with native audio
+        run: |
+          test -s "$RUNNER_TEMP/extended-fixture.json"
           python3 integrations/league-soccer/native_extended_capture.py "$RUNNER_TEMP/extended-runtime" "$RUNNER_TEMP/extended-fixture.json" "$RUNNER_TEMP/extended-capture" --private-diagnostic
           cp "$RUNNER_TEMP/extended-capture/match.ndjson" "$RUNNER_TEMP/extended.ndjson"
           cp "$RUNNER_TEMP/extended-capture/match.ndjson.fixture.json" "$RUNNER_TEMP/extended.ndjson.fixture.json"
@@ -251,6 +265,15 @@ jobs:
         run: |
           python3 integrations/league-soccer/native_private_prototype.py "$RUNNER_TEMP/extended-capture" "$RUNNER_TEMP/extended-alignment.json" "$RUNNER_TEMP/frame-calibration.json" "$RUNNER_TEMP/optimized-playback.json" "$RUNNER_TEMP/private-prototype.mp4" "$RUNNER_TEMP/private-prototype-report.json" --private-diagnostic
           cat "$RUNNER_TEMP/private-prototype-report.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Compare matched native duration regardless of media conversion outcome
+        if: always() && steps.matched_short.outcome == 'success'
+        run: |
+          test -s "$RUNNER_TEMP/extended-capture/match.ndjson"
+          python3 integrations/league-soccer/native_duration_comparison.py "$RUNNER_TEMP/matched-short.ndjson" "$RUNNER_TEMP/extended-capture/match.ndjson" "$RUNNER_TEMP/duration-comparison.json"
+          cat "$RUNNER_TEMP/duration-comparison.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Require matched short reference
+        if: always()
+        run: test "${{ steps.matched_short.outcome }}" = success
       - name: Require candidate mapping audit to pass
         if: always()
         run: |
@@ -285,6 +308,9 @@ jobs:
             ${{ runner.temp }}/frame-calibration.json
             ${{ runner.temp }}/frame-calibration-summary.json
             ${{ runner.temp }}/private-prototype-report.json
+            ${{ runner.temp }}/duration-comparison.json
+            ${{ runner.temp }}/matched-short.log
+            ${{ runner.temp }}/matched-short.ndjson.fixture.json
             ${{ runner.temp }}/extended-capture/native-frame-markers.csv
   media_retime:
     runs-on: ubuntu-22.04
@@ -297,6 +323,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_native_media_retime.py -v
           python3 -m unittest discover -s tests -p test_native_frame_calibration.py -v
           python3 -m unittest discover -s tests -p test_native_private_prototype.py -v
+          python3 -m unittest discover -s tests -p test_native_duration_comparison.py -v
       - name: Compile native frame marker diagnostic
         run: |
           sudo apt-get install -y libgl-dev
