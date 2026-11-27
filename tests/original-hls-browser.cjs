@@ -98,6 +98,12 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    const pixels=canvas.getContext('2d',{willReadFrequently:true}),signatures=new Set();
    let frames=0,firstFrameMs=null,lastFrameAt=null,maxFrameGapMs=0,firstMediaTime=null,mediaTime=null;
    let lastScreenSample=-Infinity,frameId=null,maxMediaGapMs=0;
+   let maxLoopDelayMs=0,maxDecodeMs=0,maxPresentedFrameJump=0,lastPresented=null;
+   let lastLoopTick=performance.now(),screenSampleError=null;
+   const gapEvidence=[];
+   const loopTimer=setInterval(()=>{
+    const now=performance.now();maxLoopDelayMs=Math.max(maxLoopDelayMs,now-lastLoopTick-100);lastLoopTick=now;
+   },100);
    const clockSamples=[];
    let lastClockBin=-1;
    let stallAt=null,stallCount=0,stallMs=0;
@@ -117,24 +123,41 @@ async function viewer(browser,url,disconnect,fullDuration=0){
       .then(()=>{interruptionCompleted=true;})
       .catch(error=>{interruptionError=String(error);});
     }
-    if(lastFrameAt!==null)maxFrameGapMs=Math.max(maxFrameGapMs,now-lastFrameAt);
+    const wallGap=lastFrameAt===null?0:now-lastFrameAt;
+    const mediaGap=mediaTime===null?0:(metadata.mediaTime-mediaTime)*1000;
+    const presentedJump=lastPresented===null?0:metadata.presentedFrames-lastPresented;
+    maxFrameGapMs=Math.max(maxFrameGapMs,wallGap);
+    maxMediaGapMs=Math.max(maxMediaGapMs,mediaGap);
+    if(Number.isFinite(presentedJump))maxPresentedFrameJump=Math.max(maxPresentedFrameJump,presentedJump);
+    if(Number.isFinite(metadata.processingDuration))maxDecodeMs=Math.max(maxDecodeMs,metadata.processingDuration*1000);
+    if((wallGap>200||mediaGap>200)&&gapEvidence.length<40){
+     const quality=video.getVideoPlaybackQuality();
+     gapEvidence.push({mediaTime:metadata.mediaTime,wallGapMs:round(wallGap),mediaGapMs:round(mediaGap),
+      presentedJump,dropped:quality.droppedVideoFrames,total:quality.totalVideoFrames,
+      readyState:video.readyState,visibility:document.visibilityState});
+    }
+    lastPresented=metadata.presentedFrames;
     lastFrameAt=now;
-    if(mediaTime!==null)maxMediaGapMs=Math.max(maxMediaGapMs,(metadata.mediaTime-mediaTime)*1000);
     mediaTime=metadata.mediaTime;
     const bin=Math.floor(mediaTime);
     if(bin>lastClockBin){
      lastClockBin=bin;
      clockSamples.push({bin,mediaTime,epochMs:performance.timeOrigin+now});
     }
-    if(mediaTime-lastScreenSample>=.5){
+   }
+   // GPU readback and hashing are diagnostic work, not part of the frame
+   // callback. Keep the same short-test sampling density; for long runs
+   // sample at 1 Hz while still timing every presented frame.
+   const screenTimer=setInterval(()=>{
+    if(video.paused||video.seeking||mediaTime===null||mediaTime-lastScreenSample<(fullDuration?1:.5))return;
+    try{
      pixels.drawImage(video,0,0,canvas.width,canvas.height);
      const data=pixels.getImageData(0,0,canvas.width,canvas.height).data;
      let signature=2166136261;
      for(let i=0;i<data.length;i++)signature=Math.imul(signature^data[i],16777619);
-     signatures.add(signature);
-     lastScreenSample=mediaTime;
-    }
-   }
+     signatures.add(signature);lastScreenSample=mediaTime;
+    }catch(error){screenSampleError=String(error);}
+   },fullDuration?1000:250);
    function readPlaylist(text){
     const lines=text.split(/\r?\n/),sequence=lines.find(x=>/^#EXT-X-MEDIA-SEQUENCE:\d+$/.test(x));
     const names=lines.filter(x=>/^segment-\d{6}\.m4s$/.test(x));
@@ -150,6 +173,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
     frameId=video.requestVideoFrameCallback(frame);
     while(performance.now()<deadline){
      if(video.error)throw Error('video error '+video.error.code);
+     if(screenSampleError)throw Error('Screen sampling failed: '+screenSampleError);
      const playlist=await fetchMedia('stream.m3u8',manifest);
      if(playlist){
       const entries=readPlaylist(playlist.data);
@@ -189,6 +213,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
        transportFailures,resumedAfterFailure,interruptionFailures,appendedAfterReconnect,simulatedDisconnect:disconnect,
        clockSamples,firstMediaTime, lastMediaTime:mediaTime, mediaDuration:video.duration, endedManifest, ended:video.ended,audibleMinutes,maxMediaGapMs:round(maxMediaGapMs),
        maxFrameGapMs:round(maxFrameGapMs),stallCount,
+       maxLoopDelayMs:round(maxLoopDelayMs),maxDecodeMs:round(maxDecodeMs),maxPresentedFrameJump,gapEvidence,
        stallMs:round(stallMs+(stallAt===null?0:performance.now()-stallAt)),
        appendedMediaAheadMs:buffer.buffered.length?round((buffer.buffered.end(buffer.buffered.length-1)-mediaTime)*1000):0};
      }
@@ -199,7 +224,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
      transportFailures,resumedAfterFailure,interruptionFailures,interruptionError,lastTransportError}));
    }finally{
     video.cancelVideoFrameCallback(frameId);
-    clearInterval(audioTimer);
+    clearInterval(audioTimer);clearInterval(screenTimer);clearInterval(loopTimer);
     video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(object);
     await audio.close();
    }
@@ -233,7 +258,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
      assert(Number.isFinite(result.mediaDuration)&&result.mediaDuration-result.lastMediaTime<=.25,'Native final frame missing');
      assert(result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===result.fragments.length-1,'Missing native fragment');
     }
-    assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify({maxFrameGapMs:result.maxFrameGapMs,maxMediaGapMs:result.maxMediaGapMs,stallCount:result.stallCount,transportFailures:result.transportFailures,playbackSeconds:result.playbackSeconds,presentedCallbacks:result.presentedCallbacks,droppedVideoFrames:result.droppedVideoFrames,totalVideoFrames:result.totalVideoFrames}));
+    assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify({maxFrameGapMs:result.maxFrameGapMs,maxMediaGapMs:result.maxMediaGapMs,stallCount:result.stallCount,transportFailures:result.transportFailures,playbackSeconds:result.playbackSeconds,presentedCallbacks:result.presentedCallbacks,droppedVideoFrames:result.droppedVideoFrames,totalVideoFrames:result.totalVideoFrames,maxLoopDelayMs:result.maxLoopDelayMs,maxDecodeMs:result.maxDecodeMs,maxPresentedFrameJump:result.maxPresentedFrameJump,gapEvidence:result.gapEvidence}));
     assert(result.maxMediaGapMs<=200,'Missing media-time frames');
     assert(result.presentedCallbacks/result.playbackSeconds>=28.5,'Insufficient delivered video callbacks');
     assert(result.droppedVideoFrames/Math.max(1,result.totalVideoFrames)<=.01,'Too many dropped video frames');
