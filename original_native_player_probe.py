@@ -74,7 +74,9 @@ def parse_log(text):
         raise ValueError('Expected exactly one successful final debugger snapshot')
     return json.loads(lines[0])
 
-def run(output, timeline=False):
+def run(output, timeline=False, assists=False):
+    if assists and not timeline:
+        raise ValueError('Assist observation requires timeline mode')
     env=e.clean_env(os.environ)
     if not re.fullmatch(r':\d+(?:\.0)?',env.get('DISPLAY','')):
         raise ValueError('Private display required')
@@ -99,6 +101,7 @@ def run(output, timeline=False):
             result=subprocess.run(['gdb','-nx','-batch','-return-child-result',
                 '-ex','set confirm off','-ex','set print thread-events off',
                 '-ex','set $tribun_timeline = '+str(int(timeline)),
+                '-ex','set $tribun_assists = '+str(int(assists)),
                 '-x',str(observer),'-ex','run','--args',str(session/'gameplayfootball'),str(config)],
                 cwd=session,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=600)
             log.seek(0)
@@ -116,6 +119,14 @@ def run(output, timeline=False):
             if len(lines)!=1 or 'TRIBUN_NATIVE_TIMELINE_ERROR ' in text:
                 raise ValueError('Incomplete native player timeline: '+str([l for l in text.splitlines() if 'TRIBUN_NATIVE_TIMELINE_ERROR ' in l][:5]))
             report['timeline']=reconstruct(json.loads(lines[0]),report)
+        if assists:
+            from original_native_assist_candidates import analyze
+            prefix='TRIBUN_NATIVE_TOUCH_EVENTS '
+            lines=[line[len(prefix):] for line in text.splitlines() if line.startswith(prefix)]
+            if len(lines)!=1 or 'TRIBUN_NATIVE_TOUCH_ERROR ' in text:
+                raise ValueError('Incomplete native touch observation: '+str([l for l in text.splitlines() if 'TRIBUN_NATIVE_TOUCH_ERROR ' in l][:5]))
+            roster=[{p['nativePlayerId'] for p in t['players']} for t in report['teams']]
+            report['attackChains']=analyze(json.loads(lines[0]),history,roster)
         report.update(revision=e.REVISION,debugBinarySha256=e.digest(session/'gameplayfootball'),
                       sourceConfigSha256=e.digest(config),historySha256=e.digest(session/HISTORY_PATH),
                       source='isolated-debugger-full-time-upstream-smoke',nativeSourcePatched=False,
@@ -131,13 +142,14 @@ def main():
     p.add_argument('output',type=Path)
     p.add_argument('--inside-private-xvfb',action='store_true')
     p.add_argument('--timeline',action='store_true')
+    p.add_argument('--assists',action='store_true')
     a=p.parse_args()
     if a.inside_private_xvfb:
-        run(a.output,a.timeline)
+        run(a.output,a.timeline or a.assists,a.assists)
     else:
         e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
                 sys.executable,Path(__file__).resolve(),a.output.resolve(),'--inside-private-xvfb',
-                *(['--timeline'] if a.timeline else [])],e.clean_env(os.environ))
+                *(['--timeline'] if a.timeline else []),*(['--assists'] if a.assists else [])],e.clean_env(os.environ))
 
 if __name__=='__main__':
     main()
