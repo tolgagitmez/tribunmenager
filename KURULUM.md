@@ -197,4 +197,19 @@ Buradaki 1 yalnızca örnek kimliktir; gerçek takım kimliğini katalogdan seç
 python3 original_roster_import.py tribun-roster-preflight.json reviewed-mapping.json
 ```
 
-Bu komut yalnızca geçici çalışma dizininde yeni bir veri paketi oluşturur. Orijinal menüde League Mode > New League > tribun-roster-pilot seç ve eşleştirilen takımla yeni lig oluştur. Bu pilot isim/mevki ve ilk 11 sırasını aktarır; yaş, görünüm, yetenek, form, taktik ve varsayılan motor dosyaları korunur. Oturum kapanınca geçici veriler silinir, normal kayıt deposuna veya web ligine yazılmaz. Mevcut iki kadronun oyuncu sayısı farklıysa ya da diziliş rolleri uyuşmuyorsa işlem reddedilir. Gerçek 3D maçta aktarımın etkisi henüz doğrulanmamıştır.
+Bu komut geçici çalışma dizininde ayrı bir veri paketi oluşturur. Orijinal menüde League Mode > New League > tribun-roster-pilot seç ve eşleştirilen takımla yeni lig oluştur. Paket isimleri, mevkileri ve ilk 11 sırasını aktarır, yerel motorun yedek sırasını korur. Oturum kapanınca geçici veriler silinir. Eşleşen kadroların oyuncu sayıları ve ilk 11 diziliş rolleri aynı olmalıdır.
+
+Yeteneği aktarılacak oyuncunun eşleştirmesine isteğe bağlı `"reviewedSkills": ["passing", "pace"]` eklenebilir. Değerler kayıtlı oyuncunun web dışa aktarımından alınır. `passing` yerel motorun kısa pas, `pace` hız alanını hedefler. Ulaşılabilir aralık yerel motorun oyuncu profili, yaş ve taban puanına göre doğrulanır. Üst düzey bir `"reviewedTactics": {"team_pressure": 0.81, "support_distance": 0.29, "counter_attack": 0.73}` nesnesi doğrudan incelenmiş yerel taktik değerlerini kullanır. Her iki alan da isteğe bağlıdır ve yalnızca alternatif pakete yazılır. [Motorun doğrulanan yetenek anahtarları](original_skill_mapping.py)
+
+### Özel HLS ses ve görüntü testi
+
+Linux'ta orijinal motorun derleme bağımlılıklarına ek olarak Xvfb, FFmpeg, PulseAudio ve Chromium gerekir. Test, orijinal motorun ayrı smoke senaryosundan görüntü ve sesi yakalar ve iki bağımsız Chromium oturumuna yerel bağlantı üzerinden sunar.
+
+```sh
+npm ci --ignore-scripts
+npx playwright install chromium
+python3 start.py --mode original --original-build-only
+python3 original_native_av_probe.py --browser
+```
+
+Sistemde kurulu Chromium için `CHROMIUM=/usr/bin/chromium` kullanılabilir. Rapor her izleyicinin ilk kare ve ilk ses sürelerini, ekrana sunulan kareleri, ses sinyalini, tampon beklemelerini ve kısa bağlantı kesintisi sonrası alınan segmentleri gösterir. Segment yaşı ve ilk ses/görüntü zaman damgası farkı kodlayıcı çıkışına aittir. Test, hızlandırılmış yerel örneğin bir bölümünü kapsar. [PR #95 doğrulaması](https://github.com/tolgagitmez/tribunmenager/pull/95)

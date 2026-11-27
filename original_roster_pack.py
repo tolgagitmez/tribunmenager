@@ -71,7 +71,10 @@ def validate_lineup(db,team_id,rows,slot_order):
     if db.execute('SELECT COUNT(*) FROM players WHERE nationalteam_id=? AND (team_id IS NULL OR team_id!=?)',(team_id,team_id)).fetchone()[0]:
         raise ValueError('Native team selection includes additional national players')
     starters=[by_index[i]['nativePlayerId'] for i in slot_order]
-    bench=sorted(r['nativePlayerId'] for r in rows if r['localIndex'] not in slot_order)
+    selected_ids=set(starters)
+    bench=[ident for ident, in db.execute(
+        'SELECT id FROM players WHERE team_id=? ORDER BY formationorder,id',(team_id,))
+        if ident not in selected_ids]
     return starters+bench
 
 
@@ -96,12 +99,16 @@ def build_pack(runtime,team_id,rows,*,skill_pilot=False,slot_order=None,reviewed
         if skill_pilot:
             from original_skill_mapping import plan_profile
             for row in rows:
+                if 'webValues' not in row:
+                    continue
                 ident=row['nativePlayerId']
                 base,age,xml=db.execute('SELECT base_stat,age,profile_xml FROM players WHERE id=? AND team_id=?',(ident,team_id)).fetchone()
-                plan=plan_profile(base,age,xml,row.get('webValues'))
-                if plan['unresolved'] or not plan['proposed']:
+                plan=plan_profile(base,age,xml,row['webValues'])
+                if plan['unresolved'] or plan['unsupported'] or not plan['proposed']:
                     raise ValueError('Unresolved skill mapping for native player '+str(ident))
                 profiles.append((plan['profileXml'],ident,team_id))
+            if not profiles:
+                raise ValueError('At least one explicit skill profile is required')
     # The original database and graphics are untouched; only the new pack
     # is published after SQL and integrity validation succeed.
     with tempfile.TemporaryDirectory(prefix='.roster-pack-',dir=target.parent) as tmp:

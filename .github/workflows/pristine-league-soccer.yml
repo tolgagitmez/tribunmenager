@@ -222,7 +222,15 @@ jobs:
       - name: Verify native audio and video captured in same HLS segment
         run: python3 original_native_av_probe.py
       - name: Verify native fragmented MP4 playback in two real Chromium contexts
-        run: python3 original_native_av_probe.py --browser
+        run: |
+          set -o pipefail
+          python3 original_native_av_probe.py --browser 2>&1 | tee "$RUNNER_TEMP/original-hls-browser.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-hls-browser-evidence
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/original-hls-browser.log
       - name: Verify custom source selection in actual native menus
         id: custom_source
         continue-on-error: true

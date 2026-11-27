@@ -1,22 +1,44 @@
 'use strict';
-// CI-only browser consumer for the private fragmented MP4 HLS relay.
+// CI-only browser consumer for the private native fragmented MP4 HLS relay.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
+const {setTimeout:delay}=require('node:timers/promises');
 
-async function viewer(browser,url){
+async function viewer(browser,url,disconnect){
  const context=await browser.newContext();
  try{
   const page=await context.newPage();
-  await page.goto(url+'/viewer');
-  return await page.evaluate(async()=>{
-   const video=document.querySelector('video');
-   const start=performance.now();
-   const fetchBytes=async path=>{
-    const r=await fetch('/'+path,{cache:'no-store'});
-    if(!r.ok)throw Error('media HTTP '+r.status);
-    return new Uint8Array(await r.arrayBuffer());
-   };
-   const init=await fetchBytes('init.mp4');
+  if(disconnect){
+   await page.exposeFunction('interruptHlsProbeConnection',async()=>{
+    await context.setOffline(true);
+    try{await delay(1100);}finally{await context.setOffline(false);}
+   });
+  }
+  await page.goto(url+'/viewer',{timeout:5000});
+  return await page.evaluate(async disconnect=>{
+   const video=document.querySelector('video'),start=performance.now();
+   const elapsed=()=>performance.now()-start,round=n=>Math.round(n*100)/100;
+   let transportFailures=0,resumedAfterFailure=0,offline=false,lastTransportError=null;
+   let interruption=null,interruptionError=null,interruptionCompleted=false,interruptionFailures=0;
+   async function fetchMedia(path,read){
+    const before=performance.now();
+    try{
+     const response=await fetch('/'+path,{cache:'no-store',signal:AbortSignal.timeout(3000)});
+     if(!response.ok)throw Error('media HTTP '+response.status+' '+path);
+     const data=await read(response);
+     if(offline){offline=false;resumedAfterFailure++;}
+     const publicationAge=response.headers.get('X-Publication-Age-Ms');
+     return {data,requestMs:round(performance.now()-before),publicationAgeMs:publicationAge===null?null:Number(publicationAge)};
+    }catch(error){
+     transportFailures++;offline=true;lastTransportError=String(error);
+     if(interruption&&!interruptionCompleted)interruptionFailures++;
+     return null;
+    }
+   }
+   const bytes=response=>response.arrayBuffer(),manifest=response=>response.text();
+   const initial=await fetchMedia('init.mp4',bytes);
+   if(!initial)throw Error('Unable to fetch initialization segment: '+lastTransportError);
+   const init=new Uint8Array(initial.data);
    // AVCDecoderConfigurationRecord carries the exact profile/compat/level.
    let codec=null;
    for(let i=4;i<init.length-8;i++){
@@ -28,66 +50,166 @@ async function viewer(browser,url){
    if(!codec)throw Error('No AVC configuration in init');
    const mime='video/mp4; codecs="'+codec+', mp4a.40.2"';
    if(!MediaSource.isTypeSupported(mime))throw Error('MSE codecs unavailable: '+mime);
-   const media=new MediaSource();
-   const object=URL.createObjectURL(media);
+   const media=new MediaSource(),object=URL.createObjectURL(media);
    const opened=new Promise(resolve=>media.addEventListener('sourceopen',resolve,{once:true}));
-   video.src=object;video.muted=true;
-   await opened;
+   video.src=object;
+   video.muted=false;
+   const deadline=performance.now()+25000;
+   const watchdog=new Promise((_,reject)=>setTimeout(()=>reject(Error('Timed out waiting for MediaSource')),6000));
+   await Promise.race([opened,watchdog]);
    const buffer=media.addSourceBuffer(mime);
-   function append(data){
-    return new Promise((resolve,reject)=>{
-     const clean=()=>{buffer.removeEventListener('updateend',ok);buffer.removeEventListener('error',fail);};
+   async function append(data){
+    await new Promise((resolve,reject)=>{
+     const clean=()=>{
+      buffer.removeEventListener('updateend',ok);
+      buffer.removeEventListener('error',fail);
+      clearTimeout(timeout);
+     };
      const ok=()=>{clean();resolve();};
      const fail=()=>{clean();reject(Error('SourceBuffer decode error'));};
+     const timeout=setTimeout(()=>{clean();reject(Error('SourceBuffer append timed out'));},5000);
      buffer.addEventListener('updateend',ok,{once:true});
      buffer.addEventListener('error',fail,{once:true});
-     buffer.appendBuffer(data);
+     try{buffer.appendBuffer(data);}catch(error){clean();reject(error);}
     });
    }
-   await append(init);
-   const seen=new Set();
-   let frames=0,firstFrameMs=null;
-   function frame(){
+   const audio=new AudioContext();
+   const analyser=audio.createAnalyser(),sink=audio.createGain();
+   // Keep the media element unmuted so the analyser gets decoded samples.
+   // A zero-gain output avoids requiring a host sound device or speakers.
+   sink.gain.value=0;
+   audio.createMediaElementSource(video).connect(analyser).connect(sink).connect(audio.destination);
+   const pcm=new Float32Array(analyser.fftSize);
+   let nonSilentAudioSamples=0,firstAudioSignalMs=null,peakAudioRms=0;
+   const audioTimer=setInterval(()=>{
+    if(video.paused)return;
+    analyser.getFloatTimeDomainData(pcm);
+    const rms=Math.sqrt(pcm.reduce((sum,sample)=>sum+sample*sample,0)/pcm.length);
+    peakAudioRms=Math.max(peakAudioRms,rms);
+    if(rms>=0.0001){
+     nonSilentAudioSamples++;
+     firstAudioSignalMs??=elapsed();
+    }
+   },80);
+   const canvas=document.createElement('canvas');
+   canvas.width=32;canvas.height=24;
+   const pixels=canvas.getContext('2d',{willReadFrequently:true}),signatures=new Set();
+   let frames=0,firstFrameMs=null,lastFrameAt=null,maxFrameGapMs=0,firstMediaTime=null,mediaTime=null;
+   let lastScreenSample=-Infinity,frameId=null;
+   let stallAt=null,stallCount=0,stallMs=0;
+   video.addEventListener('waiting',()=>{
+    if(firstFrameMs!==null&&stallAt===null){stallAt=performance.now();stallCount++;}
+   });
+   video.addEventListener('playing',()=>{
+    if(stallAt!==null){stallMs+=performance.now()-stallAt;stallAt=null;}
+   });
+   function frame(now,metadata){
+    frameId=video.requestVideoFrameCallback(frame);
+    if(video.paused||video.seeking)return;
     frames++;
-    if(firstFrameMs===null)firstFrameMs=performance.now()-start;
-    video.requestVideoFrameCallback(frame);
+    if(firstFrameMs===null){
+     firstFrameMs=elapsed();firstMediaTime=metadata.mediaTime;
+     if(disconnect)interruption=window.interruptHlsProbeConnection()
+      .then(()=>{interruptionCompleted=true;})
+      .catch(error=>{interruptionError=String(error);});
+    }
+    if(lastFrameAt!==null)maxFrameGapMs=Math.max(maxFrameGapMs,now-lastFrameAt);
+    lastFrameAt=now;
+    mediaTime=metadata.mediaTime;
+    if(mediaTime-lastScreenSample>=.5){
+     pixels.drawImage(video,0,0,canvas.width,canvas.height);
+     const data=pixels.getImageData(0,0,canvas.width,canvas.height).data;
+     let signature=2166136261;
+     for(let i=0;i<data.length;i++)signature=Math.imul(signature^data[i],16777619);
+     signatures.add(signature);
+     lastScreenSample=mediaTime;
+    }
    }
-   video.requestVideoFrameCallback(frame);
-   let started=false;
+   function readPlaylist(text){
+    const lines=text.split(/\r?\n/),sequence=lines.find(x=>/^#EXT-X-MEDIA-SEQUENCE:\d+$/.test(x));
+    const names=lines.filter(x=>/^segment-\d{6}\.m4s$/.test(x));
+    if(!sequence||!lines.includes('#EXT-X-MAP:URI="init.mp4"')||!names.length)throw Error('Invalid fMP4 playlist');
+    const first=Number(sequence.split(':')[1]);
+    if(names.some((name,i)=>Number(name.slice(8,14))!==first+i))throw Error('Non-contiguous playlist');
+    return names.map((name,i)=>({name,sequence:first+i}));
+   }
+   const fragments=[];
+   let started=false,appendedDuringPlayback=0,appendedAfterReconnect=0;
    try{
-    const deadline=performance.now()+18000;
+    await append(init);
+    frameId=video.requestVideoFrameCallback(frame);
     while(performance.now()<deadline){
-     const response=await fetch('/stream.m3u8',{cache:'no-store'});
-     if(!response.ok)throw Error('playlist HTTP '+response.status);
-     const names=(await response.text()).split(/\r?\n/).filter(x=>/^segment-\d{6}\.m4s$/.test(x));
-     for(const name of names){
-      if(seen.has(name))continue;
-      await append(await fetchBytes(name));seen.add(name);
+     if(video.error)throw Error('video error '+video.error.code);
+     const playlist=await fetchMedia('stream.m3u8',manifest);
+     if(playlist){
+      for(const fragment of readPlaylist(playlist.data)){
+       const previous=fragments.at(-1);
+       if(previous&&fragment.sequence<=previous.sequence)continue;
+       if(previous&&fragment.sequence!==previous.sequence+1)throw Error('Live playlist advanced past the last appended fragment');
+       const received=await fetchMedia(fragment.name,bytes);
+       if(!received)break;
+       const hash=await crypto.subtle.digest('SHA-256',received.data);
+       await append(received.data);
+       if(firstFrameMs!==null&&!video.paused)appendedDuringPlayback++;
+       if(interruptionCompleted&&interruptionFailures>0&&resumedAfterFailure>0)appendedAfterReconnect++;
+       fragments.push({...fragment,bytes:received.data.byteLength,requestMs:received.requestMs,
+        publicationAgeMs:received.publicationAgeMs,sha256:Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('')});
+      }
      }
      if(!started&&buffer.buffered.length&&buffer.buffered.end(0)-buffer.buffered.start(0)>=2){
       video.currentTime=buffer.buffered.start(0)+.05;
-      await video.play();started=true;
+      await audio.resume();
+      await video.play();
+      started=true;
      }
-     if(started&&frames>=15&&video.currentTime-buffer.buffered.start(0)>=1.0&&seen.size>=3){
-      return {decodedFrames:frames,firstFrameMs:Math.round(firstFrameMs),segments:seen.size,
-       playbackSeconds:video.currentTime-buffer.buffered.start(0),width:video.videoWidth,height:video.videoHeight,
-       mutedForAutoplay:true,codec:mime};
+     const playbackSeconds=mediaTime-firstMediaTime;
+     if(started&&frames>=30&&signatures.size>=3&&playbackSeconds>=4.05&&nonSilentAudioSamples>=3&&appendedDuringPlayback>0&&(!disconnect||appendedAfterReconnect>0)){
+      if(interruptionError)throw Error('Connection interruption failed: '+interruptionError);
+      const quality=video.getVideoPlaybackQuality();
+      return {presentedCallbacks:frames,distinctScreenSamples:signatures.size,totalVideoFrames:quality.totalVideoFrames,
+       droppedVideoFrames:quality.droppedVideoFrames,firstFrameMs:round(firstFrameMs),playbackSeconds:round(playbackSeconds),
+       width:video.videoWidth,height:video.videoHeight,codec:mime,fragments,appendedDuringPlayback,
+       audioAnalysisSampleRate:audio.sampleRate,nonSilentAudioSamples,peakAudioRms,firstAudioSignalMs:round(firstAudioSignalMs),
+       transportFailures,resumedAfterFailure,interruptionFailures,appendedAfterReconnect,simulatedDisconnect:disconnect,
+       maxFrameGapMs:round(maxFrameGapMs),stallCount,
+       stallMs:round(stallMs+(stallAt===null?0:performance.now()-stallAt)),
+       appendedMediaAheadMs:round((buffer.buffered.end(buffer.buffered.length-1)-mediaTime)*1000)};
      }
-     if(video.error)throw Error('video error '+video.error.code);
-     await new Promise(r=>setTimeout(r,350));
+     await new Promise(resolve=>setTimeout(resolve,280));
     }
-    throw Error('Browser playback did not advance');
-   }finally{video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(object);}
-  });
+    throw Error('Browser playback did not meet the evidence threshold: '+JSON.stringify({frames,distinctScreenSamples:signatures.size,
+     firstFrameMs,mediaTime,firstMediaTime,nonSilentAudioSamples,appendedDuringPlayback,appendedAfterReconnect,
+     transportFailures,resumedAfterFailure,interruptionFailures,interruptionError,lastTransportError}));
+   }finally{
+    video.cancelVideoFrameCallback(frameId);
+    clearInterval(audioTimer);
+    video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(object);
+    await audio.close();
+   }
+  },disconnect);
  }finally{await context.close();}
 }
 
 (async()=>{
- const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required']});
+ const url=new URL(process.argv[2]);
+ assert.equal(url.protocol,'http:');
+ assert.equal(url.hostname,'127.0.0.1');
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM||undefined,
+  args:['--autoplay-policy=no-user-gesture-required']});
  try{
-  const results=await Promise.all([viewer(browser,process.argv[2]),viewer(browser,process.argv[2])]);
-  for(const result of results){assert(result.decodedFrames>=15);assert(result.width>0&&result.height>0);}
-  console.log(JSON.stringify({browserPlaybackVerified:true,independentBrowserContexts:2,results,
-   physicalAudioOutputVerified:false,captureToScreenLatencyVerified:false}));
+  const results=await Promise.all([viewer(browser,url.origin,false),viewer(browser,url.origin,true)]);
+  for(const result of results){
+   assert(result.presentedCallbacks>=30&&result.distinctScreenSamples>=3&&result.width===640&&result.height===512);
+   assert(result.nonSilentAudioSamples>=3&&result.peakAudioRms>=0.0001);
+   assert(result.fragments.every(f=>Number.isFinite(f.publicationAgeMs)));
+  }
+  assert(results[1].interruptionFailures>0&&results[1].resumedAfterFailure>0&&results[1].appendedAfterReconnect>0);
+  const peer=new Map(results[1].fragments.map(f=>[f.name,f.sha256]));
+  const shared=results[0].fragments.filter(f=>peer.has(f.name));
+  assert(shared.length>=3,'The viewers must receive three common ordered fragments');
+  for(const fragment of shared)assert.equal(fragment.sha256,peer.get(fragment.name),fragment.name);
+  console.log(JSON.stringify({browserPlaybackVerified:true,browserAudioSignalVerified:true,independentBrowserContexts:2,
+   sharedFragments:shared.length,shortDisconnectRecoveryVerified:true,results,physicalAudioOutputVerified:false,
+   captureToScreenLatencyVerified:false,avSyncVerified:false,fullMatchVerified:false}));
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

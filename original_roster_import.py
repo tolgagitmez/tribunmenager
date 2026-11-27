@@ -15,6 +15,7 @@ import original_engine as engine
 from original_catalog import connect,catalog
 from original_native_saves_probe import populate
 from original_roster_pack import build_pack,validate_mapping,validate_lineup
+from original_skill_mapping import SKILL_MAP
 
 MAX_JSON=256*1024
 
@@ -69,10 +70,20 @@ def prepare_rows(snapshot,mapping):
         first,last=a.get('firstName'),a.get('lastName')
         if not isinstance(first,str) or not isinstance(last,str) or ' '.join((first+' '+last).split())!=' '.join(p['name'].split()):
             raise ValueError('Mapped name must match exported player')
+        reviewed=a.get('reviewedSkills',[])
+        if (not isinstance(reviewed,list) or any(not isinstance(key,str) or key not in SKILL_MAP for key in reviewed) or
+            len(set(reviewed))!=len(reviewed)):
+            raise ValueError('Reviewed skills must be unique supported web attribute names')
         seen.add(idx)
-        rows.append(dict(localIndex=idx,nativePlayerId=a.get('nativePlayerId'),
+        row=dict(localIndex=idx,nativePlayerId=a.get('nativePlayerId'),
             firstName=first,lastName=last,webRole=p.get('webRole'),
-            nativeRole=a.get('nativeRole')))
+            nativeRole=a.get('nativeRole'))
+        if reviewed:
+            values=p.get('webValues')
+            if not isinstance(values,dict) or any(key not in values for key in reviewed):
+                raise ValueError('Reviewed skill is missing from the saved player export')
+            row['webValues']={key:values[key] for key in reviewed}
+        rows.append(row)
     return rows,order
 
 
@@ -172,6 +183,9 @@ def main():
     mapping=read_json(args.mapping)
     rows,order=prepare_rows(snapshot,mapping)
     team=mapping.get('teamId')
+    reviewed_tactics=mapping.get('reviewedTactics')
+    if 'reviewedTactics' in mapping and reviewed_tactics is None:
+        raise ValueError('Explicit reviewed native tactic values required')
     with closing(connect(default)) as db:
         validate_mapping(db,team,rows)
         validate_lineup(db,team,rows,order)
@@ -179,10 +193,13 @@ def main():
         runtime=Path(tmp)/'runtime'
         populate(build,runtime)
         engine.check_config(work/'source',runtime)
-        report=build_pack(runtime,team,rows,slot_order=order)
+        report=build_pack(runtime,team,rows,slot_order=order,
+            skill_pilot=any('webValues' in row for row in rows),
+            reviewed_tactics=reviewed_tactics)
         print(json.dumps(report,ensure_ascii=False,indent=2),flush=True)
         print('Geçici deneysel oturum: League Mode > New League > tribun-roster-pilot.',flush=True)
-        print('Seçilen takım ID: '+str(team)+'. Yetenekler, yaş, görünüm ve taktikler orijinal veri olarak kalır.',flush=True)
+        print(f"Takım kimliği {team}. Pakete {report['experimentalSkillProfilesWritten']} oyuncu profili ve "
+              f"{len(report['experimentalTacticsWritten'])} seçilmiş taktik değeri yazıldı.",flush=True)
         print('Bu oturum normal kayıt deposuna yazılmaz ve kapatıldığında silinir.',flush=True)
         code=subprocess.run([str(runtime/'gameplayfootball')],cwd=runtime,env=env).returncode
         if code:

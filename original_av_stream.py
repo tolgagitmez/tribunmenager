@@ -3,14 +3,19 @@
 No engine configuration changes, no public HTTP server, no viewer-specific
 simulation. HLS adds segment latency; this module is a transport pilot.
 """
+import json
 import math
+import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import time
 
 SEGMENT_SECONDS=2
 MAX_SEGMENTS=6
+MAX_PLAYLIST_BYTES=16384
+MAX_SEGMENT_BYTES=16*1024*1024
 SEGMENT=re.compile(r'segment-\d{6}\.ts')
 FMP4_SEGMENT=re.compile(r'segment-\d{6}\.m4s')
 
@@ -40,54 +45,104 @@ def encoding_args(output,*,fmp4=False):
             '-hls_delete_threshold','2','-hls_flags','delete_segments+independent_segments+temp_file',
             *extra,'-hls_segment_filename',str(output/('segment-%06d.'+suffix)),str(output/'stream.m3u8')]
 
+def read_published_file(path,limit):
+    """Read the opened inode, even if the rolling encoder unlinks it."""
+    fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(fd,'rb') as file:
+        info=os.fstat(file.fileno())
+        if not stat.S_ISREG(info.st_mode) or not 0<info.st_size<=limit:
+            raise ValueError('Invalid HLS file')
+        data=file.read(limit+1)
+        if len(data)!=info.st_size:
+            raise ValueError('HLS file changed')
+    return data,info
+
 def read_playlist(directory,*,fmp4=False):
-    path=Path(directory)/'stream.m3u8'
-    if path.is_symlink() or not path.is_file() or path.stat().st_size>16384:
-        raise ValueError('Invalid live playlist')
-    lines=path.read_text(encoding='utf-8').splitlines()
+    try:
+        data,_=read_published_file(Path(directory)/'stream.m3u8',MAX_PLAYLIST_BYTES)
+        return parse_playlist(data.decode('utf-8'),fmp4=fmp4)
+    except (OSError,UnicodeError) as error:
+        raise ValueError('Invalid live playlist') from error
+
+def parse_playlist(text,*,fmp4=False):
+    lines=text.splitlines()
     if not lines or lines[0]!='#EXTM3U':
         raise ValueError('Invalid HLS header')
-    if fmp4 and '#EXT-X-MAP:URI="init.mp4"' not in lines:
-        raise ValueError('Missing local initialization fragment')
     pattern=FMP4_SEGMENT if fmp4 else SEGMENT
     suffix='m4s' if fmp4 else 'ts'
     segments=[]
     sequence=None
     duration=None
+    init=False
+    ended=False
     for line in lines[1:]:
+        if not line:
+            continue
+        if ended:
+            raise ValueError('Reference after end of playlist')
         if line.startswith('#EXT-X-MEDIA-SEQUENCE:'):
+            if sequence is not None or segments or duration is not None:
+                raise ValueError('Duplicate or misplaced media sequence')
             sequence=int(line.split(':',1)[1])
+        elif line.startswith('#EXT-X-MAP:'):
+            if not fmp4 or init or segments or line!='#EXT-X-MAP:URI="init.mp4"':
+                raise ValueError('Invalid initialization fragment')
+            init=True
         elif line.startswith('#EXTINF:'):
+            if duration is not None:
+                raise ValueError('Missing segment reference')
             duration=float(line.split(':',1)[1].split(',',1)[0])
             if not math.isfinite(duration) or not 0<duration<=3:
                 raise ValueError('Invalid segment duration')
-        elif line and not line.startswith('#'):
-            if not pattern.fullmatch(line) or duration is None:
+        elif line=='#EXT-X-ENDLIST':
+            ended=True
+        elif not line.startswith('#'):
+            if not pattern.fullmatch(line) or duration is None or (fmp4 and not init):
                 raise ValueError('Invalid segment reference')
             segments.append(dict(name=line,seconds=duration))
             duration=None
-    if sequence is None or sequence<0 or not 1<=len(segments)<=MAX_SEGMENTS:
+    if fmp4 and not init:
+        raise ValueError('Missing local initialization fragment')
+    if duration is not None or sequence is None or sequence<0 or not 1<=len(segments)<=MAX_SEGMENTS:
         raise ValueError('Invalid bounded playlist window')
     if [s['name'] for s in segments]!=[f'segment-{i:06d}.{suffix}' for i in range(sequence,sequence+len(segments))]:
         raise ValueError('Discontinuous segment sequence')
     return dict(mediaSequence=sequence,segments=segments,
                 windowSeconds=sum(s['seconds'] for s in segments),
-                ended='#EXT-X-ENDLIST' in lines)
+                ended=ended)
 
-def segment_probe(path):
-    import json
+def read_segment(path):
     path=Path(path)
-    if path.is_symlink() or not path.is_file() or not SEGMENT.fullmatch(path.name):
+    fragmented=bool(FMP4_SEGMENT.fullmatch(path.name))
+    if not fragmented and not SEGMENT.fullmatch(path.name):
         raise ValueError('Invalid segment')
+    try:
+        media,_=read_published_file(path,MAX_SEGMENT_BYTES)
+        init=read_published_file(path.with_name('init.mp4'),MAX_SEGMENT_BYTES)[0] if fragmented else b''
+    except OSError as error:
+        raise ValueError('Invalid or expired segment') from error
+    return init+media,len(media)
+
+def probe_streams(data):
     data=json.loads(subprocess.check_output(['ffprobe','-v','error',
-        '-show_entries','stream=codec_type,codec_name,sample_rate,width,height',
-        '-of','json',str(path)],text=True,timeout=10))
+        '-show_entries','stream=codec_type,codec_name,sample_rate,width,height,start_time',
+        '-of','json','-i','pipe:0'],input=data,timeout=10))
     streams=data['streams']
     video=[s for s in streams if s.get('codec_type')=='video']
     audio=[s for s in streams if s.get('codec_type')=='audio']
     if len(video)!=1 or len(audio)!=1 or video[0].get('codec_name')!='h264' or audio[0].get('codec_name')!='aac' or audio[0].get('sample_rate')!='48000':
         raise ValueError('Expected H264 and 48 kHz AAC in same segment')
-    return dict(video=video[0],audio=audio[0],bytes=path.stat().st_size)
+    try:
+        audio_start=float(audio[0]['start_time'])
+        video_start=float(video[0]['start_time'])
+        offset=round((audio_start-video_start)*1000,3)
+    except (KeyError,TypeError,ValueError,OverflowError):
+        offset=None
+    return dict(video=video[0],audio=audio[0],muxAudioMinusVideoStartMs=offset if offset is not None and math.isfinite(offset) else None)
+
+def segment_probe(path):
+    data,size=read_segment(path)
+    return dict(**probe_streams(data),bytes=size)
 
 def publication_age_ms(path,now=None):
     """Local file age only; not capture-to-screen latency."""

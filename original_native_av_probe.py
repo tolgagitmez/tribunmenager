@@ -16,12 +16,12 @@ import math
 import original_engine as engine
 from original_native_saves_probe import populate
 from original_native_browser_probe import terminate,ACTIVE
-from original_av_stream import encoder_args,read_playlist,segment_probe,publication_age_ms
+from original_av_stream import encoder_args,read_playlist,read_segment,probe_streams,publication_age_ms
 
 
-def audible_rms(path):
-    raw=subprocess.check_output(['ffmpeg','-nostdin','-v','error','-i',str(path),
-        '-map','0:a:0','-ac','1','-ar','16000','-f','s16le','pipe:1'],timeout=10)
+def audible_rms(media):
+    raw=subprocess.check_output(['ffmpeg','-nostdin','-v','error','-i','pipe:0',
+        '-map','0:a:0','-ac','1','-ar','16000','-f','s16le','pipe:1'],input=media,timeout=10)
     values=array.array('h',raw)
     if sys.byteorder!='little':
         values.byteswap()
@@ -90,6 +90,22 @@ def run(browser=False):
                     time.sleep(.25)
                 else:
                     raise RuntimeError('Expected three live audiovisual segments')
+                # Inspect the same captured fragments for both codecs and PCM
+                # energy. Freeze the sample bytes before the window rolls.
+                paths=[output/x['name'] for x in report['segments']]
+                samples=[read_segment(path) for path in paths]
+                inspected=[dict(**probe_streams(media),bytes=size) for media,size in samples]
+                rms=[audible_rms(media) for media,_ in samples]
+                if max(rms)<0.0001:
+                    raise RuntimeError('Native capture contains no measurable audio')
+                evidence=dict(nativeAVSegmentProbePassed=True,segments=len(paths),
+                    fragmentedMp4=browser,audioRms=rms,streamInfo=inspected,
+                    playlistWindowSeconds=report['windowSeconds'],
+                    newestSegmentPublicationAgeMs=publication_age_ms(paths[-1]),
+                    audioSource='private PulseAudio sink monitor',
+                    captureToScreenLatencyVerified=False,publicStreaming=False,
+                    fullMatchVerified=False,acceleratedUpstreamSmoke=True,
+                    nativeSettingsPatched=False)
                 if browser:
                     import threading
                     from original_hls_relay import HLSRelay
@@ -99,30 +115,18 @@ def run(browser=False):
                         try:
                             script=Path(__file__).resolve().parent/'tests/original-hls-browser.cjs'
                             response=subprocess.run(['node',str(script),f'http://127.0.0.1:{server.server_port}'],env=env,capture_output=True,text=True,timeout=45)
-                            print(response.stdout,flush=True)
                             if response.returncode or game.poll() is not None or encoder.poll() is not None:
                                 raise RuntimeError('Native browser AV playback failed: '+response.stderr)
+                            print(json.dumps(evidence),flush=True)
+                            print(response.stdout,flush=True)
                         finally:
                             server.shutdown()
                             worker.join(timeout=5)
                     engine.verify_install(work,env)
                     return
-                paths=[output/x['name'] for x in report['segments']]
-                inspected=[segment_probe(p) for p in paths]
-                rms=[audible_rms(p) for p in paths]
-                if max(rms)<0.0001:
-                    raise RuntimeError('Native capture contains no measurable audio')
                 from original_hls_delivery_probe import verify_delivery
-                delivery=verify_delivery(output)
-                print(json.dumps(dict(nativeAVSegmentProbePassed=True,
-                    delivery=delivery,
-                    segments=len(paths),audioRms=rms,streamInfo=inspected,
-                    playlistWindowSeconds=report['windowSeconds'],
-                    newestSegmentPublicationAgeMs=publication_age_ms(paths[-1]),
-                    audioSource='private PulseAudio sink monitor',
-                    captureToScreenLatencyVerified=False,publicStreaming=False,
-                    fullMatchVerified=False,acceleratedUpstreamSmoke=True,
-                    nativeSettingsPatched=False)),flush=True)
+                evidence['delivery']=verify_delivery(output)
+                print(json.dumps(evidence),flush=True)
             except Exception:
                 for stream in (log,audio_log,encoder_log):
                     stream.seek(0)
