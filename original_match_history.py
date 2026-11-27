@@ -38,6 +38,49 @@ def validate(row):
                 fouls=[f1,f2])
 
 
+
+def summarize_teams(records):
+    """Descriptive aggregates over displayed history, not league standings.
+    History has team names, not stable club IDs or competition identifiers.
+    Exclude identical-name pairings because the sides cannot be distinguished.
+    """
+    totals={}
+    excluded=0
+    for record in records:
+        names=(record['homeTeam'],record['awayTeam'])
+        if names[0]==names[1]:
+            excluded+=1
+            continue
+        goals=(record['homeGoals'],record['awayGoals'])
+        for side,name in enumerate(names):
+            other=1-side
+            row=totals.setdefault(name,dict(teamName=name,played=0,won=0,drawn=0,lost=0,
+                goals=0,goalsAgainst=0,shots=0,shotsOnTarget=0,passAttempts=0,
+                passesCompleted=0,possessionSum=0,fouls=0))
+            row['played']+=1
+            row['won']+=int(goals[side]>goals[other])
+            row['drawn']+=int(goals[side]==goals[other])
+            row['lost']+=int(goals[side]<goals[other])
+            row['goals']+=goals[side]
+            row['goalsAgainst']+=goals[other]
+            for key in ('shots','shotsOnTarget','passAttempts','passesCompleted','fouls'):
+                row[key]+=record[key][side]
+            row['possessionSum']+=record['possessionPct'][side]
+    def pct(n,d):
+        return round(100*n/d,2) if d else None
+    for row in totals.values():
+        n=row['played']
+        row['goalsPerMatch']=round(row['goals']/n,2)
+        row['shotsPerMatch']=round(row['shots']/n,2)
+        row['shotsOnTargetPerMatch']=round(row['shotsOnTarget']/n,2)
+        row['shotAccuracyPct']=pct(row['shotsOnTarget'],row['shots'])
+        row['passAccuracyPct']=pct(row['passesCompleted'],row['passAttempts'])
+        row['meanPossessionPct']=round(row.pop('possessionSum')/n,2)
+    return dict(scope='valid-recent-history',groupedBy='exact-team-name',
+                mixedCompetitions=True,sampleMatches=len(records)-excluded,
+                excludedSameNameMatches=excluded,teams=sorted(totals.values(),key=lambda x:x['teamName']))
+
+
 def read_recent(path):
     rows=read_rows(Path(path),MAX_HISTORY+1)
     records=[]
@@ -49,7 +92,8 @@ def read_recent(path):
             skipped+=1
     return dict(source='native-3d-match-history',scope='last-closed-session',
                 linkedToLeagueFixtures=False,readOnly=True,records=records,
-                skipped=skipped,truncated=len(rows)>MAX_HISTORY)
+                skipped=skipped,truncated=len(rows)>MAX_HISTORY,
+                teamPerformance=summarize_teams(records))
 
 
 def read_single(path):
