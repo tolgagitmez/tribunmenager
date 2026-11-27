@@ -44,5 +44,37 @@
   catch{status.textContent='Başlatma isteği başarısız. Terminali kontrol et.';}
   finally{busy=false;await update();}
  });
- update();
+ const team=document.getElementById('nativeTeam'), catalogNote=document.getElementById('nativeCatalogStatus'), details=document.getElementById('nativeCatalogDetails');
+ let catalogSequence=0;
+ function section(title,values){
+  const h=document.createElement('h3');h.textContent=title;details.append(h);
+  const ul=document.createElement('ul');
+  for(const value of values){const li=document.createElement('li');li.textContent=value;ul.append(li);}
+  details.append(ul);
+ }
+ async function loadTeam(){
+  const seq=++catalogSequence;
+  details.replaceChildren();catalogNote.textContent='Takım okunuyor…';
+  try{
+   const res=await fetch('/api/original/catalog?team='+encodeURIComponent(team.value),{cache:'no-store'});
+   if(!res.ok)throw Error();
+   const data=await res.json();if(seq!==catalogSequence)return;
+   section('Kayıtlı oyuncular',data.players.map(p=>p.name+' · '+p.role+' · sıra: '+(p.formationOrder??'—')));
+   section('Kayıtlı diziliş yuvaları',data.formation.map(p=>p.slot+' · '+(p.role??'—')+' · '+(p.rawPosition?.join(', ')??'—')));
+   section('Orijinal taktik değerleri',data.tactics.map(t=>t.label+' : '+t.value+(t.source==='upstream-memory-default'?' (motorun varsayılan değeri)':'')));
+   catalogNote.textContent=data.name+(data.truncated?' · Oyuncu listesi sınırlandırıldı.':' · Salt okunur kayıt.');
+  }catch{if(seq===catalogSequence)catalogNote.textContent='Takım verisi okunamadı.';}
+ }
+ async function loadCatalog(){
+  try{
+   const res=await fetch('/api/original/catalog',{cache:'no-store'});if(!res.ok)throw Error();
+   const data=await res.json();team.replaceChildren();
+   for(const item of data.teams){const opt=document.createElement('option');opt.value=item.id;opt.textContent=item.name;team.append(opt);}
+   team.disabled=!data.teams.length;
+   if(data.teams.length)await loadTeam();else catalogNote.textContent='Kayıtlı takım bulunamadı.';
+  }catch{team.disabled=true;catalogNote.textContent='Orijinal motor veri tabanı henüz kullanılamıyor.';}
+ }
+ team.addEventListener('change',loadTeam);
+ refresh.addEventListener('click',loadCatalog);
+ update();loadCatalog();
 })();
