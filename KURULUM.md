@@ -244,3 +244,23 @@ Continue otomatik denenir; yalnızca ayrılan fikstürün skoru ile geçmiş eş
 aday sonuç kabul edilir. Sonra operatör normal menüden çıkar; kapalı kayıtlar
 yeniden karşılaştırılır. Bu deney üretim puan tablosuna yazmaz.
 Tam otomatik devre arası ve normal kapanış henüz doğrulanmış değildir.
+
+
+### Deneysel devre arası görsel geçişi
+
+Normal motorun devre arası ekranına ait 1280×1024 gri ham görüntülerle
+`original_halftime_gate.py manifest.json bundle.json` komutu bir kalibrasyon üretir.
+Manifest: `revision` (motor commit), `configSha256` (geçici football.config),
+`operatorReviewed: true`, `regions` (devre arası başlığı ve devam düğmesini
+içeren iki ayrı [x,y,w,h] bölgesi), `positive` (en az iki ayrı doğrulanmış
+devre arası görüntüsü) ve `negative` (en az üç ayrı doğrulanmış diğer ekran)
+dosya yollarını içerir. Negatifler özellikle saha, duraklama ve maç sonunu
+kapsamalıdır. Kalibrasyon aynı motor sürümü, görüntü ayarları ve dil ile yapılır.
+Ham görüntüler yalnızca özel test ekranında alınmalıdır.
+
+`original_native_reload_probe.py --inside-private-display <geçici-runtime> --finish-auto-half bundle.json`
+modu iki bölgede art arda üç güçlü eşleşme, son bir yeniden doğrulama ve tek
+Continue işlemi ister; ekranın ayrıldığı da kontrol edilir. Zaman aşımında
+rastgele tuş göndermez. Gerçek motor ekranı kalibrasyonu ve uçtan uca geçiş
+henüz doğrulanmadı; sentetik birim testleri gerçek ekran doğrulaması değildir.
+Normal oyun çıkışı hâlâ operatör gerektirir. Yalnızca izole, geçici runtime için.
