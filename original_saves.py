@@ -16,6 +16,49 @@ MAX_BYTES=2*1024**3
 SNAPSHOT=re.compile(r'snapshot-[0-9a-f]{32}')
 
 
+def sync_dir(path):
+    fd=os.open(path,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def walk_error(error):
+    raise error
+
+
+def same_tree(left,right):
+    """Compare validated ordinary-file trees without trusting names alone."""
+    def entries(root):
+        items={}
+        for base,dirs,files in os.walk(root,followlinks=False,onerror=walk_error):
+            base=Path(base)
+            for name in dirs+files:
+                p=base/name
+                info=p.lstat()
+                if not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode)):
+                    raise RuntimeError('Geçersiz lig kayıt ağacı.')
+                items[p.relative_to(root)]=(p,stat.S_ISDIR(info.st_mode),info.st_size)
+        return items
+    a,b=entries(left),entries(right)
+    if a.keys()!=b.keys():
+        return False
+    for key,(p,is_dir,size) in a.items():
+        q,other_dir,other_size=b[key]
+        if is_dir!=other_dir or (not is_dir and size!=other_size):
+            return False
+        if not is_dir:
+            with p.open('rb') as x,q.open('rb') as y:
+                while True:
+                    first,second=x.read(1024*1024),y.read(1024*1024)
+                    if first!=second:
+                        return False
+                    if not first:
+                        break
+    return True
+
+
 def copy_saves(source, destination):
     """Copy a bounded ordinary-file tree; reject links, special files, journals."""
     source=Path(source)
@@ -24,7 +67,7 @@ def copy_saves(source, destination):
     destination=Path(destination)
     destination.mkdir(mode=0o700)
     count=size=0
-    for base,dirs,files in os.walk(source,followlinks=False):
+    for base,dirs,files in os.walk(source,followlinks=False,onerror=walk_error):
         base=Path(base)
         target=destination/base.relative_to(source)
         for name in dirs:
@@ -46,6 +89,10 @@ def copy_saves(source, destination):
                 raise RuntimeError('Lig kayıt boyutu sınırı aşıldı.')
             shutil.copyfile(p,target/name)
             (target/name).chmod(0o600)
+            with (target/name).open('rb') as copied:
+                os.fsync(copied.fileno())
+    for base,_,_ in os.walk(destination,topdown=False,onerror=walk_error):
+        sync_dir(base)
 
 
 @contextmanager
@@ -95,16 +142,20 @@ def commit(root,session,exit_code):
     if exit_code!=0 or (not source.exists() and not source.is_symlink()):
         return False
     # Validate old pointer before creating a replacement.
-    current_snapshot(root)
+    previous=current_snapshot(root)
     with tempfile.TemporaryDirectory(prefix='.stage-',dir=root) as staging:
         staged=Path(staging)/'saves'
         copy_saves(source,staged)
+        if previous is not None and same_tree(staged,previous):
+            return True  # Successfully retained; no redundant snapshot.
         name='snapshot-'+uuid.uuid4().hex
         staged.rename(root/name)
+        sync_dir(root)
         pointer=Path(staging)/'current'
         with pointer.open('w',encoding='ascii') as f:
             f.write(name+'\n')
             f.flush()
             os.fsync(f.fileno())
         os.replace(pointer,root/'current')
+        sync_dir(root)
     return True
