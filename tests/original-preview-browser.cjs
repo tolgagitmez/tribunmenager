@@ -49,7 +49,33 @@ const {chromium}=require('playwright');
    }});
   });
   const url=process.env.ORIGINAL_TEST_URL||'http://127.0.0.1:8765/original-engine.html';
+  // Use the actual manager tactics page to save a plan in this isolated browser.
+  await page.goto(new URL('tactics.html',url).href,{waitUntil:'domcontentloaded'});
+  await page.locator('[data-preset="press"]').click();
+  const saved=await page.evaluate(()=>localStorage.getItem('tribun-manager-pro09'));
+  assert.ok(saved,'Web tactics page must persist the chosen plan');
+  const manager=JSON.parse(saved);
+  assert.equal(manager.tactics.press,86);
+  assert.equal(manager.starters.length,11);
+  const writes=[];
+  page.on('request',req=>{
+   if(!['GET','HEAD','OPTIONS'].includes(req.method()))writes.push(req.method()+' '+req.url());
+  });
   await page.goto(url,{waitUntil:'domcontentloaded'});
+  const managerStatus=page.locator('#managerPlanStatus');
+  const managerDetails=page.locator('#managerPlanDetails');
+  await managerStatus.filter({hasText:'Orijinal motora uygulanmadı.'}).waitFor();
+  const managerText=await managerDetails.textContent();
+  assert.ok(managerText.includes(manager.formation));
+  assert.ok(managerText.includes('Baskı : 86'));
+  for(const index of manager.starters)assert.ok(managerText.includes(manager.players[index].name));
+  assert.equal(await page.evaluate(()=>localStorage.getItem('tribun-manager-pro09')),saved);
+  // An absent plan must not recreate defaults or send a native command.
+  await page.evaluate(()=>localStorage.removeItem('tribun-manager-pro09'));
+  await page.locator('#originalRefresh').click();
+  await managerStatus.filter({hasText:'kaydedilmiş menajer planı bulunamadı'}).waitFor();
+  assert.equal(await managerDetails.locator('li').count(),0);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('tribun-manager-pro09')),null);
   const saveNote=page.locator('#nativeSaveStoreStatus');
   await saveNote.filter({hasText:'Saklanmış lig kayıtları mevcut.'}).waitFor();
   assert.match(await saveNote.textContent(),/2 kurtarma klasörü/);
@@ -76,8 +102,9 @@ const {chromium}=require('playwright');
   assert.equal(await page.evaluate(()=>document.querySelector('#originalPreviewVideo').srcObject===null),true);
   assert.equal(await page.evaluate(()=>window.__testTrack.readyState),'ended');
   assert.equal(await page.locator('#originalPreviewReport').isEnabled(),true);
+  assert.deepEqual(writes,[],'Original engine page must not send a write request during read-only preview');
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({browserPlaybackVerified:true,syntheticCanvasStream:true,
+  console.log(JSON.stringify({browserPlaybackVerified:true,managerPlanBrowserVerified:true,managerPlanStorageUnchanged:true,syntheticCanvasStream:true,
    nativeWindowPickerVerified:false,nativeMatchVerified:false,reportDownloadVerified:true,
    sampleSeconds:report.seconds,averagePresentedFps:report.averagePresentedFps}));
  }finally{await browser.close();}
