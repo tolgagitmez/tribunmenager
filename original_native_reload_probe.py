@@ -58,7 +58,7 @@ def diagnostic_frame(label,env):
         print('Diagnostic frame unavailable: '+str(exc),file=sys.stderr)
 
 
-def run(session,kickoff=False):
+def run(session,kickoff=False,finish=False):
     env=e.clean_env(os.environ)
     if not env.get('DISPLAY','').startswith(':'):
         raise RuntimeError('Private CI display required')
@@ -68,11 +68,21 @@ def run(session,kickoff=False):
         raise RuntimeError('Expected exactly one restored native league')
     expected=autosaves[0].resolve()
     fixture=None
+    if finish and not kickoff:
+        raise ValueError('Full-time monitor requires kickoff mode')
     if kickoff:
         from original_fixture_gate import next_native_fixture
         fixture=next_native_fixture(expected)
         if fixture is None:
             raise RuntimeError('No eligible native fixture in test save')
+    if finish:
+        from original_match_history import HISTORY_PATH
+        from original_full_league_validation import completed_own,verify_restored_fixture
+        from original_native_finish_gate import expected_names,fresh_history,reserved_score_saved
+        if (session/HISTORY_PATH).exists() or (session/HISTORY_PATH).is_symlink():
+            raise RuntimeError('Finish monitor requires a fresh history database')
+        previous=completed_own(expected)
+        names=expected_names(expected,fixture)
     with tempfile.TemporaryFile() as log:
         game=subprocess.Popen([str(session/'gameplayfootball')],cwd=session,
                               env=env,stdout=log,stderr=subprocess.STDOUT)
@@ -133,6 +143,35 @@ def run(session,kickoff=False):
                     matchCompleted=False,normalExitVerified=False,
                     automaticProductionKickoff=False,
                     scope='Disposable UI input, upstream match constructor logs and open autosave; not completed match or independent team identity evidence')),flush=True)
+                if finish:
+                    # No guessed timer or keypress at halftime: normal native
+                    # settings do not expose a verified halftime log marker.
+                    print('At halftime, continue the match in the private display. Do not start another match.',flush=True)
+                    final=wait_for(lambda: fresh_history(session,names),5400,game)
+                    diagnostic_frame('finish-01-native-history',env)
+                    # GameOverPage saves fresh history and focuses Continue.
+                    # Only act after the native full-time row is verified.
+                    if not opened_database(game.pid,expected):
+                        raise RuntimeError('Reserved autosave lost at full time')
+                    time.sleep(1)
+                    if fresh_history(session,names)!=final:
+                        raise RuntimeError('Native full-time history changed before Continue')
+                    e.call(['xdotool','windowfocus','--sync',wid],env)
+                    press_key('Return',env)
+                    candidate=wait_for(lambda: reserved_score_saved(expected,fixture,previous,final['history']),60,game)
+                    diagnostic_frame('finish-02-score-saved',env)
+                    print(json.dumps(dict(nativeContinueScoreCandidate=candidate,automaticFinalContinue=True,
+                                          automaticHalftimeVerified=False,scoreWrittenByBridge=False)),flush=True)
+                    print('Exit the native game normally from its menus without playing another match.',flush=True)
+                    if game.wait(timeout=300)!=0:
+                        raise RuntimeError('Native game did not close normally')
+                    report=verify_restored_fixture(session,fixture,previous)
+                    if report['history']!=final['history']:
+                        raise RuntimeError('Closed history changed after final Continue')
+                    report.update(normalExitVerified=True,automaticFinalContinue=True,
+                                  automaticHalftimeVerified=False,automaticProductionKickoff=False,
+                                  scoreWrittenByBridge=False,defaultConfigLaunch=True)
+                    print(json.dumps(report),flush=True)
         except Exception:
             diagnostic_frame('99-failure',env)
             log.seek(0)
@@ -149,11 +188,11 @@ def run(session,kickoff=False):
 
 
 if __name__=='__main__':
-    if len(sys.argv) in (3,4) and sys.argv[1]=='--inside-private-display' and (len(sys.argv)==3 or sys.argv[3]=='--kickoff'):
-        run(sys.argv[2],kickoff=len(sys.argv)==4)
+    if len(sys.argv) in (3,4) and sys.argv[1]=='--inside-private-display' and (len(sys.argv)==3 or sys.argv[3] in ('--kickoff','--finish')):
+        run(sys.argv[2],kickoff=len(sys.argv)==4,finish='--finish' in sys.argv)
     elif len(sys.argv) in (2,3) and (len(sys.argv)==2 or sys.argv[2]=='--kickoff'):
         e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
                 sys.executable,Path(__file__).resolve(),'--inside-private-display',
                 Path(sys.argv[1]).resolve(),*sys.argv[2:]],e.clean_env(os.environ))
     else:
-        raise SystemExit('Usage: original_native_reload_probe.py <disposable-runtime> [--kickoff]')
+        raise SystemExit('Usage: original_native_reload_probe.py <disposable-runtime> [--kickoff]; --finish requires an explicitly managed private display')
