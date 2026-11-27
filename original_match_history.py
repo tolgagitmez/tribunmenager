@@ -1,0 +1,59 @@
+"""Read completed native 3D match history only, without mapping it to league fixtures."""
+from contextlib import closing
+import math
+from pathlib import Path
+import sqlite3
+
+MAX_HISTORY=30
+
+
+def read_rows(path,limit):
+    if path.is_symlink() or not path.is_file() or path.stat().st_size>64*1024*1024:
+        raise ValueError('Native 3D match history missing or invalid')
+    if any(Path(str(path)+s).exists() for s in ('-wal','-shm','-journal')):
+        raise ValueError('History must be closed cleanly')
+    with closing(sqlite3.connect(path.resolve().as_uri()+'?mode=ro&immutable=1',uri=True)) as db:
+        db.execute('PRAGMA query_only=ON')
+        db.execute('PRAGMA trusted_schema=OFF')
+        rows=db.execute("""SELECT team1_name,team2_name,score1,score2,match_time_ms,
+            shots1,shots2,shots_on_target1,shots_on_target2,
+            possession1_pct,possession2_pct,passes1,passes2,
+            passes_completed1,passes_completed2,fouls1,fouls2
+            FROM match_history ORDER BY id DESC LIMIT ?""",(limit,)).fetchall()
+    return rows
+
+
+def validate(row):
+    home,away,hg,ag,clock,s1,s2,t1,t2,pos1,pos2,p1,p2,c1,c2,f1,f2=row
+    if (not all(isinstance(x,str) and 0<len(x)<=256 for x in (home,away)) or
+        any(type(x) is not int or x<0 for x in (hg,ag,clock,s1,s2,t1,t2,p1,p2,c1,c2,f1,f2)) or
+        max(hg,ag)>99 or clock<=0 or t1>s1 or t2>s2 or c1>p1 or c2>p2 or
+        not all(type(x) in (int,float) and math.isfinite(x) and 0<=x<=100 for x in (pos1,pos2)) or
+        abs(pos1+pos2-100)>0.1):
+        raise ValueError('Invalid 3D match history')
+    return dict(homeTeam=home,awayTeam=away,homeGoals=hg,awayGoals=ag,
+                nativeMatchClockMs=clock,shots=[s1,s2],shotsOnTarget=[t1,t2],
+                possessionPct=[pos1,pos2],passAttempts=[p1,p2],passesCompleted=[c1,c2],
+                passAccuracyPct=[round(100*c/p,2) if p else None for c,p in ((c1,p1),(c2,p2))],
+                fouls=[f1,f2])
+
+
+def read_recent(path):
+    rows=read_rows(Path(path),MAX_HISTORY+1)
+    records=[]
+    skipped=0
+    for row in rows[:MAX_HISTORY]:
+        try:
+            records.append(validate(row))
+        except ValueError:
+            skipped+=1
+    return dict(source='native-3d-match-history',scope='last-closed-session',
+                linkedToLeagueFixtures=False,readOnly=True,records=records,
+                skipped=skipped,truncated=len(rows)>MAX_HISTORY)
+
+
+def read_single(path):
+    rows=read_rows(Path(path),2)
+    if len(rows)!=1:
+        raise ValueError('Expected exactly one finished 3D match in fresh runtime')
+    return validate(rows[0])
