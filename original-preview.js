@@ -60,8 +60,24 @@
  const start=document.getElementById('originalPreviewStart'),stop=document.getElementById('originalPreviewStop');
  const status=document.getElementById('originalPreviewStatus');
  if(!video||!start||!stop||!status)return;
+ const metrics=document.getElementById('originalPreviewMetrics');
+ const monitor=root.TribunOriginalMetrics?.createMonitor({
+  video,now:()=>performance.now(),interval:(fn,ms)=>root.setInterval(fn,ms),
+  clearInterval:id=>root.clearInterval(id),isVisible:()=>!document.hidden,
+  onSample:s=>{
+   if(!metrics)return;
+   if(s.state==='unsupported'){metrics.textContent='Kare ölçümü tarayıcıda desteklenmiyor.';return;}
+   if(s.state==='paused'){metrics.textContent='Ölçüm duraklatıldı (sekme gizli veya video duraklatılmış).';return;}
+   if(s.state==='waiting'){metrics.textContent='İlk görüntü kareleri bekleniyor.';return;}
+   metrics.textContent=s.fps.toFixed(1)+' FPS · '+s.width+' × '+s.height+
+      ' · En uzun kare aralığı: '+s.longestGapMs+' ms · ≥1 sn kare boşluğu: '+s.stallEpisodes+
+      ' · Atlanan gözlem: '+s.missedCallbacks+(s.state==='stalled'?' · Görüntü karesi bekleniyor':'');
+  }
+ });
  const preview=createPreview({mediaDevices:root.navigator.mediaDevices,video,onState:({state,message})=>{
   status.textContent=message;
+  if(state==='playing')monitor?.start();
+  else {monitor?.stop();if(metrics)metrics.textContent='Kare ölçümü kapalı.';}
   start.disabled=state==='choosing'||state==='playing'||state==='unsupported';
   stop.disabled=state!=='choosing'&&state!=='playing';
  }});
