@@ -4,21 +4,26 @@
  function createMonitor({video,now,interval,clearInterval,onSample,isVisible}){
   let active=false,handle=null,timer=null,epoch=0,previous=null,lastFrame=null;
   let count=0,missed=0,longest=0,stallSince=null,stalls=0;
+  let suspended=false;
   function reset(){
-   previous=null;lastFrame=now();count=missed=longest=stalls=0;stallSince=null;
+   previous=null;lastFrame=null;count=missed=longest=stalls=0;stallSince=null;
   }
   function start(){
-   stop();active=true;reset();const id=epoch;
+   stop();active=true;reset();suspended=false;const id=epoch;
    if(typeof video.requestVideoFrameCallback!=='function'){
     active=false;onSample({state:'unsupported'});return;
    }
    function frame(t,m){
     if(!active||id!==epoch)return;
-    if(!isVisible()||video.paused||video.ended){reset();}
+    if(!isVisible()||video.paused||video.ended){reset();suspended=true;}
     else{
-     if(stallSince!==null)stallSince=null;
-     const gap=Math.max(0,t-lastFrame);
-     longest=Math.max(longest,gap);lastFrame=t;
+     if(suspended){reset();suspended=false;}
+     if(lastFrame!==null){
+      const gap=Math.max(0,t-lastFrame);
+      if(gap>=1000&&stallSince===null)stalls++;
+      longest=Math.max(longest,gap);
+     }
+     lastFrame=t;stallSince=null;
      if(Number.isFinite(m.presentedFrames)){
       if(previous!==null&&m.presentedFrames>previous){
        count+=m.presentedFrames-previous;
@@ -35,14 +40,15 @@
     if(!active||id!==epoch)return;
     const t=now();
     if(!isVisible()||video.paused||video.ended){
-     reset();sampleStart=t;sampleFrames=0;
+     reset();suspended=true;sampleStart=t;sampleFrames=0;
      onSample({state:'paused'});return;
     }
+    if(suspended){reset();suspended=false;sampleStart=t;sampleFrames=0;}
     if(count<sampleFrames){sampleStart=t;sampleFrames=count;return;}
     const elapsed=t-sampleStart;
     if(elapsed<500)return;
-    const gap=t-lastFrame;
-    if(gap>=1000&&stallSince===null){stalls++;stallSince=lastFrame;}
+    const gap=lastFrame===null?0:Math.max(0,t-lastFrame);
+    if(lastFrame!==null&&gap>=1000&&stallSince===null){stalls++;stallSince=lastFrame;}
     const fps=elapsed>0?(count-sampleFrames)*1000/elapsed:0;
     onSample({state:previous===null?'waiting':gap>=1000?'stalled':'playing',
      fps:Math.round(fps*10)/10,width:video.videoWidth,height:video.videoHeight,
