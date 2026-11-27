@@ -1,0 +1,109 @@
+"""Real native menu roundtrip for a complete experimental roster.
+
+Test-only player labels and targets, never a user's production team.
+The unchanged upstream game itself creates the league autosave.
+"""
+from contextlib import closing
+import json
+import os
+from pathlib import Path
+import sqlite3
+import sys
+import tempfile
+
+import original_engine as engine
+from original_catalog import connect,formation
+from original_native_saves_probe import populate
+from original_roster_pack import build_pack
+from original_skill_mapping import factor,plan_profile
+
+PACK='tribun-roster-pilot'
+
+
+def prepare(runtime):
+    path=runtime/'databases/default/database.sqlite'
+    with closing(connect(path)) as db:
+        team,name,xml=db.execute('SELECT id,name,formation_xml FROM teams ORDER BY name LIMIT 1').fetchone()
+        slots=formation(xml)
+        if len(slots)!=11:
+            raise ValueError('First native club has no complete formation')
+        players=db.execute('SELECT id,age,base_stat,profile_xml FROM players WHERE team_id=? ORDER BY formationorder,id',(team,)).fetchall()
+        if len(players)<11:
+            raise ValueError('First native club has too few players')
+        # Reverse the original eleven deliberately, so a default lineup
+        # cannot pass. Assign each synthetic record an explicit native role.
+        order=list(reversed(range(11)))
+        roles={index:slot['role'] for index,slot in zip(order,slots)}
+        rows=[]
+        for i,(ident,age,base,profile) in enumerate(players):
+            role=roles.get(i,'GK')
+            target=min(.95,factor(base,age)*(.22 if i%2==0 else .52))*100
+            rows.append(dict(nativePlayerId=ident,localIndex=i,
+                firstName='Pilot',lastName=f'Roster {i+1:02d}',webRole=role,
+                nativeRole=role,webValues={'shooting':target}))
+            if not plan_profile(base,age,profile,rows[-1]['webValues'])['proposed']:
+                raise ValueError('Native shooting field cannot be mapped')
+    report=build_pack(runtime,team,rows,skill_pilot=True,slot_order=order)
+    if not report['experimentalLineupWritten'] or report['experimentalSkillProfilesWritten']!=len(rows):
+        raise RuntimeError('Incomplete roster pilot')
+    return team,name,rows,order
+
+
+def verify(runtime,team,name,rows,order):
+    files=list((runtime/'saves').glob('*/autosave.sqlite'))
+    if len(files)!=1:
+        raise ValueError('Expected a single native-created league')
+    original=runtime/'databases/default/database.sqlite'
+    path=files[0]
+    before=engine.digest(path)
+    columns='id,firstname,lastname,role,age,base_stat,profile_xml,formationorder'
+    query='SELECT '+columns+' FROM players WHERE team_id=? ORDER BY formationorder,id'
+    with closing(connect(runtime/'databases'/PACK/'database.sqlite')) as pack, closing(connect(path)) as saved, closing(connect(original)) as default:
+        expected=pack.execute(query,(team,)).fetchall()
+        observed=saved.execute(query,(team,)).fetchall()
+        untouched=default.execute(query,(team,)).fetchall()
+        if saved.execute('PRAGMA quick_check').fetchall()!=[('ok',)] or expected!=observed or observed==untouched:
+            raise ValueError('Native league roster differs from explicit package')
+        if saved.execute('SELECT team_id FROM settings').fetchall()!=[(team,)]:
+            raise ValueError('Native league did not select the mapped club')
+        expected_ids=[rows[i]['nativePlayerId'] for i in order]
+        if [r[0] for r in observed[:11]]!=expected_ids:
+            raise ValueError('Native saved starting eleven differs')
+        for row in observed:
+            old=next(x for x in untouched if x[0]==row[0])
+            if row[4:6]!=old[4:6] or row[6]==old[6]:
+                raise ValueError('Native age/base changed or profile missing')
+        q='SELECT formation_xml,tactics_xml FROM teams WHERE id=?'
+        if saved.execute(q,(team,)).fetchone()!=default.execute(q,(team,)).fetchone():
+            raise ValueError('Native formation or tactics unexpectedly changed')
+        if saved.execute('SELECT COUNT(*) FROM calendar').fetchone()[0]<1:
+            raise ValueError('Native league fixture missing')
+    if engine.digest(path)!=before:
+        raise RuntimeError('Read-only verification changed save')
+    return dict(nativeRosterSaveRoundtripVerified=True,club=name,players=len(rows),
+        starterIds=expected_ids,profileRowsVerified=len(rows),nativeFormationUnchanged=True,
+        nativeTacticsUnchanged=True,liveOnPitchLineupVerified=False,
+        skillBehaviorVerified=False,productionRosterImported=False)
+
+
+def main():
+    env=engine.clean_env(os.environ)
+    work=engine.cache_root()/engine.REVISION
+    build=engine.verify_install(work,env)
+    with tempfile.TemporaryDirectory(prefix='native-roster-proof-') as tmp:
+        runtime=Path(tmp)/'runtime'
+        populate(build,runtime)
+        engine.check_config(work/'source',runtime)
+        before=engine.digest(runtime/'databases/default/database.sqlite')
+        team,name,rows,order=prepare(runtime)
+        engine.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
+            sys.executable,Path(__file__).with_name('original_custom_database_probe.py').resolve(),
+            '--inside-private-menu',runtime,PACK],env)
+        if engine.digest(runtime/'databases/default/database.sqlite')!=before:
+            raise RuntimeError('Default native database changed')
+        engine.verify_install(work,env)
+        print(json.dumps(verify(runtime,team,name,rows,order),ensure_ascii=False),flush=True)
+
+
+if __name__=='__main__':
+    main()
