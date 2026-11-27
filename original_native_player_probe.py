@@ -74,7 +74,7 @@ def parse_log(text):
         raise ValueError('Expected exactly one successful final debugger snapshot')
     return json.loads(lines[0])
 
-def run(output):
+def run(output, timeline=False):
     env=e.clean_env(os.environ)
     if not re.fullmatch(r':\d+(?:\.0)?',env.get('DISPLAY','')):
         raise ValueError('Private display required')
@@ -98,6 +98,7 @@ def run(output):
         with tempfile.TemporaryFile() as log:
             result=subprocess.run(['gdb','-nx','-batch','-return-child-result',
                 '-ex','set confirm off','-ex','set print thread-events off',
+                '-ex','set $tribun_timeline = '+str(int(timeline)),
                 '-x',str(observer),'-ex','run','--args',str(session/'gameplayfootball'),str(config)],
                 cwd=session,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=600)
             log.seek(0)
@@ -108,6 +109,13 @@ def run(output):
             raise RuntimeError('Missing native full-match completion marker')
         history=read_single(session/HISTORY_PATH)
         report=validate_snapshot(parse_log(text),history,session/'databases/default/database.sqlite')
+        if timeline:
+            from original_native_player_timeline import reconstruct
+            prefix='TRIBUN_NATIVE_PLAYER_TIMELINE '
+            lines=[line[len(prefix):] for line in text.splitlines() if line.startswith(prefix)]
+            if len(lines)!=1 or 'TRIBUN_NATIVE_TIMELINE_ERROR ' in text:
+                raise ValueError('Incomplete native player timeline: '+str([l for l in text.splitlines() if 'TRIBUN_NATIVE_TIMELINE_ERROR ' in l][:5]))
+            report['timeline']=reconstruct(json.loads(lines[0]),report)
         report.update(revision=e.REVISION,debugBinarySha256=e.digest(session/'gameplayfootball'),
                       sourceConfigSha256=e.digest(config),historySha256=e.digest(session/HISTORY_PATH),
                       source='isolated-debugger-full-time-upstream-smoke',nativeSourcePatched=False,
@@ -122,12 +130,14 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('output',type=Path)
     p.add_argument('--inside-private-xvfb',action='store_true')
+    p.add_argument('--timeline',action='store_true')
     a=p.parse_args()
     if a.inside_private_xvfb:
-        run(a.output)
+        run(a.output,a.timeline)
     else:
         e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
-                sys.executable,Path(__file__).resolve(),a.output.resolve(),'--inside-private-xvfb'],e.clean_env(os.environ))
+                sys.executable,Path(__file__).resolve(),a.output.resolve(),'--inside-private-xvfb',
+                *(['--timeline'] if a.timeline else [])],e.clean_env(os.environ))
 
 if __name__=='__main__':
     main()
