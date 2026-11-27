@@ -230,3 +230,17 @@ SHA-256 değerlerini raporlar. En fazla 100 ms terminal codec yuvarlama payı va
 Kısa kayıtlar uzatılmaz. Bu işlem gecikmeli tekrar üretir; canlı yayın, native maçın
 gerçekten tamamlandığının veya fiziksel ses-görüntü eşzamanlılığının kanıtı değildir.
 ``--exact`` olmadan önceki en fazla 300 saniyelik dönüştürme davranışı korunur.
+
+
+## Normal lig maçı bitiş doğrulaması (izole deney)
+
+`original_native_reload_probe.py --inside-private-display <geçici-runtime> --finish`
+yalnızca operatörün hazırladığı **ayrı, özel X11 test ekranında**, tek bir kopyalanmış
+lig kaydı ve önceden maç geçmişi olmayan geçici runtime ile kullanılmalıdır.
+Üretim kayıtlarını veya gerçek masaüstünü hedeflemeyin. Motor varsayılan ayarlarla
+argümansız başlatılır. Devre arasında operatörün devam ettirmesi gerekir.
+Motorun kendi GameOverPage geçmişi tam süre ve takım sırası ile doğrulanınca
+Continue otomatik denenir; yalnızca ayrılan fikstürün skoru ile geçmiş eşleşirse
+aday sonuç kabul edilir. Sonra operatör normal menüden çıkar; kapalı kayıtlar
+yeniden karşılaştırılır. Bu deney üretim puan tablosuna yazmaz.
+Tam otomatik devre arası ve normal kapanış henüz doğrulanmış değildir.
