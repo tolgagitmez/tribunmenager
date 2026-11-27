@@ -83,6 +83,15 @@ const {chromium}=require('playwright');
   assert.ok(managerText.includes('Baskı : 86'));
   for(const index of manager.starters)assert.ok(managerText.includes(manager.players[index].name));
   assert.equal(await page.evaluate(()=>localStorage.getItem('tribun-manager-pro09')),saved);
+  const exportRoster=managerDetails.getByRole('button',{name:'Kadro aktarım hazırlığını indir (JSON)'});
+  const [rosterDownload]=await Promise.all([page.waitForEvent('download'),exportRoster.click()]);
+  const roster=JSON.parse(await fs.readFile(await rosterDownload.path(),'utf8'));
+  assert.equal(rosterDownload.suggestedFilename(),'tribun-roster-preflight.json');
+  assert.equal(roster.source,'saved-web-roster');
+  assert.equal(roster.nativeApplied,false);
+  assert.equal(roster.players.length,manager.players.filter(p=>p&&p.owned!==false).length);
+  assert.deepEqual(roster.players.filter(p=>p.starterSlot!==null).sort((a,b)=>a.starterSlot-b.starterSlot).map(p=>p.localIndex),manager.starters);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('tribun-manager-pro09')),saved);
   // An absent plan must not recreate defaults or send a native command.
   await page.evaluate(()=>localStorage.removeItem('tribun-manager-pro09'));
   await page.locator('#originalRefresh').click();
@@ -184,7 +193,7 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#originalPreviewReport').isEnabled(),true);
   assert.deepEqual(writes,[],'Original engine page must not send a write request during read-only preview');
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({browserPlaybackVerified:true,managerPlanBrowserVerified:true,managerPlanStorageUnchanged:true,nativeCalendarUiFixtureVerified:true,nativeSavedSquadUiFixtureVerified:true,nativeExitRefreshUiFixtureVerified:true,nativeHistoryPerformanceUiFixtureVerified:true,nativeHistoryTrendAndExportFixtureVerified:true,syntheticCanvasStream:true,
+  console.log(JSON.stringify({browserPlaybackVerified:true,managerPlanBrowserVerified:true,managerPlanStorageUnchanged:true,rosterPreflightDownloadVerified:true,nativeCalendarUiFixtureVerified:true,nativeSavedSquadUiFixtureVerified:true,nativeExitRefreshUiFixtureVerified:true,nativeHistoryPerformanceUiFixtureVerified:true,nativeHistoryTrendAndExportFixtureVerified:true,syntheticCanvasStream:true,
    nativeWindowPickerVerified:false,nativeMatchVerified:false,reportDownloadVerified:true,
    sampleSeconds:report.seconds,averagePresentedFps:report.averagePresentedFps}));
  }finally{await browser.close();}
