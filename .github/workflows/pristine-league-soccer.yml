@@ -5,6 +5,7 @@ on:
     paths:
       - 'original_engine.py'
       - 'original_saves.py'
+      - 'original_native_saves_probe.py'
       - 'tests/test_original_saves.py'
       - 'original_session.py'
       - 'original_results.py'
@@ -79,6 +80,8 @@ jobs:
           assert e.digest(path)==before, 'Catalog changed database'
           print('Read-only native catalog:',len(teams),'teams;',inspected,'club rosters with >=11 players')
           PY
+      - name: Verify real upstream league save and byte-exact restoration
+        run: python3 original_native_saves_probe.py
       - name: Run upstream full-match smoke test in separate disposable runtime
         run: |
           python3 - <<'PY'
