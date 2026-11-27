@@ -285,6 +285,19 @@ def main():
             e.call([sys.executable,Path(__file__).resolve().with_name('original_native_reload_probe.py'),second],env)
             if save_manifest(snapshot)!=original:
                 raise RuntimeError('Native reload modified retained snapshot')
+            # A second fresh runtime starts a real league match from the
+            # exact same retained bytes. No changes to engine config or code.
+            kickoff_session=base/'kickoff'
+            populate(build,kickoff_session)
+            e.check_config(work/'source',kickoff_session)
+            saves.restore(store,kickoff_session)
+            if save_manifest(kickoff_session/'saves')!=original:
+                raise RuntimeError('Kickoff test restored different bytes')
+            e.call([sys.executable,Path(__file__).resolve().with_name('original_native_reload_probe.py'),
+                    kickoff_session,'--kickoff'],env)
+            if save_manifest(snapshot)!=original:
+                raise RuntimeError('Native kickoff modified retained snapshot')
+
         print(json.dumps(dict(revision=e.REVISION,nativeLeagueSaveCreated=True,
              snapshotByteExact=True,restoredByteExact=True,sqliteIntegrityPassed=True,
              failedExitPreservedSnapshot=True,readOnlyResultsVerified=True,
