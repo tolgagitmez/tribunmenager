@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 from original_saves import locked_store, restore, commit, current_snapshot
 
 
@@ -47,6 +48,40 @@ class OriginalSavesTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     commit(root,session,0)
                 self.assertEqual(current_snapshot(root),old)
+
+    def test_unchanged_tree_reuses_snapshot_but_changed_bytes_do_not(self):
+        with tempfile.TemporaryDirectory() as d:
+            base=Path(d)
+            session=base/'session'
+            (session/'saves/league').mkdir(parents=True)
+            path=session/'saves/league/autosave.sqlite'
+            path.write_bytes(b'aaa')
+            with locked_store(base/'store') as root:
+                self.assertTrue(commit(root,session,0))
+                old=current_snapshot(root)
+                self.assertTrue(commit(root,session,0))
+                self.assertEqual(current_snapshot(root),old)
+                self.assertEqual(len(list(root.glob('snapshot-*'))),1)
+                path.write_bytes(b'bbb')
+                self.assertTrue(commit(root,session,0))
+                self.assertNotEqual(current_snapshot(root),old)
+                self.assertEqual(len(list(root.glob('snapshot-*'))),2)
+
+    def test_copy_failure_does_not_publish_new_pointer(self):
+        with tempfile.TemporaryDirectory() as d:
+            base=Path(d)
+            session=base/'session'
+            (session/'saves').mkdir(parents=True)
+            (session/'saves/autosave.sqlite').write_bytes(b'old')
+            with locked_store(base/'store') as root:
+                commit(root,session,0)
+                old=current_snapshot(root)
+                (session/'saves/autosave.sqlite').write_bytes(b'new')
+                with patch('original_saves.shutil.copyfile',side_effect=OSError('disk write failed')):
+                    with self.assertRaises(OSError):
+                        commit(root,session,0)
+                self.assertEqual(current_snapshot(root),old)
+                self.assertEqual((old/'autosave.sqlite').read_bytes(),b'old')
 
     def test_second_session_rejected(self):
         with tempfile.TemporaryDirectory() as d:
