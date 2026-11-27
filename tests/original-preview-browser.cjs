@@ -25,7 +25,7 @@ const {chromium}=require('playwright');
   let nativeReport={schema:1,exitCode:0,saves:[{saveName:'Test league',
    managedTeam:{id:1,name:'Home Club'},pendingFixtures:[
     {nativeFixtureId:12,homeTeam:'Away Club',awayTeam:'Home Club',nativeDate:'2026-11-29'}],
-   pendingTruncated:false,results:[
+   pendingTruncated:false,standings:{league:'Test League',rows:[{position:1,name:'Home Club',managed:true,played:1,won:1,drawn:0,lost:0,goalsFor:2,goalsAgainst:1,goalDifference:1,points:3,form:'W'}]},results:[
     {nativeFixtureId:10,homeTeam:'Home Club',awayTeam:'Away Club',homeGoals:2,awayGoals:1,nativeDate:'2026-11-27'}],
    truncated:false}],skippedSaves:0};
   await context.route('**/api/original/results',route=>route.fulfill({json:{report:nativeReport}}));
@@ -86,12 +86,15 @@ const {chromium}=require('playwright');
   assert.equal(await page.evaluate(()=>localStorage.getItem('tribun-manager-pro09')),null);
   const resultList=page.locator('#nativeResultList');
   await resultList.getByText('Yönetilen takım: Home Club',{exact:true}).waitFor();
+  await resultList.getByText('2026-11-29 · Away Club – Home Club',{exact:true}).waitFor();
   assert.equal(await resultList.getByText('2026-11-29 · Away Club – Home Club',{exact:true}).count(),1);
   assert.equal(await resultList.getByText('2026-11-27 · Home Club 2 - 1 Away Club',{exact:true}).count(),1);
   assert.ok(!(await resultList.textContent()).includes('0 - 0'));
+  await resultList.getByRole('table',{name:'Orijinal lig puan durumu'}).getByText('Home Club (Senin takımın)',{exact:true}).waitFor();
   // Older saved reports do not contain calendar context. They still show results.
-  nativeReport={...nativeReport,saves:nativeReport.saves.map(({managedTeam,pendingFixtures,pendingTruncated,...rest})=>rest)};
+  nativeReport={...nativeReport,saves:nativeReport.saves.map(({managedTeam,pendingFixtures,pendingTruncated,standings,...rest})=>rest)};
   await page.locator('#originalRefresh').click();
+  await resultList.getByText('Yönetilen takım: Home Club',{exact:true}).waitFor({state:'hidden'});
   await resultList.getByText('2026-11-27 · Home Club 2 - 1 Away Club',{exact:true}).waitFor();
   assert.equal(await resultList.getByText('Oynanmamış fikstürler',{exact:true}).count(),0);
   assert.equal(await resultList.getByText('Yönetilen takım: Home Club',{exact:true}).count(),0);
