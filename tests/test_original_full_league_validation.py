@@ -64,3 +64,43 @@ class FullLeagueValidationTests(unittest.TestCase):
             recent=read_recent(history)
             self.assertEqual(recent['skipped'],1)
             self.assertEqual(len(recent['records']),1)
+
+
+    def test_history_persists_only_after_clean_exit(self):
+        from original_match_history import HISTORY_PATH,STORED_NAME,restore_history,commit_history,read_recent
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp)
+            root=base/'store'
+            first=base/'first'
+            second=base/'second'
+            root.mkdir()
+            dbpath=first/HISTORY_PATH
+            dbpath.parent.mkdir(parents=True)
+            with sqlite3.connect(dbpath) as db:
+                db.executescript("""
+                CREATE TABLE match_history(id INTEGER PRIMARY KEY,team1_name TEXT,team2_name TEXT,
+                    score1 INTEGER,score2 INTEGER,match_time_ms INTEGER,shots1 INTEGER,shots2 INTEGER,
+                    shots_on_target1 INTEGER,shots_on_target2 INTEGER,
+                    possession1_pct REAL,possession2_pct REAL,passes1 INTEGER,passes2 INTEGER,
+                    passes_completed1 INTEGER,passes_completed2 INTEGER,fouls1 INTEGER,fouls2 INTEGER);
+                INSERT INTO match_history VALUES(1,'Home','Away',2,1,5400000,6,4,3,2,54.5,45.5,100,80,84,60,2,3);
+                """)
+            (dbpath.parent/'unrelated.config').write_text('not persisted')
+            before=dbpath.read_bytes()
+            self.assertTrue(commit_history(root,first,0))
+            self.assertEqual((root/STORED_NAME).read_bytes(),before)
+            self.assertTrue(restore_history(root,second))
+            restored=second/HISTORY_PATH
+            self.assertEqual(restored.read_bytes(),before)
+            self.assertFalse((restored.parent/'unrelated.config').exists())
+            with sqlite3.connect(restored) as db:
+                db.execute('INSERT INTO match_history SELECT 2,team1_name,team2_name,score1,score2,match_time_ms,shots1,shots2,shots_on_target1,shots_on_target2,possession1_pct,possession2_pct,passes1,passes2,passes_completed1,passes_completed2,fouls1,fouls2 FROM match_history WHERE id=1')
+            self.assertFalse(commit_history(root,second,1))
+            self.assertEqual((root/STORED_NAME).read_bytes(),before)
+            self.assertTrue(commit_history(root,second,0))
+            self.assertEqual(len(read_recent(root/STORED_NAME)['records']),2)
+            retained=(root/STORED_NAME).read_bytes()
+            restored.write_bytes(b'not sqlite')
+            with self.assertRaises(sqlite3.Error):
+                commit_history(root,second,0)
+            self.assertEqual((root/STORED_NAME).read_bytes(),retained)
