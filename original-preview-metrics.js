@@ -1,6 +1,26 @@
 'use strict';
 // Measures frames presented by the browser, not native render FPS or physics.
 (function(root){
+ // Store only bounded numeric observations, never the shared window pixels or title.
+ function createReport(){
+  let samples=[],dropped=0,excluded=0;
+  function reset(){samples=[];dropped=excluded=0;}
+  function add(s){
+   if(!['playing','stalled'].includes(s.state)||!Number.isFinite(s.intervalMs)||s.intervalMs<=0||
+      !Number.isSafeInteger(s.intervalFrames)||s.intervalFrames<0){excluded++;return;}
+   if(samples.length>=3600){dropped++;return;}
+   samples.push({intervalMs:s.intervalMs,frames:s.intervalFrames,width:s.width,height:s.height,
+    longestGapMs:s.longestGapMs,state:s.state});
+  }
+  function snapshot(){
+   const ms=samples.reduce((v,s)=>v+s.intervalMs,0),frames=samples.reduce((v,s)=>v+s.frames,0);
+   return {schema:1,scope:'local browser presented frames; not native render FPS or proof of unique pixel changes',
+    seconds:Math.round(ms)/1000,frames,averagePresentedFps:ms?Math.round(frames*10000/ms)/10:null,
+    longestObservedGapMs:samples.reduce((v,s)=>Math.max(v,s.longestGapMs),0),
+    excludedObservations:excluded,discardedAfterLimit:dropped,samples:samples.map(s=>({...s}))};
+  }
+  return {reset,add,snapshot};
+ }
  function createMonitor({video,now,interval,clearInterval,onSample,isVisible}){
   let active=false,handle=null,timer=null,epoch=0,previous=null,lastFrame=null;
   let count=0,missed=0,longest=0,stallSince=null,stalls=0;
@@ -51,7 +71,7 @@
     if(lastFrame!==null&&gap>=1000&&stallSince===null){stalls++;stallSince=lastFrame;}
     const fps=elapsed>0?(count-sampleFrames)*1000/elapsed:0;
     onSample({state:previous===null?'waiting':gap>=1000?'stalled':'playing',
-     fps:Math.round(fps*10)/10,width:video.videoWidth,height:video.videoHeight,
+     fps:Math.round(fps*10)/10,intervalMs:elapsed,intervalFrames:count-sampleFrames,width:video.videoWidth,height:video.videoHeight,
      missedCallbacks:missed,stallEpisodes:stalls,
      longestGapMs:Math.round(Math.max(longest,gap)),frames:count});
     sampleStart=t;sampleFrames=count;
@@ -65,6 +85,6 @@
   }
   return {start,stop};
  }
- if(typeof module!=='undefined'&&module.exports){module.exports={createMonitor};return;}
- root.TribunOriginalMetrics={createMonitor};
+ if(typeof module!=='undefined'&&module.exports){module.exports={createMonitor,createReport};return;}
+ root.TribunOriginalMetrics={createMonitor,createReport};
 })(typeof window!=='undefined'?window:globalThis);
