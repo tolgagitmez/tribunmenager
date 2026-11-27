@@ -105,15 +105,43 @@
    else note.textContent+=' · Kayıt sürümü eşleşmesi doğrulanamadı.';
   } catch{if(seq===resultsSequence){list.replaceChildren();note.textContent='Yerel sonuç bağlantısı kullanılamıyor.';}}
  }
- async function update() {
-  if(busy)return;
-  try{const r=await fetch('/api/original/status',{cache:'no-store'});if(!r.ok)throw Error();render(await r.json());}
-  catch{launch.disabled=true;if(saveNote)saveNote.textContent='Lig kayıt deposu durumu alınamadı.';status.textContent='Yerel motor bağlantısı kullanılamıyor. Oyunu varsayılan yerel sunucudan aç.';}
-  await updateResults();
+ let statusSequence=0,watchedRunning=false,pollTimer=null;
+ function stopPoll(){if(pollTimer!==null){clearTimeout(pollTimer);pollTimer=null;}}
+ function schedulePoll(){
+  stopPoll();
+  if(watchedRunning&&!busy&&!document.hidden)
+   pollTimer=setTimeout(()=>{pollTimer=null;void update(false);},2000);
  }
- refresh.addEventListener('click',update);
+ async function update(includeReport=true) {
+  if(busy)return;
+  stopPoll();
+  const seq=++statusSequence;
+  const wasRunning=watchedRunning;
+  try{
+   const r=await fetch('/api/original/status',{cache:'no-store'});
+   if(!r.ok)throw Error();
+   const state=await r.json();
+   if(seq!==statusSequence||busy)return;
+   watchedRunning=state.running===true;
+   render(state);
+   if(includeReport||wasRunning&&!watchedRunning)await updateResults();
+  }catch{
+   if(seq!==statusSequence||busy)return;
+   launch.disabled=true;
+   if(saveNote)saveNote.textContent='Lig kayıt deposu durumu alınamadı.';
+   status.textContent='Yerel motor bağlantısı kullanılamıyor. Oyunu varsayılan yerel sunucudan aç.';
+   if(includeReport)await updateResults();
+  }finally{if(seq===statusSequence)schedulePoll();}
+ }
+ refresh.addEventListener('click',()=>void update(true));
+ document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)stopPoll();
+  else void update(true);
+ });
+ window.addEventListener('pagehide',stopPoll);
+ window.addEventListener('pageshow',e=>{if(e.persisted)void update(true);});
  launch.addEventListener('click',async()=>{
-  if(busy)return;busy=true;launch.disabled=true;
+  if(busy)return;busy=true;stopPoll();statusSequence++;launch.disabled=true;
   try{const r=await fetch('/api/original/launch',{method:'POST',headers:{'X-Tribun-Original':'launch'}});if(!r.ok)throw Error();status.textContent='Başlatma isteği kabul edildi. Masaüstü penceresini ve terminali kontrol et.';}
   catch{status.textContent='Başlatma isteği başarısız. Terminali kontrol et.';}
   finally{busy=false;await update();}
