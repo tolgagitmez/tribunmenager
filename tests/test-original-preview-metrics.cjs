@@ -51,9 +51,10 @@ test('missed observer callbacks are not counted as dropped frames',()=>{
 test('hidden tab interval is excluded',()=>{
  const s=setup();s.monitor.start();s.frame(0,1);s.setVisible(false);s.tick(2000);
  assert.equal(s.samples.at(-1).state,'paused');
- s.setVisible(true);s.frame(5000,10);s.frame(5100,11);s.tick(5200);
+ s.setVisible(true);s.frame(5000,10);s.frame(5100,11);s.frame(5500,12);s.tick(5600);
  assert.equal(s.samples.at(-1).stallEpisodes,0);
- assert.equal(s.samples.at(-1).longestGapMs,200);
+ assert.equal(s.samples.at(-1).longestGapMs,400);
+ assert.equal(s.samples.at(-1).fps,3.3);
 });
 
 test('stop cancels callbacks and prevents late samples',()=>{
