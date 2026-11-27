@@ -71,7 +71,108 @@ def verify(runtime,expected):
                 nativeConfigModifiedByBridge=False,automaticRosterImport=False)
 
 
-def main():
+def run_private_menu(runtime):
+    """CI-only real keyboard path. Never used by production launch."""
+    import time
+    from original_native_reload_probe import wait_for,press_key,diagnostic_frame,opened_database
+    env=engine.clean_env(os.environ)
+    runtime=Path(runtime).resolve()
+    if not env.get('DISPLAY','').startswith(':'):
+        raise RuntimeError('Private Xvfb display required')
+    with tempfile.TemporaryFile() as log:
+        game=subprocess.Popen([str(runtime/'gameplayfootball')],cwd=runtime,env=env,
+                              stdout=log,stderr=subprocess.STDOUT)
+        try:
+            def window():
+                p=subprocess.run(['xdotool','search','--onlyvisible','--pid',str(game.pid),
+                    '--name','^League Soccer
+    env=engine.clean_env(os.environ)
+    work=engine.cache_root()/engine.REVISION
+    build=engine.verify_install(work,env)
+    with tempfile.TemporaryDirectory(prefix='tribun-custom-source-probe-') as tmp:
+        runtime=Path(tmp)/'runtime'
+        populate(build,runtime)
+        engine.check_config(work/'source',runtime)
+        original_digest=engine.digest(runtime/'databases/default/database.sqlite')
+        expected=prepare_pack(runtime)
+        print('Geçici veri aktarım testi: League Mode > New League.',flush=True)
+        print('Kaynak veritabanı olarak '+PACK+' seç, bir lig oluştur ve normal şekilde kapat.',flush=True)
+        print('Deneme oyuncusu: '+expected['teamName']+' / '+MARKER,flush=True)
+        if ci:
+            import sys
+            engine.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',sys.executable,
+                Path(__file__).resolve(),'--inside-private-menu',runtime],env)
+            code=0
+        else:
+            code=subprocess.run([str(runtime/'gameplayfootball')],cwd=runtime,env=env).returncode
+        if code!=0:
+            raise RuntimeError('Native game did not exit normally')
+        if engine.digest(runtime/'databases/default/database.sqlite')!=original_digest:
+            raise RuntimeError('Default database changed during source selection probe')
+        engine.verify_install(work,env)
+        print(json.dumps(verify(runtime,expected),ensure_ascii=False,indent=2),flush=True)
+
+
+if __name__=='__main__':
+    import sys
+    if len(sys.argv)==3 and sys.argv[1]=='--inside-private-menu':
+        run_private_menu(sys.argv[2])
+    elif sys.argv[1:]==['--ci']:
+        main(ci=True)
+    elif len(sys.argv)==1:
+        main()
+    else:
+        raise SystemExit('Usage: original_custom_database_probe.py [--ci]')
+],env=env,capture_output=True,text=True,timeout=5)
+                return p.stdout.strip().splitlines()[0] if p.returncode==0 and p.stdout.strip() else None
+            wid=wait_for(window,60,game)
+            time.sleep(5)
+            engine.call(['xdotool','windowfocus','--sync',wid],env)
+            step=0
+            def keys(sequence):
+                nonlocal step
+                for key in sequence:
+                    if game.poll() is not None:
+                        break
+                    press_key(key,env)
+                    step+=1
+                    print(f'Custom database menu step {step}: {key}',flush=True)
+                    diagnostic_frame(f'custom-{step:02d}-{key}',env)
+            # Intro -> League -> New -> source browser. Pinned upstream
+            # file browser sorts directory names; default precedes the test pack.
+            dirs=sorted(p.name for p in (runtime/'databases').iterdir() if p.is_dir())
+            if dirs!=['default',PACK]:
+                raise RuntimeError('Unexpected custom database menu entries')
+            keys(('Return','Down','Return','Down','Return','Return','Down','Return'))
+            # Source selector -> team -> currency -> difficulty -> save name
+            # -> manager name -> Proceed. Do not change any control values.
+            keys(('Down',)*6+('Return',))
+            def autosave_open():
+                files=list((runtime/'saves').glob('*/autosave.sqlite'))
+                return files[0] if len(files)==1 and opened_database(game.pid,files[0].resolve()) else None
+            wait_for(autosave_open,20,game)
+            keys(('Return',))
+            # League hub: Play next match is focused, Return to main menu
+            # is at row 1, column 1. Main menu defaults to Quick Match.
+            keys(('Right','Down','Return')+('Down',)*5+('Return','Return'))
+            if game.wait(timeout=30)!=0:
+                raise RuntimeError('Native custom source session did not exit normally')
+        except Exception:
+            diagnostic_frame('custom-99-failure',env)
+            log.seek(0)
+            print(log.read()[-8000:].decode(errors='replace'),flush=True)
+            raise
+        finally:
+            if game.poll() is None:
+                game.terminate()
+                try:
+                    game.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    game.kill()
+                    game.wait()
+
+
+def main(ci=False):
     env=engine.clean_env(os.environ)
     work=engine.cache_root()/engine.REVISION
     build=engine.verify_install(work,env)
