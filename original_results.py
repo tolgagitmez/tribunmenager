@@ -121,6 +121,43 @@ def read_standings(conn,team_id):
 
 
 
+def read_managed_squad(conn,team_id):
+    """Saved club roster, not the live eleven or an automatic tactic mapping."""
+    import original_catalog as catalog
+    from xml.etree.ElementTree import ParseError
+    row=conn.execute('SELECT formation_xml,tactics_xml FROM teams WHERE id=?',(team_id,)).fetchone()
+    if row is None:
+        raise ValueError('Managed club unavailable')
+    players=conn.execute("""SELECT id,firstname,lastname,role,formationorder
+        FROM players WHERE team_id=? ORDER BY formationorder,id LIMIT ?""",
+        (team_id,catalog.MAX_PLAYERS+1)).fetchall()
+    roster=[]
+    seen=set()
+    for ident,first,last,role,order in players[:catalog.MAX_PLAYERS]:
+        if (type(ident) is not int or ident<=0 or ident in seen or
+            not all(x is None or isinstance(x,str) and len(x)<=128 for x in (first,last,role)) or
+            (order is not None and type(order) is not int)):
+            raise ValueError('Invalid saved player')
+        name=' '.join(x for x in (first,last) if x)
+        if not name.strip():
+            raise ValueError('Missing saved player name')
+        seen.add(ident)
+        roster.append(dict(id=ident,name=name,role=role,formationOrder=order))
+    try:
+        formation=catalog.formation(row[0] or '')
+    except (ValueError,ParseError):
+        formation=None
+    try:
+        tactics=catalog.tactics(row[1] or '') if row[1] else None
+    except (ValueError,ParseError):
+        tactics=None
+    return dict(players=roster,formation=formation,tactics=tactics,
+                truncated=len(players)>catalog.MAX_PLAYERS,source='saved-native-club',
+                readOnly=True,representsLiveLineup=False)
+
+
+
+
 def read_save(path):
     path=Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size>MAX_DB_BYTES:
@@ -141,6 +178,10 @@ def read_save(path):
         except (sqlite3.Error,ValueError):
             # Older/incomplete saves may lack standings schema; retain valid results.
             context['standings']=None
+        try:
+            context['managedSquad']=read_managed_squad(conn,context['managedTeam']['id'])
+        except (sqlite3.Error,ValueError):
+            context['managedSquad']=None
     finally:
         conn.close()
     results=[]
