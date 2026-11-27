@@ -1,7 +1,7 @@
-name: Stage 221 extended native AV capture validation
+name: Stage 222 native capture clock alignment validation
 on:
   pull_request:
-    branches: [experiment/native-media-retime-stage220]
+    branches: [experiment/native-extended-capture-stage221]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
@@ -185,7 +185,9 @@ jobs:
           python3 -m unittest discover -s tests -p test_native_playback_schedule.py
           python3 -m unittest discover -s tests -p test_native_playback_optimize.py
       - name: Verify extended capture contract
-        run: python3 -m unittest discover -s tests -p test_native_extended_capture.py -v
+        run: |
+          python3 -m unittest discover -s tests -p test_native_extended_capture.py -v
+          python3 -m unittest discover -s tests -p test_native_capture_alignment.py -v
       - name: Install extended audiovisual capture dependencies
         run: sudo apt-get install -y ffmpeg xdotool pulseaudio pulseaudio-utils libopenal-dev
       - name: Build pinned native runtime for extended capture
@@ -209,6 +211,12 @@ jobs:
         run: |
           python3 integrations/league-soccer/native_extended_clock_verify.py "$RUNNER_TEMP/extended.ndjson" "$RUNNER_TEMP/extended-report.json"
           cat "$RUNNER_TEMP/extended-report.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Audit shared epoch candidate mapping
+        id: alignment_audit
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 integrations/league-soccer/native_capture_alignment.py "$RUNNER_TEMP/extended.ndjson" "$RUNNER_TEMP/extended-capture/native-match.mp4" "$RUNNER_TEMP/extended-capture/native-match.clock-observations.json" "$RUNNER_TEMP/extended-alignment.json" | tee "$RUNNER_TEMP/alignment-summary.json"
       - name: Analyze real extended match highlight timeline
         run: |
           set -o pipefail
@@ -231,6 +239,11 @@ jobs:
           python3 integrations/league-soccer/native_playback_optimize.py "$RUNNER_TEMP/extended-highlights.json" "$RUNNER_TEMP/optimized-playback.json" | tee "$RUNNER_TEMP/optimized-summary.json" || rc=$?
           cat "$RUNNER_TEMP/optimized-summary.json" >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
+      - name: Require candidate mapping audit to pass
+        if: always()
+        run: |
+          if [ -s "$RUNNER_TEMP/alignment-summary.json" ]; then cat "$RUNNER_TEMP/alignment-summary.json" >> "$GITHUB_STEP_SUMMARY"; fi
+          test "${{ steps.alignment_audit.outcome }}" = success
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -253,6 +266,8 @@ jobs:
             ${{ runner.temp }}/extended-capture/native-match.clock-observations.json
             ${{ runner.temp }}/extended-capture/native-match.capture.log
             ${{ runner.temp }}/extended-capture/runner.log
+            ${{ runner.temp }}/extended-alignment.json
+            ${{ runner.temp }}/alignment-summary.json
   media_retime:
     runs-on: ubuntu-22.04
     timeout-minutes: 10

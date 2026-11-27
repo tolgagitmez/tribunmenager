@@ -13,6 +13,7 @@ HEADER = r'''
 #include <sstream>
 #include <fstream>
 #include <string>
+#include <chrono>
 
 namespace {
 // Assign only active outfield players, keeping the goalkeeper and physical positions.
@@ -187,6 +188,8 @@ void TribunTrace(Match& match, bool done) {
       std::fflush(stdout);
     }
   } else if (started && !done && !boundary && now < last + 100) return;
+  const auto traceWallUs=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+  const auto traceSteadyUs=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
   started = true;
   last = now;
   finished = done;
@@ -372,6 +375,9 @@ void TribunTrace(Match& match, bool done) {
          << ",\"setPiece\":" << (match.IsInSetPiece() ? "true" : "false")
          << ",\"inPlay\":" << (match.IsInPlay() && !match.IsInSetPiece() ? "true" : "false")
          << ",\"attackDirection\":[" << -match.GetTeam(0)->GetSide() << ',' << -match.GetTeam(1)->GetSide() << ']';
+  if(std::getenv("TRIBUN_NATIVE_CAPTURE_EPOCH") && AITactics::ExtendedDuration216Enabled()){
+    output << ",\"captureClock\":{\"wallUs\":" << traceWallUs << ",\"steadyUs\":" << traceSteadyUs << '}';
+  }
   if(AITactics::FixedDurationEnabled()){
     const auto& c=match.GetTribunFixedClock();
     output << ",\"fixedClock\":{\"started\":" << (c.started?"true":"false")
