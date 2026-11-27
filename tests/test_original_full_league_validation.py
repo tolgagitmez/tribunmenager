@@ -126,3 +126,24 @@ class FullLeagueValidationTests(unittest.TestCase):
         self.assertEqual(home['meanPossessionPct'],57.5)
         self.assertIsNone(teams['Other']['shotAccuracyPct'])
         self.assertEqual(summarize_teams([])['teams'],[])
+
+
+    def test_last_five_trends_chronological_and_side_correct(self):
+        from original_match_history import recent_team_matches,validate
+        records=[]
+        for i in range(7,0,-1):
+            # Most recent first, alternate home/away. Two oldest are excluded.
+            if i%2:
+                row=('Club','Opponent '+str(i),i,0,5400000,10,4,5,2,60,40,100,80,90,60,2,3)
+            else:
+                row=('Opponent '+str(i),'Club',0,i,5400000,4,10,2,5,40,60,80,100,60,90,3,2)
+            records.append(validate(row))
+        records.insert(0,validate(('Club','Club',9,9,5400000,10,10,5,5,50,50,80,80,60,60,1,1)))
+        teams={t['teamName']:t['matches'] for t in recent_team_matches(records)}
+        club=teams['Club']
+        self.assertEqual([m['goalsFor'] for m in club],[3,4,5,6,7])
+        self.assertEqual([m['home'] for m in club],[True,False,True,False,True])
+        self.assertTrue(all(m['shots']==10 and m['shotsAgainst']==4 and m['shotsOnTargetAgainst']==2 for m in club))
+        self.assertEqual([m['opponent'] for m in club],['Opponent '+str(i) for i in range(3,8)])
+        self.assertEqual(len(teams['Opponent 1']),1)
+        self.assertEqual(recent_team_matches([]),[])
