@@ -110,7 +110,7 @@ def full_native_capture(work,session,output,env,display,game_log,encoder_log):
                 for viewer in evidence['results']:
                     if [f['sha256'] for f in viewer['fragments']]!=hashes:
                         raise RuntimeError('Browser and native archive fragment hashes disagree')
-                timeline=audit_packet_timeline(read_segment(path)[0] for path in paths)
+                timeline=audit_packet_timeline((read_segment(path)[0] for path in paths),fps=30)
                 if not timeline['encodedTimelineVerified']:
                     raise RuntimeError('Native full encoded timeline failed: '+json.dumps(timeline))
                 native_span=intervals[-1][1]-intervals[0][0]
