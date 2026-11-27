@@ -135,6 +135,25 @@ def restore(root,session):
         copy_saves(source,Path(session)/'saves')
 
 
+def quarantine(root,session):
+    """Retain original bytes for manual recovery only, never auto-load them."""
+    root,session=Path(root),Path(session)
+    source=session/'saves'
+    if source.is_symlink() or not source.is_dir():
+        raise RuntimeError('Kurtarma için normal kayıt klasörü bulunamadı.')
+    if session.parent.resolve()!=root.resolve():
+        raise RuntimeError('Kurtarma çalışma klasörü kayıt deposuna ait değil.')
+    target=root/('recovery-'+uuid.uuid4().hex)
+    source.rename(target)
+    # If flushing the directory fails after rename, still report the existing
+    # recovery location rather than claiming the session contains the saves.
+    try:
+        sync_dir(root)
+    except OSError:
+        pass
+    return target
+
+
 def commit(root,session,exit_code):
     """Only a successful native exit advances the pointer; previous saves retained."""
     root=Path(root)
