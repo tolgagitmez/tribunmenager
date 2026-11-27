@@ -1,7 +1,8 @@
 """Stage-two pilot: build an alternate native roster data package.
 
 Explicit slot mapping only. Native player IDs, age, appearance, skills,
-formation order, teams and tactics remain intact. No production launch hook.
+formation order, teams and tactics remain intact by default. Optional skill
+pilot writes only explicitly mapped profile values. No production launch hook.
 """
 from contextlib import closing
 import shutil
@@ -46,7 +47,7 @@ def validate_mapping(db,team_id,rows):
     return updates
 
 
-def build_pack(runtime,team_id,rows):
+def build_pack(runtime,team_id,rows,*,skill_pilot=False):
     runtime=Path(runtime)
     original=runtime/'databases/default'
     target=runtime/'databases/tribun-roster-pilot'
@@ -55,6 +56,16 @@ def build_pack(runtime,team_id,rows):
     before=digest(original/'database.sqlite')
     with closing(connect(original/'database.sqlite')) as db:
         updates=validate_mapping(db,team_id,rows)
+        profiles=[]
+        if skill_pilot:
+            from original_skill_mapping import plan_profile
+            for row in rows:
+                ident=row['nativePlayerId']
+                base,age,xml=db.execute('SELECT base_stat,age,profile_xml FROM players WHERE id=? AND team_id=?',(ident,team_id)).fetchone()
+                plan=plan_profile(base,age,xml,row.get('webValues'))
+                if plan['unresolved'] or not plan['proposed']:
+                    raise ValueError('Unresolved skill mapping for native player '+str(ident))
+                profiles.append((plan['profileXml'],ident,team_id))
     # The original database and graphics are untouched; only the new pack
     # is published after SQL and integrity validation succeed.
     with tempfile.TemporaryDirectory(prefix='.roster-pack-',dir=target.parent) as tmp:
@@ -63,6 +74,11 @@ def build_pack(runtime,team_id,rows):
         with closing(sqlite3.connect(pack/'database.sqlite')) as db:
             with db:
                 db.executemany('UPDATE players SET firstname=?,lastname=?,role=? WHERE id=? AND team_id=?',updates)
+                if profiles:
+                    db.executemany('UPDATE players SET profile_xml=? WHERE id=? AND team_id=?',profiles)
+                    for xml,ident,team in profiles:
+                        if db.execute('SELECT profile_xml FROM players WHERE id=? AND team_id=?',(ident,team)).fetchone()!=(xml,):
+                            raise RuntimeError('Skill profile did not roundtrip')
                 if db.execute('PRAGMA quick_check').fetchall()!=[('ok',)]:
                     raise ValueError('Alternative database integrity failed')
                 for first,last,role,ident,team in updates:
@@ -72,5 +88,6 @@ def build_pack(runtime,team_id,rows):
             raise RuntimeError('Default database was changed')
         pack.rename(target)
     return dict(sourceDatabase=target.name,teamId=team_id,mappedPlayers=len(updates),
-                nativeSkillsImported=False,nativeFormationImported=False,nativeTacticsImported=False,
+                nativeSkillsImported=False,experimentalSkillProfilesWritten=len(profiles),
+                skillEquivalenceVerified=False,nativeFormationImported=False,nativeTacticsImported=False,
                 nativeMenuLoadVerified=False,defaultDatabaseUnchanged=True)
