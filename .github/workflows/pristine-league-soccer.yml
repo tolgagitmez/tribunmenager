@@ -5,6 +5,8 @@ on:
     paths:
       - 'original_engine.py'
       - 'original_session.py'
+      - 'original_results.py'
+      - 'tests/test_original_results.py'
       - 'original-engine.html'
       - 'original-engine-page.js'
       - 'index.html'
@@ -26,6 +28,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p test_original_engine.py -v
           python3 -m unittest discover -s tests -p test_original_session.py -v
+          python3 -m unittest discover -s tests -p test_original_results.py -v
           node --check original-engine-page.js
           python3 -m unittest discover -s tests -p test_launcher.py -v
           sh -n BASLAT_ORIJINAL.sh
