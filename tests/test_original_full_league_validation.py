@@ -196,3 +196,56 @@ class FullLeagueValidationTests(unittest.TestCase):
                 db.execute('UPDATE match_results SET team1_goals=5 WHERE calendar_id=10')
             with self.assertRaisesRegex(ValueError,'Previously completed'):
                 verify_restored_fixture(session,expected,before)
+
+
+    def test_native_continue_gate_requires_fresh_fulltime_and_exact_saved_score(self):
+        from original_native_finish_gate import fresh_history,expected_names,reserved_score_saved
+        from original_full_league_validation import completed_own
+        from original_fixture_gate import next_native_fixture
+        with tempfile.TemporaryDirectory() as tmp:
+            session=Path(tmp)
+            league=session/'saves'/'test'
+            league.mkdir(parents=True)
+            path=league/'autosave.sqlite'
+            fixture(path)
+            expected=next_native_fixture(path)
+            previous=completed_own(path)
+            names=expected_names(path,expected)
+            self.assertEqual(names,('Away','Home'))
+            self.assertIsNone(fresh_history(session,names))
+            history=session/'data/saves/match_history.sqlite'
+            history.parent.mkdir(parents=True)
+            with sqlite3.connect(history) as db:
+                db.executescript("""
+                CREATE TABLE match_history(id INTEGER PRIMARY KEY,team1_name TEXT,team2_name TEXT,
+                    score1 INTEGER,score2 INTEGER,match_time_ms INTEGER,shots1 INTEGER,shots2 INTEGER,
+                    shots_on_target1 INTEGER,shots_on_target2 INTEGER,
+                    possession1_pct REAL,possession2_pct REAL,passes1 INTEGER,passes2 INTEGER,
+                    passes_completed1 INTEGER,passes_completed2 INTEGER,fouls1 INTEGER,fouls2 INTEGER);
+                """)
+            self.assertIsNone(fresh_history(session,names))
+            with sqlite3.connect(history) as db:
+                db.execute("INSERT INTO match_history VALUES(1,'Away','Home',1,3,2700000,6,4,3,2,54.5,45.5,100,80,84,60,2,3)")
+            with self.assertRaisesRegex(ValueError,'regulation'):
+                fresh_history(session,names)
+            with sqlite3.connect(history) as db:
+                db.execute('UPDATE match_history SET match_time_ms=5400000')
+            with self.assertRaisesRegex(ValueError,'teams differ'):
+                fresh_history(session,tuple(reversed(names)))
+            final=fresh_history(session,names)
+            self.assertEqual(final['history']['awayGoals'],3)
+            self.assertIsNone(reserved_score_saved(path,expected,previous,final['history']))
+            with sqlite3.connect(path) as db:
+                db.execute('UPDATE match_results SET played=1,team1_goals=1,team2_goals=2 WHERE calendar_id=12')
+            with self.assertRaisesRegex(ValueError,'score differs'):
+                reserved_score_saved(path,expected,previous,final['history'])
+            with sqlite3.connect(path) as db:
+                db.execute('UPDATE match_results SET team2_goals=3 WHERE calendar_id=12')
+            before=(path.read_bytes(),history.read_bytes())
+            result=reserved_score_saved(path,expected,previous,final['history'])
+            self.assertEqual((result['nativeFixtureId'],result['homeGoals'],result['awayGoals']),(12,1,3))
+            self.assertEqual((path.read_bytes(),history.read_bytes()),before)
+            with sqlite3.connect(history) as db:
+                db.execute('INSERT INTO match_history SELECT 2,team1_name,team2_name,score1,score2,match_time_ms,shots1,shots2,shots_on_target1,shots_on_target2,possession1_pct,possession2_pct,passes1,passes2,passes_completed1,passes_completed2,fouls1,fouls2 FROM match_history')
+            with self.assertRaisesRegex(ValueError,'exactly one fresh'):
+                fresh_history(session,names)
