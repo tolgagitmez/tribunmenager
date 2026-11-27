@@ -18,6 +18,7 @@ on:
       - 'original_fixture_gate.py'
       - 'original_fixture_dispatch.py'
       - 'original_verified_result_ledger.py'
+      - 'original_web_league_preflight.py'
       - 'tests/test_original_verified_result_ledger.py'
       - 'original_scheduled_kickoff_probe.py'
       - 'tests/test_original_scheduled_kickoff_probe.py'
