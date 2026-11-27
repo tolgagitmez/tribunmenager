@@ -5,7 +5,7 @@ import tempfile
 import subprocess
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/league-soccer'))
-from native_frame_calibration import WIDTH,HEIGHT,checksum,decode,audit_frames,frames
+from native_frame_calibration import WIDTH,HEIGHT,checksum,decode,audit_frames,frames,audio_packet_audit
 
 
 def marker(ident):
@@ -51,6 +51,11 @@ class FrameCalibrationTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit_frames([(0,2),(.1,1)],{1:(1000000000,1000001000),
                 2:(1000000000,1000001000)},1000,0,1)
+
+    def test_audio_packet_continuity(self):
+        packets=[dict(pts_time=i*.02,duration_time=.02) for i in range(50)]
+        self.assertTrue(audio_packet_audit(packets,0,1)['continuityPassed'])
+        self.assertFalse(audio_packet_audit(packets[:10]+packets[20:],0,1)['continuityPassed'])
 
     def test_real_encoded_marker_decode(self):
         # Synthetic input validates the decoder through H264, not native rendering.
