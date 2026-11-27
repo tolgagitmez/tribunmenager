@@ -89,6 +89,14 @@ def _capture_window(config,limit,audio_env):
         gpu_hook=video.parent/"native-gl-context.so"
         compile_hook(HERE/"native_gl_context_hook.c",gpu_hook)
         game_env.update(LD_PRELOAD=str(gpu_hook),TRIBUN_NATIVE_GL_CONTEXT_LOG=str(video.parent/"native-gl-context.log"))
+    if extended and os.environ.get("TRIBUN_NATIVE_FRAME_MARKERS")=="1":
+        require(epoch_mode and not gpu_context and swap_enabled=="0" and not game_env.get("LD_PRELOAD"),
+                "Frame marker requires isolated extended epoch capture")
+        hook=video.parent/"native-frame-marker.so"
+        subprocess.run(["cc","-O2","-shared","-fPIC",str(HERE/"native_frame_marker.c"),
+                        "-o",str(hook),"-ldl","-pthread","-lGL"],check=True,timeout=30)
+        game_env.update(LD_PRELOAD=str(hook),
+                        TRIBUN_FRAME_MARKERS_LOG=str(video.parent/"native-frame-markers.csv"))
     swap_base=video.parent/"native-swaps"
     if swap_enabled=="1":
         from native_swap_probe import compile_probe
