@@ -40,13 +40,17 @@ def encoding_args(output,*,fmp4=False):
             '-hls_delete_threshold','2','-hls_flags','delete_segments+independent_segments+temp_file',
             *extra,'-hls_segment_filename',str(output/('segment-%06d.'+suffix)),str(output/'stream.m3u8')]
 
-def read_playlist(directory):
+def read_playlist(directory,*,fmp4=False):
     path=Path(directory)/'stream.m3u8'
     if path.is_symlink() or not path.is_file() or path.stat().st_size>16384:
         raise ValueError('Invalid live playlist')
     lines=path.read_text(encoding='utf-8').splitlines()
     if not lines or lines[0]!='#EXTM3U':
         raise ValueError('Invalid HLS header')
+    if fmp4 and '#EXT-X-MAP:URI="init.mp4"' not in lines:
+        raise ValueError('Missing local initialization fragment')
+    pattern=FMP4_SEGMENT if fmp4 else SEGMENT
+    suffix='m4s' if fmp4 else 'ts'
     segments=[]
     sequence=None
     duration=None
@@ -58,13 +62,13 @@ def read_playlist(directory):
             if not math.isfinite(duration) or not 0<duration<=3:
                 raise ValueError('Invalid segment duration')
         elif line and not line.startswith('#'):
-            if not SEGMENT.fullmatch(line) or duration is None:
+            if not pattern.fullmatch(line) or duration is None:
                 raise ValueError('Invalid segment reference')
             segments.append(dict(name=line,seconds=duration))
             duration=None
     if sequence is None or sequence<0 or not 1<=len(segments)<=MAX_SEGMENTS:
         raise ValueError('Invalid bounded playlist window')
-    if [s['name'] for s in segments]!=[f'segment-{i:06d}.ts' for i in range(sequence,sequence+len(segments))]:
+    if [s['name'] for s in segments]!=[f'segment-{i:06d}.{suffix}' for i in range(sequence,sequence+len(segments))]:
         raise ValueError('Discontinuous segment sequence')
     return dict(mediaSequence=sequence,segments=segments,
                 windowSeconds=sum(s['seconds'] for s in segments),
