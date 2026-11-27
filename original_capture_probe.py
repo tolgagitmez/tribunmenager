@@ -103,10 +103,36 @@ def summarize(samples, intervals):
                       'not native FPS, unique rendered frames, browser screen-share or physics stall proof.')
 
 
+def calibrate_capture(samples, env):
+    """Compare known externally drawn motion against the same capture pipe."""
+    pattern=Path(__file__).resolve().with_name('original_capture_pattern.py')
+    proc=subprocess.run(['python3',str(pattern)],env=env,capture_output=True,
+                        text=True,timeout=20,check=True)
+    drawn=json.loads(proc.stdout)
+    start,end=drawn['start'],drawn['end']
+    report=summarize(list(samples),[(start+0.5,end-0.5)])
+    report['referenceDrawCalls']=drawn['drawnFrames']
+    report['referenceDrawCallsPerSecond']=round(drawn['drawnFrames']/(end-start),2)
+    report['calibrationPassed']=(report['deliveryQualityPassed']
+        and report['changedTransitionsPerSecond']>=20
+        and report['referenceDrawCallsPerSecond']>=24)
+    return report
+
+
+def optional_diagnostic(args, env):
+    try:
+        p=subprocess.run(args,env=env,capture_output=True,text=True,timeout=5)
+        return dict(exitCode=p.returncode,output=p.stdout.strip()[:4000])
+    except (OSError,subprocess.TimeoutExpired) as exc:
+        return dict(error=str(exc))
+
+
 def match_capture(session, source, env):
     samples=[]
     events=[]
     errors=[]
+    window_info={}
+    graphics=optional_diagnostic(['glxinfo','-B'],env)
     def read_frames(pipe):
         try:
             while True:
@@ -139,6 +165,10 @@ def match_capture(session, source, env):
                 time.sleep(.05)
             if not samples:
                 raise RuntimeError('Xvfb capture produced no frames')
+            calibration=calibrate_capture(samples,env)
+            print('Capture calibration: '+json.dumps(calibration),flush=True)
+            if capture.poll() is not None:
+                raise RuntimeError('Capture ended during reference calibration')
             game=subprocess.Popen(['stdbuf','-oL','-eL',str(session/'gameplayfootball'),
                 str(source/'data/menu_smoke_full_match.config')],cwd=session,env=env,
                 stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)
@@ -150,7 +180,12 @@ def match_capture(session, source, env):
                             events.append((time.monotonic(),marker,line.strip()))
             logger=threading.Thread(target=read_game,daemon=True)
             logger.start()
-            code=game.wait(timeout=420)
+            deadline=time.monotonic()+420
+            while game.poll() is None and time.monotonic()<deadline:
+                if not window_info and any(m==ACTIVE for _,m,_ in events):
+                    window_info=optional_diagnostic(['xwininfo','-name','League Soccer'],env)
+                time.sleep(.1)
+            code=game.wait(timeout=max(1,deadline-time.monotonic()))
             logger.join(timeout=10)
             if logger.is_alive() or code:
                 raise RuntimeError('Native smoke game did not finish normally')
@@ -172,7 +207,10 @@ def match_capture(session, source, env):
             raise RuntimeError('Unexpected native smoke markers: '+str(events))
         intervals=[(events[0][0],events[1][0]),(events[2][0],events[3][0])]
         result=summarize(samples,intervals)
-        result.update(revision=engine.REVISION,fixture='upstream menu_smoke_full_match.config',
+        result.update(captureCalibration=calibration,graphicsEnvironment=graphics,
+                      nativeWindowDiagnostic=window_info,
+                      calibrationComparisonScope='Tk reference window checks sampling path, not OpenGL rendering or GPU performance.',
+                      revision=engine.REVISION,fixture='upstream menu_smoke_full_match.config',
                       fullTimeMarker=events[3][2],requestedCaptureFps=REQUEST_FPS,
                       sampledResolution=[WIDTH,HEIGHT],nativeSettingsPatched=False,
                       smokeFixtureUsesAcceleratedClock=True,browserPreviewVerified=False)
