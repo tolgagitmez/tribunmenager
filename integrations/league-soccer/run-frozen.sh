@@ -8,6 +8,7 @@ out="$(realpath -m "$3")"
 render_interval="${4:-0}"
 [[ $# -le 4 ]] || { echo "Unexpected runner arguments" >&2; exit 2; }
 case "$render_interval" in 0|100) ;; *) echo "Invalid diagnostic render interval" >&2; exit 2;; esac
+[[ "${TRIBUN_NATIVE_EXTENDED_ATTACK_TRIAL:-0}" == 0 && "${TRIBUN_NATIVE_EXTENDED_PROGRESS_227:-0}" == 0 ]] || { echo "Stage 227 is restricted to run-pilot paired trace trials" >&2; exit 2; }
 active_policies=0
 for policy in TRIBUN_NATIVE_LINE_BREAK TRIBUN_NATIVE_RUN_LANES TRIBUN_NATIVE_TRIANGLE TRIBUN_NATIVE_CREATIVE_CARRY TRIBUN_NATIVE_DUEL TRIBUN_NATIVE_HOLD_UP TRIBUN_NATIVE_FINISH TRIBUN_NATIVE_KEEPER_AI TRIBUN_NATIVE_DEFENSE_SHAPE TRIBUN_NATIVE_TRANSITION TRIBUN_NATIVE_ROLE_PROFILE TRIBUN_NATIVE_CLOSE_TOUCH TRIBUN_NATIVE_MOTION_SMOOTH TRIBUN_NATIVE_COLLECTIVE_AI TRIBUN_NATIVE_MATCH_PACE TRIBUN_NATIVE_COMBINED_AI; do
   case "${!policy:-0}" in
