@@ -5,7 +5,7 @@ import os
 import stat
 import threading
 import time
-from original_av_stream import SEGMENT
+from original_av_stream import SEGMENT,FMP4_SEGMENT
 
 MAX_SEGMENT_BYTES=16*1024*1024
 
@@ -54,7 +54,17 @@ class HLSHandler(BaseHTTPRequestHandler):
             return
         name=self.path[1:]
         playlist=name=='stream.m3u8'
-        if not playlist and not SEGMENT.fullmatch(name):
+        if name=='viewer':
+            data=b'<!doctype html><meta charset="utf-8"><title>Private HLS test</title><video playsinline controls></video>'
+            self.send_response(200)
+            self.send_header('Content-Type','text/html; charset=utf-8')
+            self.send_header('Content-Length',str(len(data)))
+            self.send_header('Cache-Control','no-store')
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        fragmented=name=='init.mp4' or FMP4_SEGMENT.fullmatch(name)
+        if not playlist and not fragmented and not SEGMENT.fullmatch(name):
             self.send_error(404)
             return
         limit=16384 if playlist else MAX_SEGMENT_BYTES
@@ -71,7 +81,7 @@ class HLSHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         self.send_response(200)
-        self.send_header('Content-Type','application/vnd.apple.mpegurl' if playlist else 'video/mp2t')
+        self.send_header('Content-Type','application/vnd.apple.mpegurl' if playlist else 'video/mp4' if fragmented else 'video/mp2t')
         self.send_header('Content-Length',str(len(data)))
         self.send_header('Cache-Control','no-store')
         self.send_header('Cross-Origin-Resource-Policy','same-origin')
