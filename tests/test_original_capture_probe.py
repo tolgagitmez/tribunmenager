@@ -49,6 +49,27 @@ class OriginalCaptureProbeTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 summarize(samples,intervals)
 
+    def test_repeated_pixels_despite_smooth_delivery(self):
+        report=summarize([(i/30,'static' if i<60 else str(i)) for i in range(90)],[(0,3)])
+        self.assertEqual(report['captureReceiptFps'],30)
+        self.assertTrue(report['deliveryQualityPassed'])
+        self.assertEqual(report['identicalTransitions'],59)
+        self.assertAlmostEqual(report['longestIdenticalPixelSpanMs'],1966.7,places=1)
+        self.assertEqual(report['identicalPixelRunsAtLeastOneSecond'],1)
+
+    def test_missing_samples_do_not_extend_static_span(self):
+        report=summarize([(0,'same'),(.2,'same'),(2,'same'),(2.2,'same')],[(0,3)])
+        self.assertEqual(report['longestIdenticalPixelSpanMs'],200)
+        self.assertAlmostEqual(report['observedIdenticalPixelSpanSeconds'],.4)
+        self.assertEqual(report['identicalPixelRunsAtLeastOneSecond'],0)
+        self.assertEqual(report['receiptGapsAtLeastOneSecond'],1)
+
+    def test_half_boundary_does_not_join_static_spans(self):
+        samples=[(i/10,'same') for i in range(8)]+[(2+i/10,'same') for i in range(8)]
+        report=summarize(samples,[(0,.8),(2,2.8)])
+        self.assertEqual(report['longestIdenticalPixelSpanMs'],700)
+        self.assertEqual(report['identicalPixelRunsAtLeastOneSecond'],0)
+
     def test_invalid_intervals_and_sample_order(self):
         for samples,intervals in [([],[]),([],[(1,1)]),([(2,'a'),(1,'b')],[(0,3)])]:
             with self.assertRaises(ValueError):
