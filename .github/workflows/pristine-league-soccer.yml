@@ -177,6 +177,21 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Verify real native match window through Chromium without mock media
         run: python3 original_native_browser_probe.py
+      - name: Verify custom source selection in actual native menus
+        id: custom_source
+        continue-on-error: true
+        run: python3 original_custom_database_probe.py --ci
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.custom_source.outcome == 'failure'
+        with:
+          name: native-custom-source-diagnostics
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
+      - name: Enforce native custom source verification
+        if: always() && steps.custom_source.outcome == 'failure'
+        run: |
+          echo "::error::Custom source selection in original native menu failed."
+          exit 1
       - name: Enforce native save and reload verification
         if: always() && steps.native_saves.outcome == 'failure'
         run: |
