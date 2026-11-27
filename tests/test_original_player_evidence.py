@@ -84,3 +84,40 @@ class PlayerEvidenceTests(unittest.TestCase):
             row['playedClockMs']=5520000
         with self.assertRaisesRegex(ValueError,'eleven-player'):
             validate_observations(self.baseline,self.mapped,bad,self.history)
+
+
+    def test_staged_player_projection_rejects_smoke_and_preserves_unknowns(self):
+        from original_player_evidence import project_candidate
+        key='a'*64
+        sha='b'*64
+        candidate=dict(fixtureKey=key,historySha256=sha,sourceSha256=self.baseline['sourceSaveSha256'],
+            nativeFixture=dict(homeTeamId=1,awayTeamId=2),history=self.history)
+        observer=dict(fixtureKey=key,historySha256=sha,sourceSaveSha256=self.baseline['sourceSaveSha256'],
+            revision=self.baseline['revision'],scoreAndClockMatchHistory=True,nativeMatchClockMs=5400000,
+            actualLeagueFixtureVerified=True,acceleratedSmoke=False,
+            teams=[dict(side=s,nativeTeamId=s+1,score=2 if s==0 else 1,
+                players=[dict(nativePlayerId=(s+1)*100+i,goals=0,yellow=0,fatigueFactorInv=.8)
+                         for i in range(1,13)]) for s in (0,1)])
+        observer['teams'][0]['players'][0]['goals']=2
+        observer['teams'][1]['players'][0]['goals']=1
+        observer['timeline']=dict(eventSequenceConsistent=True,periodEndClockMs=[2820000,5400000],
+            players=[dict(side=s,nativePlayerId=(s+1)*100+i,finalFatigueFactorInv=.8,
+                          observedOnPitchClockMs=5520000 if i<=11 else 0)
+                     for s in (0,1) for i in range(1,13)])
+        result=project_candidate(self.baseline,self.mapped,candidate,observer)
+        self.assertEqual(result['players'][0]['playedClockMs'],5520000)
+        self.assertIsNone(result['players'][0]['assists'])
+        self.assertIsNone(result['players'][0]['red'])
+        self.assertFalse(result['sourceAuthenticityVerified'])
+        self.assertFalse(result['productionImportAllowed'])
+        self.assertFalse(result['seasonStateWritten'])
+        for field,value in [('acceleratedSmoke',True),('actualLeagueFixtureVerified',False),
+                            ('historySha256','c'*64),('fixtureKey','d'*64)]:
+            bad=copy.deepcopy(observer)
+            bad[field]=value
+            with self.assertRaises(ValueError):
+                project_candidate(self.baseline,self.mapped,candidate,bad)
+        bad=copy.deepcopy(observer)
+        bad['timeline']['players'][0]['finalFatigueFactorInv']=.4
+        with self.assertRaisesRegex(ValueError,'fatigue differ'):
+            project_candidate(self.baseline,self.mapped,candidate,bad)
