@@ -134,6 +134,27 @@ jobs:
                       '[menu-smoke] Main menu ready, opening Quick Match',
                       '[menu-smoke] Full match complete:',
                       '[menu-smoke] Full-match verification succeeded, quitting test run'],env,session)
+              # Upstream's GameOverPage writes this history on a completed 3D match.
+              # Compare native bytes, the displayed report, and restoration separately.
+              from original_match_history import HISTORY_PATH,STORED_NAME,read_recent,commit_history,restore_history
+              from original_saves import locked_store
+              import json
+              history=session/HISTORY_PATH
+              before=e.digest(history)
+              report=read_recent(history)
+              assert len(report['records'])==1 and not report['skipped'], 'Expected one genuine completed history entry'
+              assert report['teamPerformance']['sampleMatches']==1, 'Native performance summary unavailable'
+              with locked_store(session/'history-store') as store:
+                  assert commit_history(store,session,0)
+                  assert e.digest(store/STORED_NAME)==before
+                  restored=session/'fresh-runtime'
+                  restored.mkdir()
+                  assert restore_history(store,restored)
+                  assert e.digest(restored/HISTORY_PATH)==before
+                  assert read_recent(restored/HISTORY_PATH)==report
+              assert e.digest(history)==before
+              print(json.dumps(dict(native3DHistoryRoundtripVerified=True,historyByteExact=True,
+                  acceleratedUpstreamSmoke=True,leagueFixtureLinked=False,report=report)))
           e.verify_install(work,env)
           PY
       - name: Measure real unmodified native match using private external pixel capture
