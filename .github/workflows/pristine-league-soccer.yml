@@ -9,6 +9,7 @@ on:
       - 'original_full_league_validation.py'
       - 'original_custom_database_probe.py'
       - 'original_roster_pack.py'
+      - 'original_native_roster_probe.py'
       - 'original_skill_mapping.py'
       - 'tests/test_original_skill_mapping.py'
       - 'tests/test_original_roster_pack.py'
@@ -193,6 +194,21 @@ jobs:
           name: native-custom-source-diagnostics
           if-no-files-found: ignore
           path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
+      - name: Verify complete roster and skill package in real native league creation
+        id: native_roster
+        continue-on-error: true
+        run: python3 original_native_roster_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.native_roster.outcome == 'failure'
+        with:
+          name: native-roster-menu-diagnostics
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
+      - name: Enforce native roster package verification
+        if: always() && steps.native_roster.outcome == 'failure'
+        run: |
+          echo "::error::Complete native roster roundtrip failed."
+          exit 1
       - name: Enforce native custom source verification
         if: always() && steps.custom_source.outcome == 'failure'
         run: |
