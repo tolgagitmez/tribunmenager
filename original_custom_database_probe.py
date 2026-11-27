@@ -71,7 +71,7 @@ def verify(runtime,expected):
                 nativeConfigModifiedByBridge=False,automaticRosterImport=False)
 
 
-def run_private_menu(runtime):
+def run_private_menu(runtime,pack=PACK):
     """CI-only real keyboard path. Never used by production launch."""
     import time
     from original_native_reload_probe import wait_for,press_key,diagnostic_frame,opened_database
@@ -103,7 +103,7 @@ def run_private_menu(runtime):
             # Intro -> League -> New -> source browser. Pinned upstream
             # file browser sorts directory names; default precedes the test pack.
             dirs=sorted(p.name for p in (runtime/'databases').iterdir() if p.is_dir())
-            if dirs!=['default',PACK]:
+            if dirs!=['default',pack]:
                 raise RuntimeError('Unexpected custom database menu entries')
             keys(('Return','Down','Return','Down','Return','Return','Down','Return'))
             # Source selector -> team -> currency -> difficulty -> save name
@@ -164,8 +164,8 @@ def main(ci=False):
 
 if __name__=='__main__':
     import sys
-    if len(sys.argv)==3 and sys.argv[1]=='--inside-private-menu':
-        run_private_menu(sys.argv[2])
+    if len(sys.argv) in (3,4) and sys.argv[1]=='--inside-private-menu':
+        run_private_menu(sys.argv[2],sys.argv[3] if len(sys.argv)==4 else PACK)
     elif sys.argv[1:]==['--ci']:
         main(ci=True)
     elif len(sys.argv)==1:
