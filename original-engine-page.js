@@ -31,6 +31,20 @@
    let count=0;
    for(const save of report.saves){
     const heading=document.createElement('h3');heading.textContent=save.saveName;list.append(heading);
+    if(save.managedTeam){
+     const club=document.createElement('p');club.textContent='Yönetilen takım: '+save.managedTeam.name;list.append(club);
+    }
+    if(Array.isArray(save.pendingFixtures)){
+     const next=document.createElement('h4');next.textContent='Oynanmamış fikstürler';list.append(next);
+     const pending=document.createElement('ul');
+     for(const match of save.pendingFixtures){
+      const row=document.createElement('li');row.textContent=match.nativeDate+' · '+match.homeTeam+' – '+match.awayTeam;pending.append(row);
+     }
+     if(!save.pendingFixtures.length){const row=document.createElement('li');row.textContent='Bekleyen fikstür bulunamadı.';pending.append(row);}
+     list.append(pending);
+     if(save.pendingTruncated){const p=document.createElement('p');p.textContent='İlk 30 oynanmamış fikstür gösteriliyor.';list.append(p);}
+     const played=document.createElement('h4');played.textContent='Tamamlanmış maç kayıtları';list.append(played);
+    }
     const rows=document.createElement('ul');
     for(const result of save.results){
      const row=document.createElement('li');
