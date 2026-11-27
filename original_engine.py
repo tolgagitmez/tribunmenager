@@ -100,7 +100,7 @@ def verify_install(work, env):
     return build
 
 
-def launch(build, env):
+def launch(build, env, report_path=None):
     # New private runtime copy per launch; upstream may write its own settings.
     # No synthetic fixture, clock, manager command, configuration argument or patch.
     with tempfile.TemporaryDirectory(prefix='tribun-original-session-') as temp:
@@ -111,7 +111,11 @@ def launch(build, env):
                 shutil.copytree(src,session/name)
             else:
                 shutil.copy2(src,session/name)
-        return subprocess.run([str(session/'gameplayfootball')],cwd=session,env=env).returncode
+        code=subprocess.run([str(session/'gameplayfootball')],cwd=session,env=env).returncode
+        if report_path is not None:
+            from original_results import collect, store
+            store(collect(session,REVISION,code),report_path)
+        return code
 
 
 def cache_root():
@@ -142,4 +146,4 @@ def main(*, build_only=False, installed_only=False):
     print('League-Soccer: orijinal kaynak ve varsayılan dosyalar doğrulandı.',flush=True)
     if build_only:
         return 0
-    return launch(build,env)
+    return launch(build,env,cache/'last-native-results.json')
