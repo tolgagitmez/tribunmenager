@@ -32,6 +32,24 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = unquote(urlsplit(self.path).path)
+        if path == '/api/original/catalog':
+            if not self.original_access() or not getattr(self.server, 'original_session', None):
+                return self.reply(403, {'error': 'Yalnızca yerel motor bağlantısı.'})
+            import original_engine
+            import original_catalog
+            import sqlite3
+            import xml.etree.ElementTree as ET
+            from urllib.parse import parse_qs
+            try:
+                query = parse_qs(urlsplit(self.path).query, strict_parsing=True)
+                if set(query) - {'team'} or len(query.get('team', [])) > 1:
+                    raise ValueError('Geçersiz sorgu.')
+                team = int(query['team'][0]) if 'team' in query else None
+                work = original_engine.cache_root()/original_engine.REVISION
+                database = work/'build/databases/default/database.sqlite'
+                return self.reply(200, original_catalog.catalog(database, team))
+            except (OSError, ValueError, sqlite3.Error, ET.ParseError):
+                return self.reply(409, {'error': 'Orijinal takım verisi okunamadı. Kurulumu kontrol et.'})
         if path == '/api/original/results':
             if not self.original_access():
                 return self.reply(403, {'error': 'Yalnızca yerel bağlantı.'})
