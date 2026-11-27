@@ -28,10 +28,16 @@ class ReplayClock:
 
 class ReplayServer(ThreadingHTTPServer):
     daemon_threads=True
-    def __init__(self,path,expected_sha,start_delay=3,port=0):
+    def __init__(self,path,expected_sha,start_delay=3,port=0,*,scheduled_epoch=None,fixture_key=None):
         from original_match_playback import track_timing
         if not re.fullmatch('[0-9a-f]{64}',expected_sha) or not 0<=start_delay<=60:
             raise ValueError('Invalid replay identity or start delay')
+        if scheduled_epoch is not None and (type(scheduled_epoch) not in (int,float) or not math.isfinite(scheduled_epoch) or scheduled_epoch<=0):
+            raise ValueError('Invalid scheduled kickoff')
+        if (scheduled_epoch is None)!=(fixture_key is None) or (fixture_key is not None and not re.fullmatch('[0-9a-f]{64}',fixture_key)):
+            raise ValueError('Scheduled replay requires explicit fixture identity')
+        self.fixture_key=fixture_key
+        self.scheduled_epoch=scheduled_epoch
         path=Path(path)
         if path.is_symlink() or not path.is_file() or not 0<path.stat().st_size<=MAX_BYTES:
             raise ValueError('Invalid replay file')
@@ -53,7 +59,11 @@ class ReplayServer(ThreadingHTTPServer):
         self.script=Path(__file__).with_name('original-shared-replay.js').read_bytes()
         self.slots=threading.BoundedSemaphore(8)
         super().__init__(('127.0.0.1',port),ReplayHandler)
-        self.replay_clock=ReplayClock(time.monotonic()+start_delay)
+        # Establish the monotonic epoch once per process from the persisted UTC
+        # kickoff. Viewer requests cannot start or reset it.
+        start=(time.monotonic()+start_delay if scheduled_epoch is None else
+               time.monotonic()+(scheduled_epoch-time.time()))
+        self.replay_clock=ReplayClock(start)
 
     def process_request(self,request,address):
         if not self.slots.acquire(blocking=False):
@@ -106,7 +116,9 @@ class ReplayHandler(BaseHTTPRequestHandler):
             return
         if self.path=='/clock':
             state=self.server.replay_clock.state()
-            state.update(replaySha256=self.server.identity,liveSimulation=False)
+            state.update(replaySha256=self.server.identity,liveSimulation=False,
+                         fixtureKey=self.server.fixture_key,scheduledKickoffUtc=self.server.scheduled_epoch,
+                         scoreWritten=False)
             self.reply(json.dumps(state).encode(),'application/json')
         elif self.path=='/viewer':
             self.reply(b'<!doctype html><meta charset="utf-8"><title>Shared replay pilot</title><video playsinline muted preload="auto" src="/match.mp4"></video><p id="status"></p><button id="sound">Sound</button><script src="/clock.js"></script>','text/html; charset=utf-8')
