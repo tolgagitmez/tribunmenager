@@ -114,15 +114,20 @@ def launch(build, env):
         return subprocess.run([str(session/'gameplayfootball')],cwd=session,env=env).returncode
 
 
-def main(*, build_only=False):
+def cache_root():
+    return Path.home()/'.cache'/'tribun-manager-original'
+
+
+def main(*, build_only=False, installed_only=False):
     require(sys.platform.startswith('linux'), 'Orijinal motor bağlantısı şimdilik Linux/WSL grafik oturumu için hazırlanmıştır.')
     require(all(shutil.which(c) for c in ('git','cmake')), 'Git ve CMake kurulmalı; League-Soccer Linux bağımlılıkları da gerekli.')
     env=clean_env(os.environ)
-    cache=Path.home()/'.cache'/'tribun-manager-original'
+    cache=cache_root()
     require(not cache.resolve().is_relative_to(ROOT), 'Motor paketi web dizininin dışında olmalı.')
     cache.mkdir(mode=0o700,parents=True,exist_ok=True)
     work=cache/REVISION
     if not work.exists():
+        require(not installed_only, 'Orijinal motor kurulu değil; terminalden kurulum yap.')
         # Atomic install; partial builds are never used by the launcher.
         with tempfile.TemporaryDirectory(prefix='install-',dir=cache) as temp:
             staging=Path(temp)/'engine'
