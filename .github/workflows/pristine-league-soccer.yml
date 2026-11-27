@@ -12,6 +12,8 @@ on:
       - 'original-engine.html'
       - 'original-engine-page.js'
       - 'original-preview.js'
+      - 'original-preview-metrics.js'
+      - 'tests/test-original-preview-metrics.cjs'
       - 'tests/test-original-preview.cjs'
       - 'index.html'
       - 'tests/test_original_session.py'
@@ -36,7 +38,8 @@ jobs:
           python3 -m unittest discover -s tests -p test_original_catalog.py -v
           node --check original-engine-page.js
           node --check original-preview.js
-          node --test tests/test-original-preview.cjs
+          node --test tests/test-original-preview.cjs tests/test-original-preview-metrics.cjs
+          node --check original-preview-metrics.js
           python3 -m unittest discover -s tests -p test_launcher.py -v
           sh -n BASLAT_ORIJINAL.sh
       - name: Install documented upstream Linux dependencies
