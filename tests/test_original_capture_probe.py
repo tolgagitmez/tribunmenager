@@ -1,5 +1,5 @@
 import unittest
-from original_capture_probe import summarize
+from original_capture_probe import summarize, match_intervals, ACTIVE, HALF, FULL, DONE
 
 
 class OriginalCaptureProbeTests(unittest.TestCase):
@@ -69,6 +69,24 @@ class OriginalCaptureProbeTests(unittest.TestCase):
         report=summarize(samples,[(0,.8),(2,2.8)])
         self.assertEqual(report['longestIdenticalPixelSpanMs'],700)
         self.assertEqual(report['identicalPixelRunsAtLeastOneSecond'],0)
+
+    def test_reentered_gameplay_does_not_restart_half(self):
+        markers=[ACTIVE,ACTIVE,HALF,ACTIVE,ACTIVE,FULL,DONE]
+        events=[(i,marker,marker+(' Arsenal 0 - 1 Manchester United' if marker==FULL else ''))
+                for i,marker in enumerate(markers)]
+        intervals,score,extra=match_intervals(events)
+        self.assertEqual(intervals,[(0,2),(3,5)])
+        self.assertEqual(extra,2)
+        self.assertTrue(score.endswith('Arsenal 0 - 1 Manchester United'))
+
+    def test_match_parser_requires_real_halftime_and_completion(self):
+        for markers in ([ACTIVE,ACTIVE,FULL,DONE],
+                        [ACTIVE,HALF,FULL,DONE],
+                        [ACTIVE,HALF,ACTIVE,FULL],
+                        [ACTIVE,HALF,ACTIVE,HALF,FULL,DONE],
+                        [ACTIVE,HALF,ACTIVE,FULL,DONE,ACTIVE]):
+            with self.subTest(markers=markers),self.assertRaises(ValueError):
+                match_intervals([(i,m,m) for i,m in enumerate(markers)])
 
     def test_invalid_intervals_and_sample_order(self):
         for samples,intervals in [([],[]),([],[(1,1)]),([(2,'a'),(1,'b')],[(0,3)])]:
