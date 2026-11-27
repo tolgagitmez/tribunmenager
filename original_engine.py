@@ -142,6 +142,17 @@ def launch_session(build, env, report_path, save_root):
             from original_results import collect, store
             from datetime import datetime, timezone
             report=collect(session,REVISION,code)
+            # History is independent of league fixtures and is not restored
+            # across launches. Read it only after a normal exit.
+            if code==0:
+                from original_match_history import read_recent
+                import sqlite3
+                history=session/'data/saves/match_history.sqlite'
+                try:
+                    if history.exists() or history.is_symlink():
+                        report['matchHistory']=read_recent(history)
+                except (OSError,ValueError,sqlite3.Error):
+                    report['matchHistoryUnavailable']=True
             report['createdAtUtc']=datetime.now(timezone.utc).isoformat()
             report['snapshotId']=None
             if save_root is not None and code==0:
