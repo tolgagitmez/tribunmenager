@@ -46,3 +46,14 @@ class AssistCandidatesTests(unittest.TestCase):
         bad=copy.deepcopy(self.events);bad[1]['nativePlayerId']=999
         with self.assertRaises(ValueError):
             analyze(bad,self.history,self.roster)
+
+
+    def test_missing_or_invalid_second_half_boundary(self):
+        for bad in (
+            self.events[:5]+[dict(self.events[5],kind='reset')]+self.events[6:],
+            self.events[:5]+[dict(self.events[5],clockMs=0)]+self.events[6:],
+            self.events[:5]+[self.events[5],self.events[5]]+self.events[6:],
+        ):
+            with self.assertRaises(ValueError):
+                analyze(bad,self.history,self.roster)
+        self.assertTrue(analyze(self.events,self.history,self.roster)['nativeFinalCountersMatched'])
