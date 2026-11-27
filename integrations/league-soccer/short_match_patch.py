@@ -3513,6 +3513,22 @@ void OpenGLRenderer3D::RenderAABB'''),
   }();
   return enabled;
 }
+inline bool ProgressRecovery227Enabled(){
+  const char* value=std::getenv("TRIBUN_NATIVE_EXTENDED_PROGRESS_227");
+  const char* trial=std::getenv("TRIBUN_NATIVE_EXTENDED_ATTACK_TRIAL");
+  return ExtendedDuration216Enabled() && value && std::strcmp(value,"1")==0 &&
+      trial && std::strcmp(trial,"1")==0 && !IdleRecoveryEnabled();
+}
+inline bool ProgressOutlet227(float advance,float distance,float clearance,float odds,bool keeper){
+  return !keeper && std::isfinite(advance) && std::isfinite(distance) &&
+      std::isfinite(clearance) && std::isfinite(odds) &&
+      advance>=4.0f && advance<=23.0f && distance>=5.0f && distance<=23.0f &&
+      clearance>=2.0f && odds>=.70f && odds<=1.0f;
+}
+inline bool ProgressMove227(float advance,float clearance){
+  return std::isfinite(advance) && std::isfinite(clearance) &&
+      advance>=1.5f && clearance>=2.5f;
+}
 struct IdleRecoveryWatch {
   bool tracking=false;
   int phase=-1;
@@ -3544,7 +3560,7 @@ struct FixedDurationClock {'''),
         ("void ElizaController::Reset() {", "void ElizaController::Reset() {\n  tribunIdleRecovery.Reset();"),
         ("  _Preprocess();  // calculate some variables", r'''  _Preprocess();  // calculate some variables
   bool recoverIdle=false;
-  if(AITactics::IdleRecoveryEnabled()){
+  if(AITactics::IdleRecoveryEnabled() || AITactics::ProgressRecovery227Enabled()){
     const auto p=player->GetPosition();
     const auto ball=match->GetBall()->Predict(0);
     const auto phase=match->GetMatchPhase();
@@ -3562,6 +3578,7 @@ struct FixedDurationClock {'''),
   // this branch. Ordinary ball protection, running, keeper and set pieces
   // retain the native decisions. No forced ball touch or animation reset.
   if(recoverIdle && !manualMovement){
+    const bool progressive227=AITactics::ProgressRecovery227Enabled();
     const auto p=player->GetPosition();
     const float forward=-team->GetSide();
     std::vector<PlayerImage> rivals;
@@ -3586,7 +3603,9 @@ struct FixedDurationClock {'''),
       if(space<1.4f)continue;
       const float odds=_GetPassingOdds(mate,e_FunctionType_ShortPass,rivals);
       if(!std::isfinite(odds)||odds<.55f)continue;
-      const float score=odds+.07f*std::clamp(advance/10.0f,-1.0f,1.0f)+
+      if(progressive227 && !AITactics::ProgressOutlet227(advance,distance,space,odds,
+          mate->GetFormationEntry().role==e_PlayerRole_GK))continue;
+      const float score=(progressive227?.12f*std::clamp(advance/15.0f,0.0f,1.0f):0.0f)+odds+.07f*std::clamp(advance/10.0f,-1.0f,1.0f)+
           .03f*std::min(space,5.0f)/5.0f-
           (mate->GetFormationEntry().role==e_PlayerRole_GK?.10f:0.0f);
       if(score>best){best=score;outlet=mate;}
@@ -3613,6 +3632,7 @@ struct FixedDurationClock {'''),
           const auto future=rival.position+rival.movement*.3f;
           clearance=std::min(clearance,std::min((mid-future).GetLength(),(end-future).GetLength()));
         }
+        if(progressive227 && !AITactics::ProgressMove227(dir.coords[0]*forward*2.2f,clearance))continue;
         if(clearance>clearanceBest){clearanceBest=clearance;direction=dir;found=true;}
       }
       float nearest=100.0f;
@@ -3620,14 +3640,14 @@ struct FixedDurationClock {'''),
       if(found){
         rawInputDirection=direction;rawInputVelocityFloat=2.5f;
         action="safe-move";
-      }else if(pitchHalfW+p.coords[0]*forward<20.0f && nearest<2.4f){
+      }else if(!progressive227 && pitchHalfW+p.coords[0]*forward<20.0f && nearest<2.4f){
         PlayerCommandQueue recovery;
         _AddPanicPass(recovery);
         commandQueue.insert(commandQueue.begin(),recovery.begin(),recovery.end());
         action="defensive-clearance";
       }
     }
-    std::fprintf(stderr,"[tribun-idle-recovery] phase=%d match_ms=%lu player=%d action=%s\n",
+    std::fprintf(stderr,progressive227?"[tribun-progress227] phase=%d match_ms=%lu player=%d action=%s\n":"[tribun-idle-recovery] phase=%d match_ms=%lu player=%d action=%s\n",
         static_cast<int>(match->GetMatchPhase()),static_cast<unsigned long>(match->GetMatchTime_ms()),
         player->GetID(),action);
   }
@@ -3683,7 +3703,7 @@ struct FixedDurationClock {'''),
         ("  AITactics::IdleRecoveryWatch tribunIdleRecovery;", "  AITactics::IdleRecoveryWatch tribunIdleRecovery;\n  AITactics::RestartDecisionWatch tribunRestartDecision;"),
     ])
     edit(root, "src/onthepitch/player/controller/elizacontroller.cpp", [
-        ("  _Preprocess();  // calculate some variables\n  bool recoverIdle=false;", r'''  if(AITactics::IdleRecoveryEnabled() && !team->GetHumanGamerCount() &&
+        ("  _Preprocess();  // calculate some variables\n  bool recoverIdle=false;", r'''  if((AITactics::IdleRecoveryEnabled() || AITactics::ProgressRecovery227Enabled()) && !team->GetHumanGamerCount() &&
       tribunRestartDecision.Observe(static_cast<int>(match->GetMatchPhase()),
           match->IsInPlay() && !match->IsInSetPiece())){
     tribunIdleRecovery.Reset();
