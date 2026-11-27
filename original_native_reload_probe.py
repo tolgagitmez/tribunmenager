@@ -58,7 +58,7 @@ def diagnostic_frame(label,env):
         print('Diagnostic frame unavailable: '+str(exc),file=sys.stderr)
 
 
-def run(session,kickoff=False,finish=False,halftime_bundle=None):
+def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_score=False):
     env=e.clean_env(os.environ)
     if not env.get('DISPLAY','').startswith(':'):
         raise RuntimeError('Private CI display required')
@@ -72,6 +72,8 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None):
     if halftime_bundle is not None:
         from original_halftime_gate import load_bundle,frame,score
         half_gate=load_bundle(halftime_bundle,e.REVISION,e.digest(session/'football.config'))
+    if close_after_score and not finish:
+        raise ValueError('Automatic close requires final score validation')
     if finish and not kickoff:
         raise ValueError('Full-time monitor requires kickoff mode')
     if kickoff:
@@ -190,8 +192,22 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None):
                     diagnostic_frame('finish-02-score-saved',env)
                     print(json.dumps(dict(nativeContinueScoreCandidate=candidate,automaticFinalContinue=True,
                                           automaticHalftimeVerified=False,calibratedHalftimeTransition=half_report,scoreWrittenByBridge=False)),flush=True)
-                    print('Exit the native game normally from its menus without playing another match.',flush=True)
-                    if game.wait(timeout=300)!=0:
+                    if close_after_score:
+                        # Request graceful closure through the window manager.
+                        # Never use xdotool windowkill/windowclose or signals as
+                        # evidence of a successful normal shutdown.
+                        if window()!=wid or game.poll() is not None:
+                            raise RuntimeError('Native window changed before close')
+                        protocols=subprocess.check_output(['xprop','-id',wid,'WM_PROTOCOLS'],env=env,text=True,timeout=5)
+                        if 'WM_DELETE_WINDOW' not in protocols:
+                            raise RuntimeError('Native window has no graceful close protocol')
+                        if reserved_score_saved(expected,fixture,previous,final['history'])!=candidate:
+                            raise RuntimeError('Native score changed before close')
+                        subprocess.run(['wmctrl','-ic',hex(int(wid))],env=env,check=True,timeout=5)
+                        print('Graceful window manager close requested after score verification.',flush=True)
+                    else:
+                        print('Exit the native game normally from its menus without playing another match.',flush=True)
+                    if game.wait(timeout=60 if close_after_score else 300)!=0:
                         raise RuntimeError('Native game did not close normally')
                     report=verify_restored_fixture(session,fixture,previous)
                     if report['history']!=final['history']:
@@ -199,7 +215,9 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None):
                     report.update(normalExitVerified=True,automaticFinalContinue=True,
                                   automaticHalftimeVerified=half_report is not None,calibratedHalftimeTransition=half_report,
                                   automaticProductionKickoff=False,
-                                  scoreWrittenByBridge=False,defaultConfigLaunch=True)
+                                  scoreWrittenByBridge=False,defaultConfigLaunch=True,
+                                  gracefulWindowCloseRequested=close_after_score,
+                                  automaticNormalExitVerified=close_after_score)
                     print(json.dumps(report),flush=True)
         except Exception:
             diagnostic_frame('99-failure',env)
@@ -217,8 +235,9 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None):
 
 
 if __name__=='__main__':
-    if len(sys.argv)==5 and sys.argv[1]=='--inside-private-display' and sys.argv[3]=='--finish-auto-half':
-        run(sys.argv[2],kickoff=True,finish=True,halftime_bundle=Path(sys.argv[4]).resolve())
+    if len(sys.argv) in (5,6) and sys.argv[1]=='--inside-private-display' and sys.argv[3]=='--finish-auto-half' and (len(sys.argv)==5 or sys.argv[5]=='--close-after-score'):
+        run(sys.argv[2],kickoff=True,finish=True,halftime_bundle=Path(sys.argv[4]).resolve(),
+            close_after_score=len(sys.argv)==6)
     elif len(sys.argv) in (3,4) and sys.argv[1]=='--inside-private-display' and (len(sys.argv)==3 or sys.argv[3] in ('--kickoff','--finish')):
         run(sys.argv[2],kickoff=len(sys.argv)==4,finish='--finish' in sys.argv)
     elif len(sys.argv) in (2,3) and (len(sys.argv)==2 or sys.argv[2]=='--kickoff'):
