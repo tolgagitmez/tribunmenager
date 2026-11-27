@@ -8,7 +8,7 @@ class PhaseReferenceTests(unittest.TestCase):
     def test_capture_windows_and_unreviewed_export(self):
         s=PhaseSamples()
         data=bytes(FRAME_BYTES)
-        for t,marker in ((2,ACTIVE),(8,HALF),(10,ACTIVE),(18,FULL),(19,DONE)):
+        for t,marker in ((2,ACTIVE),(8,HALF),(10,ACTIVE),(18,FULL),(20,DONE)):
             for offset in (-.9,-.5,-.25):
                 s.sample(t+offset,data)
             s.mark(t,marker,marker)
