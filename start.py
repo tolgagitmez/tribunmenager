@@ -32,6 +32,11 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = unquote(urlsplit(self.path).path)
+        if path == '/api/original/results':
+            if not self.original_access():
+                return self.reply(403, {'error': 'Yalnızca yerel bağlantı.'})
+            session = getattr(self.server, 'original_session', None)
+            return self.reply(200, {'report': session.results()}) if session else self.reply(503, {'error': 'Orijinal mod bağlantısı kapalı.'})
         if path == '/api/original/status':
             if not self.original_access():
                 return self.reply(403, {'error': 'Yalnızca yerel bağlantı.'})
