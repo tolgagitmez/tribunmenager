@@ -120,6 +120,36 @@ class OriginalResultsTests(unittest.TestCase):
             self.assertIsNone(result['standings'])
             self.assertEqual(len(result['results']),1)
 
+
+    def test_saved_club_squad_and_tactics_are_not_default_catalog(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'autosave.sqlite'
+            fixture(path)
+            with sqlite3.connect(path) as db:
+                db.executescript("""
+                ALTER TABLE teams ADD COLUMN formation_xml TEXT;
+                ALTER TABLE teams ADD COLUMN tactics_xml TEXT;
+                CREATE TABLE players(id INTEGER PRIMARY KEY,team_id INTEGER,
+                    firstname TEXT,lastname TEXT,role TEXT,formationorder INTEGER);
+                INSERT INTO players VALUES(30,1,'Saved','Keeper','GK',0),
+                    (31,1,'New','Striker','CF',1),(32,2,'Other','Player','CB',0);
+                """)
+                db.execute("UPDATE teams SET formation_xml=?,tactics_xml=? WHERE id=1",
+                    ('<p1><position>-1,0</position><role>GK</role></p1>',
+                     '<team_pressure>0.73</team_pressure>'))
+            before=path.read_bytes()
+            squad=read_save(path)['managedSquad']
+            self.assertEqual([p['id'] for p in squad['players']],[30,31])
+            self.assertEqual(squad['formation'][0]['role'],'GK')
+            self.assertEqual(next(t['value'] for t in squad['tactics'] if t['key']=='team_pressure'),.73)
+            self.assertFalse(squad['representsLiveLineup'])
+            self.assertTrue(squad['readOnly'])
+            self.assertEqual(path.read_bytes(),before)
+            with sqlite3.connect(path) as db:
+                db.execute("UPDATE teams SET tactics_xml='<broken' WHERE id=1")
+            self.assertIsNone(read_save(path)['managedSquad']['tactics'])
+
+
     def test_unsettled_journal_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'autosave.sqlite'
