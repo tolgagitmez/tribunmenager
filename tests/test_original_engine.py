@@ -121,6 +121,40 @@ class OriginalEngineTests(unittest.TestCase):
             self.assertFalse((previous/'football.config').exists())
             self.assertEqual((build/'football.config').read_text(),'original')
 
+    def test_failed_snapshot_retains_new_native_save_for_manual_recovery(self):
+        from original_saves import current_snapshot
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp)
+            build=base/'build'
+            build.mkdir()
+            store=base/'store'
+            for name in engine.RUNTIME:
+                p=build/name
+                if name in ('gameplayfootball','football.config'):
+                    p.write_text('original')
+                else:
+                    p.mkdir()
+            calls=[]
+            def run(args,*,cwd,env):
+                save=cwd/'saves/league/autosave.sqlite'
+                save.parent.mkdir(parents=True,exist_ok=True)
+                save.write_bytes(b'first' if not calls else b'latest')
+                calls.append(cwd)
+                return type('Result',(),{'returncode':0})()
+            with patch('original_engine.subprocess.run',side_effect=run):
+                self.assertEqual(engine.launch(build,{},save_root=store),0)
+                previous=current_snapshot(store)
+                with patch('original_saves.commit',side_effect=OSError('disk full')):
+                    with self.assertRaisesRegex(RuntimeError,'Kurtarma dosyaları'):
+                        engine.launch(build,{},save_root=store)
+            self.assertEqual(current_snapshot(store),previous)
+            self.assertEqual((previous/'league/autosave.sqlite').read_bytes(),b'first')
+            recovered=list(store.glob('recovery-*'))
+            self.assertEqual(len(recovered),1)
+            self.assertEqual((recovered[0]/'league/autosave.sqlite').read_bytes(),b'latest')
+            self.assertFalse((recovered[0]/'football.config').exists())
+            self.assertFalse(calls[-1].exists())
+
 
 if __name__=='__main__':
     unittest.main()
