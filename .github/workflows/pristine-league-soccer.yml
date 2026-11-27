@@ -83,6 +83,12 @@ jobs:
           PY
       - name: Verify real upstream league save and byte-exact restoration
         run: python3 original_native_saves_probe.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: native-reload-diagnostics
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-reload-diagnostics/
       - name: Run upstream full-match smoke test in separate disposable runtime
         run: |
           python3 - <<'PY'
