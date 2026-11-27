@@ -151,6 +151,10 @@ def cache_root():
     return Path.home()/'.cache'/'tribun-manager-original'
 
 
+def save_root_path():
+    return Path.home()/'.local/share/tribun-manager-original'/REVISION
+
+
 def main(*, build_only=False, installed_only=False):
     require(sys.platform.startswith('linux'), 'Orijinal motor bağlantısı şimdilik Linux/WSL grafik oturumu için hazırlanmıştır.')
     require(all(shutil.which(c) for c in ('git','cmake')), 'Git ve CMake kurulmalı; League-Soccer Linux bağımlılıkları da gerekli.')
@@ -175,6 +179,6 @@ def main(*, build_only=False, installed_only=False):
     print('League-Soccer: orijinal kaynak ve varsayılan dosyalar doğrulandı.',flush=True)
     if build_only:
         return 0
-    save_root=Path.home()/'.local/share/tribun-manager-original'/REVISION
+    save_root=save_root_path()
     require(not save_root.resolve().is_relative_to(ROOT),'Lig kayıtları web dizininin dışında olmalı.')
     return launch(build,env,cache/'last-native-results.json',save_root)
