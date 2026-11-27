@@ -9,6 +9,8 @@ on:
       - 'original_full_league_validation.py'
       - 'original_native_finish_gate.py'
       - 'original_halftime_gate.py'
+      - 'original_phase_reference_probe.py'
+      - 'tests/test_original_phase_reference_probe.py'
       - 'tests/test_original_halftime_gate.py'
       - 'original_custom_database_probe.py'
       - 'original_roster_pack.py'
@@ -108,6 +110,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_original_results.py -v
           python3 -m unittest discover -s tests -p test_original_full_league_validation.py -v
           python3 -m unittest discover -s tests -p test_original_halftime_gate.py -v
+          python3 -m unittest discover -s tests -p test_original_phase_reference_probe.py -v
           python3 -m unittest discover -s tests -p test_original_custom_database_probe.py -v
           python3 -m unittest discover -s tests -p test_original_roster_pack.py -v
           python3 -m unittest discover -s tests -p test_original_tactic_mapping.py -v
@@ -137,7 +140,7 @@ jobs:
       - name: Install documented upstream Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils openbox xdotool pulseaudio pulseaudio-utils
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils openbox xdotool wmctrl pulseaudio pulseaudio-utils
       - name: Verify bounded offline playback with FFmpeg
         run: python3 -m unittest discover -s tests -p test_original_match_playback.py -v
       - name: Verify audiovisual HLS packaging and retention
@@ -218,6 +221,14 @@ jobs:
                   acceleratedUpstreamSmoke=True,leagueFixtureLinked=False,report=report)))
           e.verify_install(work,env)
           PY
+      - name: Collect real upstream phase screen reference candidates
+        run: python3 original_phase_reference_probe.py "$RUNNER_TEMP/native-phase-reference"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-phase-reference-candidates
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-phase-reference/
       - name: Measure real unmodified native match using private external pixel capture
         run: |
           python3 original_capture_probe.py "$RUNNER_TEMP/original-capture-report.json"
