@@ -181,3 +181,20 @@ python3 tools/build-player-assets.py --from-package --output /tmp/tribun-player-
 Windows'ta `py -3` ve örneğin `--output oyuncu-yeniden-uretim` kullanabilirsin. Çıktı yolu örnektir; mevcut oyun paketinin üzerine yazmak zorunda değilsin. Komut özgün kaynak dosyalarının ve lisansların sabit hash'lerini denetler. Ayrıntılar [oyuncu varlıkları sözleşmesinde](docs/PLAYER_ASSETS.md) bulunur.
 
 Gerçek tarayıcı doğrulaması ayrıca Playwright ve Chromium gerektirir; ayrıntılar [DOGRULAMA.md](DOGRULAMA.md) içindedir. Test raporları ve açık geliştirme işleri [yol haritasında](SIMULASYON_YOL_HARITASI.md) açıklanır.
+
+
+### Deneysel kayıtlı web kadrosu aktarımı (PR 95)
+
+Orijinal motor ekranındaki **Kadro aktarım hazırlığını indir (JSON)** düğmesi yalnızca bu tarayıcıdaki kayıtlı kadroyu dışa aktarır. Sunucudaki güncel kadroyu doğrulamaz. Motor kurulduktan sonra seçilen native takımın kimliklerini ve diziliş yuvalarını incele:
+
+```sh
+python3 original_roster_import.py tribun-roster-preflight.json --inspect-team 1
+```
+
+Buradaki 1 yalnızca örnek kimliktir; gerçek takım kimliğini katalogdan seç. Ayrı bir eşleştirme JSON dosyası hazırla: `schema: 1`, `teamId`, `nativeSlotOrder` (native p1–p11 sırasındaki 11 web localIndex değeri) ve `assignments` (her kayıtlı oyuncu için `localIndex`, `nativePlayerId`, `firstName`, `lastName`, `nativeRole`). Tüm oyuncular bire bir eşleştirilmeli, ilk 11 değiştirilmemeli ve seçilen native dizilişin rolleri uyumlu olmalı. Otomatik isim/mevki tahmini yapılmaz.
+
+```sh
+python3 original_roster_import.py tribun-roster-preflight.json reviewed-mapping.json
+```
+
+Bu komut yalnızca geçici çalışma dizininde yeni bir veri paketi oluşturur. Orijinal menüde League Mode > New League > tribun-roster-pilot seç ve eşleştirilen takımla yeni lig oluştur. Bu pilot isim/mevki ve ilk 11 sırasını aktarır; yaş, görünüm, yetenek, form, taktik ve varsayılan motor dosyaları korunur. Oturum kapanınca geçici veriler silinir, normal kayıt deposuna veya web ligine yazılmaz. Mevcut iki kadronun oyuncu sayısı farklıysa ya da diziliş rolleri uyuşmuyorsa işlem reddedilir. Gerçek 3D maçta aktarımın etkisi henüz doğrulanmamıştır.
