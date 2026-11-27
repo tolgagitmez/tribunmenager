@@ -80,6 +80,68 @@ def verify_calendar(restored,report):
     return checked
 
 
+def verify_standings(restored,report):
+    """Compare web totals to the pinned native page's aggregate SQL."""
+    checked=[]
+    for item in report['saves']:
+        path=restored/item['saveName']/'autosave.sqlite'
+        with sqlite3.connect(path.resolve().as_uri()+'?mode=ro&immutable=1',uri=True) as db:
+            table=item.get('standings')
+            if not table:
+                raise RuntimeError('Native standings missing')
+            team=item['managedTeam']['id']
+            league=db.execute('SELECT l.name FROM teams t JOIN leagues l ON t.league_id=l.id WHERE t.id=?',(team,)).fetchone()[0]
+            if table['league']!=league:
+                raise RuntimeError('Native standings league mismatch')
+            clubs=db.execute('SELECT t.id,t.name FROM teams t JOIN leagues l ON t.league_id=l.id WHERE l.name=? ORDER BY t.name',(league,)).fetchall()
+            native_stats={row[0]:row[1:] for row in db.execute("""
+              SELECT team_id,COUNT(*),
+                SUM(CASE WHEN gf>ga THEN 1 ELSE 0 END),
+                SUM(CASE WHEN gf=ga THEN 1 ELSE 0 END),
+                SUM(CASE WHEN gf<ga THEN 1 ELSE 0 END),
+                SUM(gf),SUM(ga),
+                SUM(CASE WHEN gf>ga THEN 3 WHEN gf=ga THEN 1 ELSE 0 END)
+              FROM (
+                SELECT team1_id AS team_id,team1_goals AS gf,team2_goals AS ga
+                FROM match_results WHERE played=1
+                UNION ALL
+                SELECT team2_id AS team_id,team2_goals AS gf,team1_goals AS ga
+                FROM match_results WHERE played=1
+              ) GROUP BY team_id
+            """)}
+            def stats(ident):
+                return native_stats.get(ident,(0,0,0,0,0,0,0))
+            expected=sorted(clubs,key=lambda c:(-stats(c[0])[6],-(stats(c[0])[4]-stats(c[0])[5])))
+            form_rows=db.execute("""SELECT m.team1_id,m.team2_id,m.team1_goals,m.team2_goals
+                FROM match_results m JOIN calendar c ON c.id=m.calendar_id
+                WHERE m.played=1 ORDER BY date(c.timestamp),m.id""").fetchall()
+            actual=table['rows']
+            if len(actual)!=len(expected):
+                raise RuntimeError('Native standings team count mismatch')
+            for position,((ident,name),row) in enumerate(zip(expected,actual),1):
+                p,w,d,l,gf,ga,pts=stats(ident)
+                form=[]
+                for home,away,hg,ag in form_rows:
+                    if ident==home:
+                        a,b=hg,ag
+                    elif ident==away:
+                        a,b=ag,hg
+                    else:
+                        continue
+                    form.append('W' if a>b else 'D' if a==b else 'L')
+                want=(position,ident,name,p,w,d,l,gf,ga,gf-ga,pts,''.join(form[-5:]),ident==team)
+                got=tuple(row[key] for key in ('position','teamId','name','played','won','drawn','lost',
+                    'goalsFor','goalsAgainst','goalDifference','points','form','managed'))
+                if got!=want:
+                    raise RuntimeError('Native standings calculation mismatch')
+            checked.append(dict(league=league,teams=len(actual),
+                playedResults=db.execute('SELECT COUNT(*) FROM match_results WHERE played=1').fetchone()[0],
+                allRowsMatched=True))
+    if not checked:
+        raise RuntimeError('No native standings verified')
+    return checked
+
+
 def main():
     env=e.clean_env(os.environ)
     work=e.cache_root()/e.REVISION
@@ -115,6 +177,7 @@ def main():
             if not report['saves'] or report['skippedSaves']:
                 raise RuntimeError('Native league result reader failed')
             calendar_checks=verify_calendar(restored,report)
+            standings_checks=verify_standings(restored,report)
             if save_manifest(restored)!=original:
                 raise RuntimeError('Read-only native save inspection changed bytes')
             if saves.commit(store,second,1) or saves.current_snapshot(store)!=snapshot:
@@ -125,6 +188,7 @@ def main():
                  failedExitPreservedSnapshot=True,readOnlyResultsVerified=True,
                  savedFiles=len(original),nativeLeagueDatabases=before,
                  nativeCalendarVerified=True,nativeCalendarChecks=calendar_checks,
+                 nativeStandingsVerified=True,nativeStandingsChecks=standings_checks,
                  nativeMenuReopenVerified=False,productionConfigChanged=False),
                  indent=2),flush=True)
             # The previous immutable snapshot stays untouched even if native reload writes autosave.
@@ -136,6 +200,7 @@ def main():
              failedExitPreservedSnapshot=True,readOnlyResultsVerified=True,
              savedFiles=len(original),nativeLeagueDatabases=before,
                  nativeCalendarVerified=True,nativeCalendarChecks=calendar_checks,
+                 nativeStandingsVerified=True,nativeStandingsChecks=standings_checks,
              nativeMenuReopenVerified=True,productionConfigChanged=False),indent=2))
     e.verify_install(work,env)
 
