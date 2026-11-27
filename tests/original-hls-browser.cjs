@@ -54,7 +54,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    const opened=new Promise(resolve=>media.addEventListener('sourceopen',resolve,{once:true}));
    video.src=object;
    video.muted=false;
-   const deadline=performance.now()+(fullDuration? (fullDuration+60)*1000:25000);
+   const deadline=performance.now()+(fullDuration===-1?480000:fullDuration?(fullDuration+60)*1000:25000);
    const watchdog=new Promise((_,reject)=>setTimeout(()=>reject(Error('Timed out waiting for MediaSource')),6000));
    await Promise.race([opened,watchdog]);
    const buffer=media.addSourceBuffer(mime);
@@ -171,7 +171,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
       started=true;
      }
      const playbackSeconds=mediaTime-firstMediaTime;
-     const complete=fullDuration ? endedManifest&&video.ended&&playbackSeconds>=fullDuration-.3 : playbackSeconds>=4.05;
+     const complete=fullDuration ? endedManifest&&video.ended&&playbackSeconds>=Math.max(4,fullDuration-.3) : playbackSeconds>=4.05;
      if(started&&frames>=30&&signatures.size>=3&&complete&&nonSilentAudioSamples>=3&&appendedDuringPlayback>0&&(!disconnect||appendedAfterReconnect>0)){
       if(interruptionError)throw Error('Connection interruption failed: '+interruptionError);
       const quality=video.getVideoPlaybackQuality();
@@ -180,7 +180,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
        width:video.videoWidth,height:video.videoHeight,codec:mime,fragments,appendedDuringPlayback,
        audioAnalysisSampleRate:audio.sampleRate,nonSilentAudioSamples,peakAudioRms,firstAudioSignalMs:round(firstAudioSignalMs),
        transportFailures,resumedAfterFailure,interruptionFailures,appendedAfterReconnect,simulatedDisconnect:disconnect,
-       firstMediaTime, lastMediaTime:mediaTime, endedManifest, ended:video.ended,audibleMinutes,maxMediaGapMs:round(maxMediaGapMs),
+       firstMediaTime, lastMediaTime:mediaTime, mediaDuration:video.duration, endedManifest, ended:video.ended,audibleMinutes,maxMediaGapMs:round(maxMediaGapMs),
        maxFrameGapMs:round(maxFrameGapMs),stallCount,
        stallMs:round(stallMs+(stallAt===null?0:performance.now()-stallAt)),
        appendedMediaAheadMs:buffer.buffered.length?round((buffer.buffered.end(buffer.buffered.length-1)-mediaTime)*1000):0};
@@ -202,7 +202,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
 
 (async()=>{
  const url=new URL(process.argv[2]);
- const fullDuration=process.argv[3]==='--five-minute'?300:0;
+ const fullDuration=process.argv[3]==='--five-minute'?300:process.argv[3]==='--native-full'?-1:0;
  assert(process.argv.length===(fullDuration?4:3),'Unexpected arguments');
  assert.equal(url.protocol,'http:');
  assert.equal(url.hostname,'127.0.0.1');
@@ -218,21 +218,27 @@ async function viewer(browser,url,disconnect,fullDuration=0){
   if(fullDuration){
    for(const result of results){
     assert(result.ended&&result.endedManifest&&result.firstMediaTime<=.15,'Missing stream boundaries');
-    assert(result.playbackSeconds>=299.7&&result.lastMediaTime>=299.7,'Incomplete playback duration');
-    assert(result.fragments.length===150&&result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===149,'Missing full-stream fragments');
+    if(fullDuration===300){
+     assert(result.playbackSeconds>=299.7&&result.lastMediaTime>=299.7,'Incomplete playback duration');
+     assert(result.fragments.length===150&&result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===149,'Missing full-stream fragments');
+     assert(result.audibleMinutes.every(n=>n>=100),'Missing decoded sound during a minute');
+    }else{
+     assert(Number.isFinite(result.mediaDuration)&&result.mediaDuration-result.lastMediaTime<=.25,'Native final frame missing');
+     assert(result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===result.fragments.length-1,'Missing native fragment');
+    }
     assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify(result));
     assert(result.maxMediaGapMs<=200,'Missing media-time frames');
-    assert(result.audibleMinutes.every(n=>n>=100),'Missing decoded sound during a minute');
     assert(result.presentedCallbacks/result.playbackSeconds>=28.5,'Insufficient delivered video callbacks');
     assert(result.droppedVideoFrames/Math.max(1,result.totalVideoFrames)<=.01,'Too many dropped video frames');
    }
   }else assert(results[1].interruptionFailures>0&&results[1].resumedAfterFailure>0&&results[1].appendedAfterReconnect>0);
   const peer=new Map(results[1].fragments.map(f=>[f.name,f.sha256]));
   const shared=results[0].fragments.filter(f=>peer.has(f.name));
-  assert(shared.length>=(fullDuration?150:3),'The viewers must receive common ordered fragments');
+  assert(shared.length>=(fullDuration===300?150:3),'The viewers must receive common ordered fragments');
+  if(fullDuration)assert(results.every(r=>r.fragments.length===shared.length),'Full viewers did not receive identical fragment counts');
   for(const fragment of shared)assert.equal(fragment.sha256,peer.get(fragment.name),fragment.name);
   console.log(JSON.stringify({browserPlaybackVerified:true,browserAudioSignalVerified:true,independentBrowserContexts:2,
-   sharedFragments:shared.length,shortDisconnectRecoveryVerified:!fullDuration,fiveMinuteTransportVerified:!!fullDuration,results,physicalAudioOutputVerified:false,
+   sharedFragments:shared.length,shortDisconnectRecoveryVerified:!fullDuration,fiveMinuteTransportVerified:fullDuration===300,nativeFullStreamPlaybackVerified:fullDuration===-1,results,physicalAudioOutputVerified:false,
    captureToScreenLatencyVerified:false,avSyncVerified:false,fullMatchVerified:false}));
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
