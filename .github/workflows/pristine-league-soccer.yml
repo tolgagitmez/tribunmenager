@@ -231,6 +231,16 @@ jobs:
           name: original-hls-browser-evidence
           if-no-files-found: ignore
           path: ${{ runner.temp }}/original-hls-browser.log
+      - name: Verify real-time 300-second synthetic HD HLS transport
+        run: |
+          set -o pipefail
+          python3 original_native_av_probe.py --five-minute-transport 2>&1 | tee "$RUNNER_TEMP/five-minute-hls.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: five-minute-hls-evidence
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/five-minute-hls.log
       - name: Verify custom source selection in actual native menus
         id: custom_source
         continue-on-error: true
