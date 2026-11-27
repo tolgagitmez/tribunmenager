@@ -58,6 +58,42 @@ class OriginalResultsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 read_save(path)
 
+
+    def test_native_standings_points_goal_difference_and_form(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'autosave.sqlite'
+            fixture(path)
+            with sqlite3.connect(path) as db:
+                db.executescript("""
+                CREATE TABLE leagues(id INTEGER PRIMARY KEY,name TEXT);
+                INSERT INTO leagues VALUES(1,'Test League'),(2,'Other League');
+                ALTER TABLE teams ADD COLUMN league_id INTEGER DEFAULT 1;
+                INSERT INTO teams VALUES(4,'Idle',1),(5,'External',2);
+                ALTER TABLE match_results ADD COLUMN id INTEGER;
+                UPDATE match_results SET id=rowid;
+                INSERT INTO calendar VALUES(13,1,5,'2026-11-30');
+                INSERT INTO match_results VALUES(13,1,5,0,0,1,4);
+                """)
+            before=path.read_bytes()
+            table=read_save(path)['standings']
+            self.assertEqual(table['league'],'Test League')
+            self.assertEqual([r['name'] for r in table['rows']],['Home','Away','Idle','Other'])
+            home,away,idle,other=table['rows']
+            self.assertEqual((home['played'],home['won'],home['drawn'],home['points'],home['goalDifference'],home['form']),(2,1,1,4,1,'WD'))
+            self.assertEqual((away['points'],away['goalDifference'],away['form']),(3,2,'LW'))
+            self.assertEqual((idle['points'],idle['played'],idle['form']),(0,0,''))
+            self.assertTrue(home['managed'])
+            self.assertTrue(table['includesAllPlayedCompetitions'])
+            self.assertEqual(path.read_bytes(),before)
+
+    def test_missing_standings_schema_does_not_hide_valid_results(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'autosave.sqlite'
+            fixture(path)
+            result=read_save(path)
+            self.assertIsNone(result['standings'])
+            self.assertEqual(len(result['results']),1)
+
     def test_unsettled_journal_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'autosave.sqlite'
