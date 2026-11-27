@@ -1,0 +1,63 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {createMonitor}=require('../original-preview-metrics.js');
+
+function setup(){
+ let time=0,visible=true,tick,callback;
+ let cancelCount=0,clearCount=0;
+ const samples=[];
+ const video={paused:false,ended:false,videoWidth:1280,videoHeight:720,
+  requestVideoFrameCallback(fn){callback=fn;return 1;},
+  cancelVideoFrameCallback(){cancelCount++;}};
+ const monitor=createMonitor({video,now:()=>time,interval:fn=>{tick=fn;return 1;},
+  clearInterval:()=>{clearCount++;},onSample:s=>samples.push(s),isVisible:()=>visible});
+ return {monitor,video,samples,frame(t,n){time=t;callback(t,{presentedFrames:n});},
+  tick(t){time=t;tick();},setVisible(v){visible=v;},
+  cleanup:()=>[cancelCount,clearCount]};
+}
+
+test('30 presented fps and actual dimensions',()=>{
+ const s=setup();s.monitor.start();s.frame(0,1);
+ for(let i=1;i<=30;i++)s.frame(i*1000/30,i+1);
+ s.tick(1000);
+ assert.equal(s.samples.at(-1).fps,30);
+ assert.equal(s.samples.at(-1).width,1280);
+ assert.equal(s.samples.at(-1).stallEpisodes,0);
+});
+
+test('startup delay is waiting, not a stall',()=>{
+ const s=setup();s.monitor.start();s.tick(2000);
+ assert.equal(s.samples.at(-1).state,'waiting');
+ assert.equal(s.samples.at(-1).stallEpisodes,0);
+});
+
+test('one continuous frame gap counts once, then recovery',()=>{
+ const s=setup();s.monitor.start();s.frame(100,1);s.tick(1200);s.tick(2200);
+ assert.equal(s.samples.at(-1).state,'stalled');
+ assert.equal(s.samples.at(-1).stallEpisodes,1);
+ s.frame(2300,2);s.tick(3200);
+ assert.equal(s.samples.at(-1).state,'playing');
+ assert.equal(s.samples.at(-1).stallEpisodes,1);
+ assert.equal(s.samples.at(-1).longestGapMs,2200);
+});
+
+test('missed observer callbacks are not counted as dropped frames',()=>{
+ const s=setup();s.monitor.start();s.frame(0,1);s.frame(1000,31);s.tick(1000);
+ assert.equal(s.samples.at(-1).fps,30);
+ assert.equal(s.samples.at(-1).missedCallbacks,29);
+});
+
+test('hidden tab interval is excluded',()=>{
+ const s=setup();s.monitor.start();s.frame(0,1);s.setVisible(false);s.tick(2000);
+ assert.equal(s.samples.at(-1).state,'paused');
+ s.setVisible(true);s.frame(5000,10);s.frame(5100,11);s.tick(5200);
+ assert.equal(s.samples.at(-1).stallEpisodes,0);
+ assert.equal(s.samples.at(-1).longestGapMs,200);
+});
+
+test('stop cancels callbacks and prevents late samples',()=>{
+ const s=setup();s.monitor.start();s.monitor.stop();s.frame(1000,10);s.tick(2000);
+ assert.deepEqual(s.cleanup(),[1,1]);
+ assert.equal(s.samples.length,0);
+});
