@@ -38,6 +38,8 @@ on:
       - 'original-preview.js'
       - 'original-preview-metrics.js'
       - 'original_capture_probe.py'
+      - 'original_match_playback.py'
+      - 'tests/test_original_match_playback.py'
       - 'original_capture_pattern.py'
       - 'original_default_start_probe.py'
       - 'original_native_browser_probe.py'
@@ -103,6 +105,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils openbox xdotool
+      - name: Verify bounded offline playback with FFmpeg
+        run: python3 -m unittest discover -s tests -p test_original_match_playback.py -v
       - name: Build original pinned upstream with unchanged runtime files
         run: python3 start.py --mode original --original-build-only
       - name: Verify default native startup without engine arguments
