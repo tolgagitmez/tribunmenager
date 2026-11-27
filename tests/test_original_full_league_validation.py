@@ -104,3 +104,25 @@ class FullLeagueValidationTests(unittest.TestCase):
             with self.assertRaises(sqlite3.Error):
                 commit_history(root,second,0)
             self.assertEqual((root/STORED_NAME).read_bytes(),retained)
+
+
+    def test_team_performance_uses_weighted_rates_and_exact_names(self):
+        from original_match_history import summarize_teams,validate
+        rows=[
+            ('Home','Away',2,1,5400000,10,4,5,2,60,40,100,80,90,60,2,3),
+            ('Other','Home',0,0,5400000,0,2,0,2,45,55,20,10,10,5,0,1),
+            ('Home','Home',1,1,5400000,8,6,3,4,50,50,50,50,40,40,1,1),
+        ]
+        stats=summarize_teams([validate(row) for row in rows])
+        self.assertEqual(stats['sampleMatches'],2)
+        self.assertEqual(stats['excludedSameNameMatches'],1)
+        teams={row['teamName']:row for row in stats['teams']}
+        home=teams['Home']
+        self.assertEqual((home['played'],home['won'],home['drawn'],home['lost']),(2,1,1,0))
+        self.assertEqual(home['shotsPerMatch'],6)
+        self.assertEqual(home['goalsPerMatch'],1)
+        self.assertEqual(home['shotAccuracyPct'],58.33)
+        self.assertEqual(home['passAccuracyPct'],86.36)
+        self.assertEqual(home['meanPossessionPct'],57.5)
+        self.assertIsNone(teams['Other']['shotAccuracyPct'])
+        self.assertEqual(summarize_teams([])['teams'],[])
