@@ -4,9 +4,10 @@
  function createMonitor({video,now,interval,clearInterval,onSample,isVisible}){
   let active=false,handle=null,timer=null,epoch=0,previous=null,lastFrame=null;
   let count=0,missed=0,longest=0,stallSince=null,stalls=0;
-  let suspended=false;
+  let suspended=false,sampleStart=0,sampleFrames=0;
   function reset(){
    previous=null;lastFrame=null;count=missed=longest=stalls=0;stallSince=null;
+   sampleStart=now();sampleFrames=0;
   }
   function start(){
    stop();active=true;reset();suspended=false;const id=epoch;
@@ -34,7 +35,6 @@
     }
     handle=video.requestVideoFrameCallback(frame);
    }
-   let sampleStart=now(),sampleFrames=0;
    handle=video.requestVideoFrameCallback(frame);
    timer=interval(()=>{
     if(!active||id!==epoch)return;
