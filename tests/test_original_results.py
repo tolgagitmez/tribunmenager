@@ -34,6 +34,30 @@ class OriginalResultsTests(unittest.TestCase):
             self.assertEqual(result['results'][0]['homeGoals'],2)
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),before)
 
+
+    def test_managed_team_and_pending_fixtures_are_read_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'autosave.sqlite'
+            fixture(path)
+            with sqlite3.connect(path) as db:
+                db.execute("INSERT INTO calendar VALUES(13,1,3,'2026-11-30')")
+            before=path.read_bytes()
+            result=read_save(path)
+            self.assertEqual(result['managedTeam'],{'id':1,'name':'Home'})
+            self.assertEqual([x['nativeFixtureId'] for x in result['pendingFixtures']],[12,13])
+            self.assertNotIn('homeGoals',result['pendingFixtures'][0])
+            self.assertFalse(result['pendingTruncated'])
+            self.assertEqual(path.read_bytes(),before)
+
+    def test_ambiguous_managed_team_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'autosave.sqlite'
+            fixture(path)
+            with sqlite3.connect(path) as db:
+                db.execute('INSERT INTO settings VALUES(2,2)')
+            with self.assertRaises(ValueError):
+                read_save(path)
+
     def test_unsettled_journal_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'autosave.sqlite'
