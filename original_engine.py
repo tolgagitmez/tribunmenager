@@ -125,6 +125,8 @@ def launch_session(build, env, report_path, save_root):
         if save_root is not None:
             from original_saves import restore, commit
             restore(save_root,session)
+            from original_match_history import restore_history
+            restore_history(save_root,session)
         code=subprocess.run([str(session/'gameplayfootball')],cwd=session,env=env).returncode
         if save_root is not None:
             try:
@@ -138,12 +140,21 @@ def launch_session(build, env, report_path, save_root):
                     preserve_session=True
                     retained=session
                 raise RuntimeError(f'Lig kaydı saklanamadı: {exc}. Kurtarma dosyaları: {retained}') from exc
+        if save_root is not None and code==0:
+            from original_match_history import commit_history
+            import sqlite3
+            try:
+                commit_history(save_root,session,code)
+            except (OSError,ValueError,RuntimeError,sqlite3.Error) as exc:
+                # The league snapshot has already been processed. Do not
+                # claim it was rolled back. Keep the private runtime for recovery.
+                preserve_session=True
+                raise RuntimeError(f'3D maç geçmişi saklanamadı: {exc}. Kurtarma çalışma klasörü: {session}') from exc
         if report_path is not None:
             from original_results import collect, store
             from datetime import datetime, timezone
             report=collect(session,REVISION,code)
-            # History is independent of league fixtures and is not restored
-            # across launches. Read it only after a normal exit.
+            # History is independent of league fixtures. Read it only after a normal exit.
             if code==0:
                 from original_match_history import read_recent
                 import sqlite3
@@ -151,6 +162,8 @@ def launch_session(build, env, report_path, save_root):
                 try:
                     if history.exists() or history.is_symlink():
                         report['matchHistory']=read_recent(history)
+                        if save_root is not None:
+                            report['matchHistory']['scope']='retained-native-history'
                 except (OSError,ValueError,sqlite3.Error):
                     report['matchHistoryUnavailable']=True
             report['createdAtUtc']=datetime.now(timezone.utc).isoformat()
