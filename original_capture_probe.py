@@ -25,6 +25,28 @@ FULL = '[menu-smoke] Full match complete:'
 DONE = '[menu-smoke] Full-match verification succeeded, quitting test run'
 
 
+def repeated_pixels(frames):
+    """Observed identical hashes only; do not bridge missing samples."""
+    longest=0.0
+    covered=0.0
+    runs=0
+    start=None
+    for (ta,ha),(tb,hb) in zip(frames,frames[1:]):
+        gap=tb-ta
+        if ha==hb and 0<=gap<=0.25:
+            if start is None:
+                start=ta
+            covered+=gap
+            longest=max(longest,tb-start)
+        elif start is not None:
+            if ta-start>=1:
+                runs+=1
+            start=None
+    if start is not None and frames[-1][0]-start>=1:
+        runs+=1
+    return longest,covered,runs
+
+
 def summarize(samples, intervals):
     """Samples are (monotonic receipt time, frame digest). Intervals exclude menus."""
     if (not intervals or any(not math.isfinite(a) or not math.isfinite(b) or b<=a for a,b in intervals)
@@ -35,6 +57,8 @@ def summarize(samples, intervals):
         raise ValueError('Nonmonotonic capture receipt times')
     count=changed=0
     max_gap=0.0
+    static_max=static_coverage=0.0
+    static_runs=0
     gaps=0
     seconds=sum(b-a for a,b in intervals)
     per_half=[]
@@ -42,6 +66,10 @@ def summarize(samples, intervals):
         frames=[(t,h) for t,h in samples if start<=t<end]
         n=len(frames)
         c=sum(a[1]!=b[1] for a,b in zip(frames,frames[1:]))
+        same_max,same_coverage,same_runs=repeated_pixels(frames)
+        static_max=max(static_max,same_max)
+        static_coverage+=same_coverage
+        static_runs+=same_runs
         times=[start]+[t for t,_ in frames]+[end]
         delays=[b-a for a,b in zip(times,times[1:])]
         longest=max(delays)
@@ -51,11 +79,21 @@ def summarize(samples, intervals):
         gaps+=sum(d>=1 for d in delays)
         per_half.append(dict(seconds=round(end-start,3),samples=n,changedTransitions=c,
                              captureReceiptFps=round(n/(end-start),2),maxReceiptGapMs=round(longest*1000,1),
+                             changedTransitionsPerSecond=round(c/(end-start),2),
+                             identicalTransitions=max(0,n-1-c),
+                             longestIdenticalPixelSpanMs=round(same_max*1000,1),
+                             observedIdenticalPixelSpanSeconds=round(same_coverage,3),
+                             identicalPixelRunsAtLeastOneSecond=same_runs,
                              observedMotion=c>0,
                              deliveryTargetMet=n/(end-start)>=24 and longest<1))
     return dict(activeWindowSeconds=round(seconds,3),captureSamples=count,
                 captureReceiptFps=round(count/seconds,2),
                 changedFrameTransitions=changed,changedTransitionsPerSecond=round(changed/seconds,2),
+                identicalTransitions=sum(h['identicalTransitions'] for h in per_half),
+                longestIdenticalPixelSpanMs=round(static_max*1000,1),
+                observedIdenticalPixelSpanSeconds=round(static_coverage,3),
+                identicalPixelRunsAtLeastOneSecond=static_runs,
+                pixelContinuityScope='Exact sampled grayscale hashes; spans exclude gaps over 250 ms; not native render or simulation freeze proof.',
                 longestReceiptGapMs=round(max_gap*1000,1),receiptGapsAtLeastOneSecond=gaps,
                 halves=per_half,hasObservedMotion=changed>0,
                 evidencePassed=seconds>=1 and all(h['samples']>=2 and h['observedMotion'] for h in per_half),
