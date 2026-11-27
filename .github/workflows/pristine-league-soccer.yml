@@ -14,6 +14,7 @@ on:
       - 'original-preview.js'
       - 'original-preview-metrics.js'
       - 'original_capture_probe.py'
+      - 'original_capture_pattern.py'
       - 'tests/test_original_capture_probe.py'
       - 'tests/test-original-preview-metrics.cjs'
       - 'tests/test-original-preview.cjs'
@@ -48,7 +49,7 @@ jobs:
       - name: Install documented upstream Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils
       - name: Build original pinned upstream with unchanged runtime files
         run: python3 start.py --mode original --original-build-only
       - name: Inspect the real pinned native default catalog without mutation
