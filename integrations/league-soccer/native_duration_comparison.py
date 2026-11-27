@@ -27,6 +27,7 @@ def read_match(path, duration):
     previous_counts=None
     final=None
     frames=open_ms=gap_ms=0
+    half_seen=False
     box_entries=[0,0]
     box_control_ms=[0,0]
     def owner(row):
@@ -54,6 +55,7 @@ def read_match(path, duration):
                     row['matchMs']==t*(5400000//duration),'Inconsistent native clock')
             require(c['half'] is (t>=duration//2) and c['finished'] is (t==duration)
                     and row['done'] is (t==duration),'Inconsistent match boundaries')
+            half_seen |= t==duration//2
             counts={'goals':pair(row['score']),**{k:pair(row['stats'][k]) for k in COUNTERS}}
             require(all(x<=y for x,y in zip(counts['onTarget'],counts['shots'])) and
                     all(x<=y for x,y in zip(counts['completed'],counts['passes'])),'Invalid cumulative totals')
@@ -80,7 +82,7 @@ def read_match(path, duration):
             previous_counts=counts
             if row['done']:
                 final=counts
-    require(final is not None and frames>100 and open_ms>0,'Incomplete native match')
+    require(final is not None and half_seen and frames>100 and open_ms>0,'Incomplete native match')
     require(gap_ms<=duration*.01,'Too much unobserved simulation time')
     metrics={**final,'controlledBoxCrossings':box_entries}
     totals={k:sum(v) for k,v in metrics.items()}
