@@ -47,7 +47,35 @@
   try{return inspect(JSON.parse(storage.getItem('tribun-manager-pro09')||'null'));}
   catch{return null;}
  }
- const api={inspect,read};
+ // Preflight only: project the actual stored roster; never infer a native
+ // skill value or treat array indices as cross-account player identities.
+ const nativeRoles=new Set(['GK','CB','LB','RB','DM','CM','LM','RM','AM','CF']);
+ const webRoles=new Set([...nativeRoles,'ST','LW','RW','LWB','RWB']);
+ const skills=['rating','fitness','form','passing','shooting','tackling','dribbling','pace','agility','heading','crossing','vision','composure','strength','balance','acceleration','endurance','weakFoot','goalkeeping','reactions','handling','freeKick','corner','penalty'];
+ function rosterPreflight(raw){
+  const plan=inspect(raw);
+  if(!plan?.formation||!plan.lineup||raw.players.length>128)return null;
+  const players=[];
+  for(const [index,p] of raw.players.entries()){
+   if(!p||p.owned===false)continue;
+   if(typeof p.name!=='string'||!p.name.trim()||p.name.length>160)return null;
+   const role=webRoles.has(p.subposition)?p.subposition:null;
+   const nativeRole=nativeRoles.has(role)?role:role==='ST'?'CF':null;
+   const values={};
+   for(const key of skills)if(typeof p[key]==='number'&&Number.isFinite(p[key])&&p[key]>=0&&p[key]<=100)values[key]=p[key];
+   players.push({localIndex:index,name:p.name,webRole:role,nativeRole,
+    roleStatus:nativeRole===null?'requires-explicit-mapping':role===nativeRole?'exact-code':'native-striker-code',
+    starterSlot:raw.starters.includes(index)?raw.starters.indexOf(index)+1:null,
+    preferredFoot:['left','right','both'].includes(p.preferredFoot)?p.preferredFoot:null,
+    dataKind:typeof p.dataKind==='string'&&p.dataKind.length<=40?p.dataKind:null,
+    webValues:values,inferredAttributes:skills.filter(k=>p.profileProvenance?.inferredAttributes?.includes?.(k)),
+    nativeSkillValues:null});
+  }
+  return {schema:1,source:'saved-web-roster',formation:plan.formation,players,
+   nativeApplied:false,skillConversionVerified:false,
+   unresolvedRoles:players.filter(p=>!p.nativeRole).length};
+ }
+ const api={inspect,read,rosterPreflight};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  else root.TribunOriginalManagerPlan=api;
 })(typeof window!=='undefined'?window:globalThis);
