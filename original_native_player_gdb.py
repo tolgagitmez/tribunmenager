@@ -147,6 +147,8 @@ class PeriodObserver(gdb.Breakpoint):
 class ActivityObserver(gdb.Breakpoint):
     def __init__(self,name,kind):
         super().__init__(name,internal=True)
+        if self.pending:
+            raise ValueError('Unresolved native activity breakpoint: '+name)
         self.kind=kind
     def stop(self):
         if tracked_match is None or final_observer.attempted:
@@ -170,6 +172,8 @@ class ActivityObserver(gdb.Breakpoint):
 class FinalObserver(gdb.Breakpoint):
     def __init__(self):
         super().__init__('GameOverPage::Process',internal=True)
+        if self.pending:
+            raise ValueError('Unresolved native full-time breakpoint')
         self.attempted=False
     def stop(self):
         if self.attempted:
@@ -194,8 +198,8 @@ class FinalObserver(gdb.Breakpoint):
 
 gdb.execute('set may-call-functions off')
 gdb.execute('set pagination off')
-timeline_enabled=bool(int(gdb.parse_and_eval('$tribun_timeline'))) if gdb.convenience_variable('tribun_timeline') is not None else False
-assists_enabled=bool(int(gdb.parse_and_eval('$tribun_assists'))) if gdb.convenience_variable('tribun_assists') is not None else False
+timeline_enabled=bool(int(gdb.parse_and_eval('$tribun_timeline')))
+assists_enabled=bool(int(gdb.parse_and_eval('$tribun_assists')))
 final_observer=FinalObserver()
 if timeline_enabled:
     PeriodObserver('Match::SetMatchPhase',internal=True)
@@ -207,3 +211,5 @@ if assists_enabled:
         raise ValueError('Touch tracing requires period tracking')
     TouchObserver('Team::SetLastTouchPlayer',internal=True)
     ResetObserver('Match::ResetSituation',internal=True)
+
+print('TRIBUN_NATIVE_OBSERVER_READY timeline='+str(timeline_enabled)+' assists='+str(assists_enabled),flush=True)
