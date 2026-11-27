@@ -31,6 +31,19 @@ class StallTest(unittest.TestCase):
             p=Path(t)/'match.ndjson';p.write_text(json.dumps(row(0))+'\n'+'{"partial":')
             o=ClockObserver();o.poll(p,0);o.poll(p,4)
             r=o.report(5);self.assertEqual(r['lastNativeMs'],0);self.assertEqual(r['wallGapCount'],1)
+    def test_extended_stationary_episode(self):
+        with tempfile.TemporaryDirectory() as t:
+            p=Path(t)/'match.ndjson'
+            rows=[row(n) for n in range(900000,902100,100)]
+            for r in rows:
+                r['matchMs']=r['fixedClock']['elapsedMs']*3
+            p.write_text(''.join(json.dumps(r)+'\n' for r in rows))
+            result=inspect_trace(p,1800000)
+            self.assertEqual(result['longestStationaryCarrierMs'],2000)
+            self.assertEqual(result['totalStationaryCarrierMs'],2000)
+            self.assertEqual(result['longestEpisode']['startNativeMs'],900000)
+            with self.assertRaises(ValueError):
+                inspect_trace(p)
     def test_keeper_excluded(self):
         rows=[row(t) for t in range(0,2000,100)]
         for r in rows:r['players'][0]['goalkeeper']=True

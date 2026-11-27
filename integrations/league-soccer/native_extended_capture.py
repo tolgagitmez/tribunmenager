@@ -76,6 +76,23 @@ def assess(capture,observations,video_seconds,audio_seconds,expected_ms=DURATION
         scope='Observed process clocks and duration only. No exact native-time to encoded-PTS mapping.')
 
 
+def track_span(stream, fallback):
+    start=float(stream['start_time'])
+    length=duration(stream,fallback)
+    require(math.isfinite(start) and math.isfinite(start+length),'Invalid track PTS span')
+    return dict(startSeconds=start,endSeconds=start+length,durationSeconds=length)
+
+
+def track_diagnostics(video,audio,fallback):
+    v,a=(track_span(s,fallback) for s in (video,audio))
+    return dict(video=v,audio=a,
+        audioMinusVideoStartMs=round((a['startSeconds']-v['startSeconds'])*1000,3),
+        audioMinusVideoEndMs=round((a['endSeconds']-v['endSeconds'])*1000,3),
+        audioMinusVideoDurationMs=round((a['durationSeconds']-v['durationSeconds'])*1000,3),
+        commonCoverageSeconds=max(0,min(v['endSeconds'],a['endSeconds'])-max(v['startSeconds'],a['startSeconds'])),
+        scope='Track spans only; neither common coverage nor equal lengths proves synchronization.')
+
+
 def sha(path):
     h=hashlib.sha256()
     with Path(path).open('rb') as f:
@@ -113,6 +130,7 @@ def main():
     report.update(assess(json.loads(video.with_suffix('.capture.json').read_text()),
         json.loads(video.with_suffix('.clock-observations.json').read_text()),
         duration(v,fmt['duration']),duration(au,fmt['duration'])))
+    report['trackDiagnostics']=track_diagnostics(v,au,fmt['duration'])
     proc=subprocess.Popen(['ffmpeg','-nostdin','-v','error','-i',str(video),
         '-map','0:a:0','-ac','1','-ar','48000','-f','s16le','-'],
         stdout=subprocess.PIPE)

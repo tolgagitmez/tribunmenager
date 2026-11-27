@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/league-soccer'))
-from native_extended_capture import capture_env, assess
+from native_extended_capture import capture_env, assess, track_diagnostics
 
 
 def evidence():
@@ -43,6 +43,25 @@ class ExtendedCaptureTest(unittest.TestCase):
     def test_short_or_mismatched_tracks(self):
         c,o=evidence()
         self.assertFalse(assess(c,o,4,2,3000)['rawCoveragePassed'])
+
+    def test_track_start_difference_not_end_difference(self):
+        r=track_diagnostics(dict(start_time='1',duration='12'),
+                            dict(start_time='3',duration='10'),'13')
+        self.assertEqual(r['audioMinusVideoStartMs'],2000)
+        self.assertEqual(r['audioMinusVideoEndMs'],0)
+        self.assertEqual(r['audioMinusVideoDurationMs'],-2000)
+        self.assertEqual(r['commonCoverageSeconds'],10)
+
+    def test_track_end_difference_not_start_difference(self):
+        r=track_diagnostics(dict(start_time='1',duration='12'),
+                            dict(start_time='1',duration='10'),'13')
+        self.assertEqual(r['audioMinusVideoStartMs'],0)
+        self.assertEqual(r['audioMinusVideoEndMs'],-2000)
+
+    def test_invalid_track_timestamp_rejected(self):
+        with self.assertRaises(ValueError):
+            track_diagnostics(dict(start_time='nan',duration='12'),
+                              dict(start_time='1',duration='10'),'13')
 
     def test_regressing_clock_rejected(self):
         c,o=evidence()

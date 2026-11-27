@@ -1,7 +1,7 @@
-name: Stage 225 matched native duration comparison
+name: Stage 226 independent native capture diagnostics
 on:
   pull_request:
-    branches: [experiment/native-private-prototype-stage224]
+    branches: [experiment/native-duration-comparison-stage225]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
@@ -188,6 +188,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p test_native_extended_capture.py -v
           python3 -m unittest discover -s tests -p test_native_capture_alignment.py -v
+          python3 -m unittest discover -s tests -p test_native_stall_diagnostics.py -v
       - name: Install extended audiovisual capture dependencies
         run: sudo apt-get install -y ffmpeg xdotool pulseaudio pulseaudio-utils libopenal-dev
       - name: Build pinned native runtime for extended capture
@@ -214,17 +215,31 @@ jobs:
           node -e 'process.stdout.write(JSON.stringify(require("./integrations/league-soccer/fixture-adapter.cjs").demo()))' > "$RUNNER_TEMP/extended-fixture.json"
           bash integrations/league-soccer/run-frozen.sh "$RUNNER_TEMP/extended-runtime" "$RUNNER_TEMP/extended-fixture.json" "$RUNNER_TEMP/matched-short.ndjson" 0 > "$RUNNER_TEMP/matched-short.log" 2>&1
       - name: Record independent 30-minute CPU fixture with native audio
+        id: raw_capture
+        continue-on-error: true
         run: |
           test -s "$RUNNER_TEMP/extended-fixture.json"
           python3 integrations/league-soccer/native_extended_capture.py "$RUNNER_TEMP/extended-runtime" "$RUNNER_TEMP/extended-fixture.json" "$RUNNER_TEMP/extended-capture" --private-diagnostic
+      - name: Preserve completed native evidence even when media coverage fails
+        id: preserve_trace
+        if: always() && (steps.raw_capture.outcome == 'success' || steps.raw_capture.outcome == 'failure')
+        run: |
+          test -s "$RUNNER_TEMP/extended-capture/match.ndjson"
           cp "$RUNNER_TEMP/extended-capture/match.ndjson" "$RUNNER_TEMP/extended.ndjson"
           cp "$RUNNER_TEMP/extended-capture/match.ndjson.fixture.json" "$RUNNER_TEMP/extended.ndjson.fixture.json"
           cp "$RUNNER_TEMP/extended-capture/match.ndjson.attack.json" "$RUNNER_TEMP/extended.ndjson.attack.json"
           cat "$RUNNER_TEMP/extended-capture/extended-capture-report.json" >> "$GITHUB_STEP_SUMMARY"
       - name: Verify exact extended clock and full-time result
+        id: extended_clock
         run: |
           python3 integrations/league-soccer/native_extended_clock_verify.py "$RUNNER_TEMP/extended.ndjson" "$RUNNER_TEMP/extended-report.json"
           cat "$RUNNER_TEMP/extended-report.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Diagnose stationary carriers in the completed extended trace
+        id: stall_audit
+        continue-on-error: true
+        run: |
+          python3 -c 'import json,sys; sys.path.insert(0,"integrations/league-soccer"); from native_stall_diagnostics import inspect_trace; print(json.dumps(inspect_trace(sys.argv[1],1800000),indent=2))' "$RUNNER_TEMP/extended.ndjson" > "$RUNNER_TEMP/extended-stalls.json"
+          python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps({k:v for k,v in d.items() if k!="episodes"},indent=2))' "$RUNNER_TEMP/extended-stalls.json" >> "$GITHUB_STEP_SUMMARY"
       - name: Audit shared epoch candidate mapping
         id: alignment_audit
         continue-on-error: true
@@ -261,7 +276,7 @@ jobs:
           cat "$RUNNER_TEMP/optimized-summary.json" >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
       - name: Produce private five-minute prototype only with same-run verified evidence
-        if: always() && steps.alignment_audit.outcome == 'success' && steps.frame_calibration.outcome == 'success'
+        if: always() && steps.raw_capture.outcome == 'success' && steps.alignment_audit.outcome == 'success' && steps.frame_calibration.outcome == 'success'
         run: |
           python3 integrations/league-soccer/native_private_prototype.py "$RUNNER_TEMP/extended-capture" "$RUNNER_TEMP/extended-alignment.json" "$RUNNER_TEMP/frame-calibration.json" "$RUNNER_TEMP/optimized-playback.json" "$RUNNER_TEMP/private-prototype.mp4" "$RUNNER_TEMP/private-prototype-report.json" --private-diagnostic
           cat "$RUNNER_TEMP/private-prototype-report.json" >> "$GITHUB_STEP_SUMMARY"
@@ -274,13 +289,17 @@ jobs:
       - name: Require matched short reference
         if: always()
         run: test "${{ steps.matched_short.outcome }}" = success
-      - name: Require candidate mapping audit to pass
+      - name: Require raw capture and mapping audits to pass
         if: always()
         run: |
+          rc=0
+          test "${{ steps.raw_capture.outcome }}" = success || rc=1
+          test "${{ steps.stall_audit.outcome }}" = success || rc=1
           if [ -s "$RUNNER_TEMP/alignment-summary.json" ]; then cat "$RUNNER_TEMP/alignment-summary.json" >> "$GITHUB_STEP_SUMMARY"; fi
-          test "${{ steps.alignment_audit.outcome }}" = success
+          test "${{ steps.alignment_audit.outcome }}" = success || rc=1
           if [ -s "$RUNNER_TEMP/frame-calibration-summary.json" ]; then cat "$RUNNER_TEMP/frame-calibration-summary.json" >> "$GITHUB_STEP_SUMMARY"; fi
-          test "${{ steps.frame_calibration.outcome }}" = success
+          test "${{ steps.frame_calibration.outcome }}" = success || rc=1
+          exit "$rc"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -291,6 +310,7 @@ jobs:
             ${{ runner.temp }}/extended.ndjson.fixture.json
             ${{ runner.temp }}/extended.ndjson.attack.json
             ${{ runner.temp }}/extended-report.json
+            ${{ runner.temp }}/extended-stalls.json
             ${{ runner.temp }}/extended-highlights.json
             ${{ runner.temp }}/highlight-summary.json
             ${{ runner.temp }}/extended-playback.json
