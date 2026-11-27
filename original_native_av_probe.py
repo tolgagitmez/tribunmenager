@@ -95,7 +95,10 @@ def run():
                 rms=[audible_rms(p) for p in paths]
                 if max(rms)<0.0001:
                     raise RuntimeError('Native capture contains no measurable audio')
+                from original_hls_delivery_probe import verify_delivery
+                delivery=verify_delivery(output)
                 print(json.dumps(dict(nativeAVSegmentProbePassed=True,
+                    delivery=delivery,
                     segments=len(paths),audioRms=rms,streamInfo=inspected,
                     playlistWindowSeconds=report['windowSeconds'],
                     newestSegmentPublicationAgeMs=publication_age_ms(paths[-1]),
