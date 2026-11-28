@@ -38,6 +38,43 @@ def trace_records(path):
 def event(path,kind):
     return next((x for x in trace_records(path) if x['kind']==kind),None)
 
+def regulation_timing(first,half,end):
+    """Separate advancing clock, unpaused non-playing ticks and wall residual.
+
+    The pinned engine increments actualTime_ms by 10 only when unpaused,
+    and matchTime_ms by 180 only in play (five-minute setting, scale 1).
+    SetMatchPhase resets the second-half clock to 45 minutes, so each
+    period must be evaluated separately. Wall residual includes pauses,
+    menu input, replays and scheduling/debugger overhead, not just CPU time.
+    """
+    actual=[row.get('actualTimeMs') for row in (first,half,end)]
+    if any(type(v) is not int or v<0 or v%10 for v in actual):
+        raise ValueError('Invalid native unpaused tick clock')
+    if not actual[0]<=actual[1]<=actual[2]:
+        raise ValueError('Native unpaused tick clock went backwards')
+    factor=90/first['durationMinutes']*first['timeScale']
+    periods=[]
+    for name,start,stop,game_start in (
+            ('firstHalf',first,half,0),
+            ('secondHalf',half,end,2700000)):
+        advancing=(stop['clockMs']-game_start)/factor/1000
+        ticks=(stop['actualTimeMs']-start['actualTimeMs'])/1000
+        wall=stop['monotonic']-start['monotonic']
+        if advancing<0 or ticks+0.011<advancing:
+            raise ValueError('Native tick clock cannot account for advancing match clock')
+        periods.append(dict(period=name,wallSeconds=round(wall,3),
+                            unpausedSimulationSeconds=round(ticks,3),
+                            clockAdvancingSimulationSeconds=round(advancing,3),
+                            nonAdvancingSimulationSeconds=round(ticks-advancing,3),
+                            wallMinusSimulationSeconds=round(wall-ticks,3)))
+    metrics=('wallSeconds','unpausedSimulationSeconds','clockAdvancingSimulationSeconds',
+             'nonAdvancingSimulationSeconds','wallMinusSimulationSeconds')
+    total={key:round(sum(period[key] for period in periods),3) for key in metrics}
+    total['addedTimeSimulationSeconds']=round(total['clockAdvancingSimulationSeconds']-300,3)
+    return dict(periods=periods,total=total,
+                scope='Read-only debugger phase boundary timing; residual is not a measured CPU or FPS bottleneck')
+
+
 def summarize(path,fixture,history):
     rows=trace_records(path)
     if len(rows)!=len(ORDER):
@@ -56,6 +93,7 @@ def summarize(path,fixture,history):
                 configuredInPlayMinutes=5,smokeAccelerationDisabled=True,
                 observedRegulationPhaseSpanSeconds=round(duration,3),
                 differenceFrom300Seconds=round(duration-300,3),
+                regulationTiming=regulation_timing(first,half,end),
                 observedHalftimeMenuSeconds=round(by['half-continue']['monotonic']-by['half-menu']['monotonic'],3),
                 firstHalfEndClockMs=half['clockMs'],secondHalfEndClockMs=end['clockMs'],
                 debuggerTimingOnly=True,realTime300SecondMatchVerified=False,
