@@ -29,7 +29,7 @@ def controller_event(trace,kind):
     rows=[json.loads(line) for line in path.read_bytes().split(b'\n')[:-1]]
     if any(row.get('kind')=='error' for row in rows):
         raise RuntimeError('Native controller observation failed: '+str(rows))
-    order=('controller-menu','cpu-control')
+    order=('game-ready','pause-menu','controller-menu','cpu-control','resumed')
     if tuple(row.get('kind') for row in rows)!=order[:len(rows)]:
         raise ValueError('Unexpected native controller event sequence')
     return next((row for row in rows if row['kind']==kind),None)
@@ -243,8 +243,17 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         # League KickOff assigns the keyboard to the managed side.
                         # Use the original pause/controller menu to set No Team,
                         # never modify the debugger inferior or fabricate input scores.
-                        e.call(['xdotool','windowfocus','--sync',wid],env)
+                        ready=wait_for(lambda:controller_event(debug_trace,'game-ready'),120,game)
+                        print(json.dumps(dict(nativeGameplayReady=ready)),flush=True)
+                        # Confirm the WM has activated the private window before sending input.
+                        subprocess.run(['xdotool','windowactivate','--sync',wid],env=env,check=True,timeout=10)
+                        if subprocess.check_output(['xdotool','getactivewindow'],env=env,text=True,timeout=5).strip()!=str(wid):
+                            raise RuntimeError('Native game window not active before pause')
                         press_key('Escape',env)
+                        paused=wait_for(lambda:controller_event(debug_trace,'pause-menu'),15,game)
+                        if paused['humanCounts']!=ready['humanCounts']:
+                            raise RuntimeError('Native controller changed before pause')
+                        time.sleep(2)
                         capture('pilot-controller-pause')
                         # Resume is initially focused; Controllers is five selectable rows above it.
                         for _ in range(5):
@@ -263,8 +272,9 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         if applied['humanCounts']!=[0,0]:
                             raise RuntimeError('Native controller reassignment did not release both teams')
                         press_key('Escape',env)
+                        resumed=wait_for(lambda:controller_event(debug_trace,'resumed'),15,game)
                         capture('pilot-cpu-resume')
-                        print(json.dumps(dict(nativeBothTeamsCpuVerified=True,initialHumanCounts=counts,finalHumanCounts=applied['humanCounts'])),flush=True)
+                        print(json.dumps(dict(nativeBothTeamsCpuVerified=True,initialHumanCounts=counts,finalHumanCounts=applied['humanCounts'],nativeResumeVerified=True,resumedClockMs=resumed['clockMs'])),flush=True)
                         wait_debug_phase('half-menu',900)
                         if not opened_database(native_pid,expected):
                             raise RuntimeError('Reserved autosave lost at observed halftime')
@@ -358,6 +368,8 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
             capture('99-failure')
             if debug_trace is not None:
                 print('Native phase trace at failure: '+(debug_trace.read_text(errors='replace')[-8192:] if debug_trace.exists() else 'missing'),file=sys.stderr)
+                control_path=Path(str(debug_trace)+'.controls')
+                print('Native controller trace at failure: '+(control_path.read_text(errors='replace')[-8192:] if control_path.exists() else 'missing'),file=sys.stderr)
             log.seek(0)
             print(log.read()[-6000:].decode(errors='replace'),file=sys.stderr)
             raise
