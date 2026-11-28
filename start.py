@@ -13,6 +13,14 @@ ROOT = Path(__file__).resolve().parent
 
 
 class LocalHandler(SimpleHTTPRequestHandler):
+    def original_access(self, *, post=False):
+        from original_session import allowed
+        origin = self.headers.get('Origin')
+        return (allowed(self.client_address[0], self.server.server_address, self.headers.get('Host'), origin)
+                and (not post or (origin is not None and self.headers.get('X-Tribun-Original') == 'launch'
+                                  and self.headers.get('Content-Length', '0') == '0'
+                                  and not self.headers.get('Transfer-Encoding'))))
+
     def reply(self, status, value):
         body = json.dumps(value, ensure_ascii=False).encode()
         self.send_response(status)
@@ -24,6 +32,37 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = unquote(urlsplit(self.path).path)
+        if path == '/api/original/catalog':
+            if not self.original_access() or not getattr(self.server, 'original_session', None):
+                return self.reply(403, {'error': 'Yalnızca yerel motor bağlantısı.'})
+            import original_engine
+            import original_catalog
+            import sqlite3
+            import xml.etree.ElementTree as ET
+            from urllib.parse import parse_qs
+            try:
+                query = parse_qs(urlsplit(self.path).query, strict_parsing=True)
+                if set(query) - {'team'} or len(query.get('team', [])) > 1:
+                    raise ValueError('Geçersiz sorgu.')
+                team = int(query['team'][0]) if 'team' in query else None
+                work = original_engine.cache_root()/original_engine.REVISION
+                database = work/'build/databases/default/database.sqlite'
+                manifest = json.loads((work/'pristine-manifest.json').read_text())
+                if manifest.get('revision') != original_engine.REVISION or manifest['files'].get('databases/default/database.sqlite') != original_engine.digest(database):
+                    raise ValueError('Orijinal veri tabanı bütünlüğü doğrulanamadı.')
+                return self.reply(200, original_catalog.catalog(database, team))
+            except (OSError, ValueError, KeyError, TypeError, AttributeError, sqlite3.Error, ET.ParseError):
+                return self.reply(409, {'error': 'Orijinal takım verisi okunamadı. Kurulumu kontrol et.'})
+        if path == '/api/original/results':
+            if not self.original_access():
+                return self.reply(403, {'error': 'Yalnızca yerel bağlantı.'})
+            session = getattr(self.server, 'original_session', None)
+            return self.reply(200, {'report': session.results()}) if session else self.reply(503, {'error': 'Orijinal mod bağlantısı kapalı.'})
+        if path == '/api/original/status':
+            if not self.original_access():
+                return self.reply(403, {'error': 'Yalnızca yerel bağlantı.'})
+            session = getattr(self.server, 'original_session', None)
+            return self.reply(200, session.status()) if session else self.reply(503, {'error': 'Orijinal mod bağlantısı kapalı.'})
         if path == '/api/health':
             return self.reply(200, {'ok': True, 'mode': 'local', 'transfers': False, 'dailyLeague': False})
         if path.startswith('/api/'):
@@ -34,6 +73,17 @@ class LocalHandler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        if self.path == '/api/original/launch':
+            if not self.original_access(post=True):
+                return self.reply(403, {'error': 'Yerel aynı kaynak isteği gerekli.'})
+            session = getattr(self.server, 'original_session', None)
+            if session is None:
+                return self.reply(503, {'error': 'Orijinal mod bağlantısı kapalı.'})
+            try:
+                status, data = session.launch()
+            except OSError:
+                return self.reply(500, {'error': 'Motor başlatılamadı; terminali kontrol et.'})
+            return self.reply(status, data)
         self.reply(503, {'error': 'Yerel maç modu açık. Lig hesabı için --mode league, transfer hesabı için --mode full kullan.'})
 
 
@@ -41,10 +91,22 @@ def main(argv=None):
     if sys.version_info < (3, 10):
         raise SystemExit('Python 3.10 veya daha yeni bir sürüm gerekli.')
     parser = argparse.ArgumentParser(description='Tribün Manager başlatıcısı')
-    parser.add_argument('--mode', choices=['local', 'league', 'full'], default='local')
+    parser.add_argument('--mode', choices=['local', 'league', 'full', 'original'], default='local')
+    parser.add_argument('--original-build-only', action='store_true', help='Orijinal motoru hazırla, başlatma.')
+    parser.add_argument('--original-installed-only', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', type=int, default=8000)
     args = parser.parse_args(argv)
+    if (args.original_build_only or args.original_installed_only) and args.mode != 'original':
+        parser.error('--original-build-only yalnızca --mode original ile kullanılabilir.')
+    if args.mode == 'original':
+        import original_engine
+        try:
+            if args.original_installed_only:
+                return original_engine.main(installed_only=True)
+            return original_engine.main(build_only=args.original_build_only)
+        except (RuntimeError, OSError, ValueError, original_engine.subprocess.CalledProcessError) as exc:
+            parser.exit(1, f'Orijinal League-Soccer açılamadı: {exc}. KURULUM.md dosyasına bak.\n')
     if not 1 <= args.port <= 65535:
         parser.error('Port 1–65535 arasında olmalı.')
     if args.mode == 'full':
@@ -62,6 +124,9 @@ def main(argv=None):
     print('Kadro → Taktik → Maçı başlat. Transfer/günlük lig bu modda kapalı. Kapatmak için Ctrl+C.', flush=True)
     try:
         with ThreadingHTTPServer((args.host, args.port), partial(LocalHandler, directory=str(ROOT))) as service:
+            from original_session import OriginalSession
+            if service.server_address[0] == '127.0.0.1':
+                service.original_session = OriginalSession()
             service.serve_forever()
     except KeyboardInterrupt:
         pass
@@ -70,4 +135,4 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

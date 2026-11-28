@@ -1,0 +1,460 @@
+name: Pristine League-Soccer integration
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'original_engine.py'
+      - 'original_saves.py'
+      - 'original_native_saves_probe.py'
+      - 'original_full_league_validation.py'
+      - 'original_native_finish_gate.py'
+      - 'original_halftime_gate.py'
+      - 'original_phase_reference_probe.py'
+      - 'original_league_reference_capture.py'
+      - 'original_league_reference_probe.py'
+      - 'tests/test_original_phase_reference_probe.py'
+      - 'tests/test_original_halftime_gate.py'
+      - 'original_custom_database_probe.py'
+      - 'original_roster_pack.py'
+      - 'original_tactic_mapping.py'
+      - 'original_fixture_gate.py'
+      - 'original_fixture_dispatch.py'
+      - 'original_verified_result_ledger.py'
+      - 'original_web_league_preflight.py'
+      - 'server.py'
+      - 'live_match.py'
+      - 'tests/test_native_fixture_ownership.py'
+      - 'original_held_trial_dispatch.py'
+      - 'tests/test_original_held_trial_dispatch.py'
+      - 'original_player_evidence.py'
+      - 'original_native_player_gdb.py'
+      - 'original_native_player_probe.py'
+      - 'original_normal_league_gdb.py'
+      - 'original_normal_league_trial.py'
+      - 'tests/test_original_normal_league_trial.py'
+      - 'original_native_player_timeline.py'
+      - 'original_native_assist_candidates.py'
+      - 'tests/test_original_native_assist_candidates.py'
+      - 'tests/test_original_native_player_timeline.py'
+      - 'tests/test_original_native_player_probe.py'
+      - 'tests/test_original_player_evidence.py'
+      - 'tests/test_original_verified_result_ledger.py'
+      - 'original_scheduled_kickoff_probe.py'
+      - 'tests/test_original_scheduled_kickoff_probe.py'
+      - 'tests/test_original_fixture_dispatch.py'
+      - 'tests/test_original_fixture_gate.py'
+      - 'tests/test_original_tactic_mapping.py'
+      - 'original_roster_import.py'
+      - 'tests/test_original_roster_import.py'
+      - 'original_native_roster_probe.py'
+      - 'original_skill_mapping.py'
+      - 'tests/test_original_skill_mapping.py'
+      - 'tests/test_original_roster_pack.py'
+      - 'tests/test_original_custom_database_probe.py'
+      - 'original_match_history.py'
+      - 'tests/test_original_full_league_validation.py'
+      - 'original_native_reload_probe.py'
+      - 'tests/test_original_saves.py'
+      - 'original_session.py'
+      - 'original_results.py'
+      - 'original_catalog.py'
+      - 'tests/test_original_catalog.py'
+      - 'tests/test_original_results.py'
+      - 'original-engine.html'
+      - 'original-engine-page.js'
+      - 'original-manager-plan.js'
+      - 'tests/test-original-manager-plan.cjs'
+      - 'original-preview.js'
+      - 'original-preview-metrics.js'
+      - 'original_capture_probe.py'
+      - 'original_preview_relay.py'
+      - 'original_av_stream.py'
+      - 'original_hls_relay.py'
+      - 'original_hls_delivery_probe.py'
+      - 'tests/original-hls-browser.cjs'
+      - 'original_native_av_probe.py'
+      - 'tests/test_original_av_stream.py'
+      - 'original_native_relay_probe.py'
+      - 'tests/test_original_preview_relay.py'
+      - 'original_replay_schedule.py'
+      - 'tests/test_original_replay_schedule.py'
+      - 'original_shared_replay.py'
+      - 'original-shared-replay.js'
+      - 'tests/test_original_shared_replay.py'
+      - 'tests/test-original-shared-replay.cjs'
+      - 'tests/original-shared-replay-browser.cjs'
+      - 'original_match_playback.py'
+      - 'original-match-replay.js'
+      - 'tests/test-original-match-replay.cjs'
+      - 'tests/test_original_match_playback.py'
+      - 'original_capture_pattern.py'
+      - 'original_default_start_probe.py'
+      - 'original_native_browser_probe.py'
+      - 'tests/original-native-window-browser.cjs'
+      - 'tests/original-preview-browser.cjs'
+      - 'tests/test_original_capture_probe.py'
+      - 'tests/test-original-preview-metrics.cjs'
+      - 'tests/test-original-preview.cjs'
+      - 'index.html'
+      - 'tests/test_original_session.py'
+      - 'start.py'
+      - 'BASLAT_ORIJINAL.sh'
+      - 'tests/test_original_engine.py'
+      - '.github/workflows/pristine-league-soccer.yml'
+  workflow_dispatch:
+    inputs:
+      collect_league_references:
+        description: Collect unreviewed real league screen candidates (extra runtime)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+# Keep only the newest integration run for each pull request.
+# Explicit manual runs remain independent and do not cancel PR validation.
+concurrency:
+  group: pristine-league-soccer-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  original:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Launcher and isolation tests
+        run: |
+          python3 -m unittest discover -s tests -p test_original_engine.py -v
+          python3 -m unittest discover -s tests -p test_original_saves.py -v
+          python3 - <<'PY'
+          import sys,unittest
+          sys.path.insert(0,'tests')
+          required=[
+              'test_original_engine.OriginalEngineTests.test_failed_snapshot_retains_new_native_save_for_manual_recovery',
+              'test_original_engine.OriginalEngineTests.test_launcher_restores_only_native_saves_and_keeps_last_clean_exit',
+              'test_original_saves.OriginalSavesTests.test_read_only_inventory_counts_real_recovery_directories',
+              'test_original_saves.OriginalSavesTests.test_copy_failure_does_not_publish_new_pointer',
+          ]
+          result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(required))
+          if not result.wasSuccessful() or result.testsRun!=len(required):
+              raise SystemExit('Required native persistence tests did not pass')
+          print('Explicit required native persistence tests:',result.testsRun)
+          PY
+          python3 -m unittest discover -s tests -p test_original_session.py -v
+          python3 -m unittest discover -s tests -p test_original_results.py -v
+          python3 -m unittest discover -s tests -p test_original_full_league_validation.py -v
+          python3 -m unittest discover -s tests -p test_original_halftime_gate.py -v
+          python3 -m unittest discover -s tests -p test_original_phase_reference_probe.py -v
+          python3 -m unittest discover -s tests -p test_original_custom_database_probe.py -v
+          python3 -m unittest discover -s tests -p test_original_roster_pack.py -v
+          python3 -m unittest discover -s tests -p test_original_tactic_mapping.py -v
+          python3 -m unittest discover -s tests -p test_original_fixture_gate.py -v
+          python3 -m unittest discover -s tests -p test_original_fixture_dispatch.py -v
+          python3 -m unittest discover -s tests -p test_original_verified_result_ledger.py -v
+          python3 -m unittest discover -s tests -p test_original_player_evidence.py -v
+          python3 -m unittest discover -s tests -p test_native_fixture_ownership.py -v
+          python3 -m unittest discover -s tests -p test_original_held_trial_dispatch.py -v
+          python3 -m unittest discover -s tests -p test_original_scheduled_kickoff_probe.py -v
+          python3 -m unittest discover -s tests -p test_original_roster_import.py -v
+          python3 -m unittest discover -s tests -p test_original_skill_mapping.py -v
+          python3 -m unittest discover -s tests -p test_original_catalog.py -v
+          python3 -m unittest discover -s tests -p test_original_capture_probe.py -v
+          python3 -m unittest discover -s tests -p test_original_preview_relay.py -v
+          node --check original-engine-page.js
+          node --check original-manager-plan.js
+          node --test tests/test-original-manager-plan.cjs
+          node --check tests/original-hls-browser.cjs
+          node --check original-shared-replay.js
+          node --check tests/original-shared-replay-browser.cjs
+          node --test tests/test-original-shared-replay.cjs
+          python3 -m unittest discover -s tests -p test_original_replay_schedule.py -v
+          node --check original-match-replay.js
+          node --test tests/test-original-match-replay.cjs
+          node --check original-preview.js
+          node --test tests/test-original-preview.cjs tests/test-original-preview-metrics.cjs
+          node --check original-preview-metrics.js
+          python3 -m unittest discover -s tests -p test_launcher.py -v
+          sh -n BASLAT_ORIJINAL.sh
+      - name: Install documented upstream Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth ffmpeg python3-tk mesa-utils x11-utils openbox xdotool wmctrl pulseaudio pulseaudio-utils
+      - name: Verify bounded offline playback with FFmpeg
+        run: python3 -m unittest discover -s tests -p test_original_match_playback.py -v
+      - name: Verify audiovisual HLS packaging and retention
+        run: python3 -m unittest discover -s tests -p test_original_av_stream.py -v
+      - name: Build original pinned upstream with unchanged runtime files
+        id: native_build
+        run: python3 start.py --mode original --original-build-only
+      - name: Verify default native startup without engine arguments
+        run: python3 original_default_start_probe.py
+      - name: Inspect the real pinned native default catalog without mutation
+        run: |
+          python3 - <<'PY'
+          import original_engine as e, original_catalog as c
+          work=e.cache_root()/e.REVISION
+          path=work/'build/databases/default/database.sqlite'
+          before=e.digest(path)
+          teams=c.catalog(path)['teams']
+          assert teams, 'Native database has no teams'
+          inspected=0
+          for team in teams:
+              data=c.catalog(path,team['id'])
+              if len(data['players'])>=11:
+                  inspected+=1
+          assert inspected>0, 'No complete native club roster'
+          assert e.digest(path)==before, 'Catalog changed database'
+          print('Read-only native catalog:',len(teams),'teams;',inspected,'club rosters with >=11 players')
+          PY
+      - name: Verify real upstream league save and byte-exact restoration
+        id: native_saves
+        continue-on-error: true
+        run: python3 original_native_saves_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.native_saves.outcome == 'failure'
+        with:
+          name: native-reload-diagnostics
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-reload-diagnostics/
+      - name: Run upstream full-match smoke test in separate disposable runtime
+        run: |
+          python3 - <<'PY'
+          import original_engine as e
+          from pathlib import Path
+          import tempfile, shutil, os
+          env=e.clean_env(os.environ)
+          work=Path.home()/'.cache'/'tribun-manager-original'/e.REVISION
+          build=e.verify_install(work,env)
+          with tempfile.TemporaryDirectory(prefix='upstream-smoke-') as tmp:
+              session=Path(tmp)
+              for name in e.RUNTIME:
+                  source=build/name
+                  if source.is_dir(): shutil.copytree(source,session/name)
+                  else: shutil.copy2(source,session/name)
+              # The upstream test config is used only for this test, never in normal launch.
+              e.call(['bash',work/'source/tests/run_menu_smoke.sh',session/'gameplayfootball',
+                      work/'source/data/menu_smoke_full_match.config','420',
+                      '[menu-smoke] Main menu ready, opening Quick Match',
+                      '[menu-smoke] Full match complete:',
+                      '[menu-smoke] Full-match verification succeeded, quitting test run'],env,session)
+              # Upstream's GameOverPage writes this history on a completed 3D match.
+              # Compare native bytes, the displayed report, and restoration separately.
+              from original_match_history import HISTORY_PATH,STORED_NAME,read_recent,commit_history,restore_history
+              from original_saves import locked_store
+              import json
+              history=session/HISTORY_PATH
+              before=e.digest(history)
+              report=read_recent(history)
+              assert len(report['records'])==1 and not report['skipped'], 'Expected one genuine completed history entry'
+              assert report['teamPerformance']['sampleMatches']==1, 'Native performance summary unavailable'
+              with locked_store(session/'history-store') as store:
+                  assert commit_history(store,session,0)
+                  assert e.digest(store/STORED_NAME)==before
+                  restored=session/'fresh-runtime'
+                  restored.mkdir()
+                  assert restore_history(store,restored)
+                  assert e.digest(restored/HISTORY_PATH)==before
+                  assert read_recent(restored/HISTORY_PATH)==report
+              assert e.digest(history)==before
+              print(json.dumps(dict(native3DHistoryRoundtripVerified=True,historyByteExact=True,
+                  acceleratedUpstreamSmoke=True,leagueFixtureLinked=False,report=report)))
+          e.verify_install(work,env)
+          PY
+      - name: Collect real upstream phase screen reference candidates
+        run: python3 original_phase_reference_probe.py "$RUNNER_TEMP/native-phase-reference"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-phase-reference-candidates
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-phase-reference/
+      - name: Measure real unmodified native match using private external pixel capture
+        run: |
+          python3 original_capture_probe.py "$RUNNER_TEMP/original-capture-report.json"
+          cat "$RUNNER_TEMP/original-capture-report.json" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-capture-metrics
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/original-capture-report.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: Verify shared replay clock with two actual Chromium viewers
+        run: |
+          set -o pipefail
+          python3 -m unittest discover -s tests -p test_original_shared_replay.py -v 2>&1 | tee "$RUNNER_TEMP/shared-replay.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-replay-clock-evidence
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/shared-replay.log
+      - name: Verify real native match window through Chromium without mock media
+        run: python3 original_native_browser_probe.py
+      - name: Verify single-encoder native match relay with two HTTP viewers
+        run: python3 original_native_relay_probe.py
+      - name: Verify native audio and video captured in same HLS segment
+        run: python3 original_native_av_probe.py
+      - name: Verify native fragmented MP4 playback in two real Chromium contexts
+        run: |
+          set -o pipefail
+          python3 original_native_av_probe.py --browser 2>&1 | tee "$RUNNER_TEMP/original-hls-browser.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-hls-browser-evidence
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/original-hls-browser.log
+      - name: Verify real-time 300-second synthetic HD HLS transport
+        id: five_minute_transport
+        run: |
+          set -o pipefail
+          python3 original_native_av_probe.py --five-minute-transport 2>&1 | tee "$RUNNER_TEMP/five-minute-hls.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: five-minute-hls-evidence
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/five-minute-hls.log
+      - name: Verify original native full smoke HD stream through two browsers
+        # A synthetic transport regression must not suppress independent native evidence.
+        # The earlier failed step still fails this job; no relaxed quality gate.
+        if: ${{ !cancelled() && (steps.five_minute_transport.outcome == 'success' || steps.five_minute_transport.outcome == 'failure') }}
+        run: |
+          set -o pipefail
+          python3 original_native_av_probe.py --native-full 2>&1 | tee "$RUNNER_TEMP/native-full-hls.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-full-hls-evidence
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-full-hls.log
+      - name: Verify custom source selection in actual native menus
+        id: custom_source
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
+        continue-on-error: true
+        run: python3 original_custom_database_probe.py --ci
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.custom_source.outcome == 'failure'
+        with:
+          name: native-custom-source-diagnostics
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
+      - name: Verify complete roster and skill package in real native league creation
+        id: native_roster
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
+        continue-on-error: true
+        run: python3 original_native_roster_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.native_roster.outcome == 'failure'
+        with:
+          name: native-roster-menu-diagnostics
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
+      - name: Verify reviewed tactics in genuine native league creation
+        id: native_tactics
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
+        continue-on-error: true
+        run: python3 original_native_roster_probe.py --tactics
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.native_tactics.outcome == 'failure'
+        with:
+          name: native-tactic-menu-diagnostics
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
+      - name: Enforce native tactic data verification
+        if: always() && steps.native_tactics.outcome == 'failure'
+        run: |
+          echo "::error::Reviewed native tactic roundtrip failed."
+          exit 1
+      - name: Enforce native roster package verification
+        if: always() && steps.native_roster.outcome == 'failure'
+        run: |
+          echo "::error::Complete native roster roundtrip failed."
+          exit 1
+      - name: Enforce native custom source verification
+        if: always() && steps.custom_source.outcome == 'failure'
+        run: |
+          echo "::error::Custom source selection in original native menu failed."
+          exit 1
+      - name: Enforce native save and reload verification
+        if: always() && steps.native_saves.outcome == 'failure'
+        run: |
+          echo "::error::Native save/reload verification failed; independent match tests were not suppressed."
+          exit 1
+  browser-preview:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: Verify actual Chromium playback and report download with test-only canvas stream
+        run: |
+          python3 start.py --port 8765 > "$RUNNER_TEMP/original-preview-server.log" 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/api/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/api/health
+          node tests/original-preview-browser.cjs
+
+  native-player-observer:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate native player snapshot contract
+        run: |
+          python3 -m py_compile original_native_player_gdb.py original_native_player_probe.py original_normal_league_gdb.py original_normal_league_trial.py original_native_reload_probe.py
+          python3 -m unittest discover -s tests -p test_original_normal_league_trial.py -v
+          python3 -m unittest discover -s tests -p test_original_native_player_probe.py -v
+          python3 -m unittest discover -s tests -p test_original_native_player_timeline.py -v
+          python3 -m unittest discover -s tests -p test_original_native_assist_candidates.py -v
+      - name: Install native build and debugger dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth gdb xdotool ffmpeg openbox wmctrl x11-utils
+      - name: Build and verify unchanged release package
+        run: python3 start.py --mode original --original-build-only
+      - name: Observe final player fields in separate symbol build
+        run: python3 original_native_player_probe.py "$RUNNER_TEMP/native-player-observation.json" --timeline --assists --league-trial "$RUNNER_TEMP/native-normal-league-trial"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-player-observation
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/native-player-observation.json
+            ${{ runner.temp }}/native-player-observation-debugger.log
+            ${{ runner.temp }}/native-player-observation-records.log
+            ${{ runner.temp }}/native-normal-league-trial/
+
+  league-reference-capture:
+    # Run on the dedicated integration PR as well as explicit manual requests.
+    if: (github.event_name == 'workflow_dispatch' && inputs.collect_league_references) || (github.event_name == 'pull_request' && github.head_ref == 'integration/pristine-league-soccer')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native build and isolated capture dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth xdotool ffmpeg
+      - name: Verify unchanged original runtime
+        run: python3 start.py --mode original --original-build-only
+      - name: Collect unreviewed normal league screen candidates
+        run: python3 original_league_reference_probe.py "$RUNNER_TEMP/league-references"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-league-reference-candidates
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/league-references

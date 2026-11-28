@@ -1,3 +1,29 @@
+# Orijinal League-Soccer masaüstü modu
+
+Bu mod motorun sabitlenmiş upstream sürümünü (087414cde936c3e26ed0b8c244d9d85425ec5657) hiçbir Tribün Manager oynanış yaması olmadan derler. Linux veya grafik oturumu olan WSL için hazırlanmıştır. Git, Python 3.10+, CMake ve [upstream Linux derleme bağımlılıkları](https://github.com/awest813/League-Soccer/blob/087414cde936c3e26ed0b8c244d9d85425ec5657/scripts/setup_linux_deps.sh) önceden kurulu olmalıdır.
+
+```sh
+sh BASLAT_ORIJINAL.sh
+# veya:
+python3 start.py --mode original
+# sadece kur/derle:
+python3 start.py --mode original --original-build-only
+```
+
+İlk açılış ağ bağlantısı ve derleme gerektirir. Kaynak ve derlenmiş dosyalar web kökü dışında, kullanıcının ev dizinindeki `~/.cache/tribun-manager-original/` altında tutulur. Başlatıcı kaynak revizyonunu, temiz Git ağacını ve çalışma dosyalarının hash'lerini doğrular; her açılışta özel bir çalışma kopyası kullanır. Motor kendi varsayılan `football.config` dosyasıyla, argümansız açılır. Motorun kendisinin oturum sırasında değiştirdiği çalışma kopyası ayarları sonraki oturuma taşınmaz.
+
+Motor kurulduktan sonra `sh BASLAT.sh` ile varsayılan yerel web sunucusunu aç; kulüp merkezindeki **Orijinal motor** bağlantısından motoru başlat. Bu bağlantı yalnızca 127.0.0.1 üzerinde çalışan yerel sunucuda ve aynı kaynak isteğinde çalışır. Tarayıcı kurulum yapmaz; bütünlük doğrulaması ve motorun başlatılması terminaldeki süreçte gerçekleşir. Aynı yerel sunucuda çift başlatma engellenir; ayrıca revizyon başına kayıt deposu kilidi iki ayrı normal başlatıcının eşzamanlı oturum açmasını engeller.
+
+Normal kapanışta motorun kendi `saves/<lig>/autosave.sqlite` kayıtlarından yalnızca kullanıcının oynanmış olarak işaretlenen lig fikstürleri salt okunur biçimde özetlenir. Özet, yerel motor önbelleğinde son tamamlanan oturuma ait JSON dosyası olarak tutulur ve Orijinal motor ekranından **Durumu yenile** ile görüntülenir. Bu sonuçlar hızlı maç/kariyer verisi değildir; motorun görüntülü oynatımını kanıtlamaz ve Tribün ligine otomatik işlenmez. Motorun kendi `saves` klasörü normal kapanışta `~/.local/share/tribun-manager-original/<revizyon>/` altında ayrı bir anlık kopya olarak saklanır ve sonraki açılışta geri yüklenir. Yalnızca bu klasör saklanır; motor ayarları ve varsayılan veri tabanı taşınmaz. Başarısız kapanış veya geçersiz kayıt ağacı önceki kopyayı değiştirmez; son oturumdaki kaydedilmemiş ilerleme kaybolabilir. Eski anlık kopyalar yedek olarak kalır ve disk alanı kullanır. Kayıt yazma işlemi başarısız olduğunda son oturumun kayıtları mümkünse aynı depodaki `recovery-...` klasörüne taşınır; terminal kurtarma konumunu bildirir. Taşıma da başarısız olursa çalışma klasörü korunur. Kurtarma içeriği otomatik yüklenmez. Orijinal motor ekranı saklanmış kayıt ve kurtarma klasörü sayısını salt okunur biçimde gösterir. Çalışma klasörü başka bir açık oturuma ait olabilir; silmeden önce kontrol et. Her kopya 2 GiB ve 10.000 dosya/klasör sınırına tabidir. Bu mekanizma kariyer kayıtlarının çalıştığını veya Tribün ligine aktarımı doğrulamaz.
+
+**Yerel maç görüntüsü:** Orijinal motor ekranında motoru aç, kendi menüsünden maçı başlat ve `Motor penceresini izle` düğmesine bas. Masaüstü tarayıcısının paylaşım seçicisinden League-Soccer uygulama penceresini seç. Bu özellik tarayıcının `getDisplayMedia` desteğine bağlıdır; tam ekran/sekme paylaşımı ve tanımlanamayan görüntü yüzeyleri reddedilir. Uygulama seçilen pencerenin gerçekten motor olduğunu otomatik doğrulayamaz. Görüntü sunucuya yüklenmez, kaydedilmez veya uzaktan yayınlanmaz; motorun sesi kendi penceresinden gelmeye devam eder. `İzlemeyi durdur` ile görüntü paylaşımını kesebilirsin. Motorun ayarlarına ve kaynak koduna dokunulmaz. Görüntü izlenirken tarayıcıya sunulan karelerden FPS, video çözünürlüğü, en uzun gözlem aralığı, 1 saniyeyi aşan gözlem boşlukları ve atlanan gözlem sayısı ölçülür. Bunlar motorun gerçek çizim FPS'i, ağ gecikmesi veya fizik donması değildir; arka plan ve duraklatılmış video ölçümleri sıfırlanır. Tarayıcı örnek akışındaki sonuçlar, gerçek maç FPS'i yerine kullanılamaz.
+
+**Gerçek GPU üzerinde doğrulama:** Linux grafik oturumunda `glxinfo -B` çıktısında donanım hızlandırmasını ve OpenGL renderer adını kontrol et (llvmpipe yazılım çizimidir). Motoru varsayılan ayarlarıyla çalıştır; maçın her iki yarısında pencere önizlemesini görünür tut. `FPS raporunu indir` düğmesi son izleme oturumundan yalnızca sayısal kare ölçümlerini JSON olarak dışa aktarır; ekran görüntüsü, pencere adı ve ses içermez. Motorun gerçek çizim FPS'i veya benzersiz piksel değişimi olarak yorumlanmamalıdır. Yeni oturum eski raporu sıfırlar; gizli/duraklatılmış ölçümler hariç tutulur. Donanım bilgisi, maçın normal hızda oynatıldığı bilgisi ve raporu birlikte değerlendir. CI'da 27 Kasım 2026 tarihinde llvmpipe ortamında 29,99 kare/s aktarım, 1,62 piksel değişimi/s ve 2,70 s en uzun aynı piksel aralığı gözlendi; bu sonuç gerçek GPU ölçümü değildir.
+
+Bu yol ayrı bir native masaüstü oyunudur: Tribün Manager web menajerlik arayüzünden kadro/taktik aktarımı, otomatik maç sonucu kaydı ve 30→5 dakika yayın bağlantısı henüz yoktur. Mevcut web maç rotası ve lig işlevleri değiştirilmemiştir; orijinal motor ayrı bir bağlantıdan açılır. Orijinal kaynaklar ve lisanslar yerel upstream checkout içinde saklanır; bu değişiklik motoru veya varlıklarını yeniden dağıtmaz.
+
+---
+
 # Tribün Manager kurulumu
 
 Yerel futbol simülasyonu için **Python 3.10 veya üzeri** ve güncel Chrome, Edge veya Firefox yeterlidir. Oynamak için Node.js, npm veya Python paketi kurman gerekmez. İnternet bağlantısı olmadan yerel maç oynanabilir; bazı isteğe bağlı font ve görseller yüklenmeyebilir.
@@ -155,3 +181,86 @@ python3 tools/build-player-assets.py --from-package --output /tmp/tribun-player-
 Windows'ta `py -3` ve örneğin `--output oyuncu-yeniden-uretim` kullanabilirsin. Çıktı yolu örnektir; mevcut oyun paketinin üzerine yazmak zorunda değilsin. Komut özgün kaynak dosyalarının ve lisansların sabit hash'lerini denetler. Ayrıntılar [oyuncu varlıkları sözleşmesinde](docs/PLAYER_ASSETS.md) bulunur.
 
 Gerçek tarayıcı doğrulaması ayrıca Playwright ve Chromium gerektirir; ayrıntılar [DOGRULAMA.md](DOGRULAMA.md) içindedir. Test raporları ve açık geliştirme işleri [yol haritasında](SIMULASYON_YOL_HARITASI.md) açıklanır.
+
+
+### Deneysel kayıtlı web kadrosu aktarımı (PR 95)
+
+Orijinal motor ekranındaki **Kadro aktarım hazırlığını indir (JSON)** düğmesi yalnızca bu tarayıcıdaki kayıtlı kadroyu dışa aktarır. Sunucudaki güncel kadroyu doğrulamaz. Motor kurulduktan sonra seçilen native takımın kimliklerini ve diziliş yuvalarını incele:
+
+```sh
+python3 original_roster_import.py tribun-roster-preflight.json --inspect-team 1
+```
+
+Buradaki 1 yalnızca örnek kimliktir; gerçek takım kimliğini katalogdan seç. Ayrı bir eşleştirme JSON dosyası hazırla: `schema: 1`, `teamId`, `nativeSlotOrder` (native p1–p11 sırasındaki 11 web localIndex değeri) ve `assignments` (her kayıtlı oyuncu için `localIndex`, `nativePlayerId`, `firstName`, `lastName`, `nativeRole`). Tüm oyuncular bire bir eşleştirilmeli, ilk 11 değiştirilmemeli ve seçilen native dizilişin rolleri uyumlu olmalı. Otomatik isim/mevki tahmini yapılmaz.
+
+```sh
+python3 original_roster_import.py tribun-roster-preflight.json reviewed-mapping.json
+```
+
+Bu komut geçici çalışma dizininde ayrı bir veri paketi oluşturur. Orijinal menüde League Mode > New League > tribun-roster-pilot seç ve eşleştirilen takımla yeni lig oluştur. Paket isimleri, mevkileri ve ilk 11 sırasını aktarır, yerel motorun yedek sırasını korur. Oturum kapanınca geçici veriler silinir. Eşleşen kadroların oyuncu sayıları ve ilk 11 diziliş rolleri aynı olmalıdır.
+
+Yeteneği aktarılacak oyuncunun eşleştirmesine isteğe bağlı `"reviewedSkills": ["passing", "pace"]` eklenebilir. Değerler kayıtlı oyuncunun web dışa aktarımından alınır. `passing` yerel motorun kısa pas, `pace` hız alanını hedefler. Ulaşılabilir aralık yerel motorun oyuncu profili, yaş ve taban puanına göre doğrulanır. Üst düzey bir `"reviewedTactics": {"team_pressure": 0.81, "support_distance": 0.29, "counter_attack": 0.73}` nesnesi doğrudan incelenmiş yerel taktik değerlerini kullanır. Her iki alan da isteğe bağlıdır ve yalnızca alternatif pakete yazılır. [Motorun doğrulanan yetenek anahtarları](original_skill_mapping.py)
+
+### Özel HLS ses ve görüntü testi
+
+Linux'ta orijinal motorun derleme bağımlılıklarına ek olarak Xvfb, FFmpeg, PulseAudio ve Chromium gerekir. Test, orijinal motorun ayrı smoke senaryosundan görüntü ve sesi yakalar ve iki bağımsız Chromium oturumuna yerel bağlantı üzerinden sunar.
+
+```sh
+npm ci --ignore-scripts
+npx playwright install chromium
+python3 start.py --mode original --original-build-only
+python3 original_native_av_probe.py --browser
+```
+
+Sistemde kurulu Chromium için `CHROMIUM=/usr/bin/chromium` kullanılabilir. Rapor her izleyicinin ilk kare ve ilk ses sürelerini, ekrana sunulan kareleri, ses sinyalini, tampon beklemelerini ve kısa bağlantı kesintisi sonrası alınan segmentleri gösterir. Segment yaşı ve ilk ses/görüntü zaman damgası farkı kodlayıcı çıkışına aittir. Test, hızlandırılmış yerel örneğin bir bölümünü kapsar. [PR #95 doğrulaması](https://github.com/tolgagitmez/tribunmenager/pull/95)
+
+
+## Katı 300 saniyelik yerel maç tekrarı (deneysel)
+
+Tamamlanmış bir kaynak kayıt mevcutsa:
+
+```sh
+python3 original_match_playback.py kaynak.mp4 tekrar.mp4 --exact
+```
+
+Bu mod en az 300 saniyelik, başlangıç ve bitiş zamanları uyumlu video ve ses izleri ister.
+9000 kodlanmış video karesini (30 FPS), 48 kHz AAC ses izini ve tam 300 saniyelik
+çıktıyı doğrular. Kaynağı değiştirmez, var olan hedefin üzerine yazmaz ve kaynak/çıktı
+SHA-256 değerlerini raporlar. En fazla 100 ms terminal codec yuvarlama payı vardır.
+Kısa kayıtlar uzatılmaz. Bu işlem gecikmeli tekrar üretir; canlı yayın, native maçın
+gerçekten tamamlandığının veya fiziksel ses-görüntü eşzamanlılığının kanıtı değildir.
+``--exact`` olmadan önceki en fazla 300 saniyelik dönüştürme davranışı korunur.
+
+
+## Normal lig maçı bitiş doğrulaması (izole deney)
+
+`original_native_reload_probe.py --inside-private-display <geçici-runtime> --finish`
+yalnızca operatörün hazırladığı **ayrı, özel X11 test ekranında**, tek bir kopyalanmış
+lig kaydı ve önceden maç geçmişi olmayan geçici runtime ile kullanılmalıdır.
+Üretim kayıtlarını veya gerçek masaüstünü hedeflemeyin. Motor varsayılan ayarlarla
+argümansız başlatılır. Devre arasında operatörün devam ettirmesi gerekir.
+Motorun kendi GameOverPage geçmişi tam süre ve takım sırası ile doğrulanınca
+Continue otomatik denenir; yalnızca ayrılan fikstürün skoru ile geçmiş eşleşirse
+aday sonuç kabul edilir. Sonra operatör normal menüden çıkar; kapalı kayıtlar
+yeniden karşılaştırılır. Bu deney üretim puan tablosuna yazmaz.
+Tam otomatik devre arası ve normal kapanış henüz doğrulanmış değildir.
+
+
+### Deneysel devre arası görsel geçişi
+
+Normal motorun devre arası ekranına ait 1280×1024 gri ham görüntülerle
+`original_halftime_gate.py manifest.json bundle.json` komutu bir kalibrasyon üretir.
+Manifest: `revision` (motor commit), `configSha256` (geçici football.config),
+`operatorReviewed: true`, `regions` (devre arası başlığı ve devam düğmesini
+içeren iki ayrı [x,y,w,h] bölgesi), `positive` (en az iki ayrı doğrulanmış
+devre arası görüntüsü) ve `negative` (en az üç ayrı doğrulanmış diğer ekran)
+dosya yollarını içerir. Negatifler özellikle saha, duraklama ve maç sonunu
+kapsamalıdır. Kalibrasyon aynı motor sürümü, görüntü ayarları ve dil ile yapılır.
+Ham görüntüler yalnızca özel test ekranında alınmalıdır.
+
+`original_native_reload_probe.py --inside-private-display <geçici-runtime> --finish-auto-half bundle.json`
+modu iki bölgede art arda üç güçlü eşleşme, son bir yeniden doğrulama ve tek
+Continue işlemi ister; ekranın ayrıldığı da kontrol edilir. Zaman aşımında
+rastgele tuş göndermez. Gerçek motor ekranı kalibrasyonu ve uçtan uca geçiş
+henüz doğrulanmadı; sentetik birim testleri gerçek ekran doğrulaması değildir.
+Normal oyun çıkışı hâlâ operatör gerektirir. Yalnızca izole, geçici runtime için.

@@ -26,6 +26,32 @@ CREATE TABLE IF NOT EXISTS live_matches(
     kickoff REAL NOT NULL, config TEXT NOT NULL, final_state TEXT,
     PRIMARY KEY(league, round, home, away)
 );
+-- Experimental, explicit native reservation. An existing live_matches row
+-- permanently belongs to the legacy engine, including after completion.
+CREATE TABLE IF NOT EXISTS native_fixture_holds(
+    league TEXT NOT NULL, round INT NOT NULL, home INT NOT NULL, away INT NOT NULL,
+    kickoff REAL NOT NULL, reserved_at REAL NOT NULL, review_sha256 TEXT NOT NULL,
+    PRIMARY KEY(league,round,home,away)
+);
+CREATE TRIGGER IF NOT EXISTS native_fixture_hold_guard
+BEFORE INSERT ON native_fixture_holds
+WHEN NOT EXISTS (SELECT 1 FROM fixtures f
+    WHERE f.league=NEW.league AND f.round=NEW.round AND f.home=NEW.home AND f.away=NEW.away
+    AND f.kickoff=NEW.kickoff AND f.home_score IS NULL AND f.away_score IS NULL)
+ OR EXISTS (SELECT 1 FROM live_matches l
+    WHERE l.league=NEW.league AND l.round=NEW.round AND l.home=NEW.home AND l.away=NEW.away)
+BEGIN SELECT RAISE(ABORT,'fixture unavailable for native hold'); END;
+CREATE TRIGGER IF NOT EXISTS legacy_native_fixture_guard
+BEFORE INSERT ON live_matches
+WHEN EXISTS (SELECT 1 FROM native_fixture_holds n
+    WHERE n.league=NEW.league AND n.round=NEW.round AND n.home=NEW.home AND n.away=NEW.away)
+BEGIN SELECT RAISE(ABORT,'native fixture is reserved'); END;
+CREATE TRIGGER IF NOT EXISTS native_fixture_hold_immutable_update
+BEFORE UPDATE ON native_fixture_holds
+BEGIN SELECT RAISE(ABORT,'native fixture hold is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS native_fixture_hold_immutable_delete
+BEFORE DELETE ON native_fixture_holds
+BEGIN SELECT RAISE(ABORT,'native fixture hold requires reconciliation'); END;
 CREATE TABLE IF NOT EXISTS live_match_operations(
     seq INTEGER PRIMARY KEY, league TEXT NOT NULL, round INT NOT NULL,
     home INT NOT NULL, away INT NOT NULL, operation TEXT NOT NULL
