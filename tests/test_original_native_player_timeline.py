@@ -41,3 +41,19 @@ class NativeTimelineTests(unittest.TestCase):
         bad['teams'][1]['players'][0]['activeAtFullTime']=False
         with self.assertRaisesRegex(ValueError,'Unobserved'):
             reconstruct(self.events,bad)
+
+
+    def test_regulation_end_sentinel_preserves_second_half_added_time(self):
+        final=copy.deepcopy(self.final)
+        final['nativeMatchClockMs']=5400000
+        events=copy.deepcopy(self.events)
+        events[-1].update(regulationEndReset=True,historyClockMs=5400000)
+        report=reconstruct(events,final)
+        self.assertEqual(report['periodEndClockMs'],[2820000,5520000])
+        self.assertEqual(report['observedMatchClockExposureMs'],5640000)
+        self.assertTrue(report['regulationEndResetObserved'])
+        for clock in (5399999,5400001):
+            bad=copy.deepcopy(events)
+            bad[-1]['historyClockMs']=clock
+            with self.assertRaises(ValueError):
+                reconstruct(bad,final)
