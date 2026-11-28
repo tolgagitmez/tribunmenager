@@ -419,7 +419,12 @@ jobs:
             ${{ runner.temp }}/native-player-observation-debugger.log
 
   league-reference-capture:
-    if: github.event_name == 'workflow_dispatch' && inputs.collect_league_references
+    # Run on the dedicated integration PR as well as explicit manual requests.
+    # Only reference-capture jobs share this group; don't cancel other checks.
+    if: (github.event_name == 'workflow_dispatch' && inputs.collect_league_references) || (github.event_name == 'pull_request' && github.head_ref == 'integration/pristine-league-soccer')
+    concurrency:
+      group: native-league-references-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     steps:
