@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
-from original_normal_league_trial import ORDER,trace_records,summarize,trial_config
+from original_normal_league_trial import ORDER,trace_records,summarize,trial_config,regulation_timing
 
 from original_native_reload_probe import (controller_event, pause_focus, press_until,
     controller_sides, tap_menu_arrow, pause_navigation_key)
@@ -125,13 +125,29 @@ class NormalLeagueTrialTests(unittest.TestCase):
         self.assertIn(b'"context_y" "360"',result)
         self.assertNotIn(b'"25"',result)
 
+    def test_native_clock_decomposition_rejects_invalid_ticks(self):
+        first=dict(durationMinutes=5,timeScale=1,actualTimeMs=1000,monotonic=10)
+        half=dict(clockMs=2700000,actualTimeMs=161000,monotonic=180)
+        end=dict(clockMs=5400000,actualTimeMs=321000,monotonic=350)
+        report=regulation_timing(first,half,end)
+        self.assertEqual(report['total']['clockAdvancingSimulationSeconds'],300)
+        self.assertEqual(report['total']['nonAdvancingSimulationSeconds'],20)
+        self.assertEqual(report['total']['wallMinusSimulationSeconds'],20)
+        for bad in (None,160999,160000.0,1000,310000):
+            with self.subTest(actualTimeMs=bad):
+                with self.assertRaises(ValueError):
+                    regulation_timing(first,dict(half,actualTimeMs=bad),end)
+        # A signed residual is evidence, not automatically a performance failure.
+        self.assertEqual(regulation_timing(first,half,dict(end,monotonic=325))
+                         ['total']['wallMinusSimulationSeconds'],-5)
+
     def test_phase_and_result_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'trace.jsonl'
             rows=[dict(kind=k,monotonic=t) for k,t in zip(ORDER,(0,10,175,178,180,345,348))]
-            rows[1].update(teamIds=[1,7],durationMinutes=5,timeScale=1)
-            rows[2]['clockMs']=2880000
-            rows[5]['clockMs']=5640000
+            rows[1].update(teamIds=[1,7],durationMinutes=5,timeScale=1,actualTimeMs=0)
+            rows[2].update(clockMs=2880000,actualTimeMs=165000)
+            rows[5].update(clockMs=5640000,actualTimeMs=330000)
             rows[6].update(teamIds=[1,7],clockMs=5400000,score=[1,0])
             def write():
                 path.write_text(''.join(json.dumps(x)+'\n' for x in rows))
@@ -140,6 +156,13 @@ class NormalLeagueTrialTests(unittest.TestCase):
             history=dict(nativeMatchClockMs=5400000,homeGoals=1,awayGoals=0)
             report=summarize(path,fixture,history)
             self.assertEqual(report['observedRegulationPhaseSpanSeconds'],335)
+            timing=report['regulationTiming']['total']
+            self.assertEqual(timing['wallSeconds'],335)
+            self.assertEqual(timing['unpausedSimulationSeconds'],330)
+            self.assertEqual(timing['clockAdvancingSimulationSeconds'],323.333)
+            self.assertEqual(timing['nonAdvancingSimulationSeconds'],6.667)
+            self.assertEqual(timing['wallMinusSimulationSeconds'],5)
+            self.assertEqual(timing['addedTimeSimulationSeconds'],23.333)
             self.assertFalse(report['realTime300SecondMatchVerified'])
             self.assertFalse(report['productionImportAllowed'])
             with self.assertRaises(ValueError):
