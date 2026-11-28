@@ -149,9 +149,9 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    }
    // GPU readback and hashing are diagnostic work, not part of the frame
    // callback. Keep the same short-test sampling density; for long runs
-   // sample at 1 Hz while still timing every presented frame.
+   // sample at 0.5 Hz while still timing every presented frame.
    const screenTimer=setInterval(()=>{
-    if(video.paused||video.seeking||mediaTime===null||mediaTime-lastScreenSample<(fullDuration?1:.5))return;
+    if(video.paused||video.seeking||mediaTime===null||mediaTime-lastScreenSample<(fullDuration?2:.5))return;
     try{
      pixels.drawImage(video,0,0,canvas.width,canvas.height);
      const data=pixels.getImageData(0,0,canvas.width,canvas.height).data;
@@ -159,7 +159,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
      for(let i=0;i<data.length;i++)signature=Math.imul(signature^data[i],16777619);
      signatures.add(signature);lastScreenSample=mediaTime;
     }catch(error){screenSampleError=String(error);}
-   },fullDuration?1000:250);
+   },fullDuration?2000:250);
    function readPlaylist(text){
     const lines=text.split(/\r?\n/),sequence=lines.find(x=>/^#EXT-X-MEDIA-SEQUENCE:\d+$/.test(x));
     const names=lines.filter(x=>/^segment-\d{6}\.m4s$/.test(x));
@@ -263,7 +263,12 @@ async function viewer(browser,url,disconnect,fullDuration=0){
      assert(result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===result.fragments.length-1,'Missing native fragment');
     }
     assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify({maxFrameGapMs:result.maxFrameGapMs,maxMediaGapMs:result.maxMediaGapMs,stallCount:result.stallCount,transportFailures:result.transportFailures,playbackSeconds:result.playbackSeconds,presentedCallbacks:result.presentedCallbacks,droppedVideoFrames:result.droppedVideoFrames,totalVideoFrames:result.totalVideoFrames,maxLoopDelayMs:result.maxLoopDelayMs,maxDecodeMs:result.maxDecodeMs,maxPresentedFrameJump:result.maxPresentedFrameJump,gapEvidence:result.gapEvidence}));
-    assert(result.maxMediaGapMs<=200,'Missing media-time frames');
+    assert(result.maxMediaGapMs<=200,'Missing media-time frames: '+JSON.stringify({
+     maxMediaGapMs:result.maxMediaGapMs,maxFrameGapMs:result.maxFrameGapMs,
+     presentedCallbacks:result.presentedCallbacks,droppedVideoFrames:result.droppedVideoFrames,
+     totalVideoFrames:result.totalVideoFrames,maxLoopDelayMs:result.maxLoopDelayMs,
+     maxDecodeMs:result.maxDecodeMs,maxPresentedFrameJump:result.maxPresentedFrameJump,
+     gapEvidence:result.gapEvidence}));
     assert(result.presentedCallbacks/result.playbackSeconds>=28.5,'Insufficient delivered video callbacks');
     assert(result.droppedVideoFrames/Math.max(1,result.totalVideoFrames)<=.01,'Too many dropped video frames');
    }

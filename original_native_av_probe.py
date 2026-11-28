@@ -282,7 +282,7 @@ def run(browser=False,full_native=False):
 def five_minute_transport():
     """Wall-clock 300s synthetic transport test; never native match evidence."""
     import threading
-    from original_av_stream import encoding_args
+    from original_av_stream import encoding_args,audit_packet_timeline
     from original_hls_relay import HLSRelay
     env=engine.clean_env(os.environ)
     with tempfile.TemporaryDirectory(prefix='five-minute-hls-') as tmp, tempfile.TemporaryFile() as log:
@@ -291,7 +291,7 @@ def five_minute_transport():
         encoder=subprocess.Popen(['ffmpeg','-nostdin','-v','error',
             '-re','-f','lavfi','-i','testsrc2=size=640x512:rate=30',
             '-re','-f','lavfi','-i','sine=frequency=440:sample_rate=48000',
-            '-t','300',*encoding_args(output,fmp4=True,hd=True)],
+            '-t','300',*encoding_args(output,fmp4=True,hd=True,retain=True)],
             env=env,stdout=log,stderr=subprocess.STDOUT)
         try:
             deadline=time.monotonic()+20
@@ -313,14 +313,21 @@ def five_minute_transport():
                     result=subprocess.run(['node',str(script),
                         f'http://127.0.0.1:{server.server_port}','--five-minute'],
                         env=env,capture_output=True,text=True,timeout=375)
-                    if result.returncode:
-                        raise RuntimeError('Five-minute browser test failed: '+result.stderr[-12000:])
                     if encoder.wait(timeout=10)!=0:
                         raise RuntimeError('HD synthetic encoder failed')
                     final=read_playlist(output,fmp4=True)
                     if not final['ended'] or final['mediaSequence']+len(final['segments'])!=150:
                         raise RuntimeError('Missing final encoded fragment')
                     wall=time.monotonic()-begin
+                    # Audit the actual encoded fragments AFTER playback, so
+                    # ffprobe does not compete with the two live decoders.
+                    timeline=audit_packet_timeline(
+                        (read_segment(output/f'segment-{i:06d}.m4s')[0] for i in range(150)),fps=30)
+                    print(json.dumps(dict(syntheticEncodedTimeline=timeline)),flush=True)
+                    if result.returncode:
+                        raise RuntimeError('Five-minute browser test failed: '+result.stderr[-12000:])
+                    if not timeline['encodedTimelineVerified']:
+                        raise RuntimeError('Synthetic encoder packet continuity failed')
                     if not 295<=wall<=360:
                         raise RuntimeError('Transport test not completed in expected real time')
                     evidence=json.loads(result.stdout)
@@ -329,7 +336,7 @@ def five_minute_transport():
                     evidence.update(syntheticSource=True,nativeMatchVerified=False,
                                     testWallSeconds=round(wall,3),targetSeconds=300,
                                     sourceResolution=[640,512],encodedResolution=[1280,720],
-                                    targetEncodedFps=30)
+                                    targetEncodedFps=30,encodedTimeline=timeline)
                     print(json.dumps(evidence),flush=True)
                 finally:
                     server.shutdown()

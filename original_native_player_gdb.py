@@ -55,6 +55,8 @@ events=[]
 tracked_match=None
 period=None
 regulation_end=None
+regulation_counts=None
+post_whistle_touches=0
 
 def add_event(event):
     if len(events)>=1024:
@@ -77,6 +79,7 @@ def touch_event(match,kind,phase,clock=None,**extra):
 
 class TouchObserver(gdb.Breakpoint):
     def stop(self):
+        global post_whistle_touches
         if tracked_match is None or final_observer.attempted:
             return False
         try:
@@ -85,7 +88,13 @@ class TouchObserver(gdb.Breakpoint):
             if int(team['match'])!=tracked_match:
                 raise ValueError('Unexpected touch match instance')
             if regulation_end is not None:
-                raise ValueError('Touch after regulation end; extra time unsupported')
+                match=team['match'].dereference()
+                # Referee stops play, resets the clock and waits three seconds
+                # before GameOver. Residual animation contacts are not play.
+                if bool(match['inPlay']) or bool(match['inSetPiece']):
+                    raise ValueError('Actual play after regulation end; extra time unsupported')
+                post_whistle_touches+=1
+                return False
             player=f.read_var('player').dereference()
             if not bool(player['isActive']):
                 raise ValueError('Inactive touch player')
@@ -115,7 +124,7 @@ class ResetObserver(gdb.Breakpoint):
 
 class PeriodObserver(gdb.Breakpoint):
     def stop(self):
-        global tracked_match,period,regulation_end
+        global tracked_match,period,regulation_end,regulation_counts
         try:
             f=gdb.newest_frame()
             ptr=f.read_var('this')
@@ -127,9 +136,15 @@ class PeriodObserver(gdb.Breakpoint):
                 # is enabled. Preserve the second-half clock before reset.
                 if period!=2 or tracked_match!=int(ptr) or regulation_end is not None:
                     raise ValueError('Unexpected regulation end transition')
-                regulation_end=int(ptr.dereference()['matchTime_ms'])
+                match=ptr.dereference()
+                if bool(match['inPlay']) or bool(match['inSetPiece']):
+                    raise ValueError('Regulation boundary while ball still in play')
+                regulation_end=int(match['matchTime_ms'])
                 if not 5400000<=regulation_end<=6300000:
                     raise ValueError('Invalid pre-reset regulation end clock')
+                if assists_enabled:
+                    touch_event(match,'final',2,clock=regulation_end)
+                    regulation_counts=touch_events.pop()
                 return False
             if phase not in ('e_MatchPhase_1stHalf','e_MatchPhase_2ndHalf'):
                 raise ValueError('Unsupported match phase '+phase)
@@ -208,8 +223,15 @@ class FinalObserver(gdb.Breakpoint):
                 add_event(dict(kind='final',clockMs=regulation_end,historyClockMs=result['nativeMatchClockMs'],regulationEndReset=True))
                 print('TRIBUN_NATIVE_PLAYER_TIMELINE '+json.dumps(events,allow_nan=False),flush=True)
                 if assists_enabled:
-                    touch_event(page['match'].dereference(),'final',period,clock=regulation_end,
-                                historyClockMs=result['nativeMatchClockMs'],regulationEndReset=True)
+                    match=page['match'].dereference()
+                    if bool(match['inPlay']) or bool(match['inSetPiece']) or not bool(match['gameOver']):
+                        raise ValueError('Final snapshot is not stopped full time')
+                    touch_event(match,'final',period,clock=regulation_end,
+                                historyClockMs=result['nativeMatchClockMs'],regulationEndReset=True,
+                                postWhistleTouchesIgnored=post_whistle_touches)
+                    if regulation_counts is None or any(touch_events[-1][key]!=regulation_counts[key]
+                            for key in ('passes','shots','score','scorers')):
+                        raise ValueError('Official action counters changed after regulation boundary')
                     print('TRIBUN_NATIVE_TOUCH_EVENTS '+json.dumps(touch_events,allow_nan=False),flush=True)
         except Exception as error:
             print('TRIBUN_NATIVE_PLAYER_ERROR '+str(error),flush=True)
