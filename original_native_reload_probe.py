@@ -239,6 +239,8 @@ def managed_private_finish(session,bundle):
     env=e.clean_env(os.environ)
     if not env.get('DISPLAY','').startswith(':'):
         raise RuntimeError('Private display required')
+    from original_halftime_gate import load_bundle
+    load_bundle(bundle,e.REVISION,e.digest(Path(session)/'football.config'),require_league=True)
     wm=subprocess.Popen(['openbox','--sm-disable'],env=env,
                         stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     try:
