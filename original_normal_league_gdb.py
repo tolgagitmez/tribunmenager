@@ -246,18 +246,18 @@ class Phase(gdb.Breakpoint):
                     raise ValueError('Multiple first halves')
                 tracked=int(ptr)
                 emit('first-half',teamIds=ids(m),durationMinutes=float(m['matchDurationMinutes']),
-                     timeScale=float(m['matchTimeScale']))
+                     timeScale=float(m['matchTimeScale']),actualTimeMs=int(m['actualTime_ms']))
             elif tracked!=int(ptr):
                 raise ValueError('Native match identity changed')
             elif name=='e_MatchPhase_2ndHalf':
                 if human_counts(m)!=[0,0]:
                     raise ValueError('Human controller active at halftime')
-                emit('half-boundary',clockMs=int(m['matchTime_ms']))
+                emit('half-boundary',clockMs=int(m['matchTime_ms']),actualTimeMs=int(m['actualTime_ms']))
             elif name=='e_MatchPhase_1stExtraTime':
                 # Upstream uses this transition even at normal regulation end.
                 if bool(m['inPlay']) or bool(m['inSetPiece']):
                     raise ValueError('Regulation boundary while playing')
-                emit('regulation-end',clockMs=int(m['matchTime_ms']))
+                emit('regulation-end',clockMs=int(m['matchTime_ms']),actualTimeMs=int(m['actualTime_ms']))
             else:
                 raise ValueError('Unexpected extra time phase')
         except Exception as exc:
