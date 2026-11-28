@@ -53,7 +53,7 @@ def held_fixture(web_db,reviewed,now):
             return None,'prior-round-unfinished'
     return dict(zip(WEB_FIELDS,(*key,fixture[0]))),'ready-for-isolated-kickoff'
 
-def dispatch_held_trial(web_db,root,work,build,env,reviewed,*,experimental=False,now=None):
+def dispatch_held_trial(web_db,root,work,build,env,reviewed,*,experimental=False,now=None,halftime_bundle=None):
     if experimental is not True:
         raise ValueError('Explicit experimental isolated kickoff required')
     now=time.time() if now is None else now
@@ -65,5 +65,6 @@ def dispatch_held_trial(web_db,root,work,build,env,reviewed,*,experimental=False
     # The web hold is immutable. The native probe rechecks the retained save,
     # acquires its store lock, and durably claims before sending native input.
     # On error the claim remains; never call the legacy worker as fallback.
-    report=probe_due(root,work,build,env,reviewed['saveName'],fixture,reviewed,now)
+    options={'halftime_bundle':halftime_bundle} if halftime_bundle is not None else {}
+    report=probe_due(root,work,build,env,reviewed['saveName'],fixture,reviewed,now,**options)
     return dict(base,**report,webHoldMatched=True,reviewSha256=review_digest(reviewed))
