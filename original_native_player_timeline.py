@@ -80,8 +80,11 @@ def reconstruct(events,final):
             if index!=len(events)-1 or period!=2:
                 raise ValueError('Final event must end second half')
             advance(event.get('clockMs'))
-            if last<ENDS[2] or last!=final['nativeMatchClockMs']:
-                raise ValueError('Final clock differs from native history')
+            saved_clock=final['nativeMatchClockMs']
+            reset=event.get('regulationEndReset') is True
+            if (last<ENDS[2] or (reset and (event.get('historyClockMs')!=saved_clock or saved_clock!=ENDS[2]))
+                or (not reset and last!=saved_clock)):
+                raise ValueError('Final clock differs from native history or regulation reset')
             expected={k for k,p in all_players.items() if p['activeAtFullTime']}
             if active!=expected:
                 raise ValueError('Unobserved player transition before full time')
@@ -104,6 +107,8 @@ def reconstruct(events,final):
                          assists=None))
     return dict(players=rows,periodEndClockMs=[period_ends[1],period_ends[2]],
                 observedMatchClockExposureMs=elapsed,playerTransitions=changes,
+                regulationEndResetObserved=events[-1].get('regulationEndReset') is True,
+                historyClockMs=final['nativeMatchClockMs'],
                 eventSequenceConsistent=True,officialMinutesVerified=False,
                 substitutionsIndependentlyVerified=False,assistsAvailable=False,
                 productionImportAllowed=False)
