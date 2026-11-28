@@ -10,6 +10,22 @@ control_out=open(os.environ['TRIBUN_LEAGUE_TRACE']+'.controls','x',encoding='utf
 control_menu_seen=False
 cpu_released=False
 game_ready=False
+pause_seen=False
+input_out=open(os.environ['TRIBUN_LEAGUE_TRACE']+'.inputs','x',encoding='utf-8',buffering=1)
+input_count=0
+
+def input_record(kind,**fields):
+    global input_count
+    if input_count>=80:
+        return
+    input_count+=1
+    input_out.write(json.dumps(dict(kind=kind,monotonic=time.monotonic(),**fields),allow_nan=False)+'\n')
+    input_out.flush()
+
+def view_name(ptr):
+    if not int(ptr):
+        return None
+    return ptr.dereference()['name']['_M_dataplus']['_M_p'].string()
 
 def control(kind,**fields):
     control_out.write(json.dumps(dict(kind=kind,**fields),allow_nan=False)+'\n')
@@ -61,18 +77,65 @@ class GameplayReady(gdb.Breakpoint):
             control('game-ready',humanCounts=human_counts(m),
                     actualTimeMs=int(m['actualTime_ms']),clockMs=int(m['matchTime_ms']))
             game_ready=True
+            input_record('game-focus',name=view_name(page['windowManager']['focus']))
+            sdl_observer.enabled=True
+            keyboard_observer.enabled=True
         except Exception as exc:
             self.enabled=False
             control('error',message=str(exc))
         return False
 
+class SDLEscape(gdb.Breakpoint):
+    def stop(self):
+        try:
+            event=gdb.newest_frame().read_var('event')
+            kind=int(event['type'])
+            if kind in (768,769) and int(event['key']['keysym']['sym'])==27:
+                input_record('sdl-escape',pressed=kind==768,repeat=int(event['key']['repeat']))
+        except Exception as exc:
+            input_record('diagnostic-error',message=str(exc))
+            self.enabled=False
+        return False
+
+class GameplayKeyboard(gdb.Breakpoint):
+    def stop(self):
+        try:
+            event=gdb.newest_frame().read_var('event').dereference()
+            pp=gdb.default_visualizer(event['keyOnce'])
+            if pp is None:
+                raise ValueError('Native keyboard set visualizer unavailable')
+            keys=[int(value) for _,value in pp.children()]
+            if keys:
+                input_record('game-key-once',keys=keys,
+                             actualTimeMs=int(active_match()['actualTime_ms']))
+        except Exception as exc:
+            input_record('diagnostic-error',message=str(exc))
+            self.enabled=False
+        return False
+
+class PauseFocus(gdb.Breakpoint):
+    def stop(self):
+        try:
+            name=view_name(gdb.newest_frame().read_var('view'))
+            if name and name.startswith('button_'):
+                input_record('pause-focus',name=name)
+        except Exception as exc:
+            input_record('diagnostic-error',message=str(exc))
+            self.enabled=False
+        return False
+
 class PauseMenu(gdb.Breakpoint):
     def stop(self):
+        global pause_seen
         if not game_ready:
             return False
         self.enabled=False
         try:
             control('pause-menu',humanCounts=human_counts(active_match()))
+            pause_seen=True
+            sdl_observer.enabled=False
+            keyboard_observer.enabled=False
+            focus_observer.enabled=True
         except Exception as exc:
             control('error',message=str(exc))
         return False
@@ -84,6 +147,7 @@ class ControllerMenu(gdb.Breakpoint):
         try:
             control('controller-menu',humanCounts=human_counts(active_match()))
             control_menu_seen=True
+            focus_observer.enabled=False
         except Exception as exc:
             control('error',message=str(exc))
         return False
@@ -207,6 +271,13 @@ class Final(gdb.Breakpoint):
 
 gdb.execute('set may-call-functions off')
 gdb.execute('set pagination off')
+sdl_observer=SDLEscape('blunted::UserEventManager::InputSDLEvent',internal=True)
+keyboard_observer=GameplayKeyboard('GamePage::ProcessKeyboardEvent',internal=True)
+focus_observer=PauseFocus('blunted::Gui2WindowManager::SetFocus',internal=True)
+for observer in (sdl_observer,keyboard_observer,focus_observer):
+    if observer.pending:
+        raise ValueError('Unresolved native input observation')
+    observer.enabled=False
 for observer in (Phase('Match::SetMatchPhase',internal=True),
                  GameplayReady('GamePage::Process',internal=True),
                  PauseMenu('IngamePage::IngamePage',internal=True),
