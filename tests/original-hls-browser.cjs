@@ -256,8 +256,9 @@ async function viewer(browser,url,disconnect,fullDuration=0){
   args:['--autoplay-policy=no-user-gesture-required']});
  try{
   const results=await Promise.all([viewer(browser,url.origin,false,fullDuration),viewer(browser,url.origin,!fullDuration,fullDuration)]);
-  // Preserve both viewers' evidence even when a strict gate below fails.
-  console.log(JSON.stringify({viewerDiagnostics:results.map(({fragments,clockSamples,...metrics})=>metrics)}));
+  // Successful consumers require exactly one JSON document on stdout.
+  // Keep the extra diagnostics only on failure (native runner merges stderr).
+  try{
   for(const result of results){
    assert(result.presentedCallbacks>=30&&result.distinctScreenSamples>=3&&result.width===(fullDuration?1280:640)&&result.height===(fullDuration?720:512));
    assert(result.nonSilentAudioSamples>=3&&result.peakAudioRms>=0.0001);
@@ -304,5 +305,9 @@ async function viewer(browser,url,disconnect,fullDuration=0){
   console.log(JSON.stringify({viewerClockComparison,browserPlaybackVerified:true,browserAudioSignalVerified:true,independentBrowserContexts:2,
    sharedFragments:shared.length,shortDisconnectRecoveryVerified:!fullDuration,fiveMinuteTransportVerified:fullDuration===300,nativeFullStreamBrowserEnded:fullDuration===-1,nativeFullStreamPlaybackVerified:false,results,physicalAudioOutputVerified:false,
    captureToScreenLatencyVerified:false,avSyncVerified:false,fullMatchVerified:false}));
+  }catch(error){
+   console.error(JSON.stringify({viewerDiagnostics:results.map(({fragments,clockSamples,...metrics})=>metrics)}));
+   throw error;
+  }
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
