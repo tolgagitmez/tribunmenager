@@ -98,19 +98,21 @@ def full_native_capture(work,session,output,env,display,game_log,encoder_log):
                 count=final['mediaSequence']+len(final['segments'])
                 if not final['ended'] or not 3<=count<=240:
                     raise RuntimeError('Invalid bounded final native manifest')
-                if browser.wait(timeout=40)!=0:
+                browser_code=browser.wait(timeout=40)
+                paths=[output/f'segment-{i:06d}.m4s' for i in range(count)]
+                timeline=audit_packet_timeline((read_segment(path)[0] for path in paths),fps=30)
+                print(json.dumps(dict(nativeEncodedTimeline=timeline)),flush=True)
+                if browser_code!=0:
                     raise RuntimeError('Native full browser playback failed')
                 browser_log.seek(0)
                 evidence=json.loads(browser_log.read().decode())
                 if not evidence.get('nativeFullStreamBrowserEnded'):
                     raise RuntimeError('Missing native browser end evidence')
-                paths=[output/f'segment-{i:06d}.m4s' for i in range(count)]
                 hashes=[hashlib.sha256(read_published_file(path,MAX_SEGMENT_BYTES)[0]).hexdigest()
                         for path in paths]
                 for viewer in evidence['results']:
                     if [f['sha256'] for f in viewer['fragments']]!=hashes:
                         raise RuntimeError('Browser and native archive fragment hashes disagree')
-                timeline=audit_packet_timeline((read_segment(path)[0] for path in paths),fps=30)
                 if not timeline['encodedTimelineVerified']:
                     raise RuntimeError('Native full encoded timeline failed: '+json.dumps(timeline))
                 endpoint_errors=[]

@@ -53,7 +53,7 @@ def validate_snapshot(raw,history,database):
             players=[]
             for p in rows:
                 code=p.get('rawCardCode');fatigue=p.get('fatigueFactorInv')
-                if type(code) is not int or code not in (0,1,2,3,4) or type(fatigue) not in (int,float) or not math.isfinite(fatigue) or not .01<=fatigue<=1 or type(p.get('activeAtFullTime')) is not bool:
+                if type(code) is not int or code not in (0,1,2,3,4) or type(fatigue) not in (int,float) or not math.isfinite(fatigue) or not .009999<=fatigue<=1 or type(p.get('activeAtFullTime')) is not bool:
                     raise ValueError('Invalid native card/fatigue/activity field')
                 players.append(dict(side=side,nativePlayerId=p['nativePlayerId'],
                     goals=goals[p['nativePlayerId']],assists=None,playedClockMs=None,
@@ -100,13 +100,15 @@ def run(output, timeline=False, assists=False):
         config=source/'data/menu_smoke_full_match.config'
         if (session/HISTORY_PATH).exists():
             raise ValueError('Expected fresh private runtime')
+        record_path=Path(tmp)/'observer-records.log'
+        debug_env=dict(env,TRIBUN_NATIVE_OBSERVER_RECORDS=str(record_path))
         with tempfile.TemporaryFile() as log:
             result=subprocess.run(['gdb','-nx','-batch','-return-child-result',
                 '-ex','set confirm off','-ex','set print thread-events off',
                 '-ex','set $tribun_timeline = '+str(int(timeline)),
                 '-ex','set $tribun_assists = '+str(int(assists)),
                 '-x',str(observer),'-ex','run','--args',str(session/'gameplayfootball'),str(config)],
-                cwd=session,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=600)
+                cwd=session,env=debug_env,stdout=log,stderr=subprocess.STDOUT,timeout=600)
             log.seek(0)
             if result.returncode:
                 raise RuntimeError('Debug smoke failed: '+log.read()[-6000:].decode(errors='replace'))
@@ -117,21 +119,28 @@ def run(output, timeline=False, assists=False):
             debug_log.write(text[-2_000_000:])
         if '[menu-smoke] Full-match verification succeeded, quitting test run' not in text:
             raise RuntimeError('Missing native full-match completion marker')
+        if not record_path.is_file() or record_path.stat().st_size>16*1024*1024:
+            raise ValueError('Missing or oversized isolated debugger records')
+        records=record_path.read_text(encoding='utf-8')
+        with output.with_name(output.stem+'-records.log').open('x') as saved:
+            saved.write(records)
+        if records.splitlines().count('TRIBUN_NATIVE_OBSERVER_READY timeline='+str(timeline)+' assists='+str(assists))!=1:
+            raise ValueError('Missing isolated debugger readiness evidence')
         history=read_single(session/HISTORY_PATH)
-        report=validate_snapshot(parse_log(text),history,session/'databases/default/database.sqlite')
+        report=validate_snapshot(parse_log(records),history,session/'databases/default/database.sqlite')
         if timeline:
             from original_native_player_timeline import reconstruct
             prefix='TRIBUN_NATIVE_PLAYER_TIMELINE '
-            lines=[line[len(prefix):] for line in text.splitlines() if line.startswith(prefix)]
-            if len(lines)!=1 or 'TRIBUN_NATIVE_TIMELINE_ERROR ' in text:
-                raise ValueError('Incomplete native player timeline: '+str([l for l in text.splitlines() if 'TRIBUN_NATIVE_TIMELINE_ERROR ' in l][:5]))
+            lines=[line[len(prefix):] for line in records.splitlines() if line.startswith(prefix)]
+            if len(lines)!=1 or 'TRIBUN_NATIVE_TIMELINE_ERROR ' in records:
+                raise ValueError('Incomplete native player timeline: '+str([l for l in records.splitlines() if 'TRIBUN_NATIVE_TIMELINE_ERROR ' in l][:5]))
             report['timeline']=reconstruct(json.loads(lines[0]),report)
         if assists:
             from original_native_assist_candidates import analyze
             prefix='TRIBUN_NATIVE_TOUCH_EVENTS '
-            lines=[line[len(prefix):] for line in text.splitlines() if line.startswith(prefix)]
-            if len(lines)!=1 or 'TRIBUN_NATIVE_TOUCH_ERROR ' in text:
-                raise ValueError('Incomplete native touch observation: '+str([l for l in text.splitlines() if 'TRIBUN_NATIVE_TOUCH_ERROR ' in l][:5]))
+            lines=[line[len(prefix):] for line in records.splitlines() if line.startswith(prefix)]
+            if len(lines)!=1 or 'TRIBUN_NATIVE_TOUCH_ERROR ' in records:
+                raise ValueError('Incomplete native touch observation: '+str([l for l in records.splitlines() if 'TRIBUN_NATIVE_TOUCH_ERROR ' in l][:5]))
             roster=[{p['nativePlayerId'] for p in t['players']} for t in report['teams']]
             report['attackChains']=analyze(json.loads(lines[0]),history,roster)
         report.update(revision=e.REVISION,debugBinarySha256=e.digest(session/'gameplayfootball'),

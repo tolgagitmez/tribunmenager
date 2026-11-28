@@ -5,7 +5,18 @@ Read debug-symbol fields only; no inferior function calls or assignments.
 The debugger briefly stops the process: this is not performance evidence.
 """
 import json
+import os
 import gdb
+
+# The inferior writes noisy partial lines to stdout. Keep debugger records
+# in a separate exclusively-created file, never mix them with game output.
+record_path=os.environ['TRIBUN_NATIVE_OBSERVER_RECORDS']
+records=open(record_path,'x',encoding='utf-8',buffering=1)
+
+def emit(message):
+    records.write(message+'\n')
+    records.flush()
+
 
 def vector(v,limit):
     impl=v['_M_impl']
@@ -102,7 +113,7 @@ class TouchObserver(gdb.Breakpoint):
             touch_event(team['match'].dereference(),'touch',period,
                 side=int(team['id']),nativePlayerId=int(player['playerData'].dereference()['databaseID']),touchType=typ)
         except Exception as error:
-            print('TRIBUN_NATIVE_TOUCH_ERROR '+str(error),flush=True)
+            emit('TRIBUN_NATIVE_TOUCH_ERROR '+str(error))
             self.enabled=False
         return False
 
@@ -118,7 +129,7 @@ class ResetObserver(gdb.Breakpoint):
                 return False
             touch_event(ptr.dereference(),'reset',period)
         except Exception as error:
-            print('TRIBUN_NATIVE_TOUCH_ERROR '+str(error),flush=True)
+            emit('TRIBUN_NATIVE_TOUCH_ERROR '+str(error))
             self.enabled=False
         return False
 
@@ -170,7 +181,7 @@ class PeriodObserver(gdb.Breakpoint):
                 touch_event(match,'period',new,clock=0 if new==1 else 2700000)
             period=new
         except Exception as error:
-            print('TRIBUN_NATIVE_TIMELINE_ERROR '+str(error),flush=True)
+            emit('TRIBUN_NATIVE_TIMELINE_ERROR '+str(error))
         return False
 
 class ActivityObserver(gdb.Breakpoint):
@@ -197,7 +208,7 @@ class ActivityObserver(gdb.Breakpoint):
             add_event(dict(kind=self.kind,period=period,clockMs=int(match['matchTime_ms']),
                            side=side,nativePlayerId=int(p['playerData'].dereference()['databaseID'])))
         except Exception as error:
-            print('TRIBUN_NATIVE_TIMELINE_ERROR '+str(error),flush=True)
+            emit('TRIBUN_NATIVE_TIMELINE_ERROR '+str(error))
         return False
 
 class FinalObserver(gdb.Breakpoint):
@@ -213,7 +224,7 @@ class FinalObserver(gdb.Breakpoint):
         self.enabled=False
         try:
             result=snapshot()
-            print('TRIBUN_NATIVE_PLAYER_SNAPSHOT '+json.dumps(result,allow_nan=False),flush=True)
+            emit('TRIBUN_NATIVE_PLAYER_SNAPSHOT '+json.dumps(result,allow_nan=False))
             if timeline_enabled:
                 page=gdb.newest_frame().read_var('this').dereference()
                 if tracked_match!=int(page['match']):
@@ -221,7 +232,7 @@ class FinalObserver(gdb.Breakpoint):
                 if regulation_end is None:
                     raise ValueError('Missing pre-reset regulation end')
                 add_event(dict(kind='final',clockMs=regulation_end,historyClockMs=result['nativeMatchClockMs'],regulationEndReset=True))
-                print('TRIBUN_NATIVE_PLAYER_TIMELINE '+json.dumps(events,allow_nan=False),flush=True)
+                emit('TRIBUN_NATIVE_PLAYER_TIMELINE '+json.dumps(events,allow_nan=False))
                 if assists_enabled:
                     match=page['match'].dereference()
                     if bool(match['inPlay']) or bool(match['inSetPiece']) or not bool(match['gameOver']):
@@ -232,9 +243,9 @@ class FinalObserver(gdb.Breakpoint):
                     if regulation_counts is None or any(touch_events[-1][key]!=regulation_counts[key]
                             for key in ('passes','shots','score','scorers')):
                         raise ValueError('Official action counters changed after regulation boundary')
-                    print('TRIBUN_NATIVE_TOUCH_EVENTS '+json.dumps(touch_events,allow_nan=False),flush=True)
+                    emit('TRIBUN_NATIVE_TOUCH_EVENTS '+json.dumps(touch_events,allow_nan=False))
         except Exception as error:
-            print('TRIBUN_NATIVE_PLAYER_ERROR '+str(error),flush=True)
+            emit('TRIBUN_NATIVE_PLAYER_ERROR '+str(error))
         return False
 
 gdb.execute('set may-call-functions off')
@@ -253,4 +264,4 @@ if assists_enabled:
     TouchObserver('Team::SetLastTouchPlayer',internal=True)
     ResetObserver('Match::ResetSituation',internal=True)
 
-print('TRIBUN_NATIVE_OBSERVER_READY timeline='+str(timeline_enabled)+' assists='+str(assists_enabled),flush=True)
+emit('TRIBUN_NATIVE_OBSERVER_READY timeline='+str(timeline_enabled)+' assists='+str(assists_enabled))

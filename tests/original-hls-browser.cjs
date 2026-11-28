@@ -107,8 +107,9 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    const clockSamples=[];
    let lastClockBin=-1;
    let stallAt=null,stallCount=0,stallMs=0;
+   const stallEvidence=[];
    video.addEventListener('waiting',()=>{
-    if(firstFrameMs!==null&&stallAt===null){stallAt=performance.now();stallCount++;}
+    if(firstFrameMs!==null&&stallAt===null){stallAt=performance.now();stallCount++;if(stallEvidence.length<40)stallEvidence.push({mediaTime:video.currentTime,readyState:video.readyState,bufferAheadMs:buffer.buffered.length?round((buffer.buffered.end(buffer.buffered.length-1)-video.currentTime)*1000):0});}
    });
    video.addEventListener('playing',()=>{
     if(stallAt!==null){stallMs+=performance.now()-stallAt;stallAt=null;}
@@ -197,7 +198,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
        media.endOfStream();endedManifest=true;
       }
      }
-     if(!started&&buffer.buffered.length&&buffer.buffered.end(0)-buffer.buffered.start(0)>=(fullDuration?4:2)){
+     if(!started&&buffer.buffered.length&&buffer.buffered.end(0)-buffer.buffered.start(0)>=(fullDuration===-1?8:fullDuration?4:2)){
       video.currentTime=buffer.buffered.start(0)+.05;
       await audio.resume();
       await video.play();
@@ -215,7 +216,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
        transportFailures,resumedAfterFailure,interruptionFailures,appendedAfterReconnect,simulatedDisconnect:disconnect,
        clockSamples,firstMediaTime, lastMediaTime:mediaTime, mediaDuration:video.duration, endedManifest, ended:video.ended,audibleMinutes,maxMediaGapMs:round(maxMediaGapMs),
        maxFrameGapMs:round(maxFrameGapMs),stallCount,
-       maxLoopDelayMs:round(maxLoopDelayMs),maxDecodeMs:round(maxDecodeMs),maxPresentedFrameJump,gapEvidence,
+       maxLoopDelayMs:round(maxLoopDelayMs),maxDecodeMs:round(maxDecodeMs),maxPresentedFrameJump,gapEvidence,stallEvidence,
        stallMs:round(stallMs+(stallAt===null?0:performance.now()-stallAt)),
        appendedMediaAheadMs:buffer.buffered.length?round((buffer.buffered.end(buffer.buffered.length-1)-mediaTime)*1000):0};
      }
@@ -262,13 +263,13 @@ async function viewer(browser,url,disconnect,fullDuration=0){
      assert(Number.isFinite(result.mediaDuration)&&Number.isFinite(result.lastMediaTime),'Missing native end timestamps');
      assert(result.fragments[0].sequence===0&&result.fragments.at(-1).sequence===result.fragments.length-1,'Missing native fragment');
     }
-    assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify({maxFrameGapMs:result.maxFrameGapMs,maxMediaGapMs:result.maxMediaGapMs,stallCount:result.stallCount,transportFailures:result.transportFailures,playbackSeconds:result.playbackSeconds,presentedCallbacks:result.presentedCallbacks,droppedVideoFrames:result.droppedVideoFrames,totalVideoFrames:result.totalVideoFrames,maxLoopDelayMs:result.maxLoopDelayMs,maxDecodeMs:result.maxDecodeMs,maxPresentedFrameJump:result.maxPresentedFrameJump,gapEvidence:result.gapEvidence}));
+    assert(result.maxFrameGapMs<=500&&result.stallCount===0&&result.transportFailures===0,JSON.stringify({maxFrameGapMs:result.maxFrameGapMs,maxMediaGapMs:result.maxMediaGapMs,stallCount:result.stallCount,transportFailures:result.transportFailures,playbackSeconds:result.playbackSeconds,presentedCallbacks:result.presentedCallbacks,droppedVideoFrames:result.droppedVideoFrames,totalVideoFrames:result.totalVideoFrames,maxLoopDelayMs:result.maxLoopDelayMs,maxDecodeMs:result.maxDecodeMs,maxPresentedFrameJump:result.maxPresentedFrameJump,gapEvidence:result.gapEvidence,stallEvidence:result.stallEvidence}));
     assert(result.maxMediaGapMs<=200,'Missing media-time frames: '+JSON.stringify({
      maxMediaGapMs:result.maxMediaGapMs,maxFrameGapMs:result.maxFrameGapMs,
      presentedCallbacks:result.presentedCallbacks,droppedVideoFrames:result.droppedVideoFrames,
      totalVideoFrames:result.totalVideoFrames,maxLoopDelayMs:result.maxLoopDelayMs,
      maxDecodeMs:result.maxDecodeMs,maxPresentedFrameJump:result.maxPresentedFrameJump,
-     gapEvidence:result.gapEvidence}));
+     gapEvidence:result.gapEvidence,stallEvidence:result.stallEvidence}));
     assert(result.presentedCallbacks/result.playbackSeconds>=28.5,'Insufficient delivered video callbacks');
     assert(result.droppedVideoFrames/Math.max(1,result.totalVideoFrames)<=.01,'Too many dropped video frames');
    }

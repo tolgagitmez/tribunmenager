@@ -422,6 +422,7 @@ jobs:
           path: |
             ${{ runner.temp }}/native-player-observation.json
             ${{ runner.temp }}/native-player-observation-debugger.log
+            ${{ runner.temp }}/native-player-observation-records.log
 
   league-reference-capture:
     # Run on the dedicated integration PR as well as explicit manual requests.
