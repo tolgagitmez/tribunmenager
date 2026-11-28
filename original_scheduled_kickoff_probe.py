@@ -84,10 +84,10 @@ def probe_due_locked(root,work,build,env,save_name,fixture,reviewed,now=None,*,h
             from original_halftime_gate import load_bundle
             # Freeze reviewed calibration bytes in the isolated runtime before
             # claiming; an invalid or missing bundle cannot consume the claim.
-            load_bundle(halftime_bundle,engine.REVISION,engine.digest(session/'football.config'))
+            load_bundle(halftime_bundle,engine.REVISION,engine.digest(session/'football.config'),require_league=True)
             bundle=Path(tmp)/'reviewed-halftime.json'
             bundle.write_bytes(Path(halftime_bundle).read_bytes())
-            load_bundle(bundle,engine.REVISION,engine.digest(session/'football.config'))
+            load_bundle(bundle,engine.REVISION,engine.digest(session/'football.config'),require_league=True)
         claim=claim_locked(root,save_name,fixture,reviewed,now)
         if not claim['claimed']:
             return dict(base,**claim)
