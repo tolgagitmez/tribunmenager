@@ -49,6 +49,15 @@ class VerifiedResultLedgerTests(unittest.TestCase):
             hashes=(digest(source),digest(saved),digest(history))
             self.assertTrue(stage_result(root,key,session,operator_reviewed=True)['created'])
             self.assertFalse(stage_result(root,key,session,operator_reviewed=True)['created'])
+            # The full-match path stages while the native dispatch lock
+            # remains held. Reacquiring it would fail even for the same process.
+            from original_saves import locked_store
+            from original_verified_result_ledger import stage_result_locked
+            with locked_store(root) as locked:
+                self.assertFalse(stage_result_locked(locked,key,session,operator_reviewed=True)['created'])
+                with self.assertRaises(RuntimeError):
+                    stage_result(root,key,session,operator_reviewed=True)
+
             table=provisional_table(root,'TEST-2026')
             self.assertEqual(table['fixtures'],1)
             self.assertEqual([(r['teamId'],r['played'],r['points'],r['goalDifference']) for r in table['rows']],
