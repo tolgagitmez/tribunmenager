@@ -8,6 +8,8 @@ out=open(os.environ['TRIBUN_LEAGUE_TRACE'],'x',encoding='utf-8',buffering=1)
 tracked=None
 control_out=open(os.environ['TRIBUN_LEAGUE_TRACE']+'.controls','x',encoding='utf-8',buffering=1)
 control_menu_seen=False
+cpu_released=False
+game_ready=False
 
 def control(kind,**fields):
     control_out.write(json.dumps(dict(kind=kind,**fields),allow_nan=False)+'\n')
@@ -42,6 +44,39 @@ def active_match():
         raise ValueError('No tracked native match')
     return gdb.Value(tracked).cast(gdb.lookup_type('Match').pointer()).dereference()
 
+class GameplayReady(gdb.Breakpoint):
+    def stop(self):
+        global game_ready
+        try:
+            page=gdb.newest_frame().read_var('this').dereference()
+            ptr=page['match']
+            if tracked is None or int(ptr)!=tracked:
+                return False
+            m=ptr.dereference()
+            # The match constructor and first-half signal can precede the
+            # input-receiving GamePage. Wait for an actual initialized page.
+            if int(m['actualTime_ms'])<1000:
+                return False
+            self.enabled=False
+            control('game-ready',humanCounts=human_counts(m),
+                    actualTimeMs=int(m['actualTime_ms']),clockMs=int(m['matchTime_ms']))
+            game_ready=True
+        except Exception as exc:
+            self.enabled=False
+            control('error',message=str(exc))
+        return False
+
+class PauseMenu(gdb.Breakpoint):
+    def stop(self):
+        if not game_ready:
+            return False
+        self.enabled=False
+        try:
+            control('pause-menu',humanCounts=human_counts(active_match()))
+        except Exception as exc:
+            control('error',message=str(exc))
+        return False
+
 class ControllerMenu(gdb.Breakpoint):
     def stop(self):
         global control_menu_seen
@@ -55,9 +90,11 @@ class ControllerMenu(gdb.Breakpoint):
 
 class ControlApplied(gdb.FinishBreakpoint):
     def stop(self):
+        global cpu_released
         try:
             counts=human_counts(active_match())
             control('cpu-control',humanCounts=counts)
+            cpu_released=counts==[0,0]
         except Exception as exc:
             control('error',message=str(exc))
         return False
@@ -73,6 +110,30 @@ class ControllerUpdate(gdb.Breakpoint):
             if int(gdb.newest_frame().read_var('this'))!=tracked:
                 raise ValueError('Controller update on different match')
             ControlApplied(gdb.newest_frame(),internal=True)
+        except Exception as exc:
+            control('error',message=str(exc))
+        return False
+
+class ResumeFinished(gdb.FinishBreakpoint):
+    def stop(self):
+        try:
+            m=active_match()
+            if bool(m['pause']) or human_counts(m)!=[0,0]:
+                raise ValueError('Native resume did not leave an unpaused CPU match')
+            control('resumed',humanCounts=[0,0],clockMs=int(m['matchTime_ms']))
+        except Exception as exc:
+            control('error',message=str(exc))
+        return False
+    def out_of_scope(self):
+        control('error',message='Native resume did not return')
+
+class ResumeMatch(gdb.Breakpoint):
+    def stop(self):
+        if not cpu_released:
+            return False
+        self.enabled=False
+        try:
+            ResumeFinished(gdb.newest_frame(),internal=True)
         except Exception as exc:
             control('error',message=str(exc))
         return False
@@ -147,6 +208,9 @@ class Final(gdb.Breakpoint):
 gdb.execute('set may-call-functions off')
 gdb.execute('set pagination off')
 for observer in (Phase('Match::SetMatchPhase',internal=True),
+                 GameplayReady('GamePage::Process',internal=True),
+                 PauseMenu('IngamePage::IngamePage',internal=True),
+                 ResumeMatch('IngamePage::ResumeMatch',internal=True),
                  ControllerMenu('IngamePage::GoControllerSelect',internal=True),
                  ControllerUpdate('Match::UpdateControllerSetup',internal=True),
                  HalfMenu('MatchPhasePage::Process','half-menu'),
