@@ -99,6 +99,38 @@ def native_input_records(trace):
     return [json.loads(line) for line in path.read_bytes().split(b'\n')[:-1]]
 
 
+def reload_navigation_key(focus,save_name):
+    # The release starts on Intro (page 2). A debug launch can start on
+    # Quick Match directly. Never activate Quick Match or the Delete button.
+    if focus=='page_2':
+        return 'Return'
+    if focus=='button_main_start':
+        return 'Down'
+    if focus in ('button_main_career','button_main_settings','button_main_credits',
+                 'button_main_quit','button_main_import'):
+        return 'Up'
+    if focus in ('button_main_league','button_league_start_load',
+                 'filebrowser_league_start_load_'+save_name,'dialog_league_load_save_positive'):
+        return 'Return'
+    raise RuntimeError('Unexpected focus while reopening saved league: '+str(focus))
+
+
+def reopen_observed_league(trace,env,game,native_pid,expected):
+    def focus():
+        records=native_input_records(trace)
+        return next((r['name'] for r in reversed(records) if r.get('kind')=='reload-focus'),None)
+
+    for _ in range(16):
+        if opened_database(native_pid,expected):
+            return
+        selected=wait_for(focus,15,game)
+        key=reload_navigation_key(selected,expected.parent.name)
+        print(json.dumps(dict(nativeReloadFocus=selected,key=key)),flush=True)
+        press_key(key,env)
+    if not opened_database(native_pid,expected):
+        raise RuntimeError('Native league did not reopen; last focus: '+str(focus()))
+
+
 def pause_focus(trace):
     return next((row['name'] for row in reversed(native_input_records(trace)) if row.get('kind')=='pause-focus'),None)
 
@@ -270,12 +302,15 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
             # selects League Mode; Load Saved is focused on the next page.
             # The sole save entry is focused; the confirmation defaults to Load.
             diagnostic_frame('00-start',env)
-            for index,key in enumerate(('Return','Down','Return','Return','Return','Return'),1):
-                press_key(key,env)
-                print('Native navigation step '+str(index)+': '+key,flush=True)
-                diagnostic_frame(f'{index:02d}-{key}',env)
-                if opened_database(native_pid,expected):
-                    break
+            if debug_trace is not None:
+                reopen_observed_league(debug_trace,env,game,native_pid,expected)
+            else:
+                for index,key in enumerate(('Return','Down','Return','Return','Return','Return'),1):
+                    press_key(key,env)
+                    print('Native navigation step '+str(index)+': '+key,flush=True)
+                    diagnostic_frame(f'{index:02d}-{key}',env)
+                    if opened_database(native_pid,expected):
+                        break
             wait_for(lambda: opened_database(native_pid,expected),15,game)
             time.sleep(2)
             if game.poll() is not None or not opened_database(native_pid,expected):

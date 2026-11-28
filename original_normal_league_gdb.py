@@ -17,7 +17,7 @@ last_sides=None
 
 def input_record(kind,**fields):
     global input_count
-    if input_count>=80:
+    if input_count>=160:
         return
     input_count+=1
     input_out.write(json.dumps(dict(kind=kind,monotonic=time.monotonic(),**fields),allow_nan=False)+'\n')
@@ -77,6 +77,7 @@ class GameplayReady(gdb.Breakpoint):
             self.enabled=False
             control('game-ready',humanCounts=human_counts(m),
                     actualTimeMs=int(m['actualTime_ms']),clockMs=int(m['matchTime_ms']))
+            reload_observer.enabled=False
             game_ready=True
             sdl_observer.enabled=True
             keyboard_observer.enabled=True
@@ -117,6 +118,16 @@ class GameplayKeyboard(gdb.Breakpoint):
         except Exception as exc:
             input_record('diagnostic-error',message=str(exc))
             self.enabled=False
+        return False
+
+class ReloadFocus(gdb.Breakpoint):
+    def stop(self):
+        try:
+            name=view_name(gdb.newest_frame().read_var('view'))
+            input_record('reload-focus',name=name)
+        except Exception as exc:
+            self.enabled=False
+            control('error',message=str(exc))
         return False
 
 class PauseFocus(gdb.Breakpoint):
@@ -308,6 +319,9 @@ for observer in (sdl_observer,keyboard_observer,focus_observer,sides_observer):
     if observer.pending:
         raise ValueError('Unresolved native input observation')
     observer.enabled=False
+reload_observer=ReloadFocus('blunted::Gui2WindowManager::SetFocus',internal=True)
+if reload_observer.pending:
+    raise ValueError('Unresolved native reload focus observation')
 for observer in (Phase('Match::SetMatchPhase',internal=True),
                  GameplayReady('GamePage::Process',internal=True),
                  PauseMenu('IngamePage::IngamePage',internal=True),

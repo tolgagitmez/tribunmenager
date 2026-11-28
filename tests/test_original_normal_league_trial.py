@@ -7,9 +7,20 @@ from unittest.mock import Mock, patch
 from original_normal_league_trial import ORDER,trace_records,summarize,trial_config,regulation_timing
 
 from original_native_reload_probe import (controller_event, pause_focus, press_until,
-    controller_sides, tap_menu_arrow, pause_navigation_key)
+    controller_sides, tap_menu_arrow, pause_navigation_key, reload_navigation_key)
 
 class NormalLeagueTrialTests(unittest.TestCase):
+    def test_reload_never_activates_quick_match_or_another_save(self):
+        for focus,key in [('page_2','Return'),('button_main_start','Down'),
+                          ('button_main_career','Up'),('button_main_league','Return'),
+                          ('button_league_start_load','Return'),
+                          ('filebrowser_league_start_load_Ajax','Return'),
+                          ('dialog_league_load_save_positive','Return')]:
+            self.assertEqual(reload_navigation_key(focus,'Ajax'),key)
+        for focus in ('dialog_league_load_save_negative','filebrowser_league_start_load_PSV',None):
+            with self.assertRaises(RuntimeError):
+                reload_navigation_key(focus,'Ajax')
+
     def test_verified_native_input_releases_key_on_success_and_failure(self):
         game=Mock()
         game.poll.return_value=None
