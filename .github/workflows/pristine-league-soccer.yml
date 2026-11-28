@@ -10,6 +10,8 @@ on:
       - 'original_native_finish_gate.py'
       - 'original_halftime_gate.py'
       - 'original_phase_reference_probe.py'
+      - 'original_league_reference_capture.py'
+      - 'original_league_reference_probe.py'
       - 'tests/test_original_phase_reference_probe.py'
       - 'tests/test_original_halftime_gate.py'
       - 'original_custom_database_probe.py'
@@ -97,6 +99,11 @@ on:
       - 'tests/test_original_engine.py'
       - '.github/workflows/pristine-league-soccer.yml'
   workflow_dispatch:
+    inputs:
+      collect_league_references:
+        description: Collect unreviewed real league screen candidates (extra runtime)
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -410,3 +417,24 @@ jobs:
           path: |
             ${{ runner.temp }}/native-player-observation.json
             ${{ runner.temp }}/native-player-observation-debugger.log
+
+  league-reference-capture:
+    if: github.event_name == 'workflow_dispatch' && inputs.collect_league_references
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native build and isolated capture dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth xdotool ffmpeg
+      - name: Verify unchanged original runtime
+        run: python3 start.py --mode original --original-build-only
+      - name: Collect unreviewed normal league screen candidates
+        run: python3 original_league_reference_probe.py "$RUNNER_TEMP/league-references"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-league-reference-candidates
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/league-references
