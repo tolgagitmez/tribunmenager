@@ -2,11 +2,39 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import Mock, patch
 from original_normal_league_trial import ORDER,trace_records,summarize,trial_config
 
-from original_native_reload_probe import controller_event
+from original_native_reload_probe import controller_event, pause_focus, press_until
 
 class NormalLeagueTrialTests(unittest.TestCase):
+    def test_verified_native_input_releases_key_on_success_and_failure(self):
+        game=Mock()
+        game.poll.return_value=None
+        env={}
+        evidence={'kind':'pause-menu'}
+        with patch('original_native_reload_probe.subprocess.run') as run, patch('original_native_reload_probe.time.sleep'):
+            self.assertEqual(press_until('Escape',Mock(side_effect=[None,evidence]),env,game),evidence)
+            self.assertEqual([call.args[0][1] for call in run.call_args_list],['keydown','keyup'])
+            run.reset_mock()
+            with self.assertRaisesRegex(ValueError,'bad evidence'):
+                press_until('Escape',Mock(side_effect=[None,ValueError('bad evidence')]),env,game)
+            self.assertEqual([call.args[0][1] for call in run.call_args_list],['keydown','keyup'])
+            run.reset_mock()
+            self.assertEqual(press_until('Escape',lambda:evidence,env,game),evidence)
+            run.assert_not_called()
+
+    def test_pause_focus_uses_latest_complete_native_record(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            trace=Path(tmp)/'phases.jsonl'
+            inputs=Path(str(trace)+'.inputs')
+            self.assertIsNone(pause_focus(trace))
+            inputs.write_text(''.join(json.dumps(x)+'\n' for x in [
+                dict(kind='pause-focus',name='button_resume'),
+                dict(kind='sdl-escape',pressed=True),
+                dict(kind='pause-focus',name='button_controllerselect')])+'{"kind":')
+            self.assertEqual(pause_focus(trace),'button_controllerselect')
+
     def test_native_controller_observation_contract(self):
         with tempfile.TemporaryDirectory() as tmp:
             trace=Path(tmp)/'phases.jsonl'
