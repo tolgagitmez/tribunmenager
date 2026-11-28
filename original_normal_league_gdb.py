@@ -6,6 +6,12 @@ import gdb
 
 out=open(os.environ['TRIBUN_LEAGUE_TRACE'],'x',encoding='utf-8',buffering=1)
 tracked=None
+control_out=open(os.environ['TRIBUN_LEAGUE_TRACE']+'.controls','x',encoding='utf-8',buffering=1)
+control_menu_seen=False
+
+def control(kind,**fields):
+    control_out.write(json.dumps(dict(kind=kind,**fields),allow_nan=False)+'\n')
+    control_out.flush()
 
 def emit(kind,**fields):
     out.write(json.dumps(dict(kind=kind,monotonic=time.monotonic(),**fields),allow_nan=False)+'\n')
@@ -23,6 +29,53 @@ def phase_name(value):
 
 def ids(match):
     return [int(unique(match['teams'][i])['teamData'].dereference()['databaseID']) for i in (0,1)]
+
+def human_counts(match):
+    counts=[]
+    for i in (0,1):
+        v=unique(match['teams'][i])['humanGamers']['_M_impl']
+        counts.append(int(v['_M_finish']-v['_M_start']))
+    return counts
+
+def active_match():
+    if tracked is None:
+        raise ValueError('No tracked native match')
+    return gdb.Value(tracked).cast(gdb.lookup_type('Match').pointer()).dereference()
+
+class ControllerMenu(gdb.Breakpoint):
+    def stop(self):
+        global control_menu_seen
+        self.enabled=False
+        try:
+            control('controller-menu',humanCounts=human_counts(active_match()))
+            control_menu_seen=True
+        except Exception as exc:
+            control('error',message=str(exc))
+        return False
+
+class ControlApplied(gdb.FinishBreakpoint):
+    def stop(self):
+        try:
+            counts=human_counts(active_match())
+            control('cpu-control',humanCounts=counts)
+        except Exception as exc:
+            control('error',message=str(exc))
+        return False
+    def out_of_scope(self):
+        control('error',message='Controller update did not return')
+
+class ControllerUpdate(gdb.Breakpoint):
+    def stop(self):
+        if not control_menu_seen:
+            return False
+        self.enabled=False
+        try:
+            if int(gdb.newest_frame().read_var('this'))!=tracked:
+                raise ValueError('Controller update on different match')
+            ControlApplied(gdb.newest_frame(),internal=True)
+        except Exception as exc:
+            control('error',message=str(exc))
+        return False
 
 class Phase(gdb.Breakpoint):
     def stop(self):
@@ -43,6 +96,8 @@ class Phase(gdb.Breakpoint):
             elif tracked!=int(ptr):
                 raise ValueError('Native match identity changed')
             elif name=='e_MatchPhase_2ndHalf':
+                if human_counts(m)!=[0,0]:
+                    raise ValueError('Human controller active at halftime')
                 emit('half-boundary',clockMs=int(m['matchTime_ms']))
             elif name=='e_MatchPhase_1stExtraTime':
                 # Upstream uses this transition even at normal regulation end.
@@ -81,7 +136,7 @@ class Final(gdb.Breakpoint):
             ptr=page['match']
             m=ptr.dereference()
             data=m['matchData'].dereference()
-            if int(ptr)!=tracked or not bool(m['gameOver']) or not bool(data['historySaved']):
+            if int(ptr)!=tracked or not bool(m['gameOver']) or not bool(data['historySaved']) or human_counts(m)!=[0,0]:
                 raise ValueError('Unexpected final history state')
             emit('fulltime',teamIds=ids(m),clockMs=int(m['matchTime_ms']),
                  score=[int(data['goalCount'][i]) for i in (0,1)])
@@ -92,6 +147,8 @@ class Final(gdb.Breakpoint):
 gdb.execute('set may-call-functions off')
 gdb.execute('set pagination off')
 for observer in (Phase('Match::SetMatchPhase',internal=True),
+                 ControllerMenu('IngamePage::GoControllerSelect',internal=True),
+                 ControllerUpdate('Match::UpdateControllerSetup',internal=True),
                  HalfMenu('MatchPhasePage::Process','half-menu'),
                  HalfMenu('MatchPhasePage::ContinueGame','half-continue'),
                  Final('GameOverPage::Process',internal=True)):
