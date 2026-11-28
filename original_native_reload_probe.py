@@ -20,6 +20,21 @@ def wait_for(predicate, seconds, game):
     raise RuntimeError('Expected native UI state not observed')
 
 
+def controller_event(trace,kind):
+    path=Path(str(trace)+'.controls')
+    if not path.exists():
+        return None
+    if path.is_symlink() or path.stat().st_size>8192:
+        raise ValueError('Invalid controller observation file')
+    rows=[json.loads(line) for line in path.read_bytes().split(b'\n')[:-1]]
+    if any(row.get('kind')=='error' for row in rows):
+        raise RuntimeError('Native controller observation failed: '+str(rows))
+    order=('controller-menu','cpu-control')
+    if tuple(row.get('kind') for row in rows)!=order[:len(rows)]:
+        raise ValueError('Unexpected native controller event sequence')
+    return next((row for row in rows if row['kind']==kind),None)
+
+
 def opened_database(pid, expected):
     # The upstream Database::Load uses sqlite3_open_v2 on the actual file.
     # A persistent process FD proves the game opened this restored database.
@@ -225,6 +240,31 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                 if finish:
                     half_report=None
                     if debug_trace is not None:
+                        # League KickOff assigns the keyboard to the managed side.
+                        # Use the original pause/controller menu to set No Team,
+                        # never modify the debugger inferior or fabricate input scores.
+                        e.call(['xdotool','windowfocus','--sync',wid],env)
+                        press_key('Escape',env)
+                        capture('pilot-controller-pause')
+                        # Resume is initially focused; Controllers is five selectable rows above it.
+                        for _ in range(5):
+                            press_key('Up',env)
+                        press_key('Return',env)
+                        menu=wait_for(lambda:controller_event(debug_trace,'controller-menu'),15,game)
+                        capture('pilot-controller-selected')
+                        counts=menu['humanCounts']
+                        home=fixture['managedTeamId']==fixture['homeTeamId']
+                        if counts!=([1,0] if home else [0,1]):
+                            raise RuntimeError('Unexpected initial native controller assignment: '+str(counts))
+                        press_key('Right' if home else 'Left',env)
+                        capture('pilot-controller-neutral')
+                        press_key('Escape',env)
+                        applied=wait_for(lambda:controller_event(debug_trace,'cpu-control'),15,game)
+                        if applied['humanCounts']!=[0,0]:
+                            raise RuntimeError('Native controller reassignment did not release both teams')
+                        press_key('Escape',env)
+                        capture('pilot-cpu-resume')
+                        print(json.dumps(dict(nativeBothTeamsCpuVerified=True,initialHumanCounts=counts,finalHumanCounts=applied['humanCounts'])),flush=True)
                         wait_debug_phase('half-menu',900)
                         if not opened_database(native_pid,expected):
                             raise RuntimeError('Reserved autosave lost at observed halftime')
@@ -308,6 +348,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         report.update(summarize(debug_trace,fixture,report['history']),
                                       experimentalClockConfiguration=True,defaultConfigLaunch=False,
                                       nativeSourcePatched=False,actualLeagueFixtureVerified=True,
+                                      nativeBothTeamsCpuVerified=True,
                                       automaticHalftimeVerified=True,productionScoreWritten=False,
                                       calibratedHalftimeTransition=None,debuggerHalftimeTransition=half_report)
                         with debug_trace.with_suffix('.json').open('x') as out:
