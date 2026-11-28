@@ -58,7 +58,7 @@ def diagnostic_frame(label,env):
         print('Diagnostic frame unavailable: '+str(exc),file=sys.stderr)
 
 
-def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_score=False):
+def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_score=False,reference_output=None):
     env=e.clean_env(os.environ)
     if not env.get('DISPLAY','').startswith(':'):
         raise RuntimeError('Private CI display required')
@@ -89,6 +89,12 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
             raise RuntimeError('Finish monitor requires a fresh history database')
         previous=completed_own(expected)
         names=expected_names(expected,fixture)
+    reference=None
+    if reference_output is not None:
+        if not kickoff or finish or halftime_bundle is not None:
+            raise ValueError('Reference capture must be a separate kickoff-only session')
+        from original_league_reference_capture import ReferenceCapture
+        reference=ReferenceCapture(reference_output)
     with tempfile.TemporaryFile() as log:
         game=subprocess.Popen([str(session/'gameplayfootball')],cwd=session,
                               env=env,stdout=log,stderr=subprocess.STDOUT)
@@ -123,6 +129,10 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                   gameProcessAlive=True,normalExitVerified=False,
                   scope='Native UI keyboard navigation and process file descriptor; not a full resumed match.')),
                   flush=True)
+            if reference is not None:
+                for _ in range(3):
+                    reference.sample(env,'restored-menu-candidate')
+                    time.sleep(.5)
             if kickoff:
                 # Only the pinned, disposable menu sequence; never send keys
                 # to an operator's desktop. Upstream logs match construction
@@ -149,6 +159,18 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                     matchCompleted=False,normalExitVerified=False,
                     automaticProductionKickoff=False,
                     scope='Disposable UI input, upstream match constructor logs and open autosave; not completed match or independent team identity evidence')),flush=True)
+                if reference is not None:
+                    # Bounded passive collection, never infer the phase from time
+                    # or send a Continue command. Review exported frames offline.
+                    deadline=time.monotonic()+420
+                    while time.monotonic()<deadline and game.poll() is None:
+                        if not opened_database(game.pid,expected):
+                            raise RuntimeError('Restored league lost during reference collection')
+                        reference.sample(env,'post-kickoff-unlabeled')
+                        time.sleep(6)
+                    if game.poll() is not None:
+                        raise RuntimeError('Native game exited during reference collection')
+                    print(json.dumps(reference.finish(e.REVISION,e.digest(session/'football.config'),fixture)),flush=True)
                 if finish:
                     half_report=None
                     if half_gate is None:
@@ -263,7 +285,13 @@ def managed_private_finish(session,bundle):
 
 
 if __name__=='__main__':
-    if len(sys.argv)==4 and sys.argv[1]=='--private-managed-finish':
+    if len(sys.argv)==4 and sys.argv[1]=='--capture-league-references':
+        e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
+                sys.executable,Path(__file__).resolve(),'--inside-league-references',
+                Path(sys.argv[2]).resolve(),Path(sys.argv[3]).resolve()],e.clean_env(os.environ))
+    elif len(sys.argv)==4 and sys.argv[1]=='--inside-league-references':
+        run(sys.argv[2],kickoff=True,reference_output=Path(sys.argv[3]).resolve())
+    elif len(sys.argv)==4 and sys.argv[1]=='--private-managed-finish':
         e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
                 sys.executable,Path(__file__).resolve(),'--inside-managed-finish',
                 Path(sys.argv[2]).resolve(),Path(sys.argv[3]).resolve()],e.clean_env(os.environ))
