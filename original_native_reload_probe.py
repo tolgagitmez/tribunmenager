@@ -234,8 +234,40 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                     game.wait()
 
 
+def managed_private_finish(session,bundle):
+    """Run the finish monitor only under a private Xvfb with its own WM."""
+    env=e.clean_env(os.environ)
+    if not env.get('DISPLAY','').startswith(':'):
+        raise RuntimeError('Private display required')
+    wm=subprocess.Popen(['openbox','--sm-disable'],env=env,
+                        stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    try:
+        deadline=time.monotonic()+15
+        while time.monotonic()<deadline and wm.poll() is None:
+            probe=subprocess.run(['xprop','-root','_NET_SUPPORTING_WM_CHECK'],
+                env=env,capture_output=True,text=True,timeout=5)
+            if probe.returncode==0 and 'window id # 0x' in probe.stdout and not probe.stdout.rstrip().endswith('0x0'):
+                break
+            time.sleep(.2)
+        else:
+            raise RuntimeError('Private window manager unavailable')
+        run(session,kickoff=True,finish=True,halftime_bundle=bundle,close_after_score=True)
+    finally:
+        if wm.poll() is None:
+            wm.terminate()
+            try:wm.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                wm.kill();wm.wait()
+
+
 if __name__=='__main__':
-    if len(sys.argv) in (5,6) and sys.argv[1]=='--inside-private-display' and sys.argv[3]=='--finish-auto-half' and (len(sys.argv)==5 or sys.argv[5]=='--close-after-score'):
+    if len(sys.argv)==4 and sys.argv[1]=='--private-managed-finish':
+        e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
+                sys.executable,Path(__file__).resolve(),'--inside-managed-finish',
+                Path(sys.argv[2]).resolve(),Path(sys.argv[3]).resolve()],e.clean_env(os.environ))
+    elif len(sys.argv)==4 and sys.argv[1]=='--inside-managed-finish':
+        managed_private_finish(Path(sys.argv[2]),Path(sys.argv[3]))
+    elif len(sys.argv) in (5,6) and sys.argv[1]=='--inside-private-display' and sys.argv[3]=='--finish-auto-half' and (len(sys.argv)==5 or sys.argv[5]=='--close-after-score'):
         run(sys.argv[2],kickoff=True,finish=True,halftime_bundle=Path(sys.argv[4]).resolve(),
             close_after_score=len(sys.argv)==6)
     elif len(sys.argv) in (3,4) and sys.argv[1]=='--inside-private-display' and (len(sys.argv)==3 or sys.argv[3] in ('--kickoff','--finish')):
