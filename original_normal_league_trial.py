@@ -65,7 +65,10 @@ def trial_config(raw):
     # MatchDurationGameTimeFromRealMilliseconds clamps the normal setting to
     # 5-90 minutes. This sets only the disposable game's supported options.
     values={'match_duration_minutes':'5.000000','menu_smoke_match_time_scale':'1.0',
-            'match_extra_time':'false','menu_smoke_test_full_match':'false'}
+            'match_extra_time':'false','menu_smoke_test_full_match':'false',
+            # SDL pumps input on the render thread. Keep software-rendered
+            # frames short enough to sample a single menu arrow pulse.
+            'context_x':'640','context_y':'360'}
     lines=[]
     for line in raw.decode('utf-8').splitlines():
         m=re.match(r'^\s*"([^"]+)"\s+',line)

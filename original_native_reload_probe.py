@@ -107,9 +107,33 @@ def controller_sides(trace):
     return next((row['sides'] for row in reversed(native_input_records(trace)) if row.get('kind')=='controller-sides'),None)
 
 
-def changed_value(read,previous):
-    value=read()
-    return value if value is not None and value!=previous else None
+SDL_ARROW_KEYS={'Right':1073741903,'Left':1073741904,'Down':1073741905,'Up':1073741906}
+
+
+def tap_menu_arrow(key,trace,env,game):
+    """Send one short arrow pulse and wait for its release in the native event log."""
+    keycode=SDL_ARROW_KEYS[key]
+    if game.poll() is not None:
+        raise RuntimeError('Native process exited before menu input')
+    start=len(native_input_records(trace))
+    # ControllerSelectPage repeats a held direction after 250 ms. Queue the
+    # release from the same xdotool process, independent of debugger polling.
+    try:
+        subprocess.run(['xdotool','keydown',key,'sleep','0.10','keyup',key],
+                       env=env,check=True,timeout=5)
+    except (OSError,subprocess.SubprocessError):
+        subprocess.run(['xdotool','keyup',key],env=env,check=True,timeout=5)
+        raise
+
+    def released():
+        events=[r['pressed'] for r in native_input_records(trace)[start:]
+                if r.get('kind')=='sdl-key' and r.get('key')==keycode]
+        return events==[True,False]
+
+    wait_for(released,10,game)
+    # SDL handles the release on the render thread. Let the menu thread
+    # consume it before the caller reads the settled focus or side.
+    time.sleep(.5)
 
 
 PAUSE_BUTTONS=('button_gameplan','button_setpieces','button_controllerselect','button_camerasettings',
@@ -328,10 +352,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                             key=pause_navigation_key(focus)
                             if key is None:
                                 break
-                            previous=focus
-                            press_until(key,lambda:changed_value(lambda:pause_focus(debug_trace),previous),env,game,attempts=2)
-                            # A held direction can repeat before the host releases it.
-                            # Use the latest settled focus, not the first observed step.
+                            tap_menu_arrow(key,debug_trace,env,game)
                             focus=pause_focus(debug_trace)
                             print(json.dumps(dict(nativePauseFocus=focus)),flush=True)
                         if focus!='button_controllerselect':
@@ -351,8 +372,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                             if sum(v!=0 for v in sides)!=1 or any(v not in (-1,0,1) for v in sides):
                                 raise RuntimeError('Unexpected controller sides: '+str(sides))
                             key='Right' if -1 in sides else 'Left'
-                            previous=sides
-                            press_until(key,lambda:changed_value(lambda:controller_sides(debug_trace),previous),env,game,attempts=2)
+                            tap_menu_arrow(key,debug_trace,env,game)
                             sides=controller_sides(debug_trace)
                         if any(v!=0 for v in sides):
                             raise RuntimeError('Native controller menu did not settle at No Team: '+str(sides))
