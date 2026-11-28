@@ -30,7 +30,8 @@ def encoder_args(display,monitor,output,*,fmp4=False,hd=False,retain=False):
     return ['ffmpeg','-nostdin','-v','error',
             '-thread_queue_size','256','-f','x11grab','-draw_mouse','0',
             '-framerate','30' if hd else '25','-video_size','1280x1024','-i',display,
-            '-thread_queue_size','256','-f','pulse','-i',monitor,
+            # Request 1024 stereo s16 samples per read (about 21 ms at 48 kHz).
+            '-thread_queue_size','256','-f','pulse','-fragment_size','4096','-i',monitor,
             *encoding_args(output,fmp4=fmp4,hd=hd,retain=retain)]
 
 def encoding_args(output,*,fmp4=False,hd=False,retain=False):

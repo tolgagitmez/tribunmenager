@@ -186,7 +186,9 @@ def run(browser=False,full_native=False):
             try:
                 pulse=subprocess.Popen(['pulseaudio','-n','--daemonize=no','--exit-idle-time=-1',
                     '--load=module-native-protocol-unix socket='+str(socket)+' auth-anonymous=1',
-                    '--load=module-null-sink sink_name=tribun_test rate=48000 channels=2'],
+                    # A recorder spans the game's audio client connecting and disconnecting.
+                    # Keep the monitor from rewinding already captured samples on those transitions.
+                    '--load=module-null-sink sink_name=tribun_test rate=48000 channels=2 norewinds=1'],
                     env=env,stdout=audio_log,stderr=subprocess.STDOUT)
                 deadline=time.monotonic()+15
                 while time.monotonic()<deadline and pulse.poll() is None:

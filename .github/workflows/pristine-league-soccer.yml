@@ -179,6 +179,7 @@ jobs:
       - name: Verify audiovisual HLS packaging and retention
         run: python3 -m unittest discover -s tests -p test_original_av_stream.py -v
       - name: Build original pinned upstream with unchanged runtime files
+        id: native_build
         run: python3 start.py --mode original --original-build-only
       - name: Verify default native startup without engine arguments
         run: python3 original_default_start_probe.py
@@ -325,6 +326,7 @@ jobs:
           path: ${{ runner.temp }}/native-full-hls.log
       - name: Verify custom source selection in actual native menus
         id: custom_source
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
         continue-on-error: true
         run: python3 original_custom_database_probe.py --ci
       - uses: actions/upload-artifact@v4
@@ -335,6 +337,7 @@ jobs:
           path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
       - name: Verify complete roster and skill package in real native league creation
         id: native_roster
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
         continue-on-error: true
         run: python3 original_native_roster_probe.py
       - uses: actions/upload-artifact@v4
@@ -345,6 +348,7 @@ jobs:
           path: ${{ runner.temp }}/native-reload-diagnostics/custom-*.png
       - name: Verify reviewed tactics in genuine native league creation
         id: native_tactics
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
         continue-on-error: true
         run: python3 original_native_roster_probe.py --tactics
       - uses: actions/upload-artifact@v4

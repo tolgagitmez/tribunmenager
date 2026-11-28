@@ -136,8 +136,9 @@ def convert_exact(source,destination):
     plan=exact_plan(tracks)
     speed=plan['playbackSpeed']
     factors=plan['audioTempoFactors']
+    # The fps filter supplies the 30 Hz timestamps and frame durations, including the last frame.
     video_filter=(f'setpts=(PTS-STARTPTS)/{speed:.12g},fps=30,'
-                  'tpad=stop_mode=clone:stop_duration=0.1,trim=end_frame=9000,setpts=N/(30*TB)')
+                  'tpad=stop_mode=clone:stop_duration=0.1,trim=end_frame=9000')
     audio_filter=('asetpts=PTS-STARTPTS,'+','.join(f'atempo={x:.12g}' for x in factors)+
                   ',aresample=48000,apad=pad_dur=0.1,atrim=duration=300,asetpts=N/SR/TB')
     with tempfile.TemporaryDirectory(prefix='.native-exact-playback-',dir=destination.parent) as tmp:
