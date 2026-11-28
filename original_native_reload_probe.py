@@ -43,13 +43,15 @@ def press_key(key,env):
     time.sleep(2)
 
 
-def diagnostic_frame(label,env):
+def diagnostic_frame(label,env,folder=None):
     # Only test frames from this disposable display; no user desktop.
-    output=os.environ.get('RUNNER_TEMP')
-    if not output:
-        return
-    folder=Path(output)/'native-reload-diagnostics'
-    folder.mkdir(exist_ok=True)
+    if folder is None:
+        output=os.environ.get('RUNNER_TEMP')
+        if not output:
+            return
+        folder=Path(output)/'native-reload-diagnostics'
+    folder=Path(folder)
+    folder.mkdir(parents=True,exist_ok=True)
     try:
         subprocess.run(['ffmpeg','-nostdin','-v','error','-y','-f','x11grab',
             '-video_size','1280x1024','-i',env['DISPLAY'],'-frames:v','1',
@@ -114,6 +116,32 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                               stderr=subprocess.STDOUT,start_new_session=debug_trace is not None)
         try:
             native_pid=game.pid
+            def capture(label):
+                diagnostic_frame(label,env,debug_trace.parent/'screens' if debug_trace is not None else None)
+            def wait_debug_phase(kind,seconds):
+                # Evidence only: never change the clock, dismiss menus blindly,
+                # or treat a timeout as a successful phase transition.
+                began=time.monotonic()
+                next_sample=[0]
+                def observe():
+                    if not opened_database(native_pid,expected):
+                        raise RuntimeError('Reserved autosave lost while waiting for '+kind)
+                    found=event(debug_trace,kind)
+                    if found:
+                        return found
+                    elapsed=int(time.monotonic()-began)
+                    if elapsed>=next_sample[0]:
+                        from original_normal_league_trial import trace_records
+                        rows=trace_records(debug_trace)
+                        print(json.dumps(dict(waitingForNativePhase=kind,elapsedSeconds=elapsed,
+                            observedPhases=[row['kind'] for row in rows])),flush=True)
+                        capture(f'wait-{kind}-{elapsed:04d}')
+                        next_sample[0]=elapsed+60
+                    return None
+                try:
+                    return wait_for(observe,seconds,game)
+                except Exception as exc:
+                    raise RuntimeError('Native phase '+kind+' not verified; see retained trace and screens') from exc
             if debug_trace is not None:
                 ready=wait_for(lambda:event(debug_trace,'ready'),45,game)
                 candidate_pid=ready['pid']
@@ -197,13 +225,13 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                 if finish:
                     half_report=None
                     if debug_trace is not None:
-                        wait_for(lambda:event(debug_trace,'half-menu'),900,game)
+                        wait_debug_phase('half-menu',900)
                         if not opened_database(native_pid,expected):
                             raise RuntimeError('Reserved autosave lost at observed halftime')
                         diagnostic_frame('pilot-half',env)
                         e.call(['xdotool','windowfocus','--sync',wid],env)
                         press_key('Return',env)
-                        wait_for(lambda:event(debug_trace,'half-continue'),30,game)
+                        wait_debug_phase('half-continue',30)
                         half_report=dict(nativePhaseMenuObserved=True,nativeContinueObserved=True,singleContinueSent=True)
                     elif half_gate is None:
                         print('At halftime, continue the match in the private display. Do not start another match.',flush=True)
@@ -233,7 +261,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         print(json.dumps(dict(calibratedHalftimeTransition=half_report,secondHalfGameplayIndependentlyVerified=False)),flush=True)
                     final=wait_for(lambda: fresh_history(session,names),900 if debug_trace is not None else 5400,game)
                     if debug_trace is not None:
-                        wait_for(lambda:event(debug_trace,'fulltime'),30,game)
+                        wait_debug_phase('fulltime',30)
                         summarize(debug_trace,fixture,final['history'])
                     diagnostic_frame('finish-01-native-history',env)
                     # GameOverPage saves fresh history and focuses Continue.
@@ -286,7 +314,9 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                             json.dump(report,out,indent=2,allow_nan=False)
                     print(json.dumps(report),flush=True)
         except Exception:
-            diagnostic_frame('99-failure',env)
+            capture('99-failure')
+            if debug_trace is not None:
+                print('Native phase trace at failure: '+(debug_trace.read_text(errors='replace')[-8192:] if debug_trace.exists() else 'missing'),file=sys.stderr)
             log.seek(0)
             print(log.read()[-6000:].decode(errors='replace'),file=sys.stderr)
             raise
