@@ -106,6 +106,11 @@ on:
         default: false
 permissions:
   contents: read
+# Keep only the newest integration run for each pull request.
+# Explicit manual runs remain independent and do not cancel PR validation.
+concurrency:
+  group: pristine-league-soccer-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 jobs:
   original:
     runs-on: ubuntu-22.04
@@ -420,11 +425,7 @@ jobs:
 
   league-reference-capture:
     # Run on the dedicated integration PR as well as explicit manual requests.
-    # Only reference-capture jobs share this group; don't cancel other checks.
     if: (github.event_name == 'workflow_dispatch' && inputs.collect_league_references) || (github.event_name == 'pull_request' && github.head_ref == 'integration/pristine-league-soccer')
-    concurrency:
-      group: native-league-references-${{ github.event.pull_request.number || github.ref }}
-      cancel-in-progress: false
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     steps:
