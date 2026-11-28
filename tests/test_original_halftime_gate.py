@@ -55,5 +55,32 @@ class HalftimeGateTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'review'):
                 load_bundle(p,'a'*40,'b'*64)
 
+    def test_independent_normal_league_calibration(self):
+        import hashlib
+        from original_halftime_gate import league_calibration
+        training=[('halftime',f) for f in self.positive]+[
+            ('gameplay',image(0,0,3)),('main-menu',image(80,50,4)),('fulltime',image(100,90,5))]
+        validation=[('halftime',image(221,181,6)),('halftime',image(219,179,7)),
+            ('gameplay',image(5,5,8)),('main-menu',image(85,55,9)),('fulltime',image(105,95,10))]
+        proof=league_calibration(self.regions,training,validation)
+        self.assertTrue(proof['independentSamplesPassed'])
+        self.assertFalse(proof['sourceAuthenticityVerified'])
+        for bad in (validation[:-1],training,validation[:-1]+[('fulltime',image(220,180,11))]):
+            with self.assertRaises(ValueError):
+                league_calibration(self.regions,training,bad)
+        data=dict(revision='a'*40,configSha256='b'*64,screen=[WIDTH,HEIGHT],
+            state='halftime',operatorReviewed=True,regions=self.regions,
+            positiveSha256=[hashlib.sha256(f).hexdigest() for s,f in training if s=='halftime'],
+            negativeSha256=[hashlib.sha256(f).hexdigest() for s,f in training if s!='halftime'])
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/'bundle.json'
+            p.write_text(json.dumps(data))
+            with self.assertRaisesRegex(ValueError,'normal league'):
+                load_bundle(p,'a'*40,'b'*64,require_league=True)
+            data['leagueCalibration']=proof
+            p.write_text(json.dumps(data))
+            self.assertFalse(load_bundle(p,'a'*40,'b'*64,require_league=True).fired)
+
+
 if __name__=='__main__':
     unittest.main()
