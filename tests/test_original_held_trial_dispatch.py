@@ -51,3 +51,20 @@ class HeldTrialTests(unittest.TestCase):
         with sqlite3.connect(self.db) as c:
             c.execute("INSERT INTO live_matches VALUES('TEST',1,0,1)")
         self.assertEqual(held_fixture(self.db,self.review,100)[1],'legacy-worker-conflict')
+
+
+    def test_full_match_option_forwarded_only_after_hold_gate(self):
+        bundle=self.root/'reviewed-halftime.json'
+        with patch('original_held_trial_dispatch.probe_due',return_value=dict(
+            claimed=True,matchCompleted=True,privateResultStaged=True)) as probe:
+            early=dispatch_held_trial(self.db,self.root,None,None,{},self.review,
+                experimental=True,now=99,halftime_bundle=bundle)
+            self.assertFalse(early['claimed'])
+            probe.assert_not_called()
+            result=dispatch_held_trial(self.db,self.root,None,None,{},self.review,
+                experimental=True,now=100,halftime_bundle=bundle)
+            self.assertTrue(result['matchCompleted'])
+            self.assertTrue(result['privateResultStaged'])
+            self.assertFalse(result['automaticProductionKickoff'])
+            self.assertFalse(result['scoreWritten'])
+            self.assertEqual(probe.call_args.kwargs,{'halftime_bundle':bundle})
