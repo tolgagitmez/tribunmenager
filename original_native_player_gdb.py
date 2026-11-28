@@ -54,6 +54,7 @@ def snapshot():
 events=[]
 tracked_match=None
 period=None
+regulation_end=None
 
 def add_event(event):
     if len(events)>=1024:
@@ -83,6 +84,8 @@ class TouchObserver(gdb.Breakpoint):
             team=f.read_var('this').dereference()
             if int(team['match'])!=tracked_match:
                 raise ValueError('Unexpected touch match instance')
+            if regulation_end is not None:
+                raise ValueError('Touch after regulation end; extra time unsupported')
             player=f.read_var('player').dereference()
             if not bool(player['isActive']):
                 raise ValueError('Inactive touch player')
@@ -102,6 +105,8 @@ class ResetObserver(gdb.Breakpoint):
             ptr=gdb.newest_frame().read_var('this')
             if int(ptr)!=tracked_match:
                 raise ValueError('Unexpected reset match instance')
+            if regulation_end is not None:
+                return False
             touch_event(ptr.dereference(),'reset',period)
         except Exception as error:
             print('TRIBUN_NATIVE_TOUCH_ERROR '+str(error),flush=True)
@@ -110,12 +115,21 @@ class ResetObserver(gdb.Breakpoint):
 
 class PeriodObserver(gdb.Breakpoint):
     def stop(self):
-        global tracked_match,period
+        global tracked_match,period,regulation_end
         try:
             f=gdb.newest_frame()
             ptr=f.read_var('this')
             phase=str(f.read_var('newMatchPhase')).split('::')[-1]
             if phase=='e_MatchPhase_PreMatch':
+                return False
+            if phase=='e_MatchPhase_1stExtraTime':
+                # Referee switches phase BEFORE checking whether extra time
+                # is enabled. Preserve the second-half clock before reset.
+                if period!=2 or tracked_match!=int(ptr) or regulation_end is not None:
+                    raise ValueError('Unexpected regulation end transition')
+                regulation_end=int(ptr.dereference()['matchTime_ms'])
+                if not 5400000<=regulation_end<=6300000:
+                    raise ValueError('Invalid pre-reset regulation end clock')
                 return False
             if phase not in ('e_MatchPhase_1stHalf','e_MatchPhase_2ndHalf'):
                 raise ValueError('Unsupported match phase '+phase)
@@ -157,6 +171,8 @@ class ActivityObserver(gdb.Breakpoint):
             p=gdb.newest_frame().read_var('this').dereference()
             if int(p['match'])!=tracked_match:
                 raise ValueError('Unexpected player match instance')
+            if regulation_end is not None:
+                raise ValueError('Activity after regulation end; extra time unsupported')
             match=p['match'].dereference()
             team=p['team'].dereference()
             side=int(team['id'])
@@ -187,10 +203,13 @@ class FinalObserver(gdb.Breakpoint):
                 page=gdb.newest_frame().read_var('this').dereference()
                 if tracked_match!=int(page['match']):
                     raise ValueError('Final match differs from observed match')
-                add_event(dict(kind='final',clockMs=result['nativeMatchClockMs']))
+                if regulation_end is None:
+                    raise ValueError('Missing pre-reset regulation end')
+                add_event(dict(kind='final',clockMs=regulation_end,historyClockMs=result['nativeMatchClockMs'],regulationEndReset=True))
                 print('TRIBUN_NATIVE_PLAYER_TIMELINE '+json.dumps(events,allow_nan=False),flush=True)
                 if assists_enabled:
-                    touch_event(page['match'].dereference(),'final',period)
+                    touch_event(page['match'].dereference(),'final',period,clock=regulation_end,
+                                historyClockMs=result['nativeMatchClockMs'],regulationEndReset=True)
                     print('TRIBUN_NATIVE_TOUCH_EVENTS '+json.dumps(touch_events,allow_nan=False),flush=True)
         except Exception as error:
             print('TRIBUN_NATIVE_PLAYER_ERROR '+str(error),flush=True)
