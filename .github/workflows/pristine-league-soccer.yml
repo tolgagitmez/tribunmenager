@@ -308,6 +308,7 @@ jobs:
           if-no-files-found: ignore
           path: ${{ runner.temp }}/original-hls-browser.log
       - name: Verify real-time 300-second synthetic HD HLS transport
+        id: five_minute_transport
         run: |
           set -o pipefail
           python3 original_native_av_probe.py --five-minute-transport 2>&1 | tee "$RUNNER_TEMP/five-minute-hls.log"
@@ -318,6 +319,9 @@ jobs:
           if-no-files-found: ignore
           path: ${{ runner.temp }}/five-minute-hls.log
       - name: Verify original native full smoke HD stream through two browsers
+        # A synthetic transport regression must not suppress independent native evidence.
+        # The earlier failed step still fails this job; no relaxed quality gate.
+        if: ${{ !cancelled() && (steps.five_minute_transport.outcome == 'success' || steps.five_minute_transport.outcome == 'failure') }}
         run: |
           set -o pipefail
           python3 original_native_av_probe.py --native-full 2>&1 | tee "$RUNNER_TEMP/native-full-hls.log"
