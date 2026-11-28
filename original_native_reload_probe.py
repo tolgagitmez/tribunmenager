@@ -90,14 +90,38 @@ def press_until(key,predicate,env,game,attempts=1,hold_seconds=5):
     raise RuntimeError('Native transition not observed after '+key)
 
 
-def pause_focus(trace):
+def native_input_records(trace):
     path=Path(str(trace)+'.inputs')
     if not path.exists():
-        return None
+        return []
     if path.is_symlink() or path.stat().st_size>32768:
         raise ValueError('Invalid native input diagnostics')
-    rows=[json.loads(line) for line in path.read_bytes().split(b'\n')[:-1]]
-    return next((row['name'] for row in reversed(rows) if row.get('kind')=='pause-focus'),None)
+    return [json.loads(line) for line in path.read_bytes().split(b'\n')[:-1]]
+
+
+def pause_focus(trace):
+    return next((row['name'] for row in reversed(native_input_records(trace)) if row.get('kind')=='pause-focus'),None)
+
+
+def controller_sides(trace):
+    return next((row['sides'] for row in reversed(native_input_records(trace)) if row.get('kind')=='controller-sides'),None)
+
+
+def changed_value(read,previous):
+    value=read()
+    return value if value is not None and value!=previous else None
+
+
+PAUSE_BUTTONS=('button_gameplan','button_setpieces','button_controllerselect','button_camerasettings',
+               'button_visualoptions','button_systemsettings','button_replay','button_resume','button_quit')
+
+
+def pause_navigation_key(focus):
+    if focus not in PAUSE_BUTTONS:
+        raise RuntimeError('Unknown native pause focus: '+str(focus))
+    current=PAUSE_BUTTONS.index(focus)
+    target=PAUSE_BUTTONS.index('button_controllerselect')
+    return 'Up' if current>target else 'Down' if current<target else None
 
 
 def diagnostic_frame(label,env,folder=None):
@@ -300,12 +324,15 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         capture('pilot-controller-pause')
                         # Verify the real native focus rather than counting rows.
                         focus=wait_for(lambda:pause_focus(debug_trace),15,game)
-                        for _ in range(8):
-                            if focus=='button_controllerselect':
+                        for _ in range(12):
+                            key=pause_navigation_key(focus)
+                            if key is None:
                                 break
                             previous=focus
-                            press_key('Up',env)
-                            focus=wait_for(lambda: (current if (current:=pause_focus(debug_trace))!=previous else None),5,game)
+                            press_until(key,lambda:changed_value(lambda:pause_focus(debug_trace),previous),env,game,attempts=2)
+                            # A held direction can repeat before the host releases it.
+                            # Use the latest settled focus, not the first observed step.
+                            focus=pause_focus(debug_trace)
                             print(json.dumps(dict(nativePauseFocus=focus)),flush=True)
                         if focus!='button_controllerselect':
                             raise RuntimeError('Native controller button not focused: '+str(focus))
@@ -315,7 +342,21 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         home=fixture['managedTeamId']==fixture['homeTeamId']
                         if counts!=([1,0] if home else [0,1]):
                             raise RuntimeError('Unexpected initial native controller assignment: '+str(counts))
-                        press_key('Right' if home else 'Left',env)
+                        sides=wait_for(lambda:controller_sides(debug_trace),20,game)
+                        if sides.count(-1 if home else 1)!=1 or sum(v!=0 for v in sides)!=1:
+                            raise RuntimeError('Unexpected native controller menu sides: '+str(sides))
+                        for _ in range(4):
+                            if all(v==0 for v in sides):
+                                break
+                            if sum(v!=0 for v in sides)!=1 or any(v not in (-1,0,1) for v in sides):
+                                raise RuntimeError('Unexpected controller sides: '+str(sides))
+                            key='Right' if -1 in sides else 'Left'
+                            previous=sides
+                            press_until(key,lambda:changed_value(lambda:controller_sides(debug_trace),previous),env,game,attempts=2)
+                            sides=controller_sides(debug_trace)
+                        if any(v!=0 for v in sides):
+                            raise RuntimeError('Native controller menu did not settle at No Team: '+str(sides))
+                        print(json.dumps(dict(nativeNeutralControllerSelection=sides)),flush=True)
                         capture('pilot-controller-neutral')
                         applied=press_until('Escape',lambda:controller_event(debug_trace,'cpu-control'),env,game)
                         if applied['humanCounts']!=[0,0]:
