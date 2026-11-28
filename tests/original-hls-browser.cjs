@@ -100,6 +100,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    let lastScreenSample=-Infinity,frameId=null,maxMediaGapMs=0;
    let maxLoopDelayMs=0,maxDecodeMs=0,maxPresentedFrameJump=0,lastPresented=null;
    let lastLoopTick=performance.now(),screenSampleError=null;
+   let screenSampling=false,screenSampleCount=0,maxScreenSampleMs=0,screenSamplingClosed=false;
    const gapEvidence=[];
    const loopTimer=setInterval(()=>{
     const now=performance.now();maxLoopDelayMs=Math.max(maxLoopDelayMs,now-lastLoopTick-100);lastLoopTick=now;
@@ -151,15 +152,23 @@ async function viewer(browser,url,disconnect,fullDuration=0){
    // GPU readback and hashing are diagnostic work, not part of the frame
    // callback. Keep the same short-test sampling density; for long runs
    // sample at 0.5 Hz while still timing every presented frame.
-   const screenTimer=setInterval(()=>{
-    if(video.paused||video.seeking||mediaTime===null||mediaTime-lastScreenSample<(fullDuration?2:.5))return;
+   const screenTimer=setInterval(async()=>{
+    if(screenSamplingClosed||screenSampling||video.paused||video.seeking||mediaTime===null||mediaTime-lastScreenSample<(fullDuration?2:.5))return;
+    const sampledMediaTime=mediaTime,began=performance.now();
+    screenSampling=true;
+    let bitmap;
     try{
-     pixels.drawImage(video,0,0,canvas.width,canvas.height);
+     // Resize asynchronously before canvas readback; do not synchronously
+     // draw the full HD video into the diagnostic canvas on the callback thread.
+     bitmap=await createImageBitmap(video,{resizeWidth:canvas.width,resizeHeight:canvas.height,resizeQuality:'low'});
+     if(screenSamplingClosed)return;
+     pixels.drawImage(bitmap,0,0);
      const data=pixels.getImageData(0,0,canvas.width,canvas.height).data;
      let signature=2166136261;
      for(let i=0;i<data.length;i++)signature=Math.imul(signature^data[i],16777619);
-     signatures.add(signature);lastScreenSample=mediaTime;
-    }catch(error){screenSampleError=String(error);}
+     signatures.add(signature);lastScreenSample=sampledMediaTime;screenSampleCount++;
+    }catch(error){if(!screenSamplingClosed)screenSampleError=String(error);}
+    finally{if(bitmap)bitmap.close();maxScreenSampleMs=Math.max(maxScreenSampleMs,performance.now()-began);screenSampling=false;}
    },fullDuration?2000:250);
    function readPlaylist(text){
     const lines=text.split(/\r?\n/),sequence=lines.find(x=>/^#EXT-X-MEDIA-SEQUENCE:\d+$/.test(x));
@@ -217,6 +226,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
        clockSamples,firstMediaTime, lastMediaTime:mediaTime, mediaDuration:video.duration, endedManifest, ended:video.ended,audibleMinutes,maxMediaGapMs:round(maxMediaGapMs),
        maxFrameGapMs:round(maxFrameGapMs),stallCount,
        maxLoopDelayMs:round(maxLoopDelayMs),maxDecodeMs:round(maxDecodeMs),maxPresentedFrameJump,gapEvidence,stallEvidence,
+       screenSampleCount,maxScreenSampleMs:round(maxScreenSampleMs),
        stallMs:round(stallMs+(stallAt===null?0:performance.now()-stallAt)),
        appendedMediaAheadMs:buffer.buffered.length?round((buffer.buffered.end(buffer.buffered.length-1)-mediaTime)*1000):0};
      }
@@ -226,6 +236,7 @@ async function viewer(browser,url,disconnect,fullDuration=0){
      firstFrameMs,mediaTime,firstMediaTime,nonSilentAudioSamples,appendedDuringPlayback,appendedAfterReconnect,
      transportFailures,resumedAfterFailure,interruptionFailures,interruptionError,lastTransportError}));
    }finally{
+    screenSamplingClosed=true;
     video.cancelVideoFrameCallback(frameId);
     clearInterval(audioTimer);clearInterval(screenTimer);clearInterval(loopTimer);
     video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(object);
@@ -245,6 +256,8 @@ async function viewer(browser,url,disconnect,fullDuration=0){
   args:['--autoplay-policy=no-user-gesture-required']});
  try{
   const results=await Promise.all([viewer(browser,url.origin,false,fullDuration),viewer(browser,url.origin,!fullDuration,fullDuration)]);
+  // Preserve both viewers' evidence even when a strict gate below fails.
+  console.log(JSON.stringify({viewerDiagnostics:results.map(({fragments,clockSamples,...metrics})=>metrics)}));
   for(const result of results){
    assert(result.presentedCallbacks>=30&&result.distinctScreenSamples>=3&&result.width===(fullDuration?1280:640)&&result.height===(fullDuration?720:512));
    assert(result.nonSilentAudioSamples>=3&&result.peakAudioRms>=0.0001);
