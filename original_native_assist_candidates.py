@@ -97,7 +97,11 @@ def analyze(events,history,roster):
         elif kind!='final' or i!=len(events)-1:
             raise ValueError('Unexpected native event')
         previous=event;period=phase
-    if period!=2 or previous['clockMs']!=history['nativeMatchClockMs'] or previous['score']!=[history['homeGoals'],history['awayGoals']] or previous['passes']!=history['passAttempts'] or previous['shots']!=history['shots']:
+    saved_clock=history['nativeMatchClockMs']
+    reset=previous.get('regulationEndReset') is True
+    clock_matches=(previous.get('historyClockMs')==saved_clock==5400000 and
+                   5400000<=previous['clockMs']<=6300000) if reset else previous['clockMs']==saved_clock
+    if period!=2 or not clock_matches or previous['score']!=[history['homeGoals'],history['awayGoals']] or previous['passes']!=history['passAttempts'] or previous['shots']!=history['shots']:
         raise ValueError('Final counters disagree with native history')
     return dict(goals=goals,touchCount=touches,classifiedPasses=classified_passes,
                 classifiedShots=classified_shots,assistCandidates=sum(g['assistCandidateId'] is not None for g in goals),
