@@ -86,7 +86,7 @@ def validate_observations(baseline,mapped,report,history):
             or any(type(x) is not int for x in period_ends)
             or not 2700000<=period_ends[0]<=3600000
             or not 5400000<=period_ends[1]<=6300000
-            or period_ends[1]!=clock):
+            or (period_ends[1]!=clock and not (report.get('regulationEndResetObserved') is True and clock==5400000))):
             raise ValueError('Invalid observed period end clocks')
         exposure=period_ends[0]+period_ends[1]-2700000
     rows=report.get('players')
@@ -188,7 +188,8 @@ def project_candidate(baseline,mapped,candidate,observer):
                 yellow=p['yellow'],red=None,fatigueFactorInv=p['fatigueFactorInv']))
     result=validate_observations(baseline,mapped,
         dict(revision=observer.get('revision'),sourceSaveSha256=observer['sourceSaveSha256'],
-             players=rows,periodEndClockMs=ends),history)
+             players=rows,periodEndClockMs=ends,
+             regulationEndResetObserved=bool(timeline and timeline.get('regulationEndResetObserved') is True)),history)
     result.update(fixtureKey=candidate['fixtureKey'],historySha256=candidate['historySha256'],
                   scope='read-only-staged-player-projection',fixtureMetadataMatched=True,
                   officialAssistsVerified=False,disciplineImportAllowed=False,
