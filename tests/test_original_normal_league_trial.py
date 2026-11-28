@@ -10,6 +10,19 @@ from original_native_reload_probe import (controller_event, pause_focus, press_u
     controller_sides, tap_menu_arrow, pause_navigation_key, reload_navigation_key)
 
 class NormalLeagueTrialTests(unittest.TestCase):
+    def test_release_timing_includes_halftime_and_checks_final_score(self):
+        from original_capture_probe import ACTIVE,HALF,FULL,DONE
+        from original_normal_league_trial import release_timing_report
+        events=[(1,ACTIVE,ACTIVE),(155,HALF,HALF),(158,ACTIVE,ACTIVE),
+                (320,FULL,FULL+' Ajax 2 - 1 PSV'),(321,DONE,DONE)]
+        history=dict(homeTeam='Ajax',homeGoals=2,awayGoals=1,awayTeam='PSV',nativeMatchClockMs=5400000)
+        report=release_timing_report(events,history)
+        self.assertEqual(report['activeToFulltimeMarkerSeconds'],319)
+        self.assertEqual(report['observedHalvesSeconds'],[154,162])
+        for mismatch in (dict(awayGoals=2),dict(nativeMatchClockMs=2700000)):
+            with self.assertRaises(ValueError):
+                release_timing_report(events,dict(history,**mismatch))
+
     def test_reload_never_activates_quick_match_or_another_save(self):
         for focus,key in [('page_2','Return'),('frame_intro_bg_frame','Return'),
                           ('button_main_start','Down'),

@@ -8,7 +8,9 @@ import math
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
+import time
 import tempfile
 
 import original_engine as e
@@ -127,12 +129,66 @@ def trial_config(raw):
     lines.extend(f'"{key}" "{value}"' for key,value in values.items())
     return ('\n'.join(lines)+'\n').encode('utf-8')
 
+def release_timing_report(events,history):
+    from original_capture_probe import FULL,match_intervals
+    halves,full_line,extra=match_intervals(events)
+    score=f"{history['homeTeam']} {history['homeGoals']} - {history['awayGoals']} {history['awayTeam']}"
+    if full_line!=f'{FULL} {score}' or history['nativeMatchClockMs']<5400000:
+        raise ValueError('Release full-time signal differs from saved match history')
+    return dict(source='release-quick-match',debuggerAttached=False,clockScale=1,
+                configuredMinutes=5,leagueFixtureVerified=False,history=history,
+                activeToFulltimeMarkerSeconds=round(halves[-1][1]-halves[0][0],3),
+                observedHalvesSeconds=[round(end-start,3) for start,end in halves],
+                extraGameplayEntries=extra)
+
+
+def measure_release_quick_match(build,source,env,output):
+    from original_capture_probe import ACTIVE,HALF,FULL,DONE
+    from original_match_history import HISTORY_PATH,read_single
+    with tempfile.TemporaryDirectory(prefix='release-match-timing-') as tmp:
+        session=Path(tmp)/'game'
+        populate(build,session)
+        history=session/HISTORY_PATH
+        if history.exists():
+            raise ValueError('Fresh release match history required')
+        # Match the league pilot clock and viewport. The native Quick Match
+        # menu driver handles CPU selection and halftime without a debugger.
+        config=(source/'data/menu_smoke_full_match.config').read_bytes()
+        accelerated=b'"menu_smoke_match_time_scale" "6.0"'
+        if (config.count(accelerated)!=1 or b'"match_duration_minutes" "5.000000"' not in config
+                or b'"menu_smoke_test_full_match" "true"' not in config):
+            raise ValueError('Unexpected pinned Quick Match configuration')
+        config_path=session/'release-timing.config'
+        config_path.write_bytes(config.replace(accelerated,b'"menu_smoke_match_time_scale" "1.0"')
+                                +b'\n"context_x" "640"\n"context_y" "360"\n"menu_smoke_quit_delay_ms" "0"\n')
+        events=[]
+        command=['timeout','--kill-after=10s','1200s','stdbuf','-oL','-eL',
+                 str(session/'gameplayfootball'),str(config_path)]
+        with subprocess.Popen(command,cwd=session,env=env,stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT,text=True,errors='replace') as game:
+            for line in game.stdout:
+                line=line.strip()
+                for marker in (ACTIVE,HALF,FULL,DONE):
+                    if line.startswith(marker):
+                        events.append((time.monotonic(),marker,line))
+                        print('Release timing: '+line,flush=True)
+                        break
+            if game.wait()!=0:
+                raise RuntimeError('Release timing process failed: '+str(game.returncode))
+        result=release_timing_report(events,read_single(history))
+        result.update(revision=e.REVISION,binarySha256=e.digest(build/'gameplayfootball'),
+                      configSha256=e.digest(config_path),markerEvents=events)
+        (output/'release-timing.json').write_text(json.dumps(result,indent=2)+'\n')
+        print(json.dumps(result),flush=True)
+
+
 def run_trial(work,build,env,output):
     output=Path(output).resolve()
     if output.exists():
         raise ValueError('New trial evidence directory required')
     output.mkdir(mode=0o700)
     release=e.verify_install(work,env)
+    measure_release_quick_match(release,work/'source',env,output)
     with tempfile.TemporaryDirectory(prefix='native-normal-league-pilot-') as tmp:
         base=Path(tmp); setup=base/'setup'; session=base/'session'
         populate(release,setup)
