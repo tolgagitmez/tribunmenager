@@ -96,7 +96,73 @@ def frame(env):
         raise RuntimeError('Invalid visual capture')
     return data
 
-def load_bundle(path,revision,config_sha):
+def league_calibration(regions,training,validation):
+    """Validate independent reviewed native-league samples, not their origin.
+
+    Each sample is (state, raw_frame). Positive/negative validation frames
+    must be separate from training bytes. No source authenticity claim.
+    """
+    validate_regions(regions)
+    labels={'halftime','gameplay','main-menu','fulltime'}
+    def check(samples):
+        if not isinstance(samples,list) or not 5<=len(samples)<=24:
+            raise ValueError('Expected bounded labeled league samples')
+        counts={state:0 for state in labels}
+        hashes=[]
+        for state,raw in samples:
+            if state not in labels or len(raw)!=WIDTH*HEIGHT:
+                raise ValueError('Invalid league reference sample')
+            counts[state]+=1
+            hashes.append(hashlib.sha256(raw).hexdigest())
+        if counts['halftime']<2 or any(counts[s]<1 for s in labels-{'halftime'}):
+            raise ValueError('Need halftime, gameplay, menu and fulltime examples')
+        if len(set(hashes))!=len(hashes):
+            raise ValueError('Duplicate league reference samples')
+        return hashes
+    train_hashes=check(training)
+    validation_hashes=check(validation)
+    if set(train_hashes)&set(validation_hashes):
+        raise ValueError('Validation must not reuse training frames')
+    measurements=[]
+    for state,raw in validation:
+        scores=[score(r,raw) for r in regions]
+        if state=='halftime' and min(scores)<.98:
+            raise ValueError('Held-out halftime sample not recognized')
+        if state!='halftime' and max(scores)>.85:
+            raise ValueError('Held-out negative sample too similar to halftime')
+        measurements.append(dict(state=state,sha256=hashlib.sha256(raw).hexdigest(),scores=scores))
+    return dict(scope='reviewed-normal-league',trainingSha256=train_hashes,
+                validation=measurements,independentSamplesPassed=True,
+                sourceAuthenticityVerified=False)
+
+def require_league_calibration(data):
+    proof=data.get('leagueCalibration')
+    if not isinstance(proof,dict) or proof.get('scope')!='reviewed-normal-league' or proof.get('independentSamplesPassed') is not True:
+        raise ValueError('Reviewed normal league held-out calibration required')
+    train=proof.get('trainingSha256')
+    rows=proof.get('validation')
+    if not isinstance(train,list) or not isinstance(rows,list) or not 5<=len(train)<=24 or not 5<=len(rows)<=24:
+        raise ValueError('Incomplete league calibration evidence')
+    if any(not isinstance(x,str) or not re.fullmatch('[0-9a-f]{64}',x) for x in train):
+        raise ValueError('Invalid league training digest')
+    seen=set(train)
+    if len(seen)!=len(train) or seen!=set(data.get('positiveSha256',[])+data.get('negativeSha256',[])):
+        raise ValueError('League training evidence mismatch')
+    counts={s:0 for s in ('halftime','gameplay','main-menu','fulltime')}
+    for row in rows:
+        state=row.get('state');sha=row.get('sha256');scores=row.get('scores')
+        if (state not in counts or not isinstance(sha,str) or not re.fullmatch('[0-9a-f]{64}',sha)
+            or sha in seen or not isinstance(scores,list) or len(scores)!=2
+            or any(type(v) not in (float,int) or not 0<=v<=1 for v in scores)):
+            raise ValueError('Invalid independent league calibration evidence')
+        if (state=='halftime' and min(scores)<.98) or (state!='halftime' and max(scores)>.85):
+            raise ValueError('Independent league calibration thresholds failed')
+        seen.add(sha);counts[state]+=1
+    if counts['halftime']<2 or any(counts[s]<1 for s in counts if s!='halftime'):
+        raise ValueError('Incomplete league validation states')
+
+
+def load_bundle(path,revision,config_sha,*,require_league=False):
     path=Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size>4*1024*1024:
         raise ValueError('Invalid calibration bundle')
@@ -106,6 +172,8 @@ def load_bundle(path,revision,config_sha):
         raise ValueError('Calibration does not match native revision, settings or display')
     if data.get('operatorReviewed') is not True:
         raise ValueError('Explicit visual calibration review required')
+    if require_league:
+        require_league_calibration(data)
     gate=OnceGate(data['regions'])
     # Validate masks before starting a match.
     for r in gate.regions:
@@ -144,6 +212,24 @@ def main():
         screen=[WIDTH,HEIGHT],state='halftime',operatorReviewed=True,regions=regions,
         positiveSha256=[hashlib.sha256(f).hexdigest() for f in positive],
         negativeSha256=[hashlib.sha256(f).hexdigest() for f in negative])
+    if manifest.get('scope')=='reviewed-normal-league':
+        labels=manifest.get('trainingNegativeStates')
+        if not isinstance(labels,list) or len(labels)!=len(negative) or any(s not in ('gameplay','main-menu','fulltime') for s in labels):
+            raise ValueError('Explicit negative league labels required')
+        validation=[]
+        for state in ('halftime','gameplay','main-menu','fulltime'):
+            key='validation_'+state
+            names=manifest.get(key)
+            if not isinstance(names,list) or not 1<=len(names)<=12:
+                raise ValueError('Missing independent league samples: '+state)
+            for name in names:
+                path=Path(name)
+                if path.is_symlink() or not path.is_file() or path.stat().st_size!=WIDTH*HEIGHT:
+                    raise ValueError('Expected raw grayscale validation frame')
+                validation.append((state,path.read_bytes()))
+        training=[('halftime',f) for f in positive]+list(zip(labels,negative))
+        output['leagueCalibration']=league_calibration(regions,training,validation)
+        require_league_calibration(output)
     with args.output.open('x') as out:
         json.dump(output,out)
 
