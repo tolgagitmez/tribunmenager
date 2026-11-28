@@ -16,9 +16,9 @@ class NormalLeagueTrialTests(unittest.TestCase):
                           ('button_main_career','Up'),('button_main_league','Return'),
                           ('button_league_start_load','Return'),
                           ('filebrowser_league_start_load_Ajax','Return'),
-                          ('dialog_league_load_save_positive','Return')]:
+                          ('dialog_league_load_save_frame_positive','Return')]:
             self.assertEqual(reload_navigation_key(focus,'Ajax'),key)
-        for focus in ('dialog_league_load_save_negative','filebrowser_league_start_load_PSV',None):
+        for focus in ('dialog_league_load_save_frame_negative','filebrowser_league_start_load_PSV',None):
             with self.assertRaises(RuntimeError):
                 reload_navigation_key(focus,'Ajax')
 

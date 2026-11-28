@@ -110,7 +110,7 @@ def reload_navigation_key(focus,save_name):
                  'button_main_quit','button_main_import'):
         return 'Up'
     if focus in ('button_main_league','button_league_start_load',
-                 'filebrowser_league_start_load_'+save_name,'dialog_league_load_save_positive'):
+                 'filebrowser_league_start_load_'+save_name,'dialog_league_load_save_frame_positive'):
         return 'Return'
     raise RuntimeError('Unexpected focus while reopening saved league: '+str(focus))
 
