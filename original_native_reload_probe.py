@@ -58,6 +58,48 @@ def press_key(key,env):
     time.sleep(2)
 
 
+def press_until(key,predicate,env,game,attempts=1,hold_seconds=5):
+    """Hold a single physical key until the native transition, always release it."""
+    for attempt in range(attempts):
+        if game.poll() is not None:
+            raise RuntimeError('Native process exited before input')
+        existing=predicate()
+        if existing:
+            return existing
+        print(json.dumps(dict(nativeInput=key,attempt=attempt+1)),flush=True)
+        subprocess.run(['xdotool','keydown','--clearmodifiers',key],env=env,check=True,timeout=5)
+        try:
+            deadline=time.monotonic()+hold_seconds
+            while time.monotonic()<deadline and game.poll() is None:
+                value=predicate()
+                if value:
+                    break
+                time.sleep(.1)
+            else:
+                value=None
+        finally:
+            subprocess.run(['xdotool','keyup',key],env=env,check=True,timeout=5)
+        # The engine polls keyboard state; allow it to consume the release
+        # and finish constructing the destination page before any next key.
+        time.sleep(2)
+        if value:
+            return value
+        value=predicate()
+        if value:
+            return value
+    raise RuntimeError('Native transition not observed after '+key)
+
+
+def pause_focus(trace):
+    path=Path(str(trace)+'.inputs')
+    if not path.exists():
+        return None
+    if path.is_symlink() or path.stat().st_size>32768:
+        raise ValueError('Invalid native input diagnostics')
+    rows=[json.loads(line) for line in path.read_bytes().split(b'\n')[:-1]]
+    return next((row['name'] for row in reversed(rows) if row.get('kind')=='pause-focus'),None)
+
+
 def diagnostic_frame(label,env,folder=None):
     # Only test frames from this disposable display; no user desktop.
     if folder is None:
@@ -249,17 +291,25 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         subprocess.run(['xdotool','windowactivate','--sync',wid],env=env,check=True,timeout=10)
                         if subprocess.check_output(['xdotool','getactivewindow'],env=env,text=True,timeout=5).strip()!=str(wid):
                             raise RuntimeError('Native game window not active before pause')
-                        press_key('Escape',env)
-                        paused=wait_for(lambda:controller_event(debug_trace,'pause-menu'),15,game)
+                        # A 240ms tap was lost in the previous CI run even after
+                        # readiness. Hold through the sampled SDL input state.
+                        paused=press_until('Escape',lambda:controller_event(debug_trace,'pause-menu'),env,game,attempts=2)
                         if paused['humanCounts']!=ready['humanCounts']:
                             raise RuntimeError('Native controller changed before pause')
                         time.sleep(2)
                         capture('pilot-controller-pause')
-                        # Resume is initially focused; Controllers is five selectable rows above it.
-                        for _ in range(5):
+                        # Verify the real native focus rather than counting rows.
+                        focus=wait_for(lambda:pause_focus(debug_trace),15,game)
+                        for _ in range(8):
+                            if focus=='button_controllerselect':
+                                break
+                            previous=focus
                             press_key('Up',env)
-                        press_key('Return',env)
-                        menu=wait_for(lambda:controller_event(debug_trace,'controller-menu'),15,game)
+                            focus=wait_for(lambda: (current if (current:=pause_focus(debug_trace))!=previous else None),5,game)
+                            print(json.dumps(dict(nativePauseFocus=focus)),flush=True)
+                        if focus!='button_controllerselect':
+                            raise RuntimeError('Native controller button not focused: '+str(focus))
+                        menu=press_until('Return',lambda:controller_event(debug_trace,'controller-menu'),env,game)
                         capture('pilot-controller-selected')
                         counts=menu['humanCounts']
                         home=fixture['managedTeamId']==fixture['homeTeamId']
@@ -267,12 +317,10 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                             raise RuntimeError('Unexpected initial native controller assignment: '+str(counts))
                         press_key('Right' if home else 'Left',env)
                         capture('pilot-controller-neutral')
-                        press_key('Escape',env)
-                        applied=wait_for(lambda:controller_event(debug_trace,'cpu-control'),15,game)
+                        applied=press_until('Escape',lambda:controller_event(debug_trace,'cpu-control'),env,game)
                         if applied['humanCounts']!=[0,0]:
                             raise RuntimeError('Native controller reassignment did not release both teams')
-                        press_key('Escape',env)
-                        resumed=wait_for(lambda:controller_event(debug_trace,'resumed'),15,game)
+                        resumed=press_until('Escape',lambda:controller_event(debug_trace,'resumed'),env,game)
                         capture('pilot-cpu-resume')
                         print(json.dumps(dict(nativeBothTeamsCpuVerified=True,initialHumanCounts=counts,finalHumanCounts=applied['humanCounts'],nativeResumeVerified=True,resumedClockMs=resumed['clockMs'])),flush=True)
                         wait_debug_phase('half-menu',900)
@@ -370,6 +418,8 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                 print('Native phase trace at failure: '+(debug_trace.read_text(errors='replace')[-8192:] if debug_trace.exists() else 'missing'),file=sys.stderr)
                 control_path=Path(str(debug_trace)+'.controls')
                 print('Native controller trace at failure: '+(control_path.read_text(errors='replace')[-8192:] if control_path.exists() else 'missing'),file=sys.stderr)
+                input_path=Path(str(debug_trace)+'.inputs')
+                print('Native input trace at failure: '+(input_path.read_text(errors='replace')[-16384:] if input_path.exists() else 'missing'),file=sys.stderr)
             log.seek(0)
             print(log.read()[-6000:].decode(errors='replace'),file=sys.stderr)
             raise
