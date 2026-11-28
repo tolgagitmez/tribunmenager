@@ -77,9 +77,12 @@ class GameplayReady(gdb.Breakpoint):
             control('game-ready',humanCounts=human_counts(m),
                     actualTimeMs=int(m['actualTime_ms']),clockMs=int(m['matchTime_ms']))
             game_ready=True
-            input_record('game-focus',name=view_name(page['windowManager']['focus']))
             sdl_observer.enabled=True
             keyboard_observer.enabled=True
+            try:
+                input_record('game-focus',name=view_name(page['windowManager']['focus']))
+            except Exception as exc:
+                input_record('diagnostic-error',message=str(exc))
         except Exception as exc:
             self.enabled=False
             control('error',message=str(exc))
