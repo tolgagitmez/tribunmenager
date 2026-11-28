@@ -5,7 +5,8 @@ import unittest
 from unittest.mock import Mock, patch
 from original_normal_league_trial import ORDER,trace_records,summarize,trial_config
 
-from original_native_reload_probe import controller_event, pause_focus, press_until
+from original_native_reload_probe import (controller_event, pause_focus, press_until,
+    controller_sides, changed_value, pause_navigation_key)
 
 class NormalLeagueTrialTests(unittest.TestCase):
     def test_verified_native_input_releases_key_on_success_and_failure(self):
@@ -34,6 +35,29 @@ class NormalLeagueTrialTests(unittest.TestCase):
                 dict(kind='sdl-escape',pressed=True),
                 dict(kind='pause-focus',name='button_controllerselect')])+'{"kind":')
             self.assertEqual(pause_focus(trace),'button_controllerselect')
+
+    def test_native_pause_navigation_uses_settled_focus(self):
+        self.assertEqual(pause_navigation_key('button_resume'),'Up')
+        self.assertEqual(pause_navigation_key('button_gameplan'),'Down')
+        self.assertIsNone(pause_navigation_key('button_controllerselect'))
+        with self.assertRaises(RuntimeError):
+            pause_navigation_key('unverified')
+        self.assertIsNone(changed_value(lambda:'button_resume','button_resume'))
+        self.assertIsNone(changed_value(lambda:None,'button_resume'))
+        self.assertEqual(changed_value(lambda:'button_replay','button_resume'),'button_replay')
+
+    def test_native_controller_side_observation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            trace=Path(tmp)/'phases.jsonl'
+            inputs=Path(str(trace)+'.inputs')
+            self.assertIsNone(controller_sides(trace))
+            inputs.write_text(''.join(json.dumps(x)+'\n' for x in [
+                dict(kind='controller-sides',sides=[-1]),
+                dict(kind='sdl-key',key=1073741903,pressed=True),
+                dict(kind='controller-sides',sides=[0])])+'{"kind":')
+            self.assertEqual(controller_sides(trace),[0])
+            self.assertEqual(changed_value(lambda:controller_sides(trace),[-1]),[0])
+            self.assertIsNone(changed_value(lambda:controller_sides(trace),[0]))
 
     def test_native_controller_observation_contract(self):
         with tempfile.TemporaryDirectory() as tmp:
