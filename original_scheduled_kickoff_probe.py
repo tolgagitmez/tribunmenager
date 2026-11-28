@@ -45,7 +45,7 @@ def inspect_lineups(path,fixture):
     return lineups
 
 
-def probe_due_locked(root,work,build,env,save_name,fixture,reviewed,now=None):
+def probe_due_locked(root,work,build,env,save_name,fixture,reviewed,now=None,*,halftime_bundle=None):
     """CI-only; caller must hold the disposable store lock."""
     now=time.time() if now is None else now
     snapshot=current_snapshot(root)
@@ -79,12 +79,32 @@ def probe_due_locked(root,work,build,env,save_name,fixture,reviewed,now=None):
                 list((session/'saves').glob('*/autosave.sqlite'))!=[copied] or
                 next_native_fixture(copied)!=native or inspect_lineups(copied,native)!=lineups):
             raise RuntimeError('Restored fixture or saved roster differs from reviewed snapshot')
+        bundle=None
+        if halftime_bundle is not None:
+            from original_halftime_gate import load_bundle
+            # Freeze reviewed calibration bytes in the isolated runtime before
+            # claiming; an invalid or missing bundle cannot consume the claim.
+            load_bundle(halftime_bundle,engine.REVISION,engine.digest(session/'football.config'))
+            bundle=Path(tmp)/'reviewed-halftime.json'
+            bundle.write_bytes(Path(halftime_bundle).read_bytes())
+            load_bundle(bundle,engine.REVISION,engine.digest(session/'football.config'))
         claim=claim_locked(root,save_name,fixture,reviewed,now)
         if not claim['claimed']:
             return dict(base,**claim)
         try:
-            engine.call([sys.executable,Path(__file__).with_name('original_native_reload_probe.py'),
-                         session,'--kickoff'],env)
+            script=Path(__file__).with_name('original_native_reload_probe.py')
+            if bundle is None:
+                engine.call([sys.executable,script,session,'--kickoff'],env)
+            else:
+                engine.call([sys.executable,script,'--private-managed-finish',session,bundle],env)
+                from original_verified_result_ledger import stage_result_locked
+                engine.check_config(work/'source',session)
+                if current_snapshot(root)!=snapshot or save_manifest(snapshot)!=original:
+                    raise RuntimeError('Retained snapshot changed before staging')
+                staged=stage_result_locked(root,claim['fixtureKey'],session,operator_reviewed=True)
+                base.update(matchCompleted=True,privateResultStaged=True,stagedResult=staged,
+                            fullNativeLeagueResultVerified=True,productionImportAllowed=False,
+                            realTime300SecondMatchVerified=False)
         finally:
             if current_snapshot(root)!=snapshot or save_manifest(snapshot)!=original:
                 raise RuntimeError('Disposable kickoff modified retained native snapshot')
@@ -95,6 +115,6 @@ def probe_due_locked(root,work,build,env,save_name,fixture,reviewed,now=None):
                     expectedFixtureIndependentlyConfirmedInMatch=False)
 
 
-def probe_due(root,work,build,env,save_name,fixture,reviewed,now=None):
+def probe_due(root,work,build,env,save_name,fixture,reviewed,now=None,*,halftime_bundle=None):
     with locked_store(root) as root:
-        return probe_due_locked(root,work,build,env,save_name,fixture,reviewed,now)
+        return probe_due_locked(root,work,build,env,save_name,fixture,reviewed,now,halftime_bundle=halftime_bundle)
