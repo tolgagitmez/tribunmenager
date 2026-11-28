@@ -102,7 +102,7 @@ def native_input_records(trace):
 def reload_navigation_key(focus,save_name):
     # The release starts on Intro (page 2). A debug launch can start on
     # Quick Match directly. Never activate Quick Match or the Delete button.
-    if focus=='page_2':
+    if focus in ('page_2','frame_intro_bg_frame'):
         return 'Return'
     if focus=='button_main_start':
         return 'Down'
@@ -244,6 +244,8 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
             debug_trace=Path(debug_trace).resolve()
             if debug_trace.exists():
                 raise ValueError('New native debugger trace required')
+            # Keep Xvfb's centered pointer from changing keyboard focus on hover.
+            e.call(['xdotool','mousemove','0','0'],env)
             game_env=dict(env,TRIBUN_LEAGUE_TRACE=str(debug_trace))
             command=['gdb','-nx','-batch','-return-child-result','-ex','set confirm off',
                 '-ex','set print thread-events off','-ex','start','-x',

@@ -11,7 +11,8 @@ from original_native_reload_probe import (controller_event, pause_focus, press_u
 
 class NormalLeagueTrialTests(unittest.TestCase):
     def test_reload_never_activates_quick_match_or_another_save(self):
-        for focus,key in [('page_2','Return'),('button_main_start','Down'),
+        for focus,key in [('page_2','Return'),('frame_intro_bg_frame','Return'),
+                          ('button_main_start','Down'),
                           ('button_main_career','Up'),('button_main_league','Return'),
                           ('button_league_start_load','Return'),
                           ('filebrowser_league_start_load_Ajax','Return'),
