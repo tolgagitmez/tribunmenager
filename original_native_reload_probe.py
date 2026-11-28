@@ -58,7 +58,7 @@ def diagnostic_frame(label,env):
         print('Diagnostic frame unavailable: '+str(exc),file=sys.stderr)
 
 
-def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_score=False,reference_output=None):
+def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_score=False,reference_output=None,debug_trace=None):
     env=e.clean_env(os.environ)
     if not env.get('DISPLAY','').startswith(':'):
         raise RuntimeError('Private CI display required')
@@ -72,6 +72,8 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
     if halftime_bundle is not None:
         from original_halftime_gate import load_bundle,frame,score
         half_gate=load_bundle(halftime_bundle,e.REVISION,e.digest(session/'football.config'))
+    if debug_trace is not None and (not finish or not kickoff or not close_after_score or half_gate is not None or reference_output is not None):
+        raise ValueError('Debugger pilot requires isolated full normal league mode')
     if close_after_score and not finish:
         raise ValueError('Automatic close requires final score validation')
     if finish and not kickoff:
@@ -96,11 +98,32 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
         from original_league_reference_capture import ReferenceCapture
         reference=ReferenceCapture(reference_output)
     with tempfile.TemporaryFile() as log:
-        game=subprocess.Popen([str(session/'gameplayfootball')],cwd=session,
-                              env=env,stdout=log,stderr=subprocess.STDOUT)
+        command=[str(session/'gameplayfootball')]
+        game_env=env
+        if debug_trace is not None:
+            from original_normal_league_trial import event,summarize
+            debug_trace=Path(debug_trace).resolve()
+            if debug_trace.exists():
+                raise ValueError('New native debugger trace required')
+            game_env=dict(env,TRIBUN_LEAGUE_TRACE=str(debug_trace))
+            command=['gdb','-nx','-batch','-return-child-result','-ex','set confirm off',
+                '-ex','set print thread-events off','-ex','start','-x',
+                str(Path(__file__).with_name('original_normal_league_gdb.py')),
+                '-ex','continue','--args',*command]
+        game=subprocess.Popen(command,cwd=session,env=game_env,stdout=log,
+                              stderr=subprocess.STDOUT,start_new_session=debug_trace is not None)
         try:
+            native_pid=game.pid
+            if debug_trace is not None:
+                ready=wait_for(lambda:event(debug_trace,'ready'),45,game)
+                candidate_pid=ready['pid']
+                if (type(candidate_pid) is not int or candidate_pid<=1 or
+                        os.getsid(candidate_pid)!=game.pid or
+                        Path(f'/proc/{candidate_pid}/exe').resolve()!=(session/'gameplayfootball').resolve()):
+                    raise RuntimeError('Debugger inferior is not the private native executable')
+                native_pid=candidate_pid
             def window():
-                p=subprocess.run(['xdotool','search','--onlyvisible','--pid',str(game.pid),
+                p=subprocess.run(['xdotool','search','--onlyvisible','--pid',str(native_pid),
                                   '--name','^League Soccer$'],env=env,capture_output=True,
                                  text=True,timeout=5)
                 return p.stdout.strip().splitlines()[0] if p.returncode==0 and p.stdout.strip() else None
@@ -108,7 +131,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
             wid=wait_for(window,60,game)
             time.sleep(5)
             e.call(['xdotool','windowfocus','--sync',wid],env)
-            if opened_database(game.pid,expected):
+            if opened_database(native_pid,expected):
                 raise RuntimeError('Restored DB opened before UI selection')
             # Intro -> main menu; Quick Match initially focused. One Down
             # selects League Mode; Load Saved is focused on the next page.
@@ -118,14 +141,14 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                 press_key(key,env)
                 print('Native navigation step '+str(index)+': '+key,flush=True)
                 diagnostic_frame(f'{index:02d}-{key}',env)
-                if opened_database(game.pid,expected):
+                if opened_database(native_pid,expected):
                     break
-            wait_for(lambda: opened_database(game.pid,expected),15,game)
+            wait_for(lambda: opened_database(native_pid,expected),15,game)
             time.sleep(2)
-            if game.poll() is not None or not opened_database(game.pid,expected):
+            if game.poll() is not None or not opened_database(native_pid,expected):
                 raise RuntimeError('Native restored database did not remain open')
             print(json.dumps(dict(nativeMenuReopenVerified=True,restoredAutosaveOpened=True,
-                  defaultConfigLaunch=True,commandArgumentCount=0,
+                  defaultConfigLaunch=debug_trace is None,commandArgumentCount=0,
                   gameProcessAlive=True,normalExitVerified=False,
                   scope='Native UI keyboard navigation and process file descriptor; not a full resumed match.')),
                   flush=True)
@@ -149,13 +172,13 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                     diagnostic_frame(f'kickoff-{step:02d}',env)
                 wait_for(match_created,120,game)
                 time.sleep(5)
-                if game.poll() is not None or not opened_database(game.pid,expected):
+                if game.poll() is not None or not opened_database(native_pid,expected):
                     raise RuntimeError('Native match session lost its restored league')
                 diagnostic_frame('kickoff-04-created',env)
                 print(json.dumps(dict(nativeMatchConstructionVerified=True,
                     nativeMenuKickoffSequenceVerified=True,expectedFixture=fixture,
                     expectedFixtureIndependentlyConfirmedInMatch=False,
-                    defaultConfigLaunch=True,commandArgumentCount=0,
+                    defaultConfigLaunch=debug_trace is None,commandArgumentCount=0,
                     matchCompleted=False,normalExitVerified=False,
                     automaticProductionKickoff=False,
                     scope='Disposable UI input, upstream match constructor logs and open autosave; not completed match or independent team identity evidence')),flush=True)
@@ -164,7 +187,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                     # or send a Continue command. Review exported frames offline.
                     deadline=time.monotonic()+420
                     while time.monotonic()<deadline and game.poll() is None:
-                        if not opened_database(game.pid,expected):
+                        if not opened_database(native_pid,expected):
                             raise RuntimeError('Restored league lost during reference collection')
                         reference.sample(env,'post-kickoff-unlabeled')
                         time.sleep(6)
@@ -173,13 +196,22 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                     print(json.dumps(reference.finish(e.REVISION,e.digest(session/'football.config'),fixture)),flush=True)
                 if finish:
                     half_report=None
-                    if half_gate is None:
+                    if debug_trace is not None:
+                        wait_for(lambda:event(debug_trace,'half-menu'),900,game)
+                        if not opened_database(native_pid,expected):
+                            raise RuntimeError('Reserved autosave lost at observed halftime')
+                        diagnostic_frame('pilot-half',env)
+                        e.call(['xdotool','windowfocus','--sync',wid],env)
+                        press_key('Return',env)
+                        wait_for(lambda:event(debug_trace,'half-continue'),30,game)
+                        half_report=dict(nativePhaseMenuObserved=True,nativeContinueObserved=True,singleContinueSent=True)
+                    elif half_gate is None:
                         print('At halftime, continue the match in the private display. Do not start another match.',flush=True)
                     else:
                         def half_ready():
                             if fresh_history(session,names) is not None:
                                 raise RuntimeError('Full time reached without verified halftime transition')
-                            if not opened_database(game.pid,expected):
+                            if not opened_database(native_pid,expected):
                                 raise RuntimeError('Reserved autosave lost before halftime')
                             return half_gate.observe(frame(env))
                         wait_for(half_ready,2700,game)
@@ -187,7 +219,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         diagnostic_frame('half-01-verified-screen',env)
                         # Recheck both regions immediately before the single input.
                         current=frame(env)
-                        if min(score(r,current) for r in half_gate.regions)<.98 or not opened_database(game.pid,expected):
+                        if min(score(r,current) for r in half_gate.regions)<.98 or not opened_database(native_pid,expected):
                             raise RuntimeError('Halftime screen changed before Continue')
                         e.call(['xdotool','windowfocus','--sync',wid],env)
                         press_key('Return',env)
@@ -199,11 +231,14 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         wait_for(half_departed,30,game)
                         half_report.update(singleContinueSent=True,halftimeScreenDeparted=True)
                         print(json.dumps(dict(calibratedHalftimeTransition=half_report,secondHalfGameplayIndependentlyVerified=False)),flush=True)
-                    final=wait_for(lambda: fresh_history(session,names),5400,game)
+                    final=wait_for(lambda: fresh_history(session,names),900 if debug_trace is not None else 5400,game)
+                    if debug_trace is not None:
+                        wait_for(lambda:event(debug_trace,'fulltime'),30,game)
+                        summarize(debug_trace,fixture,final['history'])
                     diagnostic_frame('finish-01-native-history',env)
                     # GameOverPage saves fresh history and focuses Continue.
                     # Only act after the native full-time row is verified.
-                    if not opened_database(game.pid,expected):
+                    if not opened_database(native_pid,expected):
                         raise RuntimeError('Reserved autosave lost at full time')
                     time.sleep(1)
                     if fresh_history(session,names)!=final:
@@ -213,7 +248,8 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                     candidate=wait_for(lambda: reserved_score_saved(expected,fixture,previous,final['history']),60,game)
                     diagnostic_frame('finish-02-score-saved',env)
                     print(json.dumps(dict(nativeContinueScoreCandidate=candidate,automaticFinalContinue=True,
-                                          automaticHalftimeVerified=False,calibratedHalftimeTransition=half_report,scoreWrittenByBridge=False)),flush=True)
+                                          automaticHalftimeVerified=debug_trace is not None,calibratedHalftimeTransition=half_report if debug_trace is None else None,
+                                          debuggerHalftimeTransition=half_report if debug_trace is not None else None,scoreWrittenByBridge=False)),flush=True)
                     if close_after_score:
                         # Request graceful closure through the window manager.
                         # Never use xdotool windowkill/windowclose or signals as
@@ -240,6 +276,14 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                                   scoreWrittenByBridge=False,defaultConfigLaunch=True,
                                   gracefulWindowCloseRequested=close_after_score,
                                   automaticNormalExitVerified=close_after_score)
+                    if debug_trace is not None:
+                        report.update(summarize(debug_trace,fixture,report['history']),
+                                      experimentalClockConfiguration=True,defaultConfigLaunch=False,
+                                      nativeSourcePatched=False,actualLeagueFixtureVerified=True,
+                                      automaticHalftimeVerified=True,productionScoreWritten=False,
+                                      calibratedHalftimeTransition=None,debuggerHalftimeTransition=half_report)
+                        with debug_trace.with_suffix('.json').open('x') as out:
+                            json.dump(report,out,indent=2,allow_nan=False)
                     print(json.dumps(report),flush=True)
         except Exception:
             diagnostic_frame('99-failure',env)
@@ -247,6 +291,12 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
             print(log.read()[-6000:].decode(errors='replace'),file=sys.stderr)
             raise
         finally:
+            if debug_trace is not None and game.poll() is None:
+                # Only the inferior launched by this private debugger.
+                import signal
+                if 'native_pid' in locals() and native_pid!=game.pid:
+                    try: os.kill(native_pid,signal.SIGTERM)
+                    except ProcessLookupError: pass
             if game.poll() is None:
                 game.terminate()
                 try:
@@ -256,13 +306,16 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                     game.wait()
 
 
-def managed_private_finish(session,bundle):
+def managed_private_finish(session,bundle=None,debug_trace=None):
     """Run the finish monitor only under a private Xvfb with its own WM."""
     env=e.clean_env(os.environ)
     if not env.get('DISPLAY','').startswith(':'):
         raise RuntimeError('Private display required')
-    from original_halftime_gate import load_bundle
-    load_bundle(bundle,e.REVISION,e.digest(Path(session)/'football.config'),require_league=True)
+    if (bundle is None)==(debug_trace is None):
+        raise ValueError('Exactly one private halftime observation method required')
+    if bundle is not None:
+        from original_halftime_gate import load_bundle
+        load_bundle(bundle,e.REVISION,e.digest(Path(session)/'football.config'),require_league=True)
     wm=subprocess.Popen(['openbox','--sm-disable'],env=env,
                         stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     try:
@@ -275,7 +328,7 @@ def managed_private_finish(session,bundle):
             time.sleep(.2)
         else:
             raise RuntimeError('Private window manager unavailable')
-        run(session,kickoff=True,finish=True,halftime_bundle=bundle,close_after_score=True)
+        run(session,kickoff=True,finish=True,halftime_bundle=bundle,close_after_score=True,debug_trace=debug_trace)
     finally:
         if wm.poll() is None:
             wm.terminate()
@@ -285,7 +338,13 @@ def managed_private_finish(session,bundle):
 
 
 if __name__=='__main__':
-    if len(sys.argv)==4 and sys.argv[1]=='--capture-league-references':
+    if len(sys.argv)==4 and sys.argv[1]=='--private-debugger-league':
+        e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
+                sys.executable,Path(__file__).resolve(),'--inside-debugger-league',
+                Path(sys.argv[2]).resolve(),Path(sys.argv[3]).resolve()],e.clean_env(os.environ))
+    elif len(sys.argv)==4 and sys.argv[1]=='--inside-debugger-league':
+        managed_private_finish(Path(sys.argv[2]),debug_trace=Path(sys.argv[3]))
+    elif len(sys.argv)==4 and sys.argv[1]=='--capture-league-references':
         e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
                 sys.executable,Path(__file__).resolve(),'--inside-league-references',
                 Path(sys.argv[2]).resolve(),Path(sys.argv[3]).resolve()],e.clean_env(os.environ))

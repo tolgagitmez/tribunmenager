@@ -29,6 +29,9 @@ on:
       - 'original_player_evidence.py'
       - 'original_native_player_gdb.py'
       - 'original_native_player_probe.py'
+      - 'original_normal_league_gdb.py'
+      - 'original_normal_league_trial.py'
+      - 'tests/test_original_normal_league_trial.py'
       - 'original_native_player_timeline.py'
       - 'original_native_assist_candidates.py'
       - 'tests/test_original_native_assist_candidates.py'
@@ -401,23 +404,24 @@ jobs:
 
   native-player-observer:
     runs-on: ubuntu-22.04
-    timeout-minutes: 50
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - name: Validate native player snapshot contract
         run: |
-          python3 -m py_compile original_native_player_gdb.py original_native_player_probe.py
+          python3 -m py_compile original_native_player_gdb.py original_native_player_probe.py original_normal_league_gdb.py original_normal_league_trial.py original_native_reload_probe.py
+          python3 -m unittest discover -s tests -p test_original_normal_league_trial.py -v
           python3 -m unittest discover -s tests -p test_original_native_player_probe.py -v
           python3 -m unittest discover -s tests -p test_original_native_player_timeline.py -v
           python3 -m unittest discover -s tests -p test_original_native_assist_candidates.py -v
       - name: Install native build and debugger dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth gdb
+          sudo apt-get install -y cmake ninja-build build-essential libboost-dev libsqlite3-dev pkg-config libgl1-mesa-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libopenal-dev xvfb xauth gdb xdotool ffmpeg openbox wmctrl x11-utils
       - name: Build and verify unchanged release package
         run: python3 start.py --mode original --original-build-only
       - name: Observe final player fields in separate symbol build
-        run: python3 original_native_player_probe.py "$RUNNER_TEMP/native-player-observation.json" --timeline --assists
+        run: python3 original_native_player_probe.py "$RUNNER_TEMP/native-player-observation.json" --timeline --assists --league-trial "$RUNNER_TEMP/native-normal-league-trial"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -427,6 +431,7 @@ jobs:
             ${{ runner.temp }}/native-player-observation.json
             ${{ runner.temp }}/native-player-observation-debugger.log
             ${{ runner.temp }}/native-player-observation-records.log
+            ${{ runner.temp }}/native-normal-league-trial/
 
   league-reference-capture:
     # Run on the dedicated integration PR as well as explicit manual requests.

@@ -77,7 +77,7 @@ def parse_log(text):
         raise ValueError('Expected exactly one successful final debugger snapshot; records='+str(len(lines))+'; diagnostics='+json.dumps(diagnostic))
     return json.loads(lines[0])
 
-def run(output, timeline=False, assists=False):
+def run(output, timeline=False, assists=False, league_trial=None):
     if assists and not timeline:
         raise ValueError('Assist observation requires timeline mode')
     env=e.clean_env(os.environ)
@@ -152,6 +152,9 @@ def run(output, timeline=False, assists=False):
         with output.open('x') as f:
             json.dump(report,f,indent=2,allow_nan=False)
         print(json.dumps(report),flush=True)
+        if league_trial is not None:
+            from original_normal_league_trial import run_trial
+            run_trial(work,build,env,league_trial)
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
@@ -159,13 +162,15 @@ def main():
     p.add_argument('--inside-private-xvfb',action='store_true')
     p.add_argument('--timeline',action='store_true')
     p.add_argument('--assists',action='store_true')
+    p.add_argument('--league-trial',type=Path)
     a=p.parse_args()
     if a.inside_private_xvfb:
-        run(a.output,a.timeline or a.assists,a.assists)
+        run(a.output,a.timeline or a.assists,a.assists,a.league_trial)
     else:
         e.call(['xvfb-run','-a','-s','-screen 0 1280x1024x24 -nolisten tcp',
                 sys.executable,Path(__file__).resolve(),a.output.resolve(),'--inside-private-xvfb',
-                *(['--timeline'] if a.timeline else []),*(['--assists'] if a.assists else [])],e.clean_env(os.environ))
+                *(['--timeline'] if a.timeline else []),*(['--assists'] if a.assists else []),
+                *(['--league-trial',a.league_trial.resolve()] if a.league_trial else [])],e.clean_env(os.environ))
 
 if __name__=='__main__':
     main()
