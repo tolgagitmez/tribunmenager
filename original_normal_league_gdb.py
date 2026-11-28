@@ -13,6 +13,7 @@ game_ready=False
 pause_seen=False
 input_out=open(os.environ['TRIBUN_LEAGUE_TRACE']+'.inputs','x',encoding='utf-8',buffering=1)
 input_count=0
+last_sides=None
 
 def input_record(kind,**fields):
     global input_count
@@ -93,8 +94,10 @@ class SDLEscape(gdb.Breakpoint):
         try:
             event=gdb.newest_frame().read_var('event')
             kind=int(event['type'])
-            if kind in (768,769) and int(event['key']['keysym']['sym'])==27:
-                input_record('sdl-escape',pressed=kind==768,repeat=int(event['key']['repeat']))
+            if kind in (768,769):
+                key=int(event['key']['keysym']['sym'])
+                if key in (27,13,1073741903,1073741904,1073741905,1073741906) and not int(event['key']['repeat']):
+                    input_record('sdl-key',key=key,pressed=kind==768)
         except Exception as exc:
             input_record('diagnostic-error',message=str(exc))
             self.enabled=False
@@ -136,7 +139,6 @@ class PauseMenu(gdb.Breakpoint):
         try:
             control('pause-menu',humanCounts=human_counts(active_match()))
             pause_seen=True
-            sdl_observer.enabled=False
             keyboard_observer.enabled=False
             focus_observer.enabled=True
         except Exception as exc:
@@ -151,8 +153,30 @@ class ControllerMenu(gdb.Breakpoint):
             control('controller-menu',humanCounts=human_counts(active_match()))
             control_menu_seen=True
             focus_observer.enabled=False
+            sides_observer.enabled=True
         except Exception as exc:
             control('error',message=str(exc))
+        return False
+
+class ControllerSides(gdb.Breakpoint):
+    def stop(self):
+        global last_sides
+        try:
+            page=gdb.newest_frame().read_var('this').dereference()
+            if not bool(page['inGame']):
+                return False
+            v=page['sides']['_M_impl']
+            start=v['_M_start']
+            count=int(v['_M_finish']-start)
+            if not 1<=count<=16:
+                raise ValueError('Unexpected native controller count')
+            sides=[int((start+i).dereference()['side']) for i in range(count)]
+            if sides!=last_sides:
+                last_sides=sides
+                input_record('controller-sides',sides=sides)
+        except Exception as exc:
+            self.enabled=False
+            input_record('diagnostic-error',message=str(exc))
         return False
 
 class ControlApplied(gdb.FinishBreakpoint):
@@ -173,6 +197,7 @@ class ControllerUpdate(gdb.Breakpoint):
         if not control_menu_seen:
             return False
         self.enabled=False
+        sides_observer.enabled=False
         try:
             if int(gdb.newest_frame().read_var('this'))!=tracked:
                 raise ValueError('Controller update on different match')
@@ -188,6 +213,7 @@ class ResumeFinished(gdb.FinishBreakpoint):
             if bool(m['pause']) or human_counts(m)!=[0,0]:
                 raise ValueError('Native resume did not leave an unpaused CPU match')
             control('resumed',humanCounts=[0,0],clockMs=int(m['matchTime_ms']))
+            sdl_observer.enabled=False
         except Exception as exc:
             control('error',message=str(exc))
         return False
@@ -277,7 +303,8 @@ gdb.execute('set pagination off')
 sdl_observer=SDLEscape('blunted::UserEventManager::InputSDLEvent',internal=True)
 keyboard_observer=GameplayKeyboard('GamePage::ProcessKeyboardEvent',internal=True)
 focus_observer=PauseFocus('blunted::Gui2WindowManager::SetFocus',internal=True)
-for observer in (sdl_observer,keyboard_observer,focus_observer):
+sides_observer=ControllerSides('ControllerSelectPage::SetImagePositions',internal=True)
+for observer in (sdl_observer,keyboard_observer,focus_observer,sides_observer):
     if observer.pending:
         raise ValueError('Unresolved native input observation')
     observer.enabled=False
