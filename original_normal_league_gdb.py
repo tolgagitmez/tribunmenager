@@ -223,7 +223,8 @@ class ResumeFinished(gdb.FinishBreakpoint):
             m=active_match()
             if bool(m['pause']) or human_counts(m)!=[0,0]:
                 raise ValueError('Native resume did not leave an unpaused CPU match')
-            control('resumed',humanCounts=[0,0],clockMs=int(m['matchTime_ms']))
+            control('resumed',humanCounts=[0,0],clockMs=int(m['matchTime_ms']),
+                    monotonic=time.monotonic())
             sdl_observer.enabled=False
         except Exception as exc:
             control('error',message=str(exc))

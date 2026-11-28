@@ -341,6 +341,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                     press_key(key,env)
                     diagnostic_frame(f'kickoff-{step:02d}',env)
                 wait_for(match_created,120,game)
+                construction_observed=time.monotonic()
                 time.sleep(5)
                 if game.poll() is not None or not opened_database(native_pid,expected):
                     raise RuntimeError('Native match session lost its restored league')
@@ -456,9 +457,10 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                         half_report.update(singleContinueSent=True,halftimeScreenDeparted=True)
                         print(json.dumps(dict(calibratedHalftimeTransition=half_report,secondHalfGameplayIndependentlyVerified=False)),flush=True)
                     final=wait_for(lambda: fresh_history(session,names),900 if debug_trace is not None else 5400,game)
+                    history_observed=time.monotonic()
                     if debug_trace is not None:
                         wait_debug_phase('fulltime',30)
-                        summarize(debug_trace,fixture,final['history'])
+                        summarize(debug_trace,fixture,final['history'],resumed)
                     diagnostic_frame('finish-01-native-history',env)
                     # GameOverPage saves fresh history and focuses Continue.
                     # Only act after the native full-time row is verified.
@@ -494,6 +496,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                     report=verify_restored_fixture(session,fixture,previous)
                     if report['history']!=final['history']:
                         raise RuntimeError('Closed history changed after final Continue')
+                    report['constructionObservedToHistoryObservedSeconds']=round(history_observed-construction_observed,3)
                     report.update(normalExitVerified=True,automaticFinalContinue=True,
                                   automaticHalftimeVerified=half_report is not None,calibratedHalftimeTransition=half_report,
                                   automaticProductionKickoff=False,
@@ -501,7 +504,7 @@ def run(session,kickoff=False,finish=False,halftime_bundle=None,close_after_scor
                                   gracefulWindowCloseRequested=close_after_score,
                                   automaticNormalExitVerified=close_after_score)
                     if debug_trace is not None:
-                        report.update(summarize(debug_trace,fixture,report['history']),
+                        report.update(summarize(debug_trace,fixture,report['history'],resumed),
                                       experimentalClockConfiguration=True,defaultConfigLaunch=False,
                                       nativeSourcePatched=False,actualLeagueFixtureVerified=True,
                                       nativeBothTeamsCpuVerified=True,

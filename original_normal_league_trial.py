@@ -75,7 +75,7 @@ def regulation_timing(first,half,end):
                 scope='Read-only debugger phase boundary timing; residual is not a measured CPU or FPS bottleneck')
 
 
-def summarize(path,fixture,history):
+def summarize(path,fixture,history,resumed=None):
     rows=trace_records(path)
     if len(rows)!=len(ORDER):
         raise ValueError('Incomplete normal league phase evidence')
@@ -89,11 +89,20 @@ def summarize(path,fixture,history):
     if final['clockMs']!=history['nativeMatchClockMs'] or final['score']!=[history['homeGoals'],history['awayGoals']]:
         raise ValueError('Native final observation differs from closed history')
     duration=end['monotonic']-first['monotonic']
+    timing=regulation_timing(first,half,end)
+    if resumed is not None:
+        start=resumed.get('monotonic')
+        if (resumed.get('kind')!='resumed' or resumed.get('humanCounts')!=[0,0] or
+                type(start) not in (int,float) or not first['monotonic']<=start<=half['monotonic']):
+            raise ValueError('Invalid CPU match resume boundary')
+        timing.update(firstHalfStartToCpuResumeSeconds=round(start-first['monotonic'],3),
+                      cpuResumeToRegulationEndSeconds=round(end['monotonic']-start,3),
+                      cpuResumeToFulltimeScreenSeconds=round(final['monotonic']-start,3))
     return dict(normalLeaguePhaseSequenceVerified=True,expectedFixtureIndependentlyConfirmedInMatch=True,
                 configuredInPlayMinutes=5,smokeAccelerationDisabled=True,
                 observedRegulationPhaseSpanSeconds=round(duration,3),
                 differenceFrom300Seconds=round(duration-300,3),
-                regulationTiming=regulation_timing(first,half,end),
+                regulationTiming=timing,
                 observedHalftimeMenuSeconds=round(by['half-continue']['monotonic']-by['half-menu']['monotonic'],3),
                 firstHalfEndClockMs=half['clockMs'],secondHalfEndClockMs=end['clockMs'],
                 debuggerTimingOnly=True,realTime300SecondMatchVerified=False,

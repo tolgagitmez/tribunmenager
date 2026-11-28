@@ -168,6 +168,14 @@ class NormalLeagueTrialTests(unittest.TestCase):
             history=dict(nativeMatchClockMs=5400000,homeGoals=1,awayGoals=0)
             report=summarize(path,fixture,history)
             self.assertEqual(report['observedRegulationPhaseSpanSeconds'],335)
+            resumed=dict(kind='resumed',humanCounts=[0,0],monotonic=35)
+            observed=summarize(path,fixture,history,resumed)['regulationTiming']
+            self.assertEqual(observed['firstHalfStartToCpuResumeSeconds'],25)
+            self.assertEqual(observed['cpuResumeToRegulationEndSeconds'],310)
+            self.assertEqual(observed['cpuResumeToFulltimeScreenSeconds'],313)
+            for bad in (None,True,float('nan'),9,176):
+                with self.assertRaises(ValueError):
+                    summarize(path,fixture,history,dict(resumed,monotonic=bad))
             timing=report['regulationTiming']['total']
             self.assertEqual(timing['wallSeconds'],335)
             self.assertEqual(timing['unpausedSimulationSeconds'],330)
