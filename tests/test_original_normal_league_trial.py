@@ -4,7 +4,28 @@ import tempfile
 import unittest
 from original_normal_league_trial import ORDER,trace_records,summarize,trial_config
 
+from original_native_reload_probe import controller_event
+
 class NormalLeagueTrialTests(unittest.TestCase):
+    def test_native_controller_observation_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            trace=Path(tmp)/'phases.jsonl'
+            controls=Path(str(trace)+'.controls')
+            self.assertIsNone(controller_event(trace,'controller-menu'))
+            menu=dict(kind='controller-menu',humanCounts=[1,0])
+            cpu=dict(kind='cpu-control',humanCounts=[0,0])
+            controls.write_text(json.dumps(menu)+'\n'+json.dumps(cpu))
+            self.assertEqual(controller_event(trace,'controller-menu'),menu)
+            self.assertIsNone(controller_event(trace,'cpu-control'))
+            controls.write_text(json.dumps(menu)+'\n'+json.dumps(cpu)+'\n')
+            self.assertEqual(controller_event(trace,'cpu-control'),cpu)
+            controls.write_text(json.dumps(cpu)+'\n')
+            with self.assertRaises(ValueError):
+                controller_event(trace,'cpu-control')
+            controls.write_text(json.dumps(dict(kind='error',message='debugger failure'))+'\n')
+            with self.assertRaises(RuntimeError):
+                controller_event(trace,'cpu-control')
+
     def test_supported_clock_configuration(self):
         raw=b'"match_duration_minutes" "25"\n"match_difficulty" "0.5"\n'
         result=trial_config(raw)
